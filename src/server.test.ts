@@ -124,6 +124,21 @@ test("auth and trip APIs use Postgres", {
   const bob = withBob.data.trip.participants.find(({ name }) => name === "Bob");
   assert.ok(bob);
 
+  const withBobby = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}`,
+    {
+      body: JSON.stringify({ name: "Bobby" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(withBobby.response.status, 200);
+  assert.equal(
+    withBobby.data.trip.participants.find(({ id }) => id === bob.id)?.name,
+    "Bobby",
+  );
+
   const withExpense = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}/expenses`,
@@ -230,6 +245,17 @@ test("auth and trip APIs use Postgres", {
     },
   );
   assert.equal(forbiddenRename.response.status, 404);
+
+  const forbiddenParticipantRename = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}`,
+    {
+      body: JSON.stringify({ name: "Hack" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenParticipantRename.response.status, 404);
 
   const forbiddenDelete = await api<{ error: string }>(
     baseUrl,

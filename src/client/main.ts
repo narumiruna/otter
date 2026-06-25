@@ -221,7 +221,18 @@ function tripView(payload: TripPayload): string {
             <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
             <button type="submit">新增參與者</button>
           </form>
-          <ul class="list">${trip.participants.map((person) => `<li>${htmlEscape(person.name)}</li>`).join("")}</ul>
+          <ul class="list">${trip.participants
+            .map(
+              (person) => `
+                <li>
+                  <div class="row">
+                    <span>${htmlEscape(person.name)}</span>
+                    <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">重新命名</button>
+                  </div>
+                </li>
+              `,
+            )
+            .join("")}</ul>
         </article>
         <article class="card stack">
           <h3>新增支出</h3>
@@ -517,6 +528,33 @@ function bindHandlers() {
         );
         await loadTrips();
         setMessage("已新增參與者");
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-rename-participant-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const participantId = button.dataset.renameParticipantId;
+        const name = prompt(
+          "新的參與者名稱",
+          button.dataset.participantName ?? "",
+        );
+        if (!tripId || !participantId || name === null) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/participants/${participantId}`,
+            {
+              body: JSON.stringify({ name }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新參與者名稱");
+        });
       });
     });
 

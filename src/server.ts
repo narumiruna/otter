@@ -752,6 +752,40 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  app.patch(
+    "/api/trips/:tripId/participants/:participantId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const name = stringField(requestBody(req), "name");
+      if (!name || name.length > 80) {
+        sendError(res, 400, "請輸入 1-80 字的參與者名稱");
+        return;
+      }
+
+      const renamed = await pool.query(
+        "UPDATE participants SET name = $1 WHERE trip_id = $2 AND id = $3",
+        [name, trip.id, req.params.participantId],
+      );
+      if (renamed.rowCount === 0) {
+        sendError(res, 404, "找不到參與者");
+        return;
+      }
+
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after participant rename");
+      }
+      res.json(tripPayload(updated));
+    }),
+  );
+
   app.post(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,
