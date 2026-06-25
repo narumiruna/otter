@@ -85,6 +85,31 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(duplicateTripRename.response.status, 409);
   assert.equal(duplicateTripRename.data.error, "旅行名稱已存在");
 
+  const rebasedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ baseCurrency: "USD" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(rebasedTrip.response.status, 200);
+  assert.equal(rebasedTrip.data.trip.name, "Kyoto");
+  assert.equal(rebasedTrip.data.trip.baseCurrency, "USD");
+
+  const invalidBaseCurrency = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ baseCurrency: "BTC" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(invalidBaseCurrency.response.status, 400);
+  assert.equal(invalidBaseCurrency.data.error, "不支援的基準貨幣");
+
   const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
       email: `bob-${Date.now()}@example.com`,
@@ -116,6 +141,17 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
     { headers: { cookie: otherCookie }, method: "DELETE" },
   );
   assert.equal(forbiddenDelete.response.status, 404);
+
+  const forbiddenBaseCurrency = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ baseCurrency: "TWD" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenBaseCurrency.response.status, 404);
 
   const deletedTrip = await api<{ ok: true }>(
     baseUrl,

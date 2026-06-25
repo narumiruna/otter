@@ -388,6 +388,31 @@ test(
     );
     assert.equal(forbiddenExpenseCurrency.response.status, 404);
 
+    const rebasedTrip = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}`,
+      {
+        body: JSON.stringify({ baseCurrency: "USD" }),
+        headers: { cookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(rebasedTrip.response.status, 200);
+    assert.equal(rebasedTrip.data.trip.baseCurrency, "USD");
+    assert.deepEqual(
+      rebasedTrip.data.balances.map(
+        ({ amountMinor, currency, participantId }) => ({
+          amountMinor,
+          currency,
+          participantId,
+        }),
+      ),
+      [
+        { amountMinor: -20000, currency: "USD", participantId: owner.id },
+        { amountMinor: 20000, currency: "USD", participantId: bob.id },
+      ],
+    );
+
     const loadedTrip = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}`,

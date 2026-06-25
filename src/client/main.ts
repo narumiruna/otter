@@ -235,6 +235,7 @@ function tripView(payload: TripPayload): string {
           <h2>${htmlEscape(trip.name)}</h2>
           <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
           <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
+          <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
           <button id="rename-trip" class="secondary" type="button">重新命名</button>
           <button id="delete-trip" class="danger" type="button">刪除旅行</button>
         </div>
@@ -551,6 +552,33 @@ function bindHandlers() {
         });
         await loadTrips();
         setMessage("已更新旅行名稱");
+      });
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#edit-trip-base-currency")
+    ?.addEventListener("click", () => {
+      const tripId = state.selected?.trip.id;
+      const currentCurrency = state.selected?.trip.baseCurrency ?? "TWD";
+      const choice = prompt(
+        `新的基準貨幣編號：\n${currencies.map((currency, index) => `${index + 1}. ${currency} · ${currencyInfo[currency].label}`).join("\n")}`,
+        String(currencies.indexOf(currentCurrency) + 1 || 1),
+      );
+      if (!tripId || choice === null) {
+        return;
+      }
+
+      void run(async () => {
+        const baseCurrency = currencies[Number(choice) - 1];
+        if (!baseCurrency) {
+          throw new Error("請輸入有效基準貨幣編號");
+        }
+        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+          body: JSON.stringify({ baseCurrency }),
+          method: "PATCH",
+        });
+        await loadTrips();
+        setMessage("已更新基準貨幣");
       });
     });
 

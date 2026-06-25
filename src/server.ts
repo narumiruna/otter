@@ -296,7 +296,15 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      const name = stringField(requestBody(req), "name");
+      const body = requestBody(req);
+      const hasName = "name" in body;
+      const hasBaseCurrency = "baseCurrency" in body;
+      if (!hasName && !hasBaseCurrency) {
+        sendError(res, 400, "請提供要更新的旅行內容");
+        return;
+      }
+
+      const name = hasName ? stringField(body, "name") : trip.name;
       if (!name || name.length > 100) {
         sendError(res, 400, "請輸入 1-100 字的旅行名稱");
         return;
@@ -306,9 +314,17 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
+      const baseCurrencyValue = hasBaseCurrency
+        ? body.baseCurrency
+        : trip.baseCurrency;
+      if (!isCurrency(baseCurrencyValue)) {
+        sendError(res, 400, "不支援的基準貨幣");
+        return;
+      }
+
       await pool.query(
-        "UPDATE trips SET name = $1 WHERE id = $2 AND owner_id = $3",
-        [name, req.params.tripId, user.id],
+        "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
+        [name, baseCurrencyValue, req.params.tripId, user.id],
       );
 
       const updated = await loadTripForUser(pool, user.id, req.params.tripId);
