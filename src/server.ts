@@ -922,6 +922,40 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  app.patch(
+    "/api/trips/:tripId/expenses/:expenseId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const description = stringField(requestBody(req), "description");
+      if (!description || description.length > 120) {
+        sendError(res, 400, "請輸入 1-120 字的支出描述");
+        return;
+      }
+
+      const renamed = await pool.query(
+        "UPDATE expenses SET description = $1 WHERE trip_id = $2 AND id = $3",
+        [description, trip.id, req.params.expenseId],
+      );
+      if (renamed.rowCount === 0) {
+        sendError(res, 404, "找不到支出");
+        return;
+      }
+
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after expense rename");
+      }
+      res.json(tripPayload(updated));
+    }),
+  );
+
   app.delete(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,

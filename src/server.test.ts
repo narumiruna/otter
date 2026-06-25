@@ -21,7 +21,7 @@ type TripPayload = {
   balances: { amountMinor: number; participantId: string }[];
   settlements: { amountMinor: number; fromId: string; toId: string }[];
   trip: {
-    expenses: { id: string }[];
+    expenses: { description: string; id: string }[];
     id: string;
     participants: { id: string; name: string }[];
   };
@@ -156,6 +156,46 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(withExpense.response.status, 201);
   assert.equal(withExpense.data.trip.expenses.length, 1);
+  const expense = withExpense.data.trip.expenses[0];
+  assert.ok(expense);
+
+  const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
+    body: JSON.stringify({
+      email: `bob-${Date.now()}@example.com`,
+      name: "Bob Owner",
+      password: "password123",
+    }),
+    method: "POST",
+  });
+  assert.equal(otherRegister.response.status, 201);
+  const otherCookie = otherRegister.response.headers
+    .get("set-cookie")
+    ?.split(";")[0];
+  assert.ok(otherCookie);
+
+  const renamedExpense = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ description: "Supper" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(renamedExpense.response.status, 200);
+  assert.equal(renamedExpense.data.trip.expenses[0]?.description, "Supper");
+
+  const forbiddenExpenseRename = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ description: "Hack" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenExpenseRename.response.status, 404);
+
   assert.deepEqual(
     withExpense.data.balances.map(({ amountMinor, participantId }) => ({
       amountMinor,
@@ -190,8 +230,6 @@ test("auth and trip APIs use Postgres", {
   assert.equal(usedParticipantDelete.response.status, 409);
   assert.equal(usedParticipantDelete.data.error, "參與者已有支出，不能刪除");
 
-  const expense = withExpense.data.trip.expenses[0];
-  assert.ok(expense);
   const afterDelete = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
@@ -247,20 +285,6 @@ test("auth and trip APIs use Postgres", {
       },
     ],
   );
-
-  const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
-    body: JSON.stringify({
-      email: `bob-${Date.now()}@example.com`,
-      name: "Bob Owner",
-      password: "password123",
-    }),
-    method: "POST",
-  });
-  assert.equal(otherRegister.response.status, 201);
-  const otherCookie = otherRegister.response.headers
-    .get("set-cookie")
-    ?.split(";")[0];
-  assert.ok(otherCookie);
 
   const forbiddenRename = await api<{ error: string }>(
     baseUrl,

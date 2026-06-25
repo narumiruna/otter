@@ -332,6 +332,7 @@ function expenseList(trip: Trip): string {
                     .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
                     .join("、")}</span>
                 </div>
+                <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
               </div>
             </li>
@@ -613,6 +614,33 @@ function bindHandlers() {
         );
         await loadTrips();
         setMessage("已記錄支出");
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.editExpenseId;
+        const description = prompt(
+          "新的支出描述",
+          button.dataset.expenseDescription ?? "",
+        );
+        if (!tripId || !expenseId || description === null) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            {
+              body: JSON.stringify({ description }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新支出描述");
+        });
       });
     });
 
