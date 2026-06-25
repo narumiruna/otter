@@ -13,6 +13,7 @@ export type Expense = {
   currency: Currency;
   paidById: string;
   participantIds: string[];
+  expenseDate: string;
   createdAt: string;
 };
 

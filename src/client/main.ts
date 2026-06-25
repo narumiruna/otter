@@ -80,6 +80,12 @@ function htmlEscape(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
+function todayDate(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 function setMessage(message: string, error = "") {
   state.message = message;
   state.error = error;
@@ -266,6 +272,7 @@ function expenseForm(trip: Trip): string {
     <form id="expense-form">
       <label>描述<input name="description" required maxlength="120" placeholder="晚餐、飯店、車票" /></label>
       <div class="grid">
+        <label>日期<input name="expenseDate" type="date" required value="${todayDate()}" /></label>
         <label>金額<input name="amount" inputmode="decimal" required placeholder="1000" /></label>
         <label>貨幣${currencySelect("currency", trip.baseCurrency)}</label>
       </div>
@@ -328,7 +335,7 @@ function expenseList(trip: Trip): string {
               <div class="row">
                 <div>
                   <strong>${htmlEscape(expense.description)}</strong><br />
-                  ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
+                  ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
                   <span class="muted">分給 ${expense.participantIds
                     .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
                     .join("、")}</span>
@@ -610,6 +617,7 @@ function bindHandlers() {
               amount: String(form.get("amount") ?? ""),
               currency: String(form.get("currency") ?? "TWD"),
               description: String(form.get("description") ?? ""),
+              expenseDate: String(form.get("expenseDate") ?? ""),
               paidById: String(form.get("paidById") ?? ""),
               participantIds,
             }),

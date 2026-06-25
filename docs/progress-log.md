@@ -13,13 +13,14 @@
 - 2026-06-25: Edit expense amounts; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Edit expense payer; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Edit expense split participants; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add expense dates; verification passed (`DATABASE_URL=... npm run migrate`, `TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Edit expense split participants | High | High | Medium | Medium | Medium | High | Medium | Medium | Completed this cycle: fixes wrong shared-by set now that amount and payer edits exist. |
-| 2 | Add expense date display/input | Medium | Medium | Medium | Medium | High | Medium | Medium | Low | Next likely candidate: useful history context with low risk. |
+| 1 | Add expense date display/input | Medium | Medium | Medium | Medium | High | High | Medium | Low | Completed this cycle: records when expenses happened with native date input. |
+| 2 | Add CSV export | Medium | Low | High | Medium | High | Medium | Medium | Low | Next likely candidate: useful reporting after core entry fields are complete. |
 | 3 | Split DB integration tests into focused files | Low | Medium | Medium | Medium | High | High | Medium | Low | Later: improves maintainability, less user-visible. |
 | 4 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 5 | Add CSV export | Medium | Low | High | Medium | High | Medium | Medium | Low | Later: useful after edit flows are complete. |
+| 5 | Edit expense currency | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because amount semantics change across currencies. |

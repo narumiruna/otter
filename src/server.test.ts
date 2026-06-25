@@ -24,6 +24,7 @@ type TripPayload = {
     expenses: {
       amountMinor: number;
       description: string;
+      expenseDate: string;
       id: string;
       participantIds: string[];
     }[];
@@ -63,7 +64,7 @@ test("auth and trip APIs use Postgres", {
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 1);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 2);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
 
   const app = createApp(pool);
@@ -144,6 +145,24 @@ test("auth and trip APIs use Postgres", {
     "Bobby",
   );
 
+  const invalidExpenseDate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses`,
+    {
+      body: JSON.stringify({
+        amount: "100",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-13-40",
+        paidById: owner.id,
+        participantIds: [owner.id, bob.id],
+      }),
+      headers: { cookie },
+      method: "POST",
+    },
+  );
+  assert.equal(invalidExpenseDate.response.status, 400);
+
   const withExpense = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}/expenses`,
@@ -152,6 +171,7 @@ test("auth and trip APIs use Postgres", {
         amount: "100",
         currency: "TWD",
         description: "Dinner",
+        expenseDate: "2026-06-24",
         paidById: owner.id,
         participantIds: [owner.id, bob.id],
       }),
@@ -161,6 +181,7 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(withExpense.response.status, 201);
   assert.equal(withExpense.data.trip.expenses.length, 1);
+  assert.equal(withExpense.data.trip.expenses[0]?.expenseDate, "2026-06-24");
   const expense = withExpense.data.trip.expenses[0];
   assert.ok(expense);
 

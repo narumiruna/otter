@@ -83,6 +83,7 @@ type ExpenseRow = {
   amount_minor: string | number;
   currency: string;
   paid_by_id: string;
+  expense_date: Date | string;
   created_at: Date | string;
 };
 
@@ -238,6 +239,27 @@ function asyncHandler(handler: Handler): Handler {
 
 function iso(value: Date | string): string {
   return (value instanceof Date ? value : new Date(value)).toISOString();
+}
+
+function dateOnly(value: Date | string): string {
+  return value instanceof Date
+    ? value.toISOString().slice(0, 10)
+    : value.slice(0, 10);
+}
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
 }
 
 function currencyFromDb(value: string): Currency {
@@ -420,7 +442,7 @@ async function loadTripForUser(
       [tripId],
     ),
     db.query<ExpenseRow>(
-      `SELECT id, description, amount_minor, currency, paid_by_id, created_at
+      `SELECT id, description, amount_minor, currency, paid_by_id, expense_date::text AS expense_date, created_at
        FROM expenses
        WHERE trip_id = $1
        ORDER BY created_at, id`,
@@ -449,6 +471,7 @@ async function loadTripForUser(
       createdAt: iso(row.created_at),
       currency: currencyFromDb(row.currency),
       description: row.description,
+      expenseDate: dateOnly(row.expense_date),
       id: row.id,
       paidById: row.paid_by_id,
       participantIds: splitsByExpense.get(row.id) ?? [],
@@ -845,6 +868,7 @@ export function createApp(pool: PgPool): express.Express {
       const amountInput = body.amount;
       const currencyValue = body.currency;
       const paidById = stringField(body, "paidById");
+      const expenseDate = stringField(body, "expenseDate") ?? todayDate();
       const participantIdsInput = body.participantIds;
 
       if (!description || description.length > 120) {
@@ -861,6 +885,10 @@ export function createApp(pool: PgPool): express.Express {
       }
       if (!Array.isArray(participantIdsInput)) {
         sendError(res, 400, "請選擇分帳參與者");
+        return;
+      }
+      if (!isDateOnly(expenseDate)) {
+        sendError(res, 400, "請輸入有效支出日期");
         return;
       }
 
@@ -892,8 +920,8 @@ export function createApp(pool: PgPool): express.Express {
       await withTransaction(pool, async (client) => {
         await client.query(
           `INSERT INTO expenses
-             (id, trip_id, description, amount_minor, currency, paid_by_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+             (id, trip_id, description, amount_minor, currency, paid_by_id, expense_date, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             expenseId,
             trip.id,
@@ -901,6 +929,7 @@ export function createApp(pool: PgPool): express.Express {
             amountMinor,
             currencyValue,
             paidById,
+            expenseDate,
             nowIso(),
           ],
         );
