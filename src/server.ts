@@ -933,24 +933,61 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      const description = stringField(requestBody(req), "description");
+      const expense = trip.expenses.find(
+        (item) => item.id === req.params.expenseId,
+      );
+      if (!expense) {
+        sendError(res, 404, "找不到支出");
+        return;
+      }
+
+      const body = requestBody(req);
+      const hasDescription = "description" in body;
+      const hasAmount = "amount" in body;
+      if (!hasDescription && !hasAmount) {
+        sendError(res, 400, "請提供要更新的支出內容");
+        return;
+      }
+
+      const description = hasDescription
+        ? stringField(body, "description")
+        : expense.description;
       if (!description || description.length > 120) {
         sendError(res, 400, "請輸入 1-120 字的支出描述");
         return;
       }
 
-      const renamed = await pool.query(
-        "UPDATE expenses SET description = $1 WHERE trip_id = $2 AND id = $3",
-        [description, trip.id, req.params.expenseId],
+      let amountMinor = expense.amountMinor;
+      if (hasAmount) {
+        try {
+          amountMinor = parseAmountToMinor(
+            String(body.amount ?? ""),
+            expense.currency,
+          );
+        } catch (error) {
+          sendError(
+            res,
+            400,
+            error instanceof Error ? error.message : "金額格式錯誤",
+          );
+          return;
+        }
+      }
+
+      const updatedExpense = await pool.query(
+        `UPDATE expenses
+         SET description = $1, amount_minor = $2
+         WHERE trip_id = $3 AND id = $4`,
+        [description, amountMinor, trip.id, req.params.expenseId],
       );
-      if (renamed.rowCount === 0) {
+      if (updatedExpense.rowCount === 0) {
         sendError(res, 404, "找不到支出");
         return;
       }
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
-        throw new Error("Trip disappeared after expense rename");
+        throw new Error("Trip disappeared after expense update");
       }
       res.json(tripPayload(updated));
     }),

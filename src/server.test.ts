@@ -21,7 +21,7 @@ type TripPayload = {
   balances: { amountMinor: number; participantId: string }[];
   settlements: { amountMinor: number; fromId: string; toId: string }[];
   trip: {
-    expenses: { description: string; id: string }[];
+    expenses: { amountMinor: number; description: string; id: string }[];
     id: string;
     participants: { id: string; name: string }[];
   };
@@ -196,24 +196,46 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(forbiddenExpenseRename.response.status, 404);
 
+  const reamountedExpense = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ amount: "200" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(reamountedExpense.response.status, 200);
+  assert.equal(reamountedExpense.data.trip.expenses[0]?.amountMinor, 200);
   assert.deepEqual(
-    withExpense.data.balances.map(({ amountMinor, participantId }) => ({
+    reamountedExpense.data.balances.map(({ amountMinor, participantId }) => ({
       amountMinor,
       participantId,
     })),
     [
-      { amountMinor: 50, participantId: owner.id },
-      { amountMinor: -50, participantId: bob.id },
+      { amountMinor: 100, participantId: owner.id },
+      { amountMinor: -100, participantId: bob.id },
     ],
   );
   assert.deepEqual(
-    withExpense.data.settlements.map(({ amountMinor, fromId, toId }) => ({
+    reamountedExpense.data.settlements.map(({ amountMinor, fromId, toId }) => ({
       amountMinor,
       fromId,
       toId,
     })),
-    [{ amountMinor: 50, fromId: bob.id, toId: owner.id }],
+    [{ amountMinor: 100, fromId: bob.id, toId: owner.id }],
   );
+
+  const forbiddenExpenseAmount = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ amount: "300" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenExpenseAmount.response.status, 404);
 
   const loadedTrip = await api<TripPayload>(
     baseUrl,

@@ -4,6 +4,7 @@ import {
   currencies,
   currencyInfo,
   formatMinor,
+  toMajor,
 } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
 
@@ -333,6 +334,7 @@ function expenseList(trip: Trip): string {
                     .join("、")}</span>
                 </div>
                 <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
+                <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button">改金額</button>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
               </div>
             </li>
@@ -640,6 +642,33 @@ function bindHandlers() {
             },
           );
           setMessage("已更新支出描述");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-amount-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.editExpenseAmountId;
+        const amount = prompt(
+          "新的支出金額",
+          button.dataset.expenseAmount ?? "",
+        );
+        if (!tripId || !expenseId || amount === null) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            {
+              body: JSON.stringify({ amount }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新支出金額");
         });
       });
     });
