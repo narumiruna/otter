@@ -944,7 +944,8 @@ export function createApp(pool: PgPool): express.Express {
       const body = requestBody(req);
       const hasDescription = "description" in body;
       const hasAmount = "amount" in body;
-      if (!hasDescription && !hasAmount) {
+      const hasPaidBy = "paidById" in body;
+      if (!hasDescription && !hasAmount && !hasPaidBy) {
         sendError(res, 400, "請提供要更新的支出內容");
         return;
       }
@@ -974,11 +975,19 @@ export function createApp(pool: PgPool): express.Express {
         }
       }
 
+      const paidById = hasPaidBy
+        ? stringField(body, "paidById")
+        : expense.paidById;
+      if (!paidById || !participantExists(trip, paidById)) {
+        sendError(res, 400, "付款人必須是參與者");
+        return;
+      }
+
       const updatedExpense = await pool.query(
         `UPDATE expenses
-         SET description = $1, amount_minor = $2
-         WHERE trip_id = $3 AND id = $4`,
-        [description, amountMinor, trip.id, req.params.expenseId],
+         SET description = $1, amount_minor = $2, paid_by_id = $3
+         WHERE trip_id = $4 AND id = $5`,
+        [description, amountMinor, paidById, trip.id, req.params.expenseId],
       );
       if (updatedExpense.rowCount === 0) {
         sendError(res, 404, "找不到支出");

@@ -237,6 +237,46 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(forbiddenExpenseAmount.response.status, 404);
 
+  const repaidExpense = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ paidById: bob.id }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(repaidExpense.response.status, 200);
+  assert.deepEqual(
+    repaidExpense.data.balances.map(({ amountMinor, participantId }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: -100, participantId: owner.id },
+      { amountMinor: 100, participantId: bob.id },
+    ],
+  );
+  assert.deepEqual(
+    repaidExpense.data.settlements.map(({ amountMinor, fromId, toId }) => ({
+      amountMinor,
+      fromId,
+      toId,
+    })),
+    [{ amountMinor: 100, fromId: owner.id, toId: bob.id }],
+  );
+
+  const forbiddenExpensePayer = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ paidById: owner.id }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenExpensePayer.response.status, 404);
+
   const loadedTrip = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
