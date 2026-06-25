@@ -21,7 +21,12 @@ type TripPayload = {
   balances: { amountMinor: number; participantId: string }[];
   settlements: { amountMinor: number; fromId: string; toId: string }[];
   trip: {
-    expenses: { amountMinor: number; description: string; id: string }[];
+    expenses: {
+      amountMinor: number;
+      description: string;
+      id: string;
+      participantIds: string[];
+    }[];
     id: string;
     participants: { id: string; name: string }[];
   };
@@ -276,6 +281,49 @@ test("auth and trip APIs use Postgres", {
     },
   );
   assert.equal(forbiddenExpensePayer.response.status, 404);
+
+  const resplitExpense = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ participantIds: [owner.id] }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(resplitExpense.response.status, 200);
+  assert.deepEqual(resplitExpense.data.trip.expenses[0]?.participantIds, [
+    owner.id,
+  ]);
+  assert.deepEqual(
+    resplitExpense.data.balances.map(({ amountMinor, participantId }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: -200, participantId: owner.id },
+      { amountMinor: 200, participantId: bob.id },
+    ],
+  );
+  assert.deepEqual(
+    resplitExpense.data.settlements.map(({ amountMinor, fromId, toId }) => ({
+      amountMinor,
+      fromId,
+      toId,
+    })),
+    [{ amountMinor: 200, fromId: owner.id, toId: bob.id }],
+  );
+
+  const forbiddenExpenseSplit = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ participantIds: [owner.id] }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenExpenseSplit.response.status, 404);
 
   const loadedTrip = await api<TripPayload>(
     baseUrl,

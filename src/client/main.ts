@@ -336,6 +336,7 @@ function expenseList(trip: Trip): string {
                 <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
                 <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button">改金額</button>
                 <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button">改付款人</button>
+                <button class="secondary" data-edit-expense-split-id="${htmlEscape(expense.id)}" type="button">改分帳</button>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
               </div>
             </li>
@@ -705,6 +706,56 @@ function bindHandlers() {
             },
           );
           setMessage("已更新付款人");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-split-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.editExpenseSplitId;
+        const participants = state.selected?.trip.participants ?? [];
+        const expense = state.selected?.trip.expenses.find(
+          (item) => item.id === expenseId,
+        );
+        const currentChoices =
+          expense?.participantIds
+            .map((id) => participants.findIndex((person) => person.id === id))
+            .filter((index) => index >= 0)
+            .map((index) => String(index + 1))
+            .join(",") ?? "";
+        const choice = prompt(
+          `新的分帳參與者編號（逗號分隔）：\n${participants.map((person, index) => `${index + 1}. ${person.name}`).join("\n")}`,
+          currentChoices,
+        );
+        if (!tripId || !expenseId || choice === null) {
+          return;
+        }
+
+        void run(async () => {
+          const participantIds: string[] = [];
+          for (const text of new Set(
+            choice.split(/[\s,，]+/).filter(Boolean),
+          )) {
+            const participant = participants[Number(text) - 1];
+            if (!participant) {
+              throw new Error("請輸入有效分帳參與者編號");
+            }
+            participantIds.push(participant.id);
+          }
+          if (participantIds.length === 0) {
+            throw new Error("請至少選擇一位分帳參與者");
+          }
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            {
+              body: JSON.stringify({ participantIds }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新分帳參與者");
         });
       });
     });

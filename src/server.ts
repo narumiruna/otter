@@ -945,7 +945,8 @@ export function createApp(pool: PgPool): express.Express {
       const hasDescription = "description" in body;
       const hasAmount = "amount" in body;
       const hasPaidBy = "paidById" in body;
-      if (!hasDescription && !hasAmount && !hasPaidBy) {
+      const hasParticipantIds = "participantIds" in body;
+      if (!hasDescription && !hasAmount && !hasPaidBy && !hasParticipantIds) {
         sendError(res, 400, "請提供要更新的支出內容");
         return;
       }
@@ -983,12 +984,57 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      const updatedExpense = await pool.query(
-        `UPDATE expenses
-         SET description = $1, amount_minor = $2, paid_by_id = $3
-         WHERE trip_id = $4 AND id = $5`,
-        [description, amountMinor, paidById, trip.id, req.params.expenseId],
-      );
+      let participantIds = expense.participantIds;
+      if (hasParticipantIds) {
+        const participantIdsInput = body.participantIds;
+        if (!Array.isArray(participantIdsInput)) {
+          sendError(res, 400, "請選擇分帳參與者");
+          return;
+        }
+
+        const nextParticipantIds: string[] = [];
+        for (const participantId of new Set(participantIdsInput)) {
+          if (
+            typeof participantId !== "string" ||
+            !participantExists(trip, participantId)
+          ) {
+            sendError(res, 400, "分帳參與者必須是旅行參與者");
+            return;
+          }
+          nextParticipantIds.push(participantId);
+        }
+        if (nextParticipantIds.length === 0) {
+          sendError(res, 400, "請至少選擇一位分帳參與者");
+          return;
+        }
+        participantIds = nextParticipantIds;
+      }
+
+      const updatedExpense = await withTransaction(pool, async (client) => {
+        const result = await client.query(
+          `UPDATE expenses
+           SET description = $1, amount_minor = $2, paid_by_id = $3
+           WHERE trip_id = $4 AND id = $5`,
+          [description, amountMinor, paidById, trip.id, req.params.expenseId],
+        );
+        if (result.rowCount === 0 || !hasParticipantIds) {
+          return result;
+        }
+
+        await client.query(
+          "DELETE FROM expense_participants WHERE trip_id = $1 AND expense_id = $2",
+          [trip.id, req.params.expenseId],
+        );
+        for (const [index, participantId] of participantIds.entries()) {
+          await client.query(
+            `INSERT INTO expense_participants
+               (expense_id, trip_id, participant_id, position)
+             VALUES ($1, $2, $3, $4)`,
+            [req.params.expenseId, trip.id, participantId, index],
+          );
+        }
+        return result;
+      });
       if (updatedExpense.rowCount === 0) {
         sendError(res, 404, "找不到支出");
         return;
