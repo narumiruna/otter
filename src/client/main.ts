@@ -332,7 +332,7 @@ function expenseList(trip: Trip): string {
                     .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
                     .join("、")}</span>
                 </div>
-                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" type="button">刪除</button>
+                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
               </div>
             </li>
           `,
@@ -622,7 +622,8 @@ function bindHandlers() {
       button.addEventListener("click", () => {
         const tripId = state.selected?.trip.id;
         const expenseId = button.dataset.deleteExpenseId;
-        if (!tripId || !expenseId) {
+        const description = button.dataset.expenseDescription ?? "這筆支出";
+        if (!tripId || !expenseId || !confirm(`刪除 ${description}？`)) {
           return;
         }
 
