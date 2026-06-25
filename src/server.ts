@@ -974,8 +974,15 @@ export function createApp(pool: PgPool): express.Express {
       const hasDescription = "description" in body;
       const hasAmount = "amount" in body;
       const hasPaidBy = "paidById" in body;
+      const hasExpenseDate = "expenseDate" in body;
       const hasParticipantIds = "participantIds" in body;
-      if (!hasDescription && !hasAmount && !hasPaidBy && !hasParticipantIds) {
+      if (
+        !hasDescription &&
+        !hasAmount &&
+        !hasPaidBy &&
+        !hasExpenseDate &&
+        !hasParticipantIds
+      ) {
         sendError(res, 400, "請提供要更新的支出內容");
         return;
       }
@@ -1013,6 +1020,14 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
+      const expenseDate = hasExpenseDate
+        ? stringField(body, "expenseDate")
+        : expense.expenseDate;
+      if (!expenseDate || !isDateOnly(expenseDate)) {
+        sendError(res, 400, "請輸入有效支出日期");
+        return;
+      }
+
       let participantIds = expense.participantIds;
       if (hasParticipantIds) {
         const participantIdsInput = body.participantIds;
@@ -1042,9 +1057,16 @@ export function createApp(pool: PgPool): express.Express {
       const updatedExpense = await withTransaction(pool, async (client) => {
         const result = await client.query(
           `UPDATE expenses
-           SET description = $1, amount_minor = $2, paid_by_id = $3
-           WHERE trip_id = $4 AND id = $5`,
-          [description, amountMinor, paidById, trip.id, req.params.expenseId],
+           SET description = $1, amount_minor = $2, paid_by_id = $3, expense_date = $4
+           WHERE trip_id = $5 AND id = $6`,
+          [
+            description,
+            amountMinor,
+            paidById,
+            expenseDate,
+            trip.id,
+            req.params.expenseId,
+          ],
         );
         if (result.rowCount === 0 || !hasParticipantIds) {
           return result;

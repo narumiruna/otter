@@ -199,6 +199,40 @@ test("auth and trip APIs use Postgres", {
     ?.split(";")[0];
   assert.ok(otherCookie);
 
+  const redatedExpense = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ expenseDate: "2026-06-25" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(redatedExpense.response.status, 200);
+  assert.equal(redatedExpense.data.trip.expenses[0]?.expenseDate, "2026-06-25");
+
+  const invalidExpenseDateUpdate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ expenseDate: "2026-02-30" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(invalidExpenseDateUpdate.response.status, 400);
+
+  const forbiddenExpenseDate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    {
+      body: JSON.stringify({ expenseDate: "2026-06-26" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenExpenseDate.response.status, 404);
+
   const renamedExpense = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,

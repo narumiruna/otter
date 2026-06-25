@@ -357,6 +357,7 @@ function expenseList(trip: Trip): string {
                     .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
                     .join("、")}</span>
                 </div>
+                <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button">改日期</button>
                 <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
                 <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button">改金額</button>
                 <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button">改付款人</button>
@@ -658,6 +659,33 @@ function bindHandlers() {
         );
         await loadTrips();
         setMessage("已記錄支出");
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-date-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.editExpenseDateId;
+        const expenseDate = prompt(
+          "新的支出日期 (YYYY-MM-DD)",
+          button.dataset.expenseDate ?? "",
+        );
+        if (!tripId || !expenseId || expenseDate === null) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            {
+              body: JSON.stringify({ expenseDate }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新支出日期");
+        });
       });
     });
 
