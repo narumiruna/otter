@@ -182,6 +182,14 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(loadedTrip.data.trip.expenses.length, 1);
 
+  const usedParticipantDelete = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(usedParticipantDelete.response.status, 409);
+  assert.equal(usedParticipantDelete.data.error, "參與者已有支出，不能刪除");
+
   const expense = withExpense.data.trip.expenses[0];
   assert.ok(expense);
   const afterDelete = await api<TripPayload>(
@@ -203,6 +211,25 @@ test("auth and trip APIs use Postgres", {
   );
   assert.deepEqual(afterDelete.data.settlements, []);
 
+  const afterParticipantDelete = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(afterParticipantDelete.response.status, 200);
+  assert.deepEqual(
+    afterParticipantDelete.data.trip.participants.map(({ id }) => id),
+    [owner.id],
+  );
+
+  const lastParticipantDelete = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${owner.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(lastParticipantDelete.response.status, 400);
+  assert.equal(lastParticipantDelete.data.error, "至少需要一位參與者");
+
   const trips = await api<TripsResponse>(baseUrl, "/api/trips", {
     headers: { cookie },
   });
@@ -216,7 +243,7 @@ test("auth and trip APIs use Postgres", {
       {
         expenseCount: 0,
         id: createdTrip.data.trip.id,
-        participantCount: 2,
+        participantCount: 1,
       },
     ],
   );
@@ -248,7 +275,7 @@ test("auth and trip APIs use Postgres", {
 
   const forbiddenParticipantRename = await api<{ error: string }>(
     baseUrl,
-    `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}`,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${owner.id}`,
     {
       body: JSON.stringify({ name: "Hack" }),
       headers: { cookie: otherCookie },
@@ -256,6 +283,13 @@ test("auth and trip APIs use Postgres", {
     },
   );
   assert.equal(forbiddenParticipantRename.response.status, 404);
+
+  const forbiddenParticipantDelete = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants/${owner.id}`,
+    { headers: { cookie: otherCookie }, method: "DELETE" },
+  );
+  assert.equal(forbiddenParticipantDelete.response.status, 404);
 
   const forbiddenDelete = await api<{ error: string }>(
     baseUrl,

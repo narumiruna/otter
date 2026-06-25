@@ -786,6 +786,49 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  app.delete(
+    "/api/trips/:tripId/participants/:participantId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const participantId = req.params.participantId;
+      if (!participantExists(trip, participantId)) {
+        sendError(res, 404, "找不到參與者");
+        return;
+      }
+      if (trip.participants.length <= 1) {
+        sendError(res, 400, "至少需要一位參與者");
+        return;
+      }
+      if (
+        trip.expenses.some(
+          (expense) =>
+            expense.paidById === participantId ||
+            expense.participantIds.includes(participantId),
+        )
+      ) {
+        sendError(res, 409, "參與者已有支出，不能刪除");
+        return;
+      }
+
+      await pool.query(
+        "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
+        [trip.id, participantId],
+      );
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after participant delete");
+      }
+      res.json(tripPayload(updated));
+    }),
+  );
+
   app.post(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,

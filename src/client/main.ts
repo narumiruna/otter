@@ -228,6 +228,7 @@ function tripView(payload: TripPayload): string {
                   <div class="row">
                     <span>${htmlEscape(person.name)}</span>
                     <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">重新命名</button>
+                    <button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">刪除</button>
                   </div>
                 </li>
               `,
@@ -554,6 +555,28 @@ function bindHandlers() {
             },
           );
           setMessage("已更新參與者名稱");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-delete-participant-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const participantId = button.dataset.deleteParticipantId;
+        const name = button.dataset.participantName ?? "這位參與者";
+        if (!tripId || !participantId || !confirm(`刪除 ${name}？`)) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/participants/${participantId}`,
+            { method: "DELETE" },
+          );
+          await loadTrips();
+          setMessage("已刪除參與者");
         });
       });
     });
