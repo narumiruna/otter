@@ -799,6 +799,34 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  app.delete(
+    "/api/trips/:tripId/expenses/:expenseId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const deleted = await pool.query(
+        "DELETE FROM expenses WHERE trip_id = $1 AND id = $2",
+        [trip.id, req.params.expenseId],
+      );
+      if (deleted.rowCount === 0) {
+        sendError(res, 404, "找不到支出");
+        return;
+      }
+
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after expense delete");
+      }
+      res.json(tripPayload(updated));
+    }),
+  );
+
   app.use("/api", (_req, res) => {
     sendError(res, 404, "找不到 API");
   });

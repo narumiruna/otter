@@ -145,6 +145,27 @@ test("auth and trip APIs use Postgres", {
   );
   assert.equal(loadedTrip.data.trip.expenses.length, 1);
 
+  const expense = withExpense.data.trip.expenses[0];
+  assert.ok(expense);
+  const afterDelete = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(afterDelete.response.status, 200);
+  assert.equal(afterDelete.data.trip.expenses.length, 0);
+  assert.deepEqual(
+    afterDelete.data.balances.map(({ amountMinor, participantId }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: 0, participantId: owner.id },
+      { amountMinor: 0, participantId: bob.id },
+    ],
+  );
+  assert.deepEqual(afterDelete.data.settlements, []);
+
   const trips = await api<TripsResponse>(baseUrl, "/api/trips", {
     headers: { cookie },
   });
@@ -156,7 +177,7 @@ test("auth and trip APIs use Postgres", {
     })),
     [
       {
-        expenseCount: 1,
+        expenseCount: 0,
         id: createdTrip.data.trip.id,
         participantCount: 2,
       },

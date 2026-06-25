@@ -308,11 +308,16 @@ function expenseList(trip: Trip): string {
         .map(
           (expense) => `
             <li>
-              <strong>${htmlEscape(expense.description)}</strong><br />
-              ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
-              <span class="muted">分給 ${expense.participantIds
-                .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
-                .join("、")}</span>
+              <div class="row">
+                <div>
+                  <strong>${htmlEscape(expense.description)}</strong><br />
+                  ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
+                  <span class="muted">分給 ${expense.participantIds
+                    .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
+                    .join("、")}</span>
+                </div>
+                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" type="button">刪除</button>
+              </div>
             </li>
           `,
         )
@@ -505,6 +510,27 @@ function bindHandlers() {
         );
         await loadTrips();
         setMessage("已記錄支出");
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-delete-expense-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.deleteExpenseId;
+        if (!tripId || !expenseId) {
+          return;
+        }
+
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            { method: "DELETE" },
+          );
+          await loadTrips();
+          setMessage("已刪除支出");
+        });
       });
     });
 }
