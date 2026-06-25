@@ -215,6 +215,19 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
+export function participantNameExists(
+  trip: Trip,
+  name: string,
+  exceptParticipantId?: string,
+): boolean {
+  const normalized = name.trim().toLocaleLowerCase();
+  return trip.participants.some(
+    (participant) =>
+      participant.id !== exceptParticipantId &&
+      participant.name.trim().toLocaleLowerCase() === normalized,
+  );
+}
+
 export function asyncHandler(handler: Handler): Handler {
   return (req, res, next) => {
     void Promise.resolve(handler(req, res, next)).catch(next);

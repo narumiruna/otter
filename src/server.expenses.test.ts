@@ -65,6 +65,30 @@ test(
       "Bobby",
     );
 
+    const duplicateParticipantAdd = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants`,
+      {
+        body: JSON.stringify({ name: " bobby " }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(duplicateParticipantAdd.response.status, 409);
+    assert.equal(duplicateParticipantAdd.data.error, "參與者名稱已存在");
+
+    const duplicateParticipantRename = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants/${owner.id}`,
+      {
+        body: JSON.stringify({ name: "Bobby" }),
+        headers: { cookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(duplicateParticipantRename.response.status, 409);
+    assert.equal(duplicateParticipantRename.data.error, "參與者名稱已存在");
+
     const invalidExpenseDate = await api<{ error: string }>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses`,

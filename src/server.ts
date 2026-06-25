@@ -27,6 +27,7 @@ import {
   normalizeEmail,
   nowIso,
   participantExists,
+  participantNameExists,
   publicUser,
   requestBody,
   requireUser,
@@ -341,6 +342,10 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 400, "請輸入 1-80 字的參與者名稱");
         return;
       }
+      if (participantNameExists(trip, name)) {
+        sendError(res, 409, "參與者名稱已存在");
+        return;
+      }
 
       await pool.query(
         `INSERT INTO participants (id, trip_id, name, created_at)
@@ -369,6 +374,14 @@ export function createApp(pool: PgPool): express.Express {
       const name = stringField(requestBody(req), "name");
       if (!name || name.length > 80) {
         sendError(res, 400, "請輸入 1-80 字的參與者名稱");
+        return;
+      }
+      if (!participantExists(trip, req.params.participantId)) {
+        sendError(res, 404, "找不到參與者");
+        return;
+      }
+      if (participantNameExists(trip, name, req.params.participantId)) {
+        sendError(res, 409, "參與者名稱已存在");
         return;
       }
 

@@ -20,13 +20,14 @@
 - 2026-06-25: Split DB integration tests; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Split oversized server module; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Edit expense currencies; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Prevent duplicate participant names; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Edit expense currency | Medium | High | Medium | Medium | Medium | High | Medium | Medium | Completed this cycle: fixes wrong currency choices now that amount/date/payer/split edits exist. |
-| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Next likely user-facing candidate, but risky because it rewrites expense ownership. |
+| 1 | Prevent duplicate participant names | Medium | High | High | High | High | High | Low | Low | Completed this cycle: avoids the most common cause that would require risky participant merge later. |
+| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
 | 3 | Add basic print stylesheet | Low | Low | High | High | High | Low | Low | Low | Later: low impact compared with data export. |
 | 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
 | 5 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
