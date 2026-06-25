@@ -1,4 +1,5 @@
 import "./styles.css";
+import { tripExpensesCsv } from "../shared/csv.js";
 import {
   type Currency,
   currencies,
@@ -84,6 +85,21 @@ function todayDate(): string {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+function safeFilename(value: string): string {
+  return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
+}
+
+function downloadText(filename: string, text: string) {
+  const url = URL.createObjectURL(
+    new Blob([text], { type: "text/csv;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function setMessage(message: string, error = "") {
@@ -216,6 +232,7 @@ function tripView(payload: TripPayload): string {
       <article class="card stack">
         <div class="row">
           <h2>${htmlEscape(trip.name)}</h2>
+          <button id="export-expenses" class="secondary" type="button">匯出 CSV</button>
           <button id="rename-trip" class="secondary" type="button">重新命名</button>
           <button id="delete-trip" class="danger" type="button">刪除旅行</button>
         </div>
@@ -482,6 +499,21 @@ function bindHandlers() {
           await selectTrip(tripId);
         });
       });
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#export-expenses")
+    ?.addEventListener("click", () => {
+      const trip = state.selected?.trip;
+      if (!trip) {
+        return;
+      }
+      downloadText(
+        `${safeFilename(trip.name)}-expenses.csv`,
+        tripExpensesCsv(trip),
+      );
+      setMessage("已匯出 CSV");
+      render();
     });
 
   document
