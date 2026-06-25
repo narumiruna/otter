@@ -28,7 +28,12 @@ type TripPayload = {
 };
 
 type TripsResponse = {
-  trips: { expenseCount: number; id: string; participantCount: number }[];
+  trips: {
+    expenseCount: number;
+    id: string;
+    name: string;
+    participantCount: number;
+  }[];
 };
 
 test("auth and trip APIs use Postgres", {
@@ -87,6 +92,23 @@ test("auth and trip APIs use Postgres", {
     method: "POST",
   });
   assert.equal(createdTrip.response.status, 201);
+
+  const renamedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ name: "Kyoto" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(renamedTrip.response.status, 200);
+  assert.equal(renamedTrip.data.trip.name, "Kyoto");
+  const renamedTrips = await api<TripsResponse>(baseUrl, "/api/trips", {
+    headers: { cookie },
+  });
+  assert.equal(renamedTrips.data.trips[0]?.name, "Kyoto");
+
   const owner = createdTrip.data.trip.participants[0];
   assert.ok(owner);
 
@@ -197,6 +219,17 @@ test("auth and trip APIs use Postgres", {
     .get("set-cookie")
     ?.split(";")[0];
   assert.ok(otherCookie);
+
+  const forbiddenRename = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ name: "Hack" }),
+      headers: { cookie: otherCookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(forbiddenRename.response.status, 404);
 
   const forbiddenDelete = await api<{ error: string }>(
     baseUrl,

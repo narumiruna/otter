@@ -209,6 +209,7 @@ function tripView(payload: TripPayload): string {
       <article class="card stack">
         <div class="row">
           <h2>${htmlEscape(trip.name)}</h2>
+          <button id="rename-trip" class="secondary" type="button">重新命名</button>
           <button id="delete-trip" class="danger" type="button">刪除旅行</button>
         </div>
         <p class="muted">基準貨幣：${trip.baseCurrency}。匯率目前使用固定原型值，可之後改接即時匯率。</p>
@@ -456,6 +457,25 @@ function bindHandlers() {
         void run(async () => {
           await selectTrip(tripId);
         });
+      });
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#rename-trip")
+    ?.addEventListener("click", () => {
+      const tripId = state.selected?.trip.id;
+      const name = prompt("新的旅行名稱", state.selected?.trip.name ?? "");
+      if (!tripId || name === null) {
+        return;
+      }
+
+      void run(async () => {
+        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+          body: JSON.stringify({ name }),
+          method: "PATCH",
+        });
+        await loadTrips();
+        setMessage("已更新旅行名稱");
       });
     });
 
