@@ -17,13 +17,14 @@
 - 2026-06-25: Add CSV expense export; verification passed (`npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Edit expense dates; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Export balances and settlements CSV; verification passed (`npm test`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Split DB integration tests; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Export balances/settlements CSV | Medium | Low | High | High | High | High | Low | Low | Completed this cycle: lets users share final who-owes-who results after expense CSV export. |
-| 2 | Split DB integration tests into focused files | Low | Medium | Medium | Medium | High | High | Medium | Low | Next likely candidate: reduces test-file bloat after many API cases. |
-| 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 4 | Edit expense currency | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because amount semantics change across currencies. |
-| 5 | Add basic print stylesheet | Low | Low | High | High | High | Low | Low | Low | Later: low impact compared with data export. |
+| 1 | Split DB integration tests into focused files | Low | Medium | Medium | Medium | High | High | Medium | Low | Completed this cycle: reduces test-file bloat after many API cases. |
+| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Next likely user-facing candidate, but risky because it rewrites expense ownership. |
+| 3 | Edit expense currency | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because amount semantics change across currencies. |
+| 4 | Add basic print stylesheet | Low | Low | High | High | High | Low | Low | Low | Later: low impact compared with data export. |
+| 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
