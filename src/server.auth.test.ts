@@ -54,6 +54,37 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   });
   assert.equal(renamedTrips.data.trips[0]?.name, "Kyoto");
 
+  const duplicateTripCreate = await api<{ error: string }>(
+    baseUrl,
+    "/api/trips",
+    {
+      body: JSON.stringify({ baseCurrency: "TWD", name: " kyoto " }),
+      headers: { cookie },
+      method: "POST",
+    },
+  );
+  assert.equal(duplicateTripCreate.response.status, 409);
+  assert.equal(duplicateTripCreate.data.error, "旅行名稱已存在");
+
+  const secondTrip = await api<TripPayload>(baseUrl, "/api/trips", {
+    body: JSON.stringify({ baseCurrency: "TWD", name: "Osaka" }),
+    headers: { cookie },
+    method: "POST",
+  });
+  assert.equal(secondTrip.response.status, 201);
+
+  const duplicateTripRename = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${secondTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ name: "Kyoto" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(duplicateTripRename.response.status, 409);
+  assert.equal(duplicateTripRename.data.error, "旅行名稱已存在");
+
   const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
       email: `bob-${Date.now()}@example.com`,
@@ -93,6 +124,14 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   );
   assert.equal(deletedTrip.response.status, 200);
   assert.equal(deletedTrip.data.ok, true);
+
+  const deletedSecondTrip = await api<{ ok: true }>(
+    baseUrl,
+    `/api/trips/${secondTrip.data.trip.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(deletedSecondTrip.response.status, 200);
+  assert.equal(deletedSecondTrip.data.ok, true);
 
   const missingTrip = await api<{ error: string }>(
     baseUrl,

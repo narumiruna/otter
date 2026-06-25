@@ -228,6 +228,24 @@ export function participantNameExists(
   );
 }
 
+export async function tripNameExistsForUser(
+  db: Queryable,
+  ownerId: string,
+  name: string,
+  exceptTripId?: string,
+): Promise<boolean> {
+  const result = await db.query(
+    `SELECT 1
+     FROM trips
+     WHERE owner_id = $1
+       AND lower(trim(name)) = lower(trim($2))
+       AND ($3::text IS NULL OR id <> $3)
+     LIMIT 1`,
+    [ownerId, name, exceptTripId ?? null],
+  );
+  return result.rows.length > 0;
+}
+
 export function asyncHandler(handler: Handler): Handler {
   return (req, res, next) => {
     void Promise.resolve(handler(req, res, next)).catch(next);

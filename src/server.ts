@@ -36,6 +36,7 @@ import {
   setSessionCookie,
   stringField,
   todayDate,
+  tripNameExistsForUser,
   tripPayload,
   type User,
   userFromRequest,
@@ -229,6 +230,10 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 400, "請輸入 1-100 字的旅行名稱");
         return;
       }
+      if (await tripNameExistsForUser(pool, user.id, name)) {
+        sendError(res, 409, "旅行名稱已存在");
+        return;
+      }
 
       const createdAt = nowIso();
       const ownerParticipant: Participant = {
@@ -285,26 +290,32 @@ export function createApp(pool: PgPool): express.Express {
     mustBeSignedIn,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
       const name = stringField(requestBody(req), "name");
       if (!name || name.length > 100) {
         sendError(res, 400, "請輸入 1-100 字的旅行名稱");
         return;
       }
-
-      const renamed = await pool.query(
-        "UPDATE trips SET name = $1 WHERE id = $2 AND owner_id = $3",
-        [name, req.params.tripId, user.id],
-      );
-      if (renamed.rowCount === 0) {
-        sendError(res, 404, "找不到旅行");
+      if (await tripNameExistsForUser(pool, user.id, name, trip.id)) {
+        sendError(res, 409, "旅行名稱已存在");
         return;
       }
 
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
-      if (!trip) {
+      await pool.query(
+        "UPDATE trips SET name = $1 WHERE id = $2 AND owner_id = $3",
+        [name, req.params.tripId, user.id],
+      );
+
+      const updated = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!updated) {
         throw new Error("Trip disappeared after rename");
       }
-      res.json(tripPayload(trip));
+      res.json(tripPayload(updated));
     }),
   );
 
