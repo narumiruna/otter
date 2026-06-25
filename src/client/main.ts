@@ -1,5 +1,5 @@
 import "./styles.css";
-import { tripExpensesCsv } from "../shared/csv.js";
+import { tripExpensesCsv, tripResultsCsv } from "../shared/csv.js";
 import {
   type Currency,
   currencies,
@@ -232,7 +232,8 @@ function tripView(payload: TripPayload): string {
       <article class="card stack">
         <div class="row">
           <h2>${htmlEscape(trip.name)}</h2>
-          <button id="export-expenses" class="secondary" type="button">匯出 CSV</button>
+          <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
+          <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
           <button id="rename-trip" class="secondary" type="button">重新命名</button>
           <button id="delete-trip" class="danger" type="button">刪除旅行</button>
         </div>
@@ -513,7 +514,22 @@ function bindHandlers() {
         `${safeFilename(trip.name)}-expenses.csv`,
         tripExpensesCsv(trip),
       );
-      setMessage("已匯出 CSV");
+      setMessage("已匯出支出 CSV");
+      render();
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#export-results")
+    ?.addEventListener("click", () => {
+      const selected = state.selected;
+      if (!selected) {
+        return;
+      }
+      downloadText(
+        `${safeFilename(selected.trip.name)}-results.csv`,
+        tripResultsCsv(selected.balances, selected.settlements),
+      );
+      setMessage("已匯出結算 CSV");
       render();
     });
 

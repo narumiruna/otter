@@ -1,5 +1,5 @@
 import { currencyInfo, toMajor } from "./money.js";
-import type { Trip } from "./settlement.js";
+import type { Balance, Settlement, Trip } from "./settlement.js";
 
 const expenseHeaders = [
   "date",
@@ -9,6 +9,14 @@ const expenseHeaders = [
   "paid_by",
   "split_participants",
 ];
+const resultHeaders = [
+  "type",
+  "participant",
+  "from",
+  "to",
+  "amount",
+  "currency",
+];
 
 export function tripExpensesCsv(trip: Trip): string {
   const participantById = new Map(
@@ -17,9 +25,7 @@ export function tripExpensesCsv(trip: Trip): string {
   const rows = trip.expenses.map((expense) => [
     expense.expenseDate,
     expense.description,
-    toMajor(expense.amountMinor, expense.currency).toFixed(
-      currencyInfo[expense.currency].minorUnits,
-    ),
+    formatAmount(expense.amountMinor, expense.currency),
     expense.currency,
     participantById.get(expense.paidById) ?? "未知",
     expense.participantIds
@@ -27,9 +33,44 @@ export function tripExpensesCsv(trip: Trip): string {
       .join("; "),
   ]);
 
-  return [expenseHeaders, ...rows]
-    .map((row) => row.map(csvCell).join(","))
-    .join("\n");
+  return csvRows([expenseHeaders, ...rows]);
+}
+
+export function tripResultsCsv(
+  balances: Balance[],
+  settlements: Settlement[],
+): string {
+  const balanceRows = balances.map((balance) => [
+    "balance",
+    balance.name,
+    "",
+    "",
+    formatAmount(balance.amountMinor, balance.currency),
+    balance.currency,
+  ]);
+  const settlementRows = settlements.map((settlement) => [
+    "settlement",
+    "",
+    settlement.fromName,
+    settlement.toName,
+    formatAmount(settlement.amountMinor, settlement.currency),
+    settlement.currency,
+  ]);
+
+  return csvRows([resultHeaders, ...balanceRows, ...settlementRows]);
+}
+
+function csvRows(rows: string[][]): string {
+  return rows.map((row) => row.map(csvCell).join(",")).join("\n");
+}
+
+function formatAmount(
+  amountMinor: number,
+  currency: keyof typeof currencyInfo,
+): string {
+  return toMajor(amountMinor, currency).toFixed(
+    currencyInfo[currency].minorUnits,
+  );
 }
 
 function csvCell(value: string): string {

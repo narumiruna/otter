@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tripExpensesCsv } from "./csv.js";
+import { tripExpensesCsv, tripResultsCsv } from "./csv.js";
 import type { Trip } from "./settlement.js";
 
 test("exports trip expenses as escaped CSV", () => {
@@ -33,6 +33,43 @@ test("exports trip expenses as escaped CSV", () => {
     [
       "date,description,amount,currency,paid_by,split_participants",
       '2026-06-24,"Dinner, ""sushi""",123.45,USD,Alice,"Alice; Bob, Jr"',
+    ].join("\n"),
+  );
+});
+
+test("exports balances and settlements as escaped CSV", () => {
+  assert.equal(
+    tripResultsCsv(
+      [
+        {
+          amountMinor: 100,
+          currency: "TWD",
+          name: "Alice, A",
+          participantId: "alice",
+        },
+        {
+          amountMinor: -100,
+          currency: "TWD",
+          name: 'Bob "B"',
+          participantId: "bob",
+        },
+      ],
+      [
+        {
+          amountMinor: 100,
+          currency: "TWD",
+          fromId: "bob",
+          fromName: 'Bob "B"',
+          toId: "alice",
+          toName: "Alice, A",
+        },
+      ],
+    ),
+    [
+      "type,participant,from,to,amount,currency",
+      'balance,"Alice, A",,,100,TWD',
+      'balance,"Bob ""B""",,,-100,TWD',
+      'settlement,,"Bob ""B""","Alice, A",100,TWD',
     ].join("\n"),
   );
 });
