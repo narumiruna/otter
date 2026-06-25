@@ -5,6 +5,7 @@ import {
   currencies,
   currencyInfo,
   formatMinor,
+  isCurrency,
   toMajor,
 } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
@@ -361,6 +362,7 @@ function expenseList(trip: Trip): string {
                 <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button">改日期</button>
                 <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
                 <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button">改金額</button>
+                <button class="secondary" data-edit-expense-currency-id="${htmlEscape(expense.id)}" data-expense-currency="${expense.currency}" type="button">改貨幣</button>
                 <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button">改付款人</button>
                 <button class="secondary" data-edit-expense-split-id="${htmlEscape(expense.id)}" type="button">改分帳</button>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
@@ -755,6 +757,41 @@ function bindHandlers() {
             },
           );
           setMessage("已更新支出金額");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-currency-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.editExpenseCurrencyId;
+        const currentCurrency = button.dataset.expenseCurrency;
+        const currentIndex = isCurrency(currentCurrency)
+          ? currencies.indexOf(currentCurrency)
+          : 0;
+        const choice = prompt(
+          `新的貨幣編號：\n${currencies.map((currency, index) => `${index + 1}. ${currency} · ${currencyInfo[currency].label}`).join("\n")}`,
+          String(currentIndex + 1 || 1),
+        );
+        if (!tripId || !expenseId || choice === null) {
+          return;
+        }
+
+        void run(async () => {
+          const currency = currencies[Number(choice) - 1];
+          if (!currency) {
+            throw new Error("請輸入有效貨幣編號");
+          }
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}`,
+            {
+              body: JSON.stringify({ currency }),
+              method: "PATCH",
+            },
+          );
+          setMessage("已更新支出貨幣");
         });
       });
     });

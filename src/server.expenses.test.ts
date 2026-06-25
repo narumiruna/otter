@@ -309,6 +309,61 @@ test(
     );
     assert.equal(forbiddenExpenseSplit.response.status, 404);
 
+    const recurrencyExpense = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+      {
+        body: JSON.stringify({ currency: "USD" }),
+        headers: { cookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(recurrencyExpense.response.status, 200);
+    assert.equal(recurrencyExpense.data.trip.expenses[0]?.currency, "USD");
+    assert.equal(recurrencyExpense.data.trip.expenses[0]?.amountMinor, 20000);
+    assert.deepEqual(
+      recurrencyExpense.data.balances.map(({ amountMinor, participantId }) => ({
+        amountMinor,
+        participantId,
+      })),
+      [
+        { amountMinor: -6400, participantId: owner.id },
+        { amountMinor: 6400, participantId: bob.id },
+      ],
+    );
+    assert.deepEqual(
+      recurrencyExpense.data.settlements.map(
+        ({ amountMinor, fromId, toId }) => ({
+          amountMinor,
+          fromId,
+          toId,
+        }),
+      ),
+      [{ amountMinor: 6400, fromId: owner.id, toId: bob.id }],
+    );
+
+    const invalidExpenseCurrency = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+      {
+        body: JSON.stringify({ currency: "BTC" }),
+        headers: { cookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(invalidExpenseCurrency.response.status, 400);
+
+    const forbiddenExpenseCurrency = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
+      {
+        body: JSON.stringify({ currency: "TWD" }),
+        headers: { cookie: otherCookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(forbiddenExpenseCurrency.response.status, 404);
+
     const loadedTrip = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}`,

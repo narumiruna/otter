@@ -28,6 +28,7 @@ export type TripPayload = {
   trip: {
     expenses: {
       amountMinor: number;
+      currency: string;
       description: string;
       expenseDate: string;
       id: string;

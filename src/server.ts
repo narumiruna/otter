@@ -47,6 +47,7 @@ import {
   currencyInfo,
   isCurrency,
   parseAmountToMinor,
+  toMajor,
 } from "./shared/money.js";
 import type { Participant, Trip } from "./shared/settlement.js";
 
@@ -552,12 +553,14 @@ export function createApp(pool: PgPool): express.Express {
       const body = requestBody(req);
       const hasDescription = "description" in body;
       const hasAmount = "amount" in body;
+      const hasCurrency = "currency" in body;
       const hasPaidBy = "paidById" in body;
       const hasExpenseDate = "expenseDate" in body;
       const hasParticipantIds = "participantIds" in body;
       if (
         !hasDescription &&
         !hasAmount &&
+        !hasCurrency &&
         !hasPaidBy &&
         !hasExpenseDate &&
         !hasParticipantIds
@@ -574,12 +577,25 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
+      let currencyValue = expense.currency;
+      if (hasCurrency) {
+        if (!isCurrency(body.currency)) {
+          sendError(res, 400, "不支援的貨幣");
+          return;
+        }
+        currencyValue = body.currency;
+      }
+
       let amountMinor = expense.amountMinor;
-      if (hasAmount) {
+      if (hasAmount || currencyValue !== expense.currency) {
         try {
           amountMinor = parseAmountToMinor(
-            String(body.amount ?? ""),
-            expense.currency,
+            hasAmount
+              ? String(body.amount ?? "")
+              : toMajor(expense.amountMinor, expense.currency).toFixed(
+                  currencyInfo[expense.currency].minorUnits,
+                ),
+            currencyValue,
           );
         } catch (error) {
           sendError(
@@ -636,11 +652,12 @@ export function createApp(pool: PgPool): express.Express {
       const updatedExpense = await withTransaction(pool, async (client) => {
         const result = await client.query(
           `UPDATE expenses
-           SET description = $1, amount_minor = $2, paid_by_id = $3, expense_date = $4
-           WHERE trip_id = $5 AND id = $6`,
+           SET description = $1, amount_minor = $2, currency = $3, paid_by_id = $4, expense_date = $5
+           WHERE trip_id = $6 AND id = $7`,
           [
             description,
             amountMinor,
+            currencyValue,
             paidById,
             expenseDate,
             trip.id,
