@@ -183,6 +183,48 @@ test("auth and trip APIs use Postgres", {
       },
     ],
   );
+
+  const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
+    body: JSON.stringify({
+      email: `bob-${Date.now()}@example.com`,
+      name: "Bob Owner",
+      password: "password123",
+    }),
+    method: "POST",
+  });
+  assert.equal(otherRegister.response.status, 201);
+  const otherCookie = otherRegister.response.headers
+    .get("set-cookie")
+    ?.split(";")[0];
+  assert.ok(otherCookie);
+
+  const forbiddenDelete = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    { headers: { cookie: otherCookie }, method: "DELETE" },
+  );
+  assert.equal(forbiddenDelete.response.status, 404);
+
+  const deletedTrip = await api<{ ok: true }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(deletedTrip.response.status, 200);
+  assert.equal(deletedTrip.data.ok, true);
+
+  const missingTrip = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    { headers: { cookie } },
+  );
+  assert.equal(missingTrip.response.status, 404);
+  assert.equal(missingTrip.data.error, "找不到旅行");
+
+  const emptyTrips = await api<TripsResponse>(baseUrl, "/api/trips", {
+    headers: { cookie },
+  });
+  assert.deepEqual(emptyTrips.data.trips, []);
 });
 
 async function api<T>(

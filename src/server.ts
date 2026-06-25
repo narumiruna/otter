@@ -676,6 +676,24 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  app.delete(
+    "/api/trips/:tripId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const deleted = await pool.query(
+        "DELETE FROM trips WHERE id = $1 AND owner_id = $2",
+        [req.params.tripId, user.id],
+      );
+      if (deleted.rowCount === 0) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      res.json({ ok: true });
+    }),
+  );
+
   app.post(
     "/api/trips/:tripId/participants",
     mustBeSignedIn,

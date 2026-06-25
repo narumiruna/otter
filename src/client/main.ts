@@ -207,7 +207,10 @@ function tripView(payload: TripPayload): string {
   return `
     <section class="stack">
       <article class="card stack">
-        <h2>${htmlEscape(trip.name)}</h2>
+        <div class="row">
+          <h2>${htmlEscape(trip.name)}</h2>
+          <button id="delete-trip" class="danger" type="button">刪除旅行</button>
+        </div>
         <p class="muted">基準貨幣：${trip.baseCurrency}。匯率目前使用固定原型值，可之後改接即時匯率。</p>
       </article>
       <div class="grid">
@@ -453,6 +456,25 @@ function bindHandlers() {
         void run(async () => {
           await selectTrip(tripId);
         });
+      });
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#delete-trip")
+    ?.addEventListener("click", () => {
+      const tripId = state.selected?.trip.id;
+      if (
+        !tripId ||
+        !confirm("確定要刪除這趟旅行？所有參與者和支出都會刪除。")
+      ) {
+        return;
+      }
+
+      void run(async () => {
+        await api<{ ok: true }>(`/api/trips/${tripId}`, { method: "DELETE" });
+        state.selected = null;
+        await loadTrips();
+        setMessage("已刪除旅行");
       });
     });
 
