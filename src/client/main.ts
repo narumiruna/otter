@@ -27,15 +27,22 @@ type TripPayload = {
   settlements: Settlement[];
 };
 
+type DevAdmin = {
+  email: string;
+  password: string;
+};
+
 type AppState = {
   user: User | null;
   trips: TripSummary[];
   selected: TripPayload | null;
   message: string;
   error: string;
+  devAdmin: DevAdmin | null;
 };
 
 const state: AppState = {
+  devAdmin: null,
   error: "",
   message: "",
   selected: null,
@@ -90,7 +97,10 @@ async function run(action: () => Promise<void>) {
 
 async function init() {
   await run(async () => {
-    const me = await api<{ user: User | null }>("/api/me");
+    const me = await api<{ devAdmin?: DevAdmin | null; user: User | null }>(
+      "/api/me",
+    );
+    state.devAdmin = me.devAdmin ?? null;
     state.user = me.user;
     if (state.user) {
       await loadTrips();
@@ -133,13 +143,16 @@ function render() {
 }
 
 function authView(): string {
+  const devEmail = state.devAdmin?.email ?? "";
+  const devPassword = state.devAdmin?.password ?? "";
+
   return `
     <section class="grid">
       <article class="card stack">
         <h2>登入</h2>
         <form id="login-form">
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
-          <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
+          <label>Email<input name="email" type="email" autocomplete="email" value="${htmlEscape(devEmail)}" required /></label>
+          <label>密碼<input name="password" type="password" autocomplete="current-password" value="${htmlEscape(devPassword)}" required /></label>
           <button type="submit">登入</button>
         </form>
       </article>

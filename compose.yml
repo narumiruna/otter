@@ -3,13 +3,8 @@ services:
     build: .
     image: otter:latest
     environment:
-      DATA_DIR: /data
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL before starting otter}
       NODE_ENV: production
       PORT: 3000
     ports:
       - "3000:3000"
-    volumes:
-      - otter-data:/data
-
-volumes:
-  otter-data:

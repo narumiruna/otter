@@ -1,11 +1,30 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: otter_dev
+      POSTGRES_PASSWORD: otter_dev_password
+      POSTGRES_USER: otter
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otter -d otter_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - otter-dev-postgres:/var/lib/postgresql/data
+
   otter-dev:
     build:
       context: .
       target: deps
-    command: npm run dev
+    command: sh -c "npm run migrate && npm run dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      DATA_DIR: /data
+      DATABASE_URL: postgres://otter:otter_dev_password@postgres:5432/otter_dev
       NODE_ENV: development
       PORT: 3000
     ports:
@@ -13,7 +32,6 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-      - otter-dev-data:/data
 
 volumes:
-  otter-dev-data:
+  otter-dev-postgres:

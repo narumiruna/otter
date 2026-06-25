@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, {
@@ -7,6 +6,13 @@ import express, {
   type Request,
   type Response,
 } from "express";
+import type {
+  Pool as PgPool,
+  PoolClient,
+  QueryResult,
+  QueryResultRow,
+} from "pg";
+import pg from "pg";
 import {
   type Currency,
   currencies,
@@ -20,6 +26,8 @@ import {
   type Participant,
   type Trip,
 } from "./shared/settlement.js";
+
+const { Pool } = pg;
 
 type User = {
   id: string;
@@ -35,43 +43,74 @@ type Session = {
   expiresAt: string;
 };
 
-type Store = {
-  users: User[];
-  sessions: Session[];
-  trips: Trip[];
+type Queryable = {
+  query<Row extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): Promise<QueryResult<Row>>;
+};
+
+type Handler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => Promise<void> | void;
+
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  password_hash: string;
+  created_at: Date | string;
+};
+
+type TripRow = {
+  id: string;
+  owner_id: string;
+  name: string;
+  base_currency: string;
+  created_at: Date | string;
+};
+
+type ParticipantRow = {
+  id: string;
+  name: string;
+};
+
+type ExpenseRow = {
+  id: string;
+  description: string;
+  amount_minor: string | number;
+  currency: string;
+  paid_by_id: string;
+  created_at: Date | string;
+};
+
+type ExpenseParticipantRow = {
+  expense_id: string;
+  participant_id: string;
+};
+
+type TripSummaryRow = {
+  id: string;
+  name: string;
+  base_currency: string;
+  created_at: Date | string;
+  participant_count: string | number;
+  expense_count: string | number;
 };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
-const dataFile = process.env.DATA_FILE ?? path.join(dataDir, "otter.json");
+const isProduction = process.env.NODE_ENV === "production";
+const devAdmin = {
+  email: "admin@otter.local",
+  name: "Admin",
+  password: "password",
+};
 const sessionDays = 7;
 const sessionMaxAgeSeconds = sessionDays * 24 * 60 * 60;
 const passwordIterations = 210_000;
-
-const store = loadStore();
-
-function loadStore(): Store {
-  if (!fs.existsSync(dataFile)) {
-    return { sessions: [], trips: [], users: [] };
-  }
-
-  const parsed = JSON.parse(
-    fs.readFileSync(dataFile, "utf8"),
-  ) as Partial<Store>;
-  return {
-    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    trips: Array.isArray(parsed.trips) ? parsed.trips : [],
-    users: Array.isArray(parsed.users) ? parsed.users : [],
-  };
-}
-
-function saveStore() {
-  fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-  const tempFile = `${dataFile}.tmp`;
-  fs.writeFileSync(tempFile, `${JSON.stringify(store, null, 2)}\n`);
-  fs.renameSync(tempFile, dataFile);
-}
 
 function publicUser(user: User) {
   return {
@@ -175,57 +214,6 @@ function clearSessionCookie(res: Response) {
   );
 }
 
-function createSession(userId: string): Session {
-  const session = {
-    expiresAt: new Date(Date.now() + sessionMaxAgeSeconds * 1000).toISOString(),
-    id: crypto.randomBytes(32).toString("hex"),
-    userId,
-  };
-  store.sessions.push(session);
-  return session;
-}
-
-function userFromRequest(req: Request): User | undefined {
-  const sessionId = getCookie(req, "otter_session");
-  if (!sessionId) {
-    return undefined;
-  }
-
-  const session = store.sessions.find((item) => item.id === sessionId);
-  if (!session) {
-    return undefined;
-  }
-
-  if (Date.parse(session.expiresAt) <= Date.now()) {
-    store.sessions = store.sessions.filter((item) => item.id !== session.id);
-    saveStore();
-    return undefined;
-  }
-
-  return store.users.find((user) => user.id === session.userId);
-}
-
-function requireUser(req: Request, res: Response, next: NextFunction) {
-  const user = userFromRequest(req);
-  if (!user) {
-    sendError(res, 401, "請先登入");
-    return;
-  }
-
-  res.locals.user = user;
-  next();
-}
-
-function currentUser(res: Response): User {
-  return res.locals.user as User;
-}
-
-function tripForUser(user: User, tripId: string): Trip | undefined {
-  return store.trips.find(
-    (trip) => trip.id === tripId && trip.ownerId === user.id,
-  );
-}
-
 function tripPayload(trip: Trip) {
   return {
     balances: calculateBalances(trip),
@@ -242,241 +230,600 @@ function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
-async function start() {
+function asyncHandler(handler: Handler): Handler {
+  return (req, res, next) => {
+    void Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+function iso(value: Date | string): string {
+  return (value instanceof Date ? value : new Date(value)).toISOString();
+}
+
+function currencyFromDb(value: string): Currency {
+  if (!isCurrency(value)) {
+    throw new Error(`Unsupported currency in database: ${value}`);
+  }
+  return value;
+}
+
+function rowToUser(row: UserRow): User {
+  return {
+    createdAt: iso(row.created_at),
+    email: row.email,
+    id: row.id,
+    name: row.name,
+    passwordHash: row.password_hash,
+  };
+}
+
+function rowToTrip(row: TripRow): Omit<Trip, "expenses" | "participants"> {
+  return {
+    baseCurrency: currencyFromDb(row.base_currency),
+    createdAt: iso(row.created_at),
+    id: row.id,
+    name: row.name,
+    ownerId: row.owner_id,
+  };
+}
+
+function isPgCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === code
+  );
+}
+
+function currentUser(res: Response): User {
+  return res.locals.user as User;
+}
+
+function databaseUrl(): string {
+  const value = process.env.DATABASE_URL;
+  if (!value) {
+    throw new Error("DATABASE_URL is required");
+  }
+  return value;
+}
+
+export function createPool(): PgPool {
+  return new Pool({ connectionString: databaseUrl() });
+}
+
+async function withTransaction<T>(
+  pool: PgPool,
+  callback: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function findUserByEmail(
+  db: Queryable,
+  email: string,
+): Promise<User | undefined> {
+  const result = await db.query<UserRow>(
+    `SELECT id, name, email, password_hash, created_at
+     FROM users
+     WHERE email = $1`,
+    [email],
+  );
+  const row = result.rows[0];
+  return row ? rowToUser(row) : undefined;
+}
+
+async function ensureDevAdmin(db: Queryable) {
+  if (isProduction) {
+    return;
+  }
+
+  await db.query(
+    `INSERT INTO users (id, name, email, password_hash, created_at)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO UPDATE
+     SET name = EXCLUDED.name,
+         password_hash = EXCLUDED.password_hash`,
+    [
+      makeId("user"),
+      devAdmin.name,
+      normalizeEmail(devAdmin.email),
+      hashPassword(devAdmin.password),
+      nowIso(),
+    ],
+  );
+}
+
+async function createSession(db: Queryable, userId: string): Promise<Session> {
+  const session = {
+    expiresAt: new Date(Date.now() + sessionMaxAgeSeconds * 1000).toISOString(),
+    id: crypto.randomBytes(32).toString("hex"),
+    userId,
+  };
+  await db.query(
+    `INSERT INTO sessions (id, user_id, expires_at)
+     VALUES ($1, $2, $3)`,
+    [session.id, session.userId, session.expiresAt],
+  );
+  return session;
+}
+
+async function userFromRequest(
+  db: Queryable,
+  req: Request,
+): Promise<User | undefined> {
+  const sessionId = getCookie(req, "otter_session");
+  if (!sessionId) {
+    return undefined;
+  }
+
+  await db.query("DELETE FROM sessions WHERE id = $1 AND expires_at <= now()", [
+    sessionId,
+  ]);
+  const result = await db.query<UserRow>(
+    `SELECT users.id, users.name, users.email, users.password_hash, users.created_at
+     FROM sessions
+     JOIN users ON users.id = sessions.user_id
+     WHERE sessions.id = $1 AND sessions.expires_at > now()`,
+    [sessionId],
+  );
+  const row = result.rows[0];
+  return row ? rowToUser(row) : undefined;
+}
+
+function requireUser(db: Queryable): Handler {
+  return asyncHandler(async (req, res, next) => {
+    const user = await userFromRequest(db, req);
+    if (!user) {
+      sendError(res, 401, "請先登入");
+      return;
+    }
+
+    res.locals.user = user;
+    next();
+  });
+}
+
+async function loadTripForUser(
+  db: Queryable,
+  userId: string,
+  tripId: string,
+): Promise<Trip | undefined> {
+  const tripResult = await db.query<TripRow>(
+    `SELECT id, owner_id, name, base_currency, created_at
+     FROM trips
+     WHERE id = $1 AND owner_id = $2`,
+    [tripId, userId],
+  );
+  const tripRow = tripResult.rows[0];
+  if (!tripRow) {
+    return undefined;
+  }
+
+  const [participantsResult, expensesResult, splitsResult] = await Promise.all([
+    db.query<ParticipantRow>(
+      `SELECT id, name
+       FROM participants
+       WHERE trip_id = $1
+       ORDER BY created_at, id`,
+      [tripId],
+    ),
+    db.query<ExpenseRow>(
+      `SELECT id, description, amount_minor, currency, paid_by_id, created_at
+       FROM expenses
+       WHERE trip_id = $1
+       ORDER BY created_at, id`,
+      [tripId],
+    ),
+    db.query<ExpenseParticipantRow>(
+      `SELECT expense_id, participant_id
+       FROM expense_participants
+       WHERE trip_id = $1
+       ORDER BY expense_id, position`,
+      [tripId],
+    ),
+  ]);
+
+  const splitsByExpense = new Map<string, string[]>();
+  for (const split of splitsResult.rows) {
+    const participantIds = splitsByExpense.get(split.expense_id) ?? [];
+    participantIds.push(split.participant_id);
+    splitsByExpense.set(split.expense_id, participantIds);
+  }
+
+  return {
+    ...rowToTrip(tripRow),
+    expenses: expensesResult.rows.map((row) => ({
+      amountMinor: Number(row.amount_minor),
+      createdAt: iso(row.created_at),
+      currency: currencyFromDb(row.currency),
+      description: row.description,
+      id: row.id,
+      paidById: row.paid_by_id,
+      participantIds: splitsByExpense.get(row.id) ?? [],
+    })),
+    participants: participantsResult.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+    })),
+  };
+}
+
+export function createApp(pool: PgPool): express.Express {
   const app = express();
+  const mustBeSignedIn = requireUser(pool);
 
   app.use(express.json({ limit: "1mb" }));
 
-  app.get("/api/me", (req, res) => {
-    const user = userFromRequest(req);
-    res.json({
-      currencies,
-      currencyInfo,
-      user: user ? publicUser(user) : null,
-    });
-  });
-
-  app.post("/api/auth/register", (req, res) => {
-    const body = requestBody(req);
-    const name = stringField(body, "name");
-    const email = stringField(body, "email");
-    const password = stringField(body, "password");
-
-    if (!name || name.length > 80) {
-      sendError(res, 400, "請輸入 1-80 字的名稱");
-      return;
-    }
-    if (!email?.includes("@")) {
-      sendError(res, 400, "請輸入有效 email");
-      return;
-    }
-    if (!password || password.length < 8) {
-      sendError(res, 400, "密碼至少需要 8 個字");
-      return;
-    }
-
-    const normalizedEmail = normalizeEmail(email);
-    if (store.users.some((user) => user.email === normalizedEmail)) {
-      sendError(res, 409, "這個 email 已經註冊");
-      return;
-    }
-
-    const user: User = {
-      createdAt: nowIso(),
-      email: normalizedEmail,
-      id: makeId("user"),
-      name,
-      passwordHash: hashPassword(password),
-    };
-    store.users.push(user);
-    const session = createSession(user.id);
-    saveStore();
-    setSessionCookie(res, session.id);
-    res.status(201).json({ user: publicUser(user) });
-  });
-
-  app.post("/api/auth/login", (req, res) => {
-    const body = requestBody(req);
-    const email = stringField(body, "email");
-    const password = stringField(body, "password");
-
-    if (!email || !password) {
-      sendError(res, 400, "請輸入 email 和密碼");
-      return;
-    }
-
-    const user = store.users.find(
-      (item) => item.email === normalizeEmail(email),
-    );
-    if (!user || !verifyPassword(password, user.passwordHash)) {
-      sendError(res, 401, "email 或密碼錯誤");
-      return;
-    }
-
-    const session = createSession(user.id);
-    saveStore();
-    setSessionCookie(res, session.id);
-    res.json({ user: publicUser(user) });
-  });
-
-  app.post("/api/auth/logout", (req, res) => {
-    const sessionId = getCookie(req, "otter_session");
-    if (sessionId) {
-      store.sessions = store.sessions.filter(
-        (session) => session.id !== sessionId,
-      );
-      saveStore();
-    }
-    clearSessionCookie(res);
-    res.json({ ok: true });
-  });
-
-  app.get("/api/trips", requireUser, (_req, res) => {
-    const user = currentUser(res);
-    res.json({
-      trips: store.trips
-        .filter((trip) => trip.ownerId === user.id)
-        .map((trip) => ({
-          baseCurrency: trip.baseCurrency,
-          createdAt: trip.createdAt,
-          expenseCount: trip.expenses.length,
-          id: trip.id,
-          name: trip.name,
-          participantCount: trip.participants.length,
-        })),
-    });
-  });
-
-  app.post("/api/trips", requireUser, (req, res) => {
-    const user = currentUser(res);
-    const body = requestBody(req);
-    const name = stringField(body, "name");
-    const baseCurrencyValue = body.baseCurrency;
-    const baseCurrency: Currency = isCurrency(baseCurrencyValue)
-      ? baseCurrencyValue
-      : "TWD";
-
-    if (!name || name.length > 100) {
-      sendError(res, 400, "請輸入 1-100 字的旅行名稱");
-      return;
-    }
-
-    const ownerParticipant: Participant = {
-      id: makeId("participant"),
-      name: user.name,
-    };
-    const trip: Trip = {
-      baseCurrency,
-      createdAt: nowIso(),
-      expenses: [],
-      id: makeId("trip"),
-      name,
-      ownerId: user.id,
-      participants: [ownerParticipant],
-    };
-    store.trips.push(trip);
-    saveStore();
-    res.status(201).json(tripPayload(trip));
-  });
-
-  app.get("/api/trips/:tripId", requireUser, (req, res) => {
-    const trip = tripForUser(currentUser(res), req.params.tripId);
-    if (!trip) {
-      sendError(res, 404, "找不到旅行");
-      return;
-    }
-
-    res.json(tripPayload(trip));
-  });
-
-  app.post("/api/trips/:tripId/participants", requireUser, (req, res) => {
-    const trip = tripForUser(currentUser(res), req.params.tripId);
-    if (!trip) {
-      sendError(res, 404, "找不到旅行");
-      return;
-    }
-
-    const name = stringField(requestBody(req), "name");
-    if (!name || name.length > 80) {
-      sendError(res, 400, "請輸入 1-80 字的參與者名稱");
-      return;
-    }
-
-    trip.participants.push({ id: makeId("participant"), name });
-    saveStore();
-    res.status(201).json(tripPayload(trip));
-  });
-
-  app.post("/api/trips/:tripId/expenses", requireUser, (req, res) => {
-    const trip = tripForUser(currentUser(res), req.params.tripId);
-    if (!trip) {
-      sendError(res, 404, "找不到旅行");
-      return;
-    }
-
-    const body = requestBody(req);
-    const description = stringField(body, "description");
-    const amountInput = body.amount;
-    const currencyValue = body.currency;
-    const paidById = stringField(body, "paidById");
-    const participantIdsInput = body.participantIds;
-
-    if (!description || description.length > 120) {
-      sendError(res, 400, "請輸入 1-120 字的支出描述");
-      return;
-    }
-    if (!isCurrency(currencyValue)) {
-      sendError(res, 400, "不支援的貨幣");
-      return;
-    }
-    if (!paidById || !participantExists(trip, paidById)) {
-      sendError(res, 400, "付款人必須是參與者");
-      return;
-    }
-    if (!Array.isArray(participantIdsInput)) {
-      sendError(res, 400, "請選擇分帳參與者");
-      return;
-    }
-
-    const participantIds = [...new Set(participantIdsInput)]
-      .filter((id): id is string => typeof id === "string")
-      .filter((id) => participantExists(trip, id));
-
-    if (participantIds.length === 0) {
-      sendError(res, 400, "請至少選擇一位分帳參與者");
-      return;
-    }
-
-    try {
-      const amountMinor = parseAmountToMinor(
-        String(amountInput ?? ""),
-        currencyValue,
-      );
-      trip.expenses.push({
-        amountMinor,
-        createdAt: nowIso(),
-        currency: currencyValue,
-        description,
-        id: makeId("expense"),
-        paidById,
-        participantIds,
+  app.get(
+    "/api/me",
+    asyncHandler(async (req, res) => {
+      const user = await userFromRequest(pool, req);
+      res.json({
+        currencies,
+        currencyInfo,
+        devAdmin: isProduction
+          ? null
+          : { email: devAdmin.email, password: devAdmin.password },
+        user: user ? publicUser(user) : null,
       });
-      saveStore();
-      res.status(201).json(tripPayload(trip));
-    } catch (error) {
-      sendError(
-        res,
-        400,
-        error instanceof Error ? error.message : "金額格式錯誤",
+    }),
+  );
+
+  app.post(
+    "/api/auth/register",
+    asyncHandler(async (req, res) => {
+      const body = requestBody(req);
+      const name = stringField(body, "name");
+      const email = stringField(body, "email");
+      const password = stringField(body, "password");
+
+      if (!name || name.length > 80) {
+        sendError(res, 400, "請輸入 1-80 字的名稱");
+        return;
+      }
+      if (!email?.includes("@")) {
+        sendError(res, 400, "請輸入有效 email");
+        return;
+      }
+      if (!password || password.length < 8) {
+        sendError(res, 400, "密碼至少需要 8 個字");
+        return;
+      }
+
+      const normalizedEmail = normalizeEmail(email);
+      if (await findUserByEmail(pool, normalizedEmail)) {
+        sendError(res, 409, "這個 email 已經註冊");
+        return;
+      }
+
+      const user: User = {
+        createdAt: nowIso(),
+        email: normalizedEmail,
+        id: makeId("user"),
+        name,
+        passwordHash: hashPassword(password),
+      };
+
+      let session: Session;
+      try {
+        session = await withTransaction(pool, async (client) => {
+          await client.query(
+            `INSERT INTO users (id, name, email, password_hash, created_at)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [user.id, user.name, user.email, user.passwordHash, user.createdAt],
+          );
+          return createSession(client, user.id);
+        });
+      } catch (error) {
+        if (isPgCode(error, "23505")) {
+          sendError(res, 409, "這個 email 已經註冊");
+          return;
+        }
+        throw error;
+      }
+
+      setSessionCookie(res, session.id);
+      res.status(201).json({ user: publicUser(user) });
+    }),
+  );
+
+  app.post(
+    "/api/auth/login",
+    asyncHandler(async (req, res) => {
+      const body = requestBody(req);
+      const email = stringField(body, "email");
+      const password = stringField(body, "password");
+
+      if (!email || !password) {
+        sendError(res, 400, "請輸入 email 和密碼");
+        return;
+      }
+
+      const user = await findUserByEmail(pool, normalizeEmail(email));
+      if (!user || !verifyPassword(password, user.passwordHash)) {
+        sendError(res, 401, "email 或密碼錯誤");
+        return;
+      }
+
+      const session = await createSession(pool, user.id);
+      setSessionCookie(res, session.id);
+      res.json({ user: publicUser(user) });
+    }),
+  );
+
+  app.post(
+    "/api/auth/logout",
+    asyncHandler(async (req, res) => {
+      const sessionId = getCookie(req, "otter_session");
+      if (sessionId) {
+        await pool.query("DELETE FROM sessions WHERE id = $1", [sessionId]);
+      }
+      clearSessionCookie(res);
+      res.json({ ok: true });
+    }),
+  );
+
+  app.get(
+    "/api/trips",
+    mustBeSignedIn,
+    asyncHandler(async (_req, res) => {
+      const user = currentUser(res);
+      const result = await pool.query<TripSummaryRow>(
+        `SELECT trips.id,
+                trips.name,
+                trips.base_currency,
+                trips.created_at,
+                count(DISTINCT participants.id) AS participant_count,
+                count(DISTINCT expenses.id) AS expense_count
+         FROM trips
+         LEFT JOIN participants ON participants.trip_id = trips.id
+         LEFT JOIN expenses ON expenses.trip_id = trips.id
+         WHERE trips.owner_id = $1
+         GROUP BY trips.id
+         ORDER BY trips.created_at, trips.id`,
+        [user.id],
       );
-    }
-  });
+
+      res.json({
+        trips: result.rows.map((row) => ({
+          baseCurrency: currencyFromDb(row.base_currency),
+          createdAt: iso(row.created_at),
+          expenseCount: Number(row.expense_count),
+          id: row.id,
+          name: row.name,
+          participantCount: Number(row.participant_count),
+        })),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/trips",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const body = requestBody(req);
+      const name = stringField(body, "name");
+      const baseCurrencyValue = body.baseCurrency;
+      const baseCurrency: Currency = isCurrency(baseCurrencyValue)
+        ? baseCurrencyValue
+        : "TWD";
+
+      if (!name || name.length > 100) {
+        sendError(res, 400, "請輸入 1-100 字的旅行名稱");
+        return;
+      }
+
+      const createdAt = nowIso();
+      const ownerParticipant: Participant = {
+        id: makeId("participant"),
+        name: user.name,
+      };
+      const trip: Trip = {
+        baseCurrency,
+        createdAt,
+        expenses: [],
+        id: makeId("trip"),
+        name,
+        ownerId: user.id,
+        participants: [ownerParticipant],
+      };
+
+      await withTransaction(pool, async (client) => {
+        await client.query(
+          `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [trip.id, trip.ownerId, trip.name, trip.baseCurrency, trip.createdAt],
+        );
+        await client.query(
+          `INSERT INTO participants (id, trip_id, name, created_at)
+           VALUES ($1, $2, $3, $4)`,
+          [ownerParticipant.id, trip.id, ownerParticipant.name, createdAt],
+        );
+      });
+
+      res.status(201).json(tripPayload(trip));
+    }),
+  );
+
+  app.get(
+    "/api/trips/:tripId",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const trip = await loadTripForUser(
+        pool,
+        currentUser(res).id,
+        req.params.tripId,
+      );
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      res.json(tripPayload(trip));
+    }),
+  );
+
+  app.post(
+    "/api/trips/:tripId/participants",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const name = stringField(requestBody(req), "name");
+      if (!name || name.length > 80) {
+        sendError(res, 400, "請輸入 1-80 字的參與者名稱");
+        return;
+      }
+
+      await pool.query(
+        `INSERT INTO participants (id, trip_id, name, created_at)
+         VALUES ($1, $2, $3, $4)`,
+        [makeId("participant"), trip.id, name, nowIso()],
+      );
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after participant insert");
+      }
+      res.status(201).json(tripPayload(updated));
+    }),
+  );
+
+  app.post(
+    "/api/trips/:tripId/expenses",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+      if (!trip) {
+        sendError(res, 404, "找不到旅行");
+        return;
+      }
+
+      const body = requestBody(req);
+      const description = stringField(body, "description");
+      const amountInput = body.amount;
+      const currencyValue = body.currency;
+      const paidById = stringField(body, "paidById");
+      const participantIdsInput = body.participantIds;
+
+      if (!description || description.length > 120) {
+        sendError(res, 400, "請輸入 1-120 字的支出描述");
+        return;
+      }
+      if (!isCurrency(currencyValue)) {
+        sendError(res, 400, "不支援的貨幣");
+        return;
+      }
+      if (!paidById || !participantExists(trip, paidById)) {
+        sendError(res, 400, "付款人必須是參與者");
+        return;
+      }
+      if (!Array.isArray(participantIdsInput)) {
+        sendError(res, 400, "請選擇分帳參與者");
+        return;
+      }
+
+      const participantIds = [...new Set(participantIdsInput)]
+        .filter((id): id is string => typeof id === "string")
+        .filter((id) => participantExists(trip, id));
+
+      if (participantIds.length === 0) {
+        sendError(res, 400, "請至少選擇一位分帳參與者");
+        return;
+      }
+
+      let amountMinor: number;
+      try {
+        amountMinor = parseAmountToMinor(
+          String(amountInput ?? ""),
+          currencyValue,
+        );
+      } catch (error) {
+        sendError(
+          res,
+          400,
+          error instanceof Error ? error.message : "金額格式錯誤",
+        );
+        return;
+      }
+
+      const expenseId = makeId("expense");
+      await withTransaction(pool, async (client) => {
+        await client.query(
+          `INSERT INTO expenses
+             (id, trip_id, description, amount_minor, currency, paid_by_id, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            expenseId,
+            trip.id,
+            description,
+            amountMinor,
+            currencyValue,
+            paidById,
+            nowIso(),
+          ],
+        );
+        for (const [index, participantId] of participantIds.entries()) {
+          await client.query(
+            `INSERT INTO expense_participants
+               (expense_id, trip_id, participant_id, position)
+             VALUES ($1, $2, $3, $4)`,
+            [expenseId, trip.id, participantId, index],
+          );
+        }
+      });
+
+      const updated = await loadTripForUser(pool, user.id, trip.id);
+      if (!updated) {
+        throw new Error("Trip disappeared after expense insert");
+      }
+      res.status(201).json(tripPayload(updated));
+    }),
+  );
 
   app.use("/api", (_req, res) => {
     sendError(res, 404, "找不到 API");
   });
 
-  if (process.env.NODE_ENV === "production") {
+  app.use(
+    (error: unknown, _req: Request, res: Response, next: NextFunction) => {
+      if (res.headersSent) {
+        next(error);
+        return;
+      }
+      console.error(error);
+      sendError(res, 500, "伺服器錯誤");
+    },
+  );
+
+  return app;
+}
+
+async function start() {
+  const pool = createPool();
+  const app = createApp(pool);
+
+  await ensureDevAdmin(pool);
+
+  if (isProduction) {
     const clientDir = path.resolve(__dirname, "../client");
     app.use(express.static(clientDir));
     app.get("*", (_req, res) => {
@@ -497,4 +844,6 @@ async function start() {
   });
 }
 
-void start();
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  void start();
+}
