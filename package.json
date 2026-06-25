@@ -1,0 +1,26 @@
+{
+  "name": "otter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "start": "node dist/server/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "biome:ci": "biome ci .",
+    "check": "npm run biome:ci && npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
+    "@types/express": "^4.17.25",
+    "@types/node": "^25.0.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7"
+  }
+}
