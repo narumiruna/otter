@@ -39,13 +39,14 @@
 - 2026-06-25: Add accessible live regions for feedback; verification passed (`npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add visible print action; verification passed (`npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Split client view rendering; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Mark active trip for assistive tech; verification passed (`npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Split client view rendering before more UI work | Low | Low | High | Medium | High | High | Medium | Low | Completed this cycle: `src/client/main.ts` dropped below 750 lines by extracting pure views. |
+| 1 | Mark active trip for assistive tech | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: makes the visual active trip state available to screen readers with minimal view-only change. |
 | 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
 | 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
 | 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
-| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than view extraction. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than ARIA state. |

@@ -70,9 +70,10 @@ export function dashboardView(state: AppState): string {
 }
 
 function tripButton(trip: TripSummary, selectedTripId?: string): string {
-  const active = selectedTripId === trip.id ? " active" : "";
+  const isActive = selectedTripId === trip.id;
+  const active = isActive ? " active" : "";
   return `
-    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button">
+    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button" aria-pressed="${isActive}">
       <strong>${htmlEscape(trip.name)}</strong><br />
       <span class="muted">${trip.participantCount} 人 · ${trip.expenseCount} 筆 · ${trip.baseCurrency}</span>
     </button>
