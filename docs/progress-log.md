@@ -33,13 +33,14 @@
 - 2026-06-25: Reject invalid trip base currency on create; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Disable impossible participant deletes in UI; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Show all-person splits as `所有人`; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add split select/clear shortcuts; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Show all-person splits as `所有人` | Medium | Low | High | High | High | High | Low | Low | Completed this cycle: reduces expense-list clutter for the default split-to-everyone case with testable client-only logic. |
-| 2 | Add split select/clear shortcuts | Medium | Low | High | High | High | Medium | Low | Low | Later: useful for large groups but lower verification clarity. |
-| 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
+| 1 | Add split select/clear shortcuts | Medium | Low | High | High | High | High | Low | Low | Completed this cycle: helps large groups adjust expense splits without unchecking people one by one. |
+| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
+| 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
+| 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than UI split shortcuts. |

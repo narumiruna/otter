@@ -4,6 +4,7 @@ import type { Trip } from "../shared/settlement.js";
 import {
   expenseSplitLabel,
   participantDeleteBlockReason,
+  splitShortcutChecked,
 } from "./client-support.js";
 
 const baseTrip: Trip = {
@@ -18,6 +19,12 @@ const baseTrip: Trip = {
     { id: "bob", name: "Bob" },
   ],
 };
+
+test("split shortcut values map to checked states", () => {
+  assert.equal(splitShortcutChecked("all"), true);
+  assert.equal(splitShortcutChecked("none"), false);
+  assert.equal(splitShortcutChecked(undefined), null);
+});
 
 test("expense split labels summarize all-person splits", () => {
   assert.equal(expenseSplitLabel(baseTrip, ["alice", "bob"]), "所有人");

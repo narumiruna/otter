@@ -18,6 +18,7 @@ import {
   htmlEscape,
   participantDeleteBlockReason,
   safeFilename,
+  splitShortcutChecked,
   type TripPayload,
   type TripSummary,
   todayDate,
@@ -246,7 +247,11 @@ function expenseForm(trip: Trip): string {
         </select>
       </label>
       <div>
-        <strong>分帳參與者</strong>
+        <div class="row">
+          <strong>分帳參與者</strong>
+          <button class="secondary" data-split-shortcut="all" type="button">全選</button>
+          <button class="secondary" data-split-shortcut="none" type="button">清除</button>
+        </div>
         <div class="checks">
           ${trip.participants
             .map(
@@ -611,6 +616,24 @@ function bindHandlers() {
           await loadTrips();
           setMessage("已刪除參與者");
         });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-split-shortcut]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const checked = splitShortcutChecked(button.dataset.splitShortcut);
+        if (checked === null) {
+          return;
+        }
+        document
+          .querySelectorAll<HTMLInputElement>(
+            '#expense-form input[name="participantIds"]',
+          )
+          .forEach((input) => {
+            input.checked = checked;
+          });
       });
     });
 

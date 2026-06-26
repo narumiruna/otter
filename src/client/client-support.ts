@@ -68,6 +68,18 @@ export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
 }
 
+export function splitShortcutChecked(
+  value: string | undefined,
+): boolean | null {
+  if (value === "all") {
+    return true;
+  }
+  if (value === "none") {
+    return false;
+  }
+  return null;
+}
+
 export function expenseSplitLabel(
   trip: Trip,
   participantIds: string[],
