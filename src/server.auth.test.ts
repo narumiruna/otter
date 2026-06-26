@@ -29,6 +29,12 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(oversizedJson.status, 413);
   assert.deepEqual(await oversizedJson.json(), { error: "請求內容太大" });
 
+  const malformedCookie = await api<UserResponse>(baseUrl, "/api/me", {
+    headers: { cookie: "otter_session=%E0%A4%A" },
+  });
+  assert.equal(malformedCookie.response.status, 200);
+  assert.equal(malformedCookie.data.user, null);
+
   const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
       email,
