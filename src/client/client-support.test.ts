@@ -4,6 +4,7 @@ import type { Trip } from "../shared/settlement.js";
 import {
   expenseSplitLabel,
   participantDeleteBlockReason,
+  splitSelectionError,
   splitShortcutChecked,
 } from "./client-support.js";
 
@@ -19,6 +20,11 @@ const baseTrip: Trip = {
     { id: "bob", name: "Bob" },
   ],
 };
+
+test("split selection validation catches empty choices", () => {
+  assert.equal(splitSelectionError([]), "請至少選擇一位分帳參與者");
+  assert.equal(splitSelectionError(["alice"]), null);
+});
 
 test("split shortcut values map to checked states", () => {
   assert.equal(splitShortcutChecked("all"), true);

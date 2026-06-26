@@ -18,6 +18,7 @@ import {
   htmlEscape,
   participantDeleteBlockReason,
   safeFilename,
+  splitSelectionError,
   splitShortcutChecked,
   type TripPayload,
   type TripSummary,
@@ -654,6 +655,10 @@ function bindHandlers() {
       ).map((input) => input.value);
 
       void run(async () => {
+        const splitError = splitSelectionError(participantIds);
+        if (splitError) {
+          throw new Error(splitError);
+        }
         state.selected = await api<TripPayload>(
           `/api/trips/${tripId}/expenses`,
           {

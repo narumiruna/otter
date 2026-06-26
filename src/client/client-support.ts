@@ -68,6 +68,12 @@ export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
 }
 
+export function splitSelectionError(
+  participantIds: readonly string[],
+): string | null {
+  return participantIds.length === 0 ? "請至少選擇一位分帳參與者" : null;
+}
+
 export function splitShortcutChecked(
   value: string | undefined,
 ): boolean | null {
