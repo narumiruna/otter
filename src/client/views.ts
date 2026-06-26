@@ -109,15 +109,16 @@ function tripView(payload: TripPayload): string {
                 trip,
                 person.id,
               );
+              const deleteReasonId = `participant-delete-reason-${htmlEscape(person.id)}`;
               return `
                 <li>
                   <div class="row">
                     <span>${htmlEscape(person.name)}</span>
-                    <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">重新命名</button>
+                    <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="重新命名 ${htmlEscape(person.name)}">重新命名</button>
                     ${
                       deleteBlockReason
-                        ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button">刪除</button><span class="muted">${htmlEscape(deleteBlockReason)}</span>`
-                        : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">刪除</button>`
+                        ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button" aria-label="無法刪除 ${htmlEscape(person.name)}" aria-describedby="${deleteReasonId}">刪除</button><span id="${deleteReasonId}" class="muted">${htmlEscape(deleteBlockReason)}</span>`
+                        : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="刪除 ${htmlEscape(person.name)}">刪除</button>`
                     }
                   </div>
                 </li>

@@ -41,13 +41,14 @@
 - 2026-06-25: Split client view rendering; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Mark active trip for assistive tech; verification passed (`npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add contextual expense action labels; verification passed (`npm run typecheck`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add participant action labels and disabled delete descriptions; verification passed (`npm run typecheck`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Add contextual labels to repeated expense action buttons | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: screen reader users can identify which expense each repeated action edits or deletes. |
-| 2 | Describe disabled participant delete reasons with ARIA | Medium | Low | High | High | High | Medium | Low | Low | Later: useful, but only affects blocked delete buttons. |
-| 3 | Add client view rendering smoke tests | Low | Low | High | Medium | High | High | Low | Low | Later: protects recent view extraction, but less direct user impact. |
-| 4 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than contextual labels. |
+| 1 | Add participant action labels and disabled delete descriptions | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: screen reader users get participant action targets and blocked delete reasons without relying on layout. |
+| 2 | Add client view rendering smoke tests | Low | Low | High | Medium | High | High | Low | Low | Later: protects recent view extraction, but less direct user impact. |
+| 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
+| 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than participant action labels. |
