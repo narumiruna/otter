@@ -59,6 +59,17 @@ test("api reports connection failures with a stable message", async () => {
   }
 });
 
+test("api rejects successful non-JSON responses", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("ok", { status: 200 });
+
+  try {
+    await assert.rejects(api("/api/weird"), /伺服器回應格式錯誤/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("split count label formats selected and total counts", () => {
   assert.equal(splitCountLabel(2, 5), "已選 2 / 5");
 });

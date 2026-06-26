@@ -47,8 +47,10 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error("連線失敗，請稍後再試");
   }
   let data: unknown;
+  let parsedJson = false;
   try {
     data = await response.json();
+    parsedJson = true;
   } catch {
     data = null;
   }
@@ -62,6 +64,10 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
         ? data.error
         : "Request failed";
     throw new Error(error);
+  }
+
+  if (!parsedJson) {
+    throw new Error("伺服器回應格式錯誤");
   }
 
   return data as T;
