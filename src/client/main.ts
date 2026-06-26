@@ -174,6 +174,7 @@ function tripView(payload: TripPayload): string {
           <h2>${htmlEscape(trip.name)}</h2>
           <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
           <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
+          <button id="print-trip" class="secondary" type="button">列印</button>
           <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
           <button id="rename-trip" class="secondary" type="button">重新命名</button>
           <button id="delete-trip" class="danger" type="button">刪除旅行</button>
@@ -484,6 +485,12 @@ function bindHandlers() {
       );
       setMessage("已匯出結算 CSV");
       render();
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#print-trip")
+    ?.addEventListener("click", () => {
+      window.print();
     });
 
   document

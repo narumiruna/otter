@@ -37,12 +37,13 @@
 - 2026-06-25: Show client-side empty split feedback; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add selected split count; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add accessible live regions for feedback; verification passed (`npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add visible print action; verification passed (`npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Add accessible live regions for feedback | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: makes success/error messages announce to assistive tech with a tiny UI-only change. |
+| 1 | Add visible print action | Medium | Low | High | High | High | High | Low | Low | Completed this cycle: makes the existing print-friendly view discoverable with minimal client-only code. |
 | 2 | Split client UI before more features | Low | Low | High | Medium | High | High | Medium | Low | Later: main client file is 931 lines but still below the 1,000-line guard. |
 | 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
 | 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
