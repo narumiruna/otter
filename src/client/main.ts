@@ -9,40 +9,18 @@ import {
   toMajor,
 } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-};
-
-type TripSummary = {
-  id: string;
-  name: string;
-  baseCurrency: Currency;
-  participantCount: number;
-  expenseCount: number;
-};
-
-type TripPayload = {
-  trip: Trip;
-  balances: Balance[];
-  settlements: Settlement[];
-};
-
-type DevAdmin = {
-  email: string;
-  password: string;
-};
-
-type AppState = {
-  user: User | null;
-  trips: TripSummary[];
-  selected: TripPayload | null;
-  message: string;
-  error: string;
-  devAdmin: DevAdmin | null;
-};
+import {
+  type AppState,
+  api,
+  type DevAdmin,
+  downloadText,
+  htmlEscape,
+  safeFilename,
+  type TripPayload,
+  type TripSummary,
+  todayDate,
+  type User,
+} from "./client-support.js";
 
 const state: AppState = {
   devAdmin: null,
@@ -58,50 +36,6 @@ if (!appElement) {
   throw new Error("Missing #app");
 }
 const app = appElement;
-
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    ...init,
-  });
-  const data = (await response.json()) as T & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
-  }
-
-  return data;
-}
-
-function htmlEscape(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function todayDate(): string {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
-}
-
-function safeFilename(value: string): string {
-  return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
-}
-
-function downloadText(filename: string, text: string) {
-  const url = URL.createObjectURL(
-    new Blob([text], { type: "text/csv;charset=utf-8" }),
-  );
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 function setMessage(message: string, error = "") {
   state.message = message;
