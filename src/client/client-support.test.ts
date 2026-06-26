@@ -46,6 +46,19 @@ test("api falls back when failed response is not JSON", async () => {
   }
 });
 
+test("api reports connection failures with a stable message", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
+
+  try {
+    await assert.rejects(api("/api/fail"), /連線失敗，請稍後再試/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("split count label formats selected and total counts", () => {
   assert.equal(splitCountLabel(2, 5), "已選 2 / 5");
 });
