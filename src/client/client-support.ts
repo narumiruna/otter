@@ -41,13 +41,25 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
-  const data = (await response.json()) as T & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error ?? "Request failed");
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
   }
 
-  return data;
+  if (!response.ok) {
+    const error =
+      data &&
+      typeof data === "object" &&
+      "error" in data &&
+      typeof data.error === "string"
+        ? data.error
+        : "Request failed";
+    throw new Error(error);
+  }
+
+  return data as T;
 }
 
 export function htmlEscape(value: string): string {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
 import {
+  api,
   expenseSplitLabel,
   participantDeleteBlockReason,
   splitCountLabel,
@@ -21,6 +22,29 @@ const baseTrip: Trip = {
     { id: "bob", name: "Bob" },
   ],
 };
+
+test("api keeps server JSON error messages", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: "伺服器錯誤" }), { status: 500 });
+
+  try {
+    await assert.rejects(api("/api/fail"), /伺服器錯誤/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("api falls back when failed response is not JSON", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("bad gateway", { status: 502 });
+
+  try {
+    await assert.rejects(api("/api/fail"), /Request failed/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("split count label formats selected and total counts", () => {
   assert.equal(splitCountLabel(2, 5), "已選 2 / 5");

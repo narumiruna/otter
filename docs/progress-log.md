@@ -43,13 +43,14 @@
 - 2026-06-25: Add contextual expense action labels; verification passed (`npm run typecheck`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add participant action labels and disabled delete descriptions; verification passed (`npm run typecheck`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add client view rendering smoke tests; verification passed (`npm test -- src/client/views.test.ts`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Make client API errors robust to non-JSON responses; verification passed (`npm test -- src/client/client-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Add client view rendering smoke tests | Low | Low | High | Medium | High | High | Low | Low | Completed this cycle: recent view extraction and ARIA work now have a cheap regression check. |
+| 1 | Make client API errors robust to non-JSON responses | Medium | Medium | High | High | High | High | Low | Low | Completed this cycle: failed proxy/server responses now show stable user-facing errors instead of JSON parse exceptions. |
 | 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
 | 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 4 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than view tests. |
+| 4 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than API fallback. |
 | 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
