@@ -226,13 +226,13 @@ function expenseList(trip: Trip): string {
                   ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
                   <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
                 </div>
-                <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button">改日期</button>
-                <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
-                <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button">改金額</button>
-                <button class="secondary" data-edit-expense-currency-id="${htmlEscape(expense.id)}" data-expense-currency="${expense.currency}" type="button">改貨幣</button>
-                <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button">改付款人</button>
-                <button class="secondary" data-edit-expense-split-id="${htmlEscape(expense.id)}" type="button">改分帳</button>
-                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">刪除</button>
+                <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 日期">改日期</button>
+                <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 描述">改描述</button>
+                <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 金額">改金額</button>
+                <button class="secondary" data-edit-expense-currency-id="${htmlEscape(expense.id)}" data-expense-currency="${expense.currency}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 貨幣">改貨幣</button>
+                <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 付款人">改付款人</button>
+                <button class="secondary" data-edit-expense-split-id="${htmlEscape(expense.id)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 分帳參與者">改分帳</button>
+                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="刪除 ${htmlEscape(expense.description)}">刪除</button>
               </div>
             </li>
           `,

@@ -40,13 +40,14 @@
 - 2026-06-25: Add visible print action; verification passed (`npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Split client view rendering; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Mark active trip for assistive tech; verification passed (`npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add contextual expense action labels; verification passed (`npm run typecheck`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Mark active trip for assistive tech | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: makes the visual active trip state available to screen readers with minimal view-only change. |
-| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
-| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than ARIA state. |
+| 1 | Add contextual labels to repeated expense action buttons | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: screen reader users can identify which expense each repeated action edits or deletes. |
+| 2 | Describe disabled participant delete reasons with ARIA | Medium | Low | High | High | High | Medium | Low | Low | Later: useful, but only affects blocked delete buttons. |
+| 3 | Add client view rendering smoke tests | Low | Low | High | Medium | High | High | Low | Low | Later: protects recent view extraction, but less direct user impact. |
+| 4 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than contextual labels. |
