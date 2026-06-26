@@ -43,7 +43,27 @@ const state: AppState = {
   devAdmin: null,
   error: "",
   message: "",
-  selected: { balances: [], settlements: [], trip },
+  selected: {
+    balances: [
+      {
+        amountMinor: 600,
+        currency: "TWD",
+        name: "Alice",
+        participantId: "participant_alice",
+      },
+    ],
+    settlements: [
+      {
+        amountMinor: 600,
+        currency: "TWD",
+        fromId: "participant_bob",
+        fromName: "Bob",
+        toId: "participant_alice",
+        toName: "Alice",
+      },
+    ],
+    trip,
+  },
   trips: [
     {
       baseCurrency: "TWD",
@@ -66,10 +86,14 @@ const state: AppState = {
 test("dashboard view exposes stable accessibility markup", () => {
   const html = dashboardView(state);
 
+  assert.ok(html.includes('class="grid dashboard-grid"'));
   assert.match(html, /data-trip-id="trip_1" type="button" aria-pressed="true"/);
   assert.match(
     html,
     /data-trip-id="trip_2" type="button" aria-pressed="false"/,
+  );
+  assert.ok(
+    html.indexOf("Tokyo") < html.indexOf("<summary>新增旅行</summary>"),
   );
   assert.ok(html.includes('aria-label="重新命名 Alice"'));
   assert.ok(html.includes('aria-label="刪除 Charlie"'));
@@ -83,6 +107,11 @@ test("dashboard view exposes stable accessibility markup", () => {
       '<span id="participant-delete-reason-participant_alice" class="muted">已有支出</span>',
     ),
   );
+  assert.ok(html.includes('<article class="card stack results-card">'));
+  assert.ok(html.indexOf("分帳結果") < html.indexOf("<h3>新增支出</h3>"));
+  assert.ok(html.indexOf("<h3>新增支出</h3>") < html.indexOf("支出紀錄"));
+  assert.ok(html.includes('<details class="expense-actions">'));
+  assert.ok(html.includes("<summary>更多操作</summary>"));
   assert.ok(html.includes('aria-label="修改 Dinner &amp; Drinks 日期"'));
   assert.ok(html.includes('aria-label="刪除 Dinner &amp; Drinks"'));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));

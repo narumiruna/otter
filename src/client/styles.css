@@ -17,7 +17,8 @@ body {
 
 button,
 input,
-select {
+select,
+summary {
   font: inherit;
 }
 
@@ -67,6 +68,11 @@ form {
   gap: 0.8rem;
 }
 
+summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
 .app {
   width: min(1180px, 100%);
   margin: 0 auto;
@@ -103,6 +109,7 @@ form {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;
   gap: 1rem;
 }
 
@@ -120,6 +127,51 @@ form {
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.trip-create,
+.expense-actions {
+  border-top: 1px solid #edf3f1;
+  padding-top: 0.75rem;
+}
+
+.trip-create form,
+.expense-actions .row {
+  margin-top: 0.75rem;
+}
+
+.trip-title {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.trip-title .muted {
+  margin: 0;
+}
+
+.action-groups {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.danger-actions {
+  border-top: 1px solid #edf3f1;
+  padding-top: 0.75rem;
+}
+
+.expense-item {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.expense-row {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.expense-summary {
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 .trip-list button {
@@ -201,6 +253,26 @@ form {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .results-card {
+    order: 1;
+  }
+
+  .expense-create-card {
+    order: 2;
+  }
+
+  .expense-list-card {
+    order: 3;
+  }
+
+  .trip-summary {
+    order: 4;
+  }
+
+  .participants-card {
+    order: 5;
+  }
 }
 
 @media print {
@@ -226,6 +298,8 @@ form {
   aside.card,
   button,
   form,
+  .trip-create,
+  .expense-actions,
   .notice,
   .error {
     display: none;
