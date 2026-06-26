@@ -15,6 +15,7 @@ import {
   type DevAdmin,
   downloadText,
   htmlEscape,
+  participantDeleteBlockReason,
   safeFilename,
   type TripPayload,
   type TripSummary,
@@ -183,17 +184,25 @@ function tripView(payload: TripPayload): string {
             <button type="submit">新增參與者</button>
           </form>
           <ul class="list">${trip.participants
-            .map(
-              (person) => `
+            .map((person) => {
+              const deleteBlockReason = participantDeleteBlockReason(
+                trip,
+                person.id,
+              );
+              return `
                 <li>
                   <div class="row">
                     <span>${htmlEscape(person.name)}</span>
                     <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">重新命名</button>
-                    <button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">刪除</button>
+                    ${
+                      deleteBlockReason
+                        ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button">刪除</button><span class="muted">${htmlEscape(deleteBlockReason)}</span>`
+                        : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button">刪除</button>`
+                    }
                   </div>
                 </li>
-              `,
-            )
+              `;
+            })
             .join("")}</ul>
         </article>
         <article class="card stack">

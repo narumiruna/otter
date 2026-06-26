@@ -68,6 +68,25 @@ export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
 }
 
+export function participantDeleteBlockReason(
+  trip: Trip,
+  participantId: string,
+): string | null {
+  if (trip.participants.length <= 1) {
+    return "至少需要一位參與者";
+  }
+  if (
+    trip.expenses.some(
+      (expense) =>
+        expense.paidById === participantId ||
+        expense.participantIds.includes(participantId),
+    )
+  ) {
+    return "已有支出";
+  }
+  return null;
+}
+
 export function downloadText(filename: string, text: string) {
   const url = URL.createObjectURL(
     new Blob([text], { type: "text/csv;charset=utf-8" }),
