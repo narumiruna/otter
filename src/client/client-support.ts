@@ -68,6 +68,13 @@ export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
 }
 
+export function splitCountLabel(
+  selectedCount: number,
+  totalCount: number,
+): string {
+  return `已選 ${selectedCount} / ${totalCount}`;
+}
+
 export function splitSelectionError(
   participantIds: readonly string[],
 ): string | null {

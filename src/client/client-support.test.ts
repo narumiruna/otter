@@ -4,6 +4,7 @@ import type { Trip } from "../shared/settlement.js";
 import {
   expenseSplitLabel,
   participantDeleteBlockReason,
+  splitCountLabel,
   splitSelectionError,
   splitShortcutChecked,
 } from "./client-support.js";
@@ -20,6 +21,10 @@ const baseTrip: Trip = {
     { id: "bob", name: "Bob" },
   ],
 };
+
+test("split count label formats selected and total counts", () => {
+  assert.equal(splitCountLabel(2, 5), "已選 2 / 5");
+});
 
 test("split selection validation catches empty choices", () => {
   assert.equal(splitSelectionError([]), "請至少選擇一位分帳參與者");

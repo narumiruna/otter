@@ -18,6 +18,7 @@ import {
   htmlEscape,
   participantDeleteBlockReason,
   safeFilename,
+  splitCountLabel,
   splitSelectionError,
   splitShortcutChecked,
   type TripPayload,
@@ -252,6 +253,7 @@ function expenseForm(trip: Trip): string {
           <strong>分帳參與者</strong>
           <button class="secondary" data-split-shortcut="all" type="button">全選</button>
           <button class="secondary" data-split-shortcut="none" type="button">清除</button>
+          <span id="split-count" class="muted">${splitCountLabel(trip.participants.length, trip.participants.length)}</span>
         </div>
         <div class="checks">
           ${trip.participants
@@ -620,6 +622,29 @@ function bindHandlers() {
       });
     });
 
+  const updateSplitCount = () => {
+    const splitInputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        '#expense-form input[name="participantIds"]',
+      ),
+    );
+    const splitCount = document.querySelector<HTMLSpanElement>("#split-count");
+    if (splitCount) {
+      splitCount.textContent = splitCountLabel(
+        splitInputs.filter((input) => input.checked).length,
+        splitInputs.length,
+      );
+    }
+  };
+
+  document
+    .querySelectorAll<HTMLInputElement>(
+      '#expense-form input[name="participantIds"]',
+    )
+    .forEach((input) => {
+      input.addEventListener("change", updateSplitCount);
+    });
+
   document
     .querySelectorAll<HTMLButtonElement>("[data-split-shortcut]")
     .forEach((button) => {
@@ -635,6 +660,7 @@ function bindHandlers() {
           .forEach((input) => {
             input.checked = checked;
           });
+        updateSplitCount();
       });
     });
 
