@@ -782,6 +782,13 @@ export function createApp(pool: PgPool): express.Express {
           sendError(res, 400, "JSON 格式錯誤");
           return;
         }
+        if (
+          parseError.status === 413 &&
+          parseError.type === "entity.too.large"
+        ) {
+          sendError(res, 413, "請求內容太大");
+          return;
+        }
       }
       console.error(error);
       sendError(res, 500, "伺服器錯誤");

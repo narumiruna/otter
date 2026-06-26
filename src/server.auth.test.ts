@@ -21,6 +21,14 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(malformedJson.status, 400);
   assert.deepEqual(await malformedJson.json(), { error: "JSON 格式錯誤" });
 
+  const oversizedJson = await fetch(`${baseUrl}/api/auth/login`, {
+    body: JSON.stringify({ email: "a".repeat(1024 * 1024), password: "x" }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  assert.equal(oversizedJson.status, 413);
+  assert.deepEqual(await oversizedJson.json(), { error: "請求內容太大" });
+
   const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
       email,
