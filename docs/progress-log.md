@@ -36,13 +36,14 @@
 - 2026-06-25: Add split select/clear shortcuts; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Show client-side empty split feedback; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Add selected split count; verification passed (`TEST_DATABASE_URL=... npm run check`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add accessible live regions for feedback; verification passed (`npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Add selected split count | Medium | Low | High | High | High | High | Low | Low | Completed this cycle: makes the new split shortcuts visible and helps users verify who is included before submit. |
-| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
-| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than split count UI. |
+| 1 | Add accessible live regions for feedback | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: makes success/error messages announce to assistive tech with a tiny UI-only change. |
+| 2 | Split client UI before more features | Low | Low | High | Medium | High | High | Medium | Low | Later: main client file is 931 lines but still below the 1,000-line guard. |
+| 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
+| 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
+| 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |

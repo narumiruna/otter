@@ -97,8 +97,8 @@ function render() {
             : ""
         }
       </section>
-      ${state.message ? `<p class="notice">${htmlEscape(state.message)}</p>` : ""}
-      ${state.error ? `<p class="error">${htmlEscape(state.error)}</p>` : ""}
+      ${state.message ? `<p class="notice" role="status" aria-live="polite">${htmlEscape(state.message)}</p>` : ""}
+      ${state.error ? `<p class="error" role="alert">${htmlEscape(state.error)}</p>` : ""}
       ${state.user ? dashboardView() : authView()}
     </main>
   `;
