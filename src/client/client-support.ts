@@ -68,6 +68,26 @@ export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
 }
 
+export function expenseSplitLabel(
+  trip: Trip,
+  participantIds: string[],
+): string {
+  const participantById = new Map(
+    trip.participants.map((participant) => [participant.id, participant.name]),
+  );
+  const splitIds = new Set(participantIds);
+  if (
+    trip.participants.length > 0 &&
+    trip.participants.every((participant) => splitIds.has(participant.id)) &&
+    participantIds.every((participantId) => participantById.has(participantId))
+  ) {
+    return "所有人";
+  }
+  return participantIds
+    .map((participantId) => participantById.get(participantId) ?? "未知")
+    .join("、");
+}
+
 export function participantDeleteBlockReason(
   trip: Trip,
   participantId: string,

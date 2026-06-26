@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
-import { participantDeleteBlockReason } from "./client-support.js";
+import {
+  expenseSplitLabel,
+  participantDeleteBlockReason,
+} from "./client-support.js";
 
 const baseTrip: Trip = {
   baseCurrency: "TWD",
@@ -15,6 +18,15 @@ const baseTrip: Trip = {
     { id: "bob", name: "Bob" },
   ],
 };
+
+test("expense split labels summarize all-person splits", () => {
+  assert.equal(expenseSplitLabel(baseTrip, ["alice", "bob"]), "所有人");
+  assert.equal(expenseSplitLabel(baseTrip, ["bob"]), "Bob");
+  assert.equal(
+    expenseSplitLabel(baseTrip, ["alice", "missing"]),
+    "Alice、未知",
+  );
+});
 
 test("participant delete affordance explains blocked deletes", () => {
   assert.equal(participantDeleteBlockReason(baseTrip, "bob"), null);

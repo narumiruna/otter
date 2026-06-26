@@ -14,6 +14,7 @@ import {
   api,
   type DevAdmin,
   downloadText,
+  expenseSplitLabel,
   htmlEscape,
   participantDeleteBlockReason,
   safeFilename,
@@ -299,9 +300,7 @@ function expenseList(trip: Trip): string {
                 <div>
                   <strong>${htmlEscape(expense.description)}</strong><br />
                   ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
-                  <span class="muted">分給 ${expense.participantIds
-                    .map((id) => htmlEscape(participantById.get(id) ?? "未知"))
-                    .join("、")}</span>
+                  <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
                 </div>
                 <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button">改日期</button>
                 <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button">改描述</button>
