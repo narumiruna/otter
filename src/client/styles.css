@@ -202,3 +202,45 @@ form {
     flex-direction: column;
   }
 }
+
+@media print {
+  :root {
+    background: white;
+    color: #111827;
+  }
+
+  .app {
+    width: 100%;
+    padding: 0;
+  }
+
+  .hero,
+  .card,
+  .list li,
+  .checks label {
+    border-color: #d1d5db;
+    background: white;
+    box-shadow: none;
+  }
+
+  aside.card,
+  button,
+  form,
+  .notice,
+  .error {
+    display: none;
+  }
+
+  .grid {
+    display: block;
+  }
+
+  .card {
+    break-inside: avoid;
+    margin-bottom: 0.75rem;
+  }
+
+  .muted {
+    color: #4b5563;
+  }
+}

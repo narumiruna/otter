@@ -25,13 +25,14 @@
 - 2026-06-25: Edit trip base currency; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Secure production session cookies by default; verification passed (`TEST_DATABASE_URL=... npm test`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Split client UI support helpers; verification passed (`npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Add print-friendly trip view styles; verification passed (`npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Split client UI support before `main.ts` exceeds 1,000 lines | Low | Low | High | High | High | High | Low | Low | Completed this cycle: keeps future UI work within the repository size guard without changing behavior. |
+| 1 | Add print-friendly trip view styles | Medium | Low | High | High | High | Medium | Low | Low | Completed this cycle: makes settlement results easier to share offline with CSS only. |
 | 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 3 | Add basic print stylesheet | Low | Low | High | High | High | Low | Low | Low | Later: useful but lower impact than maintainability guard. |
-| 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
+| 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
+| 4 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: useful but more validation-heavy than print styles. |
