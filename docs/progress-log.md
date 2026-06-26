@@ -45,13 +45,14 @@
 - 2026-06-25: Add client view rendering smoke tests; verification passed (`npm test -- src/client/views.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Make client API errors robust to non-JSON responses; verification passed (`npm test -- src/client/client-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Show stable client API message when fetch fails; verification passed (`npm test -- src/client/client-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Sort expense list by expense date; verification passed (`npm run typecheck`, `npm test -- src/client/views.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Show a stable client API message when fetch fails | Medium | Medium | High | High | High | High | Low | Low | Completed this cycle: offline/dev-server failures now produce a friendly app error instead of raw fetch exception text. |
-| 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
-| 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 4 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than fetch-error messaging. |
-| 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |
+| 1 | Sort expense list by expense date | Medium | Medium | High | High | High | High | Low | Low | Completed this cycle: dated expenses display in travel chronology instead of creation order after backdated edits/import-like entry. |
+| 2 | Reject successful non-JSON client API responses | Medium | Medium | High | High | High | High | Low | Low | Later: useful robustness, but less visible than expense chronology. |
+| 3 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
+| 4 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
+| 5 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than display ordering. |

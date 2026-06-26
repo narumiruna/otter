@@ -18,6 +18,16 @@ const trip: Trip = {
       paidById: "participant_alice",
       participantIds: ["participant_alice", "participant_bob"],
     },
+    {
+      amountMinor: 500,
+      createdAt: "2026-06-26T00:00:00.000Z",
+      currency: "TWD",
+      description: "Breakfast",
+      expenseDate: "2026-06-24",
+      id: "expense_2",
+      paidById: "participant_bob",
+      participantIds: ["participant_alice", "participant_bob"],
+    },
   ],
   id: "trip_1",
   name: "Tokyo",
@@ -37,7 +47,7 @@ const state: AppState = {
   trips: [
     {
       baseCurrency: "TWD",
-      expenseCount: 1,
+      expenseCount: 2,
       id: "trip_1",
       name: "Tokyo",
       participantCount: 3,
@@ -75,4 +85,5 @@ test("dashboard view exposes stable accessibility markup", () => {
   );
   assert.ok(html.includes('aria-label="修改 Dinner &amp; Drinks 日期"'));
   assert.ok(html.includes('aria-label="刪除 Dinner &amp; Drinks"'));
+  assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
 });

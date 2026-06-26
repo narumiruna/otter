@@ -217,7 +217,12 @@ function expenseList(trip: Trip): string {
   return `
     <ul class="list">
       ${[...trip.expenses]
-        .reverse()
+        .sort(
+          (left, right) =>
+            right.expenseDate.localeCompare(left.expenseDate) ||
+            right.createdAt.localeCompare(left.createdAt) ||
+            right.id.localeCompare(left.id),
+        )
         .map(
           (expense) => `
             <li>
