@@ -773,6 +773,16 @@ export function createApp(pool: PgPool): express.Express {
         next(error);
         return;
       }
+      if (error && typeof error === "object") {
+        const parseError = error as { status?: unknown; type?: unknown };
+        if (
+          parseError.status === 400 &&
+          parseError.type === "entity.parse.failed"
+        ) {
+          sendError(res, 400, "JSON 格式錯誤");
+          return;
+        }
+      }
       console.error(error);
       sendError(res, 500, "伺服器錯誤");
     },

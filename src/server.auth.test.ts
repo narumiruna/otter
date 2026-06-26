@@ -13,6 +13,14 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   const { baseUrl } = await withTestApp(t);
   const email = `alice-${Date.now()}@example.com`;
 
+  const malformedJson = await fetch(`${baseUrl}/api/auth/login`, {
+    body: "{",
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  assert.equal(malformedJson.status, 400);
+  assert.deepEqual(await malformedJson.json(), { error: "JSON 格式錯誤" });
+
   const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
       email,
