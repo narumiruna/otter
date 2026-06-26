@@ -90,6 +90,8 @@ docker compose -f compose.dev.yml up --build
 
 兩個 compose 檔都會把 app 暴露在 <http://localhost:3000>；container 啟動時會先套用 migrations。
 
+Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
+
 ## 貨幣與匯率限制
 
 支援貨幣：TWD、JPY、USD、EUR。原型目前使用固定匯率換算成旅行基準貨幣；若要正式用於長期或高金額記帳，下一步應接即時匯率或允許每趟旅行自訂匯率。

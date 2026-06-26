@@ -184,19 +184,30 @@ export function getCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
+function secureCookieAttribute(): string {
+  if (process.env.COOKIE_SECURE === "true") {
+    return "; Secure";
+  }
+  if (process.env.COOKIE_SECURE === "false") {
+    return "";
+  }
+  return process.env.NODE_ENV === "production" ? "; Secure" : "";
+}
+
+export function sessionCookieHeader(sessionId: string): string {
+  return `otter_session=${encodeURIComponent(sessionId)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds}${secureCookieAttribute()}`;
+}
+
+export function clearSessionCookieHeader(): string {
+  return `otter_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secureCookieAttribute()}`;
+}
+
 export function setSessionCookie(res: Response, sessionId: string) {
-  const secure = process.env.COOKIE_SECURE === "true" ? "; Secure" : "";
-  res.setHeader(
-    "Set-Cookie",
-    `otter_session=${encodeURIComponent(sessionId)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds}${secure}`,
-  );
+  res.setHeader("Set-Cookie", sessionCookieHeader(sessionId));
 }
 
 export function clearSessionCookie(res: Response) {
-  res.setHeader(
-    "Set-Cookie",
-    "otter_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0",
-  );
+  res.setHeader("Set-Cookie", clearSessionCookieHeader());
 }
 
 export function tripPayload(trip: Trip) {
