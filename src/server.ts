@@ -222,9 +222,11 @@ export function createApp(pool: PgPool): express.Express {
       const body = requestBody(req);
       const name = stringField(body, "name");
       const baseCurrencyValue = body.baseCurrency;
-      const baseCurrency: Currency = isCurrency(baseCurrencyValue)
-        ? baseCurrencyValue
-        : "TWD";
+      if (baseCurrencyValue !== undefined && !isCurrency(baseCurrencyValue)) {
+        sendError(res, 400, "不支援的基準貨幣");
+        return;
+      }
+      const baseCurrency: Currency = baseCurrencyValue ?? "TWD";
 
       if (!name || name.length > 100) {
         sendError(res, 400, "請輸入 1-100 字的旅行名稱");

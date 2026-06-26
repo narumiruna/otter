@@ -101,6 +101,26 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(duplicateTripRename.response.status, 409);
   assert.equal(duplicateTripRename.data.error, "旅行名稱已存在");
 
+  const invalidTripCurrencyCreate = await api<{ error: string }>(
+    baseUrl,
+    "/api/trips",
+    {
+      body: JSON.stringify({ baseCurrency: "BTC", name: "Bad Currency" }),
+      headers: { cookie },
+      method: "POST",
+    },
+  );
+  assert.equal(invalidTripCurrencyCreate.response.status, 400);
+  assert.equal(invalidTripCurrencyCreate.data.error, "不支援的基準貨幣");
+
+  const defaultCurrencyTrip = await api<TripPayload>(baseUrl, "/api/trips", {
+    body: JSON.stringify({ name: "Nara" }),
+    headers: { cookie },
+    method: "POST",
+  });
+  assert.equal(defaultCurrencyTrip.response.status, 201);
+  assert.equal(defaultCurrencyTrip.data.trip.baseCurrency, "TWD");
+
   const rebasedTrip = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
@@ -184,6 +204,14 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   );
   assert.equal(deletedSecondTrip.response.status, 200);
   assert.equal(deletedSecondTrip.data.ok, true);
+
+  const deletedDefaultCurrencyTrip = await api<{ ok: true }>(
+    baseUrl,
+    `/api/trips/${defaultCurrencyTrip.data.trip.id}`,
+    { headers: { cookie }, method: "DELETE" },
+  );
+  assert.equal(deletedDefaultCurrencyTrip.response.status, 200);
+  assert.equal(deletedDefaultCurrencyTrip.data.ok, true);
 
   const missingTrip = await api<{ error: string }>(
     baseUrl,
