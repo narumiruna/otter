@@ -107,6 +107,25 @@ test(
     );
     assert.equal(invalidExpenseDate.response.status, 400);
 
+    const invalidCreateSplit = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses`,
+      {
+        body: JSON.stringify({
+          amount: "100",
+          currency: "TWD",
+          description: "Dinner",
+          expenseDate: "2026-06-24",
+          paidById: owner.id,
+          participantIds: [owner.id, "participant_missing"],
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(invalidCreateSplit.response.status, 400);
+    assert.equal(invalidCreateSplit.data.error, "分帳參與者必須是旅行參與者");
+
     const withExpense = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses`,

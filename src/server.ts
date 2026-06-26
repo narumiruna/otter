@@ -512,9 +512,17 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      const participantIds = [...new Set(participantIdsInput)]
-        .filter((id): id is string => typeof id === "string")
-        .filter((id) => participantExists(trip, id));
+      const participantIds: string[] = [];
+      for (const participantId of new Set(participantIdsInput)) {
+        if (
+          typeof participantId !== "string" ||
+          !participantExists(trip, participantId)
+        ) {
+          sendError(res, 400, "分帳參與者必須是旅行參與者");
+          return;
+        }
+        participantIds.push(participantId);
+      }
 
       if (participantIds.length === 0) {
         sendError(res, 400, "請至少選擇一位分帳參與者");
