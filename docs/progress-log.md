@@ -47,13 +47,14 @@
 - 2026-06-25: Show stable client API message when fetch fails; verification passed (`npm test -- src/client/client-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Sort expense list by expense date; verification passed (`npm run typecheck`, `npm test -- src/client/views.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 - 2026-06-25: Reject successful non-JSON client API responses; verification passed (`npm test -- src/client/client-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
+- 2026-06-25: Ignore malformed cookie values; verification passed (`npm test -- src/server-support.test.ts`, `npm run check`, dev compose `/api/me` smoke).
 
 ## Current PM candidate ranking
 
 | Rank | Candidate | User impact | Correctness | Reliability | Dev speed | Maintainability | Verification clarity | Effort | Risk | Decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Reject successful non-JSON client API responses | Medium | Medium | High | High | High | High | Low | Low | Completed this cycle: API contract violations now produce a stable app error instead of returning `null` into UI code. |
+| 1 | Ignore malformed cookie values | Medium | Medium | High | High | High | High | Low | Low | Completed this cycle: malformed Cookie headers no longer crash auth checks or logout. |
 | 2 | Add participant merge flow | Medium | High | Medium | Low | Medium | Low | High | High | Later: risky because it rewrites expense ownership. |
 | 3 | Add trip archive flag | Low | Low | Medium | Medium | High | Medium | Medium | Low | Later: housekeeping after core correction flows. |
-| 4 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than API response validation. |
+| 4 | Add CSV import for expenses | Medium | Medium | Medium | Low | Medium | Medium | High | Medium | Later: more parsing/validation surface than cookie parsing. |
 | 5 | Add recurring expense templates | Medium | Medium | Medium | Low | Medium | Low | High | Medium | Later: speculative until repeated-entry pain is clear. |

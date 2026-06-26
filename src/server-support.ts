@@ -177,7 +177,11 @@ export function getCookie(req: Request, name: string): string | undefined {
   for (const cookie of cookieHeader.split(";")) {
     const [rawName, ...rawValue] = cookie.trim().split("=");
     if (rawName === name) {
-      return decodeURIComponent(rawValue.join("="));
+      try {
+        return decodeURIComponent(rawValue.join("="));
+      } catch {
+        return undefined;
+      }
     }
   }
 

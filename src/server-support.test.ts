@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { Request } from "express";
 import {
   clearSessionCookieHeader,
+  getCookie,
   sessionCookieHeader,
 } from "./server-support.js";
 
@@ -37,6 +39,21 @@ function withCookieEnv(
     }
   }
 }
+
+function requestWithCookie(cookie: string): Request {
+  return { headers: { cookie } } as Request;
+}
+
+test("cookie parser decodes valid values and ignores malformed values", () => {
+  assert.equal(
+    getCookie(requestWithCookie("otter_session=session%201"), "otter_session"),
+    "session 1",
+  );
+  assert.equal(
+    getCookie(requestWithCookie("otter_session=%E0%A4%A"), "otter_session"),
+    undefined,
+  );
+});
 
 test("session cookie security defaults follow environment", () => {
   withCookieEnv("development", undefined, () => {
