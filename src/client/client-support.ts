@@ -21,6 +21,16 @@ export type TripPayload = {
   settlements: Settlement[];
 };
 
+export const workspaceTabs = [
+  "overview",
+  "add-expense",
+  "expenses",
+  "members",
+  "settings",
+] as const;
+
+export type WorkspaceTab = (typeof workspaceTabs)[number];
+
 export type DevAdmin = {
   email: string;
   password: string;
@@ -30,6 +40,7 @@ export type AppState = {
   user: User | null;
   trips: TripSummary[];
   selected: TripPayload | null;
+  activeTab: WorkspaceTab;
   message: string;
   error: string;
   devAdmin: DevAdmin | null;

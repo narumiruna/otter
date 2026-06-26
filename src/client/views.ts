@@ -15,6 +15,8 @@ import {
   type TripPayload,
   type TripSummary,
   todayDate,
+  type WorkspaceTab,
+  workspaceTabs,
 } from "./client-support.js";
 
 export function authView(state: AppState): string {
@@ -48,26 +50,26 @@ export function dashboardView(state: AppState): string {
   return `
     <section class="grid dashboard-grid">
       <aside class="card stack trip-sidebar">
-        <h2>旅行 / 群組</h2>
+        <h2>支出群組</h2>
         <div class="trip-list stack">
           ${
             state.trips.length
               ? state.trips
                   .map((trip) => tripButton(trip, state.selected?.trip.id))
                   .join("")
-              : '<p class="muted">還沒有旅行，先新增一個。</p>'
+              : '<p class="muted">還沒有支出群組，先新增一個。</p>'
           }
         </div>
         <details class="trip-create" ${state.trips.length ? "" : "open"}>
-          <summary>新增旅行</summary>
+          <summary>新增支出群組</summary>
           <form id="trip-form">
             <label>名稱<input name="name" required maxlength="100" placeholder="東京五日遊" /></label>
             <label>基準貨幣${currencySelect("baseCurrency", "TWD")}</label>
-            <button type="submit">新增旅行</button>
+            <button type="submit">新增支出群組</button>
           </form>
         </details>
       </aside>
-      ${state.selected ? tripView(state.selected) : '<section class="card"><p class="muted">選擇或新增旅行後開始記帳。</p></section>'}
+      ${state.selected ? tripView(state.selected, state.activeTab) : '<section class="card"><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
     </section>
   `;
 }
@@ -83,7 +85,7 @@ function tripButton(trip: TripSummary, selectedTripId?: string): string {
   `;
 }
 
-function tripView(payload: TripPayload): string {
+function tripView(payload: TripPayload, activeTab: WorkspaceTab): string {
   const { trip } = payload;
   return `
     <section class="stack trip-detail">
@@ -92,65 +94,137 @@ function tripView(payload: TripPayload): string {
           <h2>${htmlEscape(trip.name)}</h2>
           <p class="muted">基準貨幣：${trip.baseCurrency}。匯率目前使用固定原型值，可之後改接即時匯率。</p>
         </div>
-        <div class="action-groups" aria-label="旅行操作">
-          <div class="row action-group">
-            <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
-            <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
-            <button id="print-trip" class="secondary" type="button">列印</button>
-          </div>
-          <div class="row action-group">
-            <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
-            <button id="rename-trip" class="secondary" type="button">重新命名</button>
-          </div>
-          <div class="row danger-actions">
-            <button id="delete-trip" class="danger" type="button">刪除旅行</button>
-          </div>
-        </div>
+        ${workspaceTabBar(activeTab)}
       </article>
-      <article class="card stack results-card">
-        <h3>分帳結果</h3>
-        ${balanceList(payload.balances)}
-        <h3>結清建議</h3>
-        ${settlementList(payload.settlements)}
-      </article>
-      <article class="card stack expense-create-card">
-        <h3>新增支出</h3>
-        ${expenseForm(trip)}
-      </article>
-      <article class="card stack expense-list-card">
-        <h3>支出紀錄</h3>
-        ${expenseList(trip)}
-      </article>
-      <article class="card stack participants-card">
-        <h3>參與者</h3>
-        <form id="participant-form">
-          <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
-          <button type="submit">新增參與者</button>
-        </form>
-        <ul class="list">${trip.participants
-          .map((person) => {
-            const deleteBlockReason = participantDeleteBlockReason(
-              trip,
-              person.id,
-            );
-            const deleteReasonId = `participant-delete-reason-${htmlEscape(person.id)}`;
-            return `
-              <li>
-                <div class="row">
-                  <span>${htmlEscape(person.name)}</span>
-                  <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="重新命名 ${htmlEscape(person.name)}">重新命名</button>
-                  ${
-                    deleteBlockReason
-                      ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button" aria-label="無法刪除 ${htmlEscape(person.name)}" aria-describedby="${deleteReasonId}">刪除</button><span id="${deleteReasonId}" class="muted">${htmlEscape(deleteBlockReason)}</span>`
-                      : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="刪除 ${htmlEscape(person.name)}">刪除</button>`
-                  }
-                </div>
-              </li>
-            `;
-          })
-          .join("")}</ul>
-      </article>
+      ${workspacePanel(payload, activeTab)}
     </section>
+  `;
+}
+
+function workspaceTabBar(activeTab: WorkspaceTab): string {
+  return `
+    <nav class="workspace-tabs" aria-label="支出群組工作區" role="tablist">
+      ${workspaceTabs
+        .map((tab) => {
+          const active = tab === activeTab;
+          return `
+            <button class="secondary${active ? " active" : ""}" data-workspace-tab="${tab}" type="button" role="tab" aria-selected="${active}">
+              ${workspaceTabLabel(tab)}
+            </button>
+          `;
+        })
+        .join("")}
+    </nav>
+  `;
+}
+
+function workspaceTabLabel(tab: WorkspaceTab): string {
+  switch (tab) {
+    case "overview":
+      return "總覽";
+    case "add-expense":
+      return "記帳";
+    case "expenses":
+      return "支出紀錄";
+    case "members":
+      return "成員";
+    case "settings":
+      return "設定/匯出";
+  }
+}
+
+function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
+  switch (activeTab) {
+    case "overview":
+      return overviewPanel(payload);
+    case "add-expense":
+      return `
+        <article class="card stack expense-create-card" data-workspace-panel="add-expense">
+          <h3>記帳</h3>
+          ${expenseForm(payload.trip)}
+        </article>
+      `;
+    case "expenses":
+      return `
+        <article class="card stack expense-list-card" data-workspace-panel="expenses">
+          <h3>支出紀錄</h3>
+          ${expenseList(payload.trip)}
+        </article>
+      `;
+    case "members":
+      return membersPanel(payload.trip);
+    case "settings":
+      return settingsPanel(payload.trip);
+  }
+}
+
+function overviewPanel(payload: TripPayload): string {
+  return `
+    <article class="card stack results-card" data-workspace-panel="overview">
+      <h3>分帳結果</h3>
+      ${balanceList(payload.balances)}
+      <h3>結清建議</h3>
+      ${settlementList(payload.settlements)}
+      <h3>最近支出</h3>
+      ${recentExpenseList(payload.trip)}
+    </article>
+  `;
+}
+
+function membersPanel(trip: Trip): string {
+  return `
+    <article class="card stack participants-card" data-workspace-panel="members">
+      <h3>成員</h3>
+      <form id="participant-form">
+        <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
+        <button type="submit">新增成員</button>
+      </form>
+      <ul class="list">${trip.participants
+        .map((person) => {
+          const deleteBlockReason = participantDeleteBlockReason(
+            trip,
+            person.id,
+          );
+          const deleteReasonId = `participant-delete-reason-${htmlEscape(person.id)}`;
+          return `
+            <li>
+              <div class="row">
+                <span>${htmlEscape(person.name)}</span>
+                <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="重新命名 ${htmlEscape(person.name)}">重新命名</button>
+                ${
+                  deleteBlockReason
+                    ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button" aria-label="無法刪除 ${htmlEscape(person.name)}" aria-describedby="${deleteReasonId}">刪除</button><span id="${deleteReasonId}" class="muted">${htmlEscape(deleteBlockReason)}</span>`
+                    : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="刪除 ${htmlEscape(person.name)}">刪除</button>`
+                }
+              </div>
+            </li>
+          `;
+        })
+        .join("")}</ul>
+    </article>
+  `;
+}
+
+function settingsPanel(trip: Trip): string {
+  return `
+    <article class="card stack settings-card" data-workspace-panel="settings">
+      <h3>設定 / 匯出</h3>
+      <div class="action-groups" aria-label="支出群組操作">
+        <div class="row action-group">
+          <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
+          <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
+          <button id="print-trip" class="secondary" type="button">列印</button>
+        </div>
+        <div class="row action-group">
+          <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
+          <button id="rename-trip" class="secondary" type="button">重新命名</button>
+        </div>
+        <div class="row danger-actions">
+          <button id="delete-trip" class="danger" type="button">刪除支出群組</button>
+        </div>
+      </div>
+      <p class="muted">目前基準貨幣：${trip.baseCurrency}</p>
+    </article>
   `;
 }
 
@@ -223,13 +297,7 @@ function expenseList(trip: Trip): string {
   );
   return `
     <ul class="list">
-      ${[...trip.expenses]
-        .sort(
-          (left, right) =>
-            right.expenseDate.localeCompare(left.expenseDate) ||
-            right.createdAt.localeCompare(left.createdAt) ||
-            right.id.localeCompare(left.id),
-        )
+      ${sortedExpenses(trip)
         .map(
           (expense) => `
             <li class="expense-item">
@@ -258,6 +326,41 @@ function expenseList(trip: Trip): string {
         .join("")}
     </ul>
   `;
+}
+
+function recentExpenseList(trip: Trip): string {
+  if (trip.expenses.length === 0) {
+    return '<p class="muted">還沒有支出。</p>';
+  }
+
+  const participantById = new Map(
+    trip.participants.map((person) => [person.id, person.name]),
+  );
+  return `
+    <ul class="list">
+      ${sortedExpenses(trip)
+        .slice(0, 3)
+        .map(
+          (expense) => `
+            <li>
+              <strong>${htmlEscape(expense.description)}</strong><br />
+              ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
+              <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
+            </li>
+          `,
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
+function sortedExpenses(trip: Trip) {
+  return [...trip.expenses].sort(
+    (left, right) =>
+      right.expenseDate.localeCompare(left.expenseDate) ||
+      right.createdAt.localeCompare(left.createdAt) ||
+      right.id.localeCompare(left.id),
+  );
 }
 
 function balanceList(balances: Balance[]): string {

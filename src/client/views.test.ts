@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
-import type { AppState } from "./client-support.js";
+import type { AppState, WorkspaceTab } from "./client-support.js";
 import { dashboardView } from "./views.js";
 
 const trip: Trip = {
@@ -39,7 +39,8 @@ const trip: Trip = {
   ],
 };
 
-const state: AppState = {
+const baseState: AppState = {
+  activeTab: "overview",
   devAdmin: null,
   error: "",
   message: "",
@@ -83,36 +84,60 @@ const state: AppState = {
   user: { email: "alice@example.com", id: "user_1", name: "Alice" },
 };
 
-test("dashboard view exposes stable accessibility markup", () => {
-  const html = dashboardView(state);
+function view(activeTab: WorkspaceTab): string {
+  return dashboardView({ ...baseState, activeTab });
+}
+
+test("dashboard view exposes workspace tabs and overview panel", () => {
+  const html = view("overview");
 
   assert.ok(html.includes('class="grid dashboard-grid"'));
+  assert.ok(html.includes("<h2>支出群組</h2>"));
   assert.match(html, /data-trip-id="trip_1" type="button" aria-pressed="true"/);
   assert.match(
     html,
     /data-trip-id="trip_2" type="button" aria-pressed="false"/,
   );
   assert.ok(
-    html.indexOf("Tokyo") < html.indexOf("<summary>新增旅行</summary>"),
+    html.indexOf("Tokyo") < html.indexOf("<summary>新增支出群組</summary>"),
   );
-  assert.ok(html.includes('aria-label="重新命名 Alice"'));
-  assert.ok(html.includes('aria-label="刪除 Charlie"'));
+  assert.ok(html.includes('data-workspace-tab="overview"'));
+  assert.ok(html.includes('data-workspace-tab="add-expense"'));
+  assert.ok(html.includes('data-workspace-tab="expenses"'));
+  assert.ok(html.includes('data-workspace-tab="members"'));
+  assert.ok(html.includes('data-workspace-tab="settings"'));
+  assert.match(html, /data-workspace-tab="overview"[^>]+aria-selected="true"/);
+  assert.ok(html.includes('data-workspace-panel="overview"'));
+  assert.ok(html.includes("最近支出"));
+  assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
+});
+
+test("workspace tabs render task-focused panels", () => {
+  assert.ok(view("add-expense").includes('data-workspace-panel="add-expense"'));
+  assert.ok(view("add-expense").includes('id="expense-form"'));
+
+  const expensesHtml = view("expenses");
+  assert.ok(expensesHtml.includes('data-workspace-panel="expenses"'));
+  assert.ok(expensesHtml.includes('<details class="expense-actions">'));
+  assert.ok(expensesHtml.includes("<summary>更多操作</summary>"));
   assert.ok(
-    html.includes(
+    expensesHtml.includes('aria-label="修改 Dinner &amp; Drinks 日期"'),
+  );
+  assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));
+
+  const membersHtml = view("members");
+  assert.ok(membersHtml.includes('data-workspace-panel="members"'));
+  assert.ok(membersHtml.includes('id="participant-form"'));
+  assert.ok(membersHtml.includes('aria-label="重新命名 Alice"'));
+  assert.ok(membersHtml.includes('aria-label="刪除 Charlie"'));
+  assert.ok(
+    membersHtml.includes(
       'aria-describedby="participant-delete-reason-participant_alice"',
     ),
   );
-  assert.ok(
-    html.includes(
-      '<span id="participant-delete-reason-participant_alice" class="muted">已有支出</span>',
-    ),
-  );
-  assert.ok(html.includes('<article class="card stack results-card">'));
-  assert.ok(html.indexOf("分帳結果") < html.indexOf("<h3>新增支出</h3>"));
-  assert.ok(html.indexOf("<h3>新增支出</h3>") < html.indexOf("支出紀錄"));
-  assert.ok(html.includes('<details class="expense-actions">'));
-  assert.ok(html.includes("<summary>更多操作</summary>"));
-  assert.ok(html.includes('aria-label="修改 Dinner &amp; Drinks 日期"'));
-  assert.ok(html.includes('aria-label="刪除 Dinner &amp; Drinks"'));
-  assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
+
+  const settingsHtml = view("settings");
+  assert.ok(settingsHtml.includes('data-workspace-panel="settings"'));
+  assert.ok(settingsHtml.includes('id="export-expenses"'));
+  assert.ok(settingsHtml.includes('id="delete-trip"'));
 });

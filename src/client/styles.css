@@ -154,6 +154,22 @@ summary {
   gap: 0.75rem;
 }
 
+.workspace-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+
+.workspace-tabs button {
+  flex: 0 0 auto;
+}
+
+.workspace-tabs button.active {
+  background: #0f766e;
+  color: white;
+}
+
 .danger-actions {
   border-top: 1px solid #edf3f1;
   padding-top: 0.75rem;
@@ -254,24 +270,9 @@ summary {
     flex-direction: column;
   }
 
-  .results-card {
-    order: 1;
-  }
-
-  .expense-create-card {
-    order: 2;
-  }
-
-  .expense-list-card {
-    order: 3;
-  }
-
-  .trip-summary {
-    order: 4;
-  }
-
-  .participants-card {
-    order: 5;
+  .workspace-tabs {
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
   }
 }
 
@@ -300,6 +301,7 @@ summary {
   form,
   .trip-create,
   .expense-actions,
+  .workspace-tabs,
   .notice,
   .error {
     display: none;

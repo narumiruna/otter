@@ -14,10 +14,13 @@ import {
   type TripPayload,
   type TripSummary,
   type User,
+  type WorkspaceTab,
+  workspaceTabs,
 } from "./client-support.js";
 import { authView, dashboardView } from "./views.js";
 
 const state: AppState = {
+  activeTab: "overview",
   devAdmin: null,
   error: "",
   message: "",
@@ -71,6 +74,11 @@ async function loadTrips() {
 
 async function selectTrip(tripId: string) {
   state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
+  state.activeTab = "overview";
+}
+
+function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
+  return workspaceTabs.includes(value as WorkspaceTab);
 }
 
 function render() {
@@ -111,6 +119,7 @@ function bindHandlers() {
         });
         state.user = data.user;
         state.selected = null;
+        state.activeTab = "overview";
         await loadTrips();
         setMessage("登入成功");
       });
@@ -132,6 +141,7 @@ function bindHandlers() {
         });
         state.user = data.user;
         state.selected = null;
+        state.activeTab = "overview";
         await loadTrips();
         setMessage("註冊成功");
       });
@@ -145,6 +155,7 @@ function bindHandlers() {
         state.user = null;
         state.trips = [];
         state.selected = null;
+        state.activeTab = "overview";
         setMessage("已登出");
       });
     });
@@ -162,8 +173,9 @@ function bindHandlers() {
           }),
           method: "POST",
         });
+        state.activeTab = "overview";
         await loadTrips();
-        setMessage("已新增旅行");
+        setMessage("已新增支出群組");
       });
     });
 
@@ -178,6 +190,18 @@ function bindHandlers() {
         void run(async () => {
           await selectTrip(tripId);
         });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-workspace-tab]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!isWorkspaceTab(button.dataset.workspaceTab)) {
+          return;
+        }
+        state.activeTab = button.dataset.workspaceTab;
+        render();
       });
     });
 
@@ -277,8 +301,9 @@ function bindHandlers() {
       void run(async () => {
         await api<{ ok: true }>(`/api/trips/${tripId}`, { method: "DELETE" });
         state.selected = null;
+        state.activeTab = "overview";
         await loadTrips();
-        setMessage("已刪除旅行");
+        setMessage("已刪除支出群組");
       });
     });
 
