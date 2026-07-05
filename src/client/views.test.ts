@@ -7,7 +7,7 @@ import {
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
-import { dashboardView, readonlyShareView } from "./views.js";
+import { authView, dashboardView, readonlyShareView } from "./views.js";
 
 const trip: Trip = {
   baseCurrency: "TWD",
@@ -66,8 +66,10 @@ const baseState: AppState = {
   csvImportErrors: [],
   error: "",
   expenseFilters: { ...defaultExpenseFilters },
+  focusTarget: "",
   message: "",
   offline: false,
+  pendingAction: "",
   readonlyShare: false,
   selected: {
     balances: [
@@ -170,16 +172,29 @@ function emptyOnePersonView(activeTab: WorkspaceTab): string {
   return emptyTripView(activeTab, emptyOnePersonTrip);
 }
 
+test("auth view shows helper text and nearby errors", () => {
+  const html = authView({
+    ...baseState,
+    formError: "密碼至少需要 8 個字",
+    formErrorTarget: "register-form",
+    selected: null,
+    user: null,
+  });
+
+  assert.ok(html.includes("密碼至少 8 個字"));
+  assert.ok(html.includes('aria-describedby="register-password-help"'));
+  assert.ok(html.includes('id="register-form-error"'));
+  assert.ok(html.includes('data-busy-action="login"'));
+  assert.ok(html.includes('data-busy-action="register"'));
+});
+
 test("dashboard view exposes workspace tabs and overview panel", () => {
   const html = view("overview");
 
   assert.ok(html.includes('class="grid dashboard-grid"'));
   assert.ok(html.includes("<h2>支出群組</h2>"));
-  assert.match(html, /data-trip-id="trip_1" type="button" aria-pressed="true"/);
-  assert.match(
-    html,
-    /data-trip-id="trip_2" type="button" aria-pressed="false"/,
-  );
+  assert.match(html, /data-trip-id="trip_1"[^>]+aria-pressed="true"/);
+  assert.match(html, /data-trip-id="trip_2"[^>]+aria-pressed="false"/);
   assert.ok(
     html.indexOf("Tokyo") < html.indexOf("<summary>新增支出群組</summary>"),
   );
@@ -211,7 +226,7 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.ok(html.includes('class="settlement-summary"'));
   assert.ok(html.includes('name="paidAt" type="date"'));
   assert.ok(html.includes("付款紀錄"));
-  assert.ok(html.includes('data-delete-settlement-payment-id="payment_1"'));
+  assert.ok(html.includes('data-delete-settlement-payment-form="payment_1"'));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
 });
 
@@ -281,7 +296,7 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes('aria-label="Alice 分帳值"'));
   assert.ok(expensesHtml.includes("取消"));
   assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
-  assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));
+  assert.ok(expensesHtml.includes('aria-label="確認刪除 Dinner &amp; Drinks"'));
   assert.ok(
     expensesHtml.includes('data-receipt-upload-expense-id="expense_1"'),
   );
@@ -294,8 +309,11 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(membersHtml.includes('id="participant-merge-form"'));
   assert.ok(membersHtml.includes('name="sourceParticipantId"'));
   assert.ok(membersHtml.includes('name="targetParticipantId"'));
-  assert.ok(membersHtml.includes('aria-label="重新命名 Alice"'));
-  assert.ok(membersHtml.includes('aria-label="刪除 Charlie"'));
+  assert.ok(
+    membersHtml.includes('data-rename-participant-form="participant_alice"'),
+  );
+  assert.ok(membersHtml.includes('aria-label="確認刪除 Charlie"'));
+  assert.ok(membersHtml.includes('name="confirmMerge"'));
   assert.ok(
     membersHtml.includes(
       'aria-describedby="participant-delete-reason-participant_alice"',
@@ -311,6 +329,8 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(settingsHtml.includes('id="create-share-link"'));
   assert.ok(settingsHtml.includes('id="collaborator-form"'));
   assert.ok(settingsHtml.includes('id="archive-trip"'));
+  assert.ok(settingsHtml.includes('id="trip-rename-form"'));
+  assert.ok(settingsHtml.includes('id="trip-base-currency-form"'));
   assert.ok(settingsHtml.includes("封存支出群組"));
   assert.ok(settingsHtml.includes('id="exchange-rates-form"'));
   assert.ok(settingsHtml.includes('name="rate:USD"'));
@@ -453,7 +473,7 @@ test("readonly share view hides mutation controls", () => {
   assert.ok(html.includes("唯讀分享"));
   assert.ok(html.includes("支出紀錄"));
   assert.ok(html.includes("Dinner &amp; Drinks"));
-  assert.ok(!html.includes("data-delete-expense-id"));
+  assert.ok(!html.includes("data-delete-expense-form"));
   assert.ok(!html.includes("data-receipt-upload-expense-id"));
   assert.ok(!html.includes("標記已付款"));
 });
@@ -467,7 +487,7 @@ test("expense forms render nearby errors", () => {
   });
   assert.match(
     createHtml,
-    /<p id="expense-form-error" class="form-error" role="alert">請輸入支出金額<\/p>/,
+    /<p id="expense-form-error" class="form-error" role="alert" tabindex="-1">請輸入支出金額<\/p>/,
   );
 
   const editHtml = dashboardView({
@@ -479,6 +499,6 @@ test("expense forms render nearby errors", () => {
   assert.match(editHtml, /<details class="expense-actions" open>/);
   assert.match(
     editHtml,
-    /<p id="expense-edit-expense_1-error" class="form-error" role="alert">金額格式錯誤<\/p>/,
+    /<p id="expense-edit-expense_1-error" class="form-error" role="alert" tabindex="-1">金額格式錯誤<\/p>/,
   );
 });

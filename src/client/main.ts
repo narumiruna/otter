@@ -1,6 +1,6 @@
 import "./styles.css";
 import { tripExpensesCsv, tripResultsCsv } from "../shared/csv.js";
-import { currencies, currencyInfo } from "../shared/money.js";
+import { currencies } from "../shared/money.js";
 import {
   type AppState,
   api,
@@ -31,8 +31,10 @@ const state: AppState = {
   error: "",
   formError: "",
   formErrorTarget: "",
+  focusTarget: "",
   message: "",
   offline: !navigator.onLine,
+  pendingAction: "",
   readonlyShare: false,
   selected: null,
   trips: [],
@@ -60,7 +62,7 @@ function setMessage(message: string, error = "") {
 
 async function run(
   action: () => Promise<void>,
-  options: { errorTarget?: string } = {},
+  options: { action?: string; errorTarget?: string } = {},
 ) {
   if (state.busy) {
     return;
@@ -68,23 +70,33 @@ async function run(
 
   try {
     state.busy = true;
+    state.pendingAction = options.action ?? "";
+    state.focusTarget = "";
     state.formError = "";
     state.formErrorTarget = "";
     setMessage("", "");
-    if (!options.errorTarget) {
+    if (options.errorTarget) {
+      applyBusyState();
+    } else {
       render();
     }
     await action();
+    if (state.message) {
+      state.focusTarget = "status-message";
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "發生錯誤";
     if (options.errorTarget) {
       state.formError = message;
       state.formErrorTarget = options.errorTarget;
+      state.focusTarget = `${options.errorTarget}-error`;
     } else {
       setMessage("", message);
+      state.focusTarget = "global-error";
     }
   } finally {
     state.busy = false;
+    state.pendingAction = "";
     render();
   }
 }
@@ -156,18 +168,46 @@ function render() {
         </div>
         ${
           state.user
-            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" type="button">登出</button></div>`
+            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" data-busy-action="logout" data-busy-label="登出中…" type="button">登出</button></div>`
             : ""
         }
       </section>
       ${state.offline ? '<p class="notice" role="status">目前離線，資料需連線後載入。</p>' : ""}
-      ${state.busy ? '<p class="notice" role="status" aria-live="polite">正在處理…</p>' : ""}
-      ${!state.busy && state.message ? `<p class="notice" role="status" aria-live="polite">${htmlEscape(state.message)}</p>` : ""}
-      ${state.error ? `<p class="error" role="alert">${htmlEscape(state.error)}</p>` : ""}
+      ${state.busy ? '<p id="busy-message" class="notice" role="status" aria-live="polite" tabindex="-1">正在處理…</p>' : ""}
+      ${!state.busy && state.message ? `<p id="status-message" class="notice" role="status" aria-live="polite" tabindex="-1">${htmlEscape(state.message)}</p>` : ""}
+      ${state.error ? `<p id="global-error" class="error" role="alert" tabindex="-1">${htmlEscape(state.error)}</p>` : ""}
       ${state.readonlyShare && state.selected ? readonlyShareView(state.selected) : state.user ? dashboardView(state) : authView(state)}
     </main>
   `;
+  applyBusyState();
   bindHandlers();
+  restoreFocus();
+}
+
+function applyBusyState() {
+  if (!state.pendingAction) {
+    return;
+  }
+  document.querySelectorAll<HTMLElement>("[data-busy-action]").forEach((el) => {
+    if (el.dataset.busyAction !== state.pendingAction) {
+      return;
+    }
+    if (el instanceof HTMLButtonElement) {
+      el.disabled = true;
+      if (document.getElementById("busy-message")) {
+        el.setAttribute("aria-describedby", "busy-message");
+      }
+      el.textContent = el.dataset.busyLabel ?? "處理中…";
+    }
+  });
+}
+
+function restoreFocus() {
+  if (!state.focusTarget) {
+    return;
+  }
+  document.getElementById(state.focusTarget)?.focus();
+  state.focusTarget = "";
 }
 
 function bindHandlers() {
@@ -176,20 +216,23 @@ function bindHandlers() {
     ?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(async () => {
-        const data = await api<{ user: User }>("/api/auth/login", {
-          body: JSON.stringify({
-            email: String(form.get("email") ?? ""),
-            password: String(form.get("password") ?? ""),
-          }),
-          method: "POST",
-        });
-        state.user = data.user;
-        state.selected = null;
-        state.activeTab = "overview";
-        await loadTrips();
-        setMessage("登入成功");
-      });
+      void run(
+        async () => {
+          const data = await api<{ user: User }>("/api/auth/login", {
+            body: JSON.stringify({
+              email: String(form.get("email") ?? ""),
+              password: String(form.get("password") ?? ""),
+            }),
+            method: "POST",
+          });
+          state.user = data.user;
+          state.selected = null;
+          state.activeTab = "overview";
+          await loadTrips();
+          setMessage("登入成功");
+        },
+        { action: "login", errorTarget: "login-form" },
+      );
     });
 
   document
@@ -197,35 +240,41 @@ function bindHandlers() {
     ?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(async () => {
-        const data = await api<{ user: User }>("/api/auth/register", {
-          body: JSON.stringify({
-            email: String(form.get("email") ?? ""),
-            name: String(form.get("name") ?? ""),
-            password: String(form.get("password") ?? ""),
-          }),
-          method: "POST",
-        });
-        state.user = data.user;
-        state.selected = null;
-        state.activeTab = "overview";
-        await loadTrips();
-        setMessage("註冊成功");
-      });
+      void run(
+        async () => {
+          const data = await api<{ user: User }>("/api/auth/register", {
+            body: JSON.stringify({
+              email: String(form.get("email") ?? ""),
+              name: String(form.get("name") ?? ""),
+              password: String(form.get("password") ?? ""),
+            }),
+            method: "POST",
+          });
+          state.user = data.user;
+          state.selected = null;
+          state.activeTab = "overview";
+          await loadTrips();
+          setMessage("註冊成功");
+        },
+        { action: "register", errorTarget: "register-form" },
+      );
     });
 
   document
     .querySelector<HTMLButtonElement>("#logout")
     ?.addEventListener("click", () => {
-      void run(async () => {
-        await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
-        state.user = null;
-        state.trips = [];
-        state.archivedTrips = [];
-        state.selected = null;
-        state.activeTab = "overview";
-        setMessage("已登出");
-      });
+      void run(
+        async () => {
+          await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
+          state.user = null;
+          state.trips = [];
+          state.archivedTrips = [];
+          state.selected = null;
+          state.activeTab = "overview";
+          setMessage("已登出");
+        },
+        { action: "logout" },
+      );
     });
 
   document
@@ -233,18 +282,21 @@ function bindHandlers() {
     ?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(async () => {
-        state.selected = await api<TripPayload>("/api/trips", {
-          body: JSON.stringify({
-            baseCurrency: String(form.get("baseCurrency") ?? "TWD"),
-            name: String(form.get("name") ?? ""),
-          }),
-          method: "POST",
-        });
-        state.activeTab = "add-expense";
-        await loadTrips();
-        setMessage("已新增支出群組");
-      });
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>("/api/trips", {
+            body: JSON.stringify({
+              baseCurrency: String(form.get("baseCurrency") ?? "TWD"),
+              name: String(form.get("name") ?? ""),
+            }),
+            method: "POST",
+          });
+          state.activeTab = "add-expense";
+          await loadTrips();
+          setMessage("已新增支出群組");
+        },
+        { action: "trip-create" },
+      );
     });
 
   document
@@ -255,9 +307,12 @@ function bindHandlers() {
         if (!tripId) {
           return;
         }
-        void run(async () => {
-          await selectTrip(tripId);
-        });
+        void run(
+          async () => {
+            await selectTrip(tripId);
+          },
+          { action: `trip-select:${tripId}` },
+        );
       });
     });
 
@@ -403,89 +458,98 @@ function bindHandlers() {
           return;
         }
         const form = new FormData(formElement);
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/settlement-payments`,
-            {
-              body: JSON.stringify({
-                amount: String(form.get("amount") ?? ""),
-                currency: String(form.get("currency") ?? ""),
-                fromId: String(form.get("fromId") ?? ""),
-                note: String(form.get("note") ?? ""),
-                paidAt: String(form.get("paidAt") || todayDate()),
-                toId: String(form.get("toId") ?? ""),
-              }),
-              method: "POST",
-            },
-          );
-          setMessage("已記錄付款");
-        });
+        const fromId = String(form.get("fromId") ?? "");
+        const toId = String(form.get("toId") ?? "");
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/settlement-payments`,
+              {
+                body: JSON.stringify({
+                  amount: String(form.get("amount") ?? ""),
+                  currency: String(form.get("currency") ?? ""),
+                  fromId,
+                  note: String(form.get("note") ?? ""),
+                  paidAt: String(form.get("paidAt") || todayDate()),
+                  toId,
+                }),
+                method: "POST",
+              },
+            );
+            setMessage("已記錄付款");
+          },
+          { action: `settlement-pay:${fromId}:${toId}` },
+        );
       });
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-delete-settlement-payment-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-delete-settlement-payment-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const paymentId = button.dataset.deleteSettlementPaymentId;
-        if (!tripId || !paymentId || !confirm("刪除這筆付款紀錄？")) {
+        const paymentId = formElement.dataset.deleteSettlementPaymentForm;
+        if (!tripId || !paymentId) {
           return;
         }
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/settlement-payments/${paymentId}`,
-            { method: "DELETE" },
-          );
-          setMessage("已刪除付款紀錄");
-        });
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/settlement-payments/${paymentId}`,
+              { method: "DELETE" },
+            );
+            setMessage("已刪除付款紀錄");
+          },
+          { action: `settlement-delete:${paymentId}` },
+        );
       });
     });
 
   document
-    .querySelector<HTMLButtonElement>("#rename-trip")
-    ?.addEventListener("click", () => {
+    .querySelector<HTMLFormElement>("#trip-rename-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
       const tripId = state.selected?.trip.id;
-      const name = prompt("新的旅行名稱", state.selected?.trip.name ?? "");
-      if (!tripId || name === null) {
+      if (!tripId) {
         return;
       }
-
-      void run(async () => {
-        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
-          body: JSON.stringify({ name }),
-          method: "PATCH",
-        });
-        await loadTrips();
-        setMessage("已更新旅行名稱");
-      });
-    });
-
-  document
-    .querySelector<HTMLButtonElement>("#edit-trip-base-currency")
-    ?.addEventListener("click", () => {
-      const tripId = state.selected?.trip.id;
-      const currentCurrency = state.selected?.trip.baseCurrency ?? "TWD";
-      const choice = prompt(
-        `新的基準貨幣編號：\n${currencies.map((currency, index) => `${index + 1}. ${currency} · ${currencyInfo[currency].label}`).join("\n")}`,
-        String(currencies.indexOf(currentCurrency) + 1 || 1),
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+            body: JSON.stringify({ name: String(form.get("name") ?? "") }),
+            method: "PATCH",
+          });
+          await loadTrips();
+          setMessage("已更新旅行名稱");
+        },
+        { action: "trip-rename" },
       );
-      if (!tripId || choice === null) {
+    });
+
+  document
+    .querySelector<HTMLFormElement>("#trip-base-currency-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const tripId = state.selected?.trip.id;
+      if (!tripId) {
         return;
       }
-
-      void run(async () => {
-        const baseCurrency = currencies[Number(choice) - 1];
-        if (!baseCurrency) {
-          throw new Error("請輸入有效基準貨幣編號");
-        }
-        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
-          body: JSON.stringify({ baseCurrency }),
-          method: "PATCH",
-        });
-        await loadTrips();
-        setMessage("已更新基準貨幣");
-      });
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+            body: JSON.stringify({
+              baseCurrency: String(form.get("baseCurrency") ?? "TWD"),
+            }),
+            method: "PATCH",
+          });
+          await loadTrips();
+          setMessage("已更新基準貨幣");
+        },
+        { action: "trip-base-currency" },
+      );
     });
 
   document
@@ -498,14 +562,17 @@ function bindHandlers() {
         return;
       }
 
-      void run(async () => {
-        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
-          body: JSON.stringify({ archived }),
-          method: "PATCH",
-        });
-        await loadTrips();
-        setMessage(archived ? "已封存支出群組" : "已還原支出群組");
-      });
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+            body: JSON.stringify({ archived }),
+            method: "PATCH",
+          });
+          await loadTrips();
+          setMessage(archived ? "已封存支出群組" : "已還原支出群組");
+        },
+        { action: "trip-archive" },
+      );
     });
 
   document
@@ -523,33 +590,37 @@ function bindHandlers() {
           String(form.get(`rate:${currency}`) ?? ""),
         ]),
       );
-      void run(async () => {
-        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
-          body: JSON.stringify({ exchangeRates }),
-          method: "PATCH",
-        });
-        setMessage("已更新匯率");
-      });
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+            body: JSON.stringify({ exchangeRates }),
+            method: "PATCH",
+          });
+          setMessage("已更新匯率");
+        },
+        { action: "exchange-rates" },
+      );
     });
 
   document
-    .querySelector<HTMLButtonElement>("#delete-trip")
-    ?.addEventListener("click", () => {
+    .querySelector<HTMLFormElement>("#delete-trip-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
       const tripId = state.selected?.trip.id;
-      if (
-        !tripId ||
-        !confirm("確定要刪除這趟旅行？所有參與者和支出都會刪除。")
-      ) {
+      if (!tripId) {
         return;
       }
 
-      void run(async () => {
-        await api<{ ok: true }>(`/api/trips/${tripId}`, { method: "DELETE" });
-        state.selected = null;
-        state.activeTab = "overview";
-        await loadTrips();
-        setMessage("已刪除支出群組");
-      });
+      void run(
+        async () => {
+          await api<{ ok: true }>(`/api/trips/${tripId}`, { method: "DELETE" });
+          state.selected = null;
+          state.activeTab = "overview";
+          await loadTrips();
+          setMessage("已刪除支出群組");
+        },
+        { action: "trip-delete" },
+      );
     });
 
   document
@@ -561,43 +632,47 @@ function bindHandlers() {
         return;
       }
       const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(async () => {
-        state.selected = await api<TripPayload>(
-          `/api/trips/${tripId}/participants`,
-          {
-            body: JSON.stringify({ name: String(form.get("name") ?? "") }),
-            method: "POST",
-          },
-        );
-        await loadTrips();
-        setMessage("已新增參與者");
-      });
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/participants`,
+            {
+              body: JSON.stringify({ name: String(form.get("name") ?? "") }),
+              method: "POST",
+            },
+          );
+          await loadTrips();
+          setMessage("已新增參與者");
+        },
+        { action: "participant-add" },
+      );
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-rename-participant-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-rename-participant-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const participantId = button.dataset.renameParticipantId;
-        const name = prompt(
-          "新的參與者名稱",
-          button.dataset.participantName ?? "",
-        );
-        if (!tripId || !participantId || name === null) {
+        const participantId = formElement.dataset.renameParticipantForm;
+        if (!tripId || !participantId) {
           return;
         }
+        const form = new FormData(formElement);
 
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/participants/${participantId}`,
-            {
-              body: JSON.stringify({ name }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新參與者名稱");
-        });
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/participants/${participantId}`,
+              {
+                body: JSON.stringify({ name: String(form.get("name") ?? "") }),
+                method: "PATCH",
+              },
+            );
+            setMessage("已更新參與者名稱");
+          },
+          { action: `participant-rename:${participantId}` },
+        );
       });
     });
 
@@ -616,42 +691,48 @@ function bindHandlers() {
         !sourceParticipantId ||
         !targetParticipantId ||
         sourceParticipantId === targetParticipantId ||
-        !confirm("確定要合併這兩位成員？來源成員會被刪除。")
+        form.get("confirmMerge") !== "on"
       ) {
         return;
       }
-      void run(async () => {
-        state.selected = await api<TripPayload>(
-          `/api/trips/${tripId}/participants/${sourceParticipantId}/merge`,
-          {
-            body: JSON.stringify({ targetParticipantId }),
-            method: "POST",
-          },
-        );
-        await loadTrips();
-        setMessage("已合併成員");
-      });
+      void run(
+        async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/participants/${sourceParticipantId}/merge`,
+            {
+              body: JSON.stringify({ targetParticipantId }),
+              method: "POST",
+            },
+          );
+          await loadTrips();
+          setMessage("已合併成員");
+        },
+        { action: "participant-merge" },
+      );
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-delete-participant-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-delete-participant-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const participantId = button.dataset.deleteParticipantId;
-        const name = button.dataset.participantName ?? "這位參與者";
-        if (!tripId || !participantId || !confirm(`刪除 ${name}？`)) {
+        const participantId = formElement.dataset.deleteParticipantForm;
+        if (!tripId || !participantId) {
           return;
         }
 
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/participants/${participantId}`,
-            { method: "DELETE" },
-          );
-          await loadTrips();
-          setMessage("已刪除參與者");
-        });
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/participants/${participantId}`,
+              { method: "DELETE" },
+            );
+            await loadTrips();
+            setMessage("已刪除參與者");
+          },
+          { action: `participant-delete:${participantId}` },
+        );
       });
     });
 
@@ -741,7 +822,7 @@ function bindHandlers() {
           await loadTrips();
           setMessage("已記錄支出");
         },
-        { errorTarget: "expense-form" },
+        { action: "expense-create", errorTarget: "expense-form" },
       );
     });
 
@@ -792,7 +873,7 @@ function bindHandlers() {
             );
             setMessage("已更新支出");
           },
-          { errorTarget },
+          { action: `expense-edit:${expenseId}`, errorTarget },
         );
       });
     });
@@ -829,66 +910,76 @@ function bindHandlers() {
         if (!tripId || !expenseId || !(file instanceof File)) {
           return;
         }
-        void run(async () => {
-          const response = await fetch(
-            `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
-            {
-              body: file,
-              credentials: "same-origin",
-              headers: { "Content-Type": file.type },
-              method: "PUT",
-            },
-          );
-          const data = (await response.json()) as
-            | TripPayload
-            | { error?: string };
-          if (!response.ok) {
-            throw new Error("error" in data ? data.error : "收據上傳失敗");
-          }
-          state.selected = data as TripPayload;
-          setMessage("已上傳收據");
-        });
+        void run(
+          async () => {
+            const response = await fetch(
+              `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
+              {
+                body: file,
+                credentials: "same-origin",
+                headers: { "Content-Type": file.type },
+                method: "PUT",
+              },
+            );
+            const data = (await response.json()) as
+              | TripPayload
+              | { error?: string };
+            if (!response.ok) {
+              throw new Error("error" in data ? data.error : "收據上傳失敗");
+            }
+            state.selected = data as TripPayload;
+            setMessage("已上傳收據");
+          },
+          { action: `receipt-upload:${expenseId}` },
+        );
       });
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-delete-receipt-expense-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-delete-receipt-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.deleteReceiptExpenseId;
-        if (!tripId || !expenseId || !confirm("刪除這張收據？")) {
+        const expenseId = formElement.dataset.deleteReceiptForm;
+        if (!tripId || !expenseId) {
           return;
         }
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
-            { method: "DELETE" },
-          );
-          setMessage("已刪除收據");
-        });
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
+              { method: "DELETE" },
+            );
+            setMessage("已刪除收據");
+          },
+          { action: `receipt-delete:${expenseId}` },
+        );
       });
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-delete-expense-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-delete-expense-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.deleteExpenseId;
-        const description = button.dataset.expenseDescription ?? "這筆支出";
-        if (!tripId || !expenseId || !confirm(`刪除 ${description}？`)) {
+        const expenseId = formElement.dataset.deleteExpenseForm;
+        if (!tripId || !expenseId) {
           return;
         }
 
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            { method: "DELETE" },
-          );
-          await loadTrips();
-          setMessage("已刪除支出");
-        });
+        void run(
+          async () => {
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/expenses/${expenseId}`,
+              { method: "DELETE" },
+            );
+            await loadTrips();
+            setMessage("已刪除支出");
+          },
+          { action: `expense-delete:${expenseId}` },
+        );
       });
     });
 }

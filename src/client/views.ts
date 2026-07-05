@@ -24,7 +24,7 @@ import {
 } from "./client-support.js";
 import { restoreBackupForm, settingsPanel } from "./settings-view.js";
 
-export function authView(_state: AppState): string {
+export function authView(state: AppState): string {
   return `
     <section class="grid auth-grid">
       <article class="card stack auth-copy">
@@ -38,19 +38,23 @@ export function authView(_state: AppState): string {
       </article>
       <article class="card stack auth-card">
         <h2>登入</h2>
-        <form id="login-form">
+        <form id="login-form" novalidate${formErrorAttributes(state, "login-form")}>
+          ${formErrorHtml(state, "login-form")}
           <label>Email<input name="email" type="email" autocomplete="email" required /></label>
           <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
-          <button type="submit">登入</button>
+          <p class="helper-text">使用註冊時設定的 email 和密碼登入。</p>
+          <button data-busy-action="login" data-busy-label="登入中…" type="submit">登入</button>
         </form>
       </article>
       <article class="card stack auth-card">
         <h2>註冊</h2>
-        <form id="register-form">
+        <form id="register-form" novalidate${formErrorAttributes(state, "register-form")}>
+          ${formErrorHtml(state, "register-form")}
           <label>名稱<input name="name" autocomplete="name" required maxlength="80" /></label>
           <label>Email<input name="email" type="email" autocomplete="email" required /></label>
-          <label>密碼<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
-          <button type="submit">建立帳號</button>
+          <label>密碼<input name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="register-password-help" required /></label>
+          <p id="register-password-help" class="helper-text">密碼至少 8 個字。</p>
+          <button data-busy-action="register" data-busy-label="建立中…" type="submit">建立帳號</button>
         </form>
       </article>
     </section>
@@ -77,7 +81,7 @@ export function dashboardView(state: AppState): string {
           <form id="trip-form">
             <label>名稱<input name="name" required maxlength="100" placeholder="東京五日遊" /></label>
             <label>基準貨幣${currencySelect("baseCurrency", "TWD")}</label>
-            <button type="submit">新增支出群組</button>
+            <button data-busy-action="trip-create" data-busy-label="新增中…" type="submit">新增支出群組</button>
           </form>
         </details>
         ${state.selected ? "" : restoreBackupForm()}
@@ -140,7 +144,7 @@ function tripButton(trip: TripSummary, selectedTripId?: string): string {
   const isActive = selectedTripId === trip.id;
   const active = isActive ? " active" : "";
   return `
-    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button" aria-pressed="${isActive}"${isActive ? ' aria-current="true"' : ""}>
+    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" data-busy-action="trip-select:${htmlEscape(trip.id)}" data-busy-label="載入中…" type="button" aria-pressed="${isActive}"${isActive ? ' aria-current="true"' : ""}>
       <strong>${htmlEscape(trip.name)}</strong><br />
       <span class="muted">${trip.participantCount} 人 · ${trip.expenseCount} 筆 · ${trip.baseCurrency}${trip.archivedAt ? " · 已封存" : ""}</span>
     </button>
@@ -381,7 +385,7 @@ function membersPanel(trip: Trip): string {
       <h3>成員</h3>
       <form id="participant-form">
         <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
-        <button type="submit">新增成員</button>
+        <button data-busy-action="participant-add" data-busy-label="新增中…" type="submit">新增成員</button>
       </form>
       ${participantMergeForm(trip)}
       <ul class="list">${trip.participants
@@ -395,11 +399,17 @@ function membersPanel(trip: Trip): string {
             <li>
               <div class="row">
                 <span>${htmlEscape(person.name)}</span>
-                <button class="secondary" data-rename-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="重新命名 ${htmlEscape(person.name)}">重新命名</button>
+                <details class="inline-confirm">
+                  <summary>重新命名</summary>
+                  <form data-rename-participant-form="${htmlEscape(person.id)}">
+                    <label>新名稱<input name="name" required maxlength="80" value="${htmlEscape(person.name)}" /></label>
+                    <button class="secondary" data-busy-action="participant-rename:${htmlEscape(person.id)}" data-busy-label="儲存中…" type="submit">儲存名稱</button>
+                  </form>
+                </details>
                 ${
                   deleteBlockReason
                     ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button" aria-label="無法刪除 ${htmlEscape(person.name)}" aria-describedby="${deleteReasonId}">刪除</button><span id="${deleteReasonId}" class="muted">${htmlEscape(deleteBlockReason)}</span>`
-                    : `<button class="danger" data-delete-participant-id="${htmlEscape(person.id)}" data-participant-name="${htmlEscape(person.name)}" type="button" aria-label="刪除 ${htmlEscape(person.name)}">刪除</button>`
+                    : `<details class="inline-confirm"><summary>刪除</summary><form data-delete-participant-form="${htmlEscape(person.id)}"><p class="muted">刪除 ${htmlEscape(person.name)} 後無法復原。</p><button class="danger" data-busy-action="participant-delete:${htmlEscape(person.id)}" data-busy-label="刪除中…" type="submit" aria-label="確認刪除 ${htmlEscape(person.name)}">確認刪除</button></form></details>`
                 }
               </div>
             </li>
@@ -428,7 +438,8 @@ function participantMergeForm(trip: Trip): string {
         <label>合併到<select name="targetParticipantId" required>${options}</select></label>
       </div>
       <p class="muted">會把來源成員的付款、分帳與結清紀錄移到目標成員，並刪除來源成員。</p>
-      <button class="secondary" type="submit">合併成員</button>
+      <label class="inline-check"><input name="confirmMerge" type="checkbox" required /> 我了解來源成員會被刪除。</label>
+      <button class="secondary" data-busy-action="participant-merge" data-busy-label="合併中…" type="submit">合併成員</button>
     </form>
   `;
 }
@@ -437,7 +448,7 @@ function formErrorHtml(state: AppState, target: string): string {
   if (state.formErrorTarget !== target || !state.formError) {
     return "";
   }
-  return `<p id="${htmlEscape(target)}-error" class="form-error" role="alert">${htmlEscape(state.formError)}</p>`;
+  return `<p id="${htmlEscape(target)}-error" class="form-error" role="alert" tabindex="-1">${htmlEscape(state.formError)}</p>`;
 }
 
 function formErrorAttributes(state: AppState, target: string): string {
@@ -501,7 +512,7 @@ function expenseForm(state: AppState, trip: Trip): string {
             .join("")}
         </div>
       </fieldset>
-      <button type="submit">記錄支出</button>
+      <button data-busy-action="expense-create" data-busy-label="記錄中…" type="submit">記錄支出</button>
     </form>
   `;
 }
@@ -694,7 +705,13 @@ function expenseList(state: AppState, trip: Trip): string {
                   <span class="muted">${htmlEscape(expenseMetaLabel(expense))}</span><br />
                   <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
                 </div>
-                <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="刪除 ${htmlEscape(expense.description)}">刪除</button>
+                <details class="inline-confirm">
+                  <summary>刪除</summary>
+                  <form data-delete-expense-form="${htmlEscape(expense.id)}">
+                    <p class="muted">刪除 ${htmlEscape(expense.description)} 後會重新計算餘額。</p>
+                    <button class="danger" data-busy-action="expense-delete:${htmlEscape(expense.id)}" data-busy-label="刪除中…" type="submit" aria-label="確認刪除 ${htmlEscape(expense.description)}">確認刪除</button>
+                  </form>
+                </details>
               </div>
               ${receiptControls(expense)}
               ${expenseEditForm(state, trip, expense)}
@@ -711,11 +728,11 @@ function receiptControls(expense: Expense): string {
     <div class="row receipt-controls">
       <form class="receipt-upload-form" data-receipt-upload-expense-id="${htmlEscape(expense.id)}">
         <label>收據照片<input name="receipt" type="file" accept="image/jpeg,image/png,image/webp" /></label>
-        <button class="secondary" type="submit">上傳收據</button>
+        <button class="secondary" data-busy-action="receipt-upload:${htmlEscape(expense.id)}" data-busy-label="上傳中…" type="submit">上傳收據</button>
       </form>
       ${
         expense.receiptUrl
-          ? `<a class="secondary button-link" href="${htmlEscape(expense.receiptUrl)}" target="_blank" rel="noreferrer">查看收據</a><button class="secondary" data-delete-receipt-expense-id="${htmlEscape(expense.id)}" type="button">刪除收據</button>`
+          ? `<a class="secondary button-link" href="${htmlEscape(expense.receiptUrl)}" target="_blank" rel="noreferrer">查看收據</a><details class="inline-confirm"><summary>刪除收據</summary><form data-delete-receipt-form="${htmlEscape(expense.id)}"><p class="muted">刪除後可再上傳新的收據。</p><button class="danger" data-busy-action="receipt-delete:${htmlEscape(expense.id)}" data-busy-label="刪除中…" type="submit">確認刪除收據</button></form></details>`
           : '<span class="muted">尚未上傳收據</span>'
       }
     </div>
@@ -778,7 +795,7 @@ function expenseEditForm(
           </div>
         </fieldset>
         <div class="row form-actions">
-          <button type="submit">儲存</button>
+          <button data-busy-action="expense-edit:${htmlEscape(expense.id)}" data-busy-label="儲存中…" type="submit">儲存</button>
           <button class="secondary" data-cancel-expense-edit type="button">取消</button>
         </div>
       </form>
@@ -913,7 +930,7 @@ function settlementList(payload: TripPayload): string {
                 <input name="currency" type="hidden" value="${settlement.currency}" />
                 <label>付款日期<input name="paidAt" type="date" required value="${todayDate()}" /></label>
                 <input name="note" placeholder="付款備註（可空白）" maxlength="160" />
-                <button class="secondary" type="submit">標記已付款</button>
+                <button class="secondary" data-busy-action="settlement-pay:${htmlEscape(settlement.fromId)}:${htmlEscape(settlement.toId)}" data-busy-label="記錄中…" type="submit">標記已付款</button>
               </form>
             </li>
           `,
@@ -943,7 +960,13 @@ function settlementPaymentList(trip: Trip): string {
                 ${htmlEscape(payment.paidAt)} · ${htmlEscape(participantById.get(payment.fromId) ?? "未知")} 已付給 ${htmlEscape(participantById.get(payment.toId) ?? "未知")}
                 <strong>${formatMinor(payment.amountMinor, payment.currency)}</strong>
                 ${payment.note ? `<span class="muted">${htmlEscape(payment.note)}</span>` : ""}
-                <button class="secondary" data-delete-settlement-payment-id="${htmlEscape(payment.id)}" type="button">刪除紀錄</button>
+                <details class="inline-confirm">
+                  <summary>刪除紀錄</summary>
+                  <form data-delete-settlement-payment-form="${htmlEscape(payment.id)}">
+                    <p class="muted">刪除後會重新計算剩餘結清建議。</p>
+                    <button class="danger" data-busy-action="settlement-delete:${htmlEscape(payment.id)}" data-busy-label="刪除中…" type="submit">確認刪除</button>
+                  </form>
+                </details>
               </li>
             `,
           )

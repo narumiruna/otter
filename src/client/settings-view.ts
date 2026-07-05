@@ -16,23 +16,19 @@ export function settingsPanel(state: AppState, payload: TripPayload): string {
         <div class="row action-group">
           <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
           <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
-          ${isOwner ? '<button id="download-backup" class="secondary" type="button">下載完整備份</button>' : ""}
+          ${isOwner ? '<button id="download-backup" class="secondary" data-busy-action="download-backup" data-busy-label="下載中…" type="button">下載完整備份</button>' : ""}
           <button id="print-trip" class="secondary" type="button">列印</button>
         </div>
         ${
           isOwner
-            ? `<div class="row action-group">
-                <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
-                <button id="rename-trip" class="secondary" type="button">重新命名</button>
-              </div>
-              <div class="row danger-actions">
-                <button id="archive-trip" class="secondary" data-archived="${trip.archivedAt ? "true" : "false"}" type="button">${trip.archivedAt ? "還原支出群組" : "封存支出群組"}</button>
-                <button id="delete-trip" class="danger" type="button">刪除支出群組</button>
+            ? `<div class="row danger-actions">
+                <button id="archive-trip" class="secondary" data-archived="${trip.archivedAt ? "true" : "false"}" data-busy-action="trip-archive" data-busy-label="更新中…" type="button">${trip.archivedAt ? "還原支出群組" : "封存支出群組"}</button>
               </div>`
             : ""
         }
       </div>
       <p class="muted">目前角色：${isOwner ? "擁有者" : "協作者"}；基準貨幣：${trip.baseCurrency}${trip.archivedAt ? "；此群組已封存，還原後可繼續修改。" : ""}</p>
+      ${isOwner ? ownerTripForms(trip) : ""}
       ${restoreBackupForm()}
       ${trip.archivedAt ? "" : csvImportForm(state)}
       ${isOwner ? shareLinksPanel(payload) : ""}
@@ -42,13 +38,40 @@ export function settingsPanel(state: AppState, payload: TripPayload): string {
   `;
 }
 
+function ownerTripForms(trip: Trip): string {
+  return `
+    <section class="inline-tool">
+      <h4>支出群組設定</h4>
+      <form id="trip-rename-form" class="row">
+        <label>名稱<input name="name" required maxlength="100" value="${htmlEscape(trip.name)}" /></label>
+        <button class="secondary" data-busy-action="trip-rename" data-busy-label="儲存中…" type="submit">儲存名稱</button>
+      </form>
+      <form id="trip-base-currency-form" class="row">
+        <label>基準貨幣
+          <select name="baseCurrency">
+            ${currencies.map((currency) => `<option value="${currency}" ${currency === trip.baseCurrency ? "selected" : ""}>${currency}</option>`).join("")}
+          </select>
+        </label>
+        <button class="secondary" data-busy-action="trip-base-currency" data-busy-label="儲存中…" type="submit">儲存基準貨幣</button>
+      </form>
+      <details class="inline-confirm danger-zone">
+        <summary>刪除支出群組</summary>
+        <form id="delete-trip-form">
+          <p class="muted">這會刪除所有參與者、支出與結清紀錄，無法復原。</p>
+          <button id="delete-trip" class="danger" data-busy-action="trip-delete" data-busy-label="刪除中…" type="submit">確認刪除支出群組</button>
+        </form>
+      </details>
+    </section>
+  `;
+}
+
 export function restoreBackupForm(): string {
   return `
     <form id="restore-backup-form" class="inline-tool">
       <h4>還原備份</h4>
       <p class="muted">上傳 otter JSON 備份會建立一個新的支出群組，不會覆蓋目前資料。</p>
       <label>JSON 備份檔<input id="restore-backup-file" name="backup" type="file" accept="application/json,.json" required /></label>
-      <button class="secondary" type="submit">還原備份</button>
+      <button class="secondary" data-busy-action="restore-backup" data-busy-label="還原中…" type="submit">還原備份</button>
     </form>
   `;
 }
@@ -59,7 +82,7 @@ function csvImportForm(state: AppState): string {
       <h4>匯入支出 CSV</h4>
       <p class="muted">欄位：date, description, amount, currency, paid_by, split_participants；參與者名稱需先存在。</p>
       <label>CSV 檔<input id="csv-import-file" name="csv" type="file" accept=".csv,text/csv" required /></label>
-      <button class="secondary" type="submit">匯入支出</button>
+      <button class="secondary" data-busy-action="csv-import" data-busy-label="匯入中…" type="submit">匯入支出</button>
       ${
         state.csvImportErrors.length
           ? `<ul class="form-error" role="alert">${state.csvImportErrors.map((error) => `<li>${htmlEscape(error)}</li>`).join("")}</ul>`
@@ -75,7 +98,7 @@ function shareLinksPanel(payload: TripPayload): string {
     <section class="inline-tool share-links-panel">
       <h4>唯讀分享連結</h4>
       <p class="muted">知道連結的人不需登入即可查看支出、餘額與結清建議；不能新增或修改資料。</p>
-      <button id="create-share-link" class="secondary" type="button">建立分享連結</button>
+      <button id="create-share-link" class="secondary" data-busy-action="share-create" data-busy-label="建立中…" type="button">建立分享連結</button>
       <ul class="list">
         ${
           links.length
@@ -85,7 +108,7 @@ function shareLinksPanel(payload: TripPayload): string {
                     <li>
                       <span>${htmlEscape(link.createdAt.slice(0, 10))}${link.revokedAt ? " · 已撤銷" : " · 可使用"}</span>
                       ${link.url ? `<button class="secondary" data-copy-share-url="${htmlEscape(link.url)}" type="button">複製連結</button>` : ""}
-                      ${link.revokedAt ? "" : `<button class="danger" data-revoke-share-link-id="${htmlEscape(link.id)}" type="button">撤銷</button>`}
+                      ${link.revokedAt ? "" : `<details class="inline-confirm"><summary>撤銷</summary><form data-revoke-share-link-form="${htmlEscape(link.id)}"><p class="muted">撤銷後知道舊連結的人將無法查看。</p><button class="danger" data-busy-action="share-revoke:${htmlEscape(link.id)}" data-busy-label="撤銷中…" type="submit">確認撤銷</button></form></details>`}
                     </li>
                   `,
                 )
@@ -104,7 +127,7 @@ function collaboratorsPanel(payload: TripPayload): string {
       <h4>協作者</h4>
       <form id="collaborator-form" class="row">
         <label>Email<input name="email" type="email" placeholder="friend@example.com" required /></label>
-        <button class="secondary" type="submit">加入既有使用者</button>
+        <button class="secondary" data-busy-action="collaborator-add" data-busy-label="加入中…" type="submit">加入既有使用者</button>
       </form>
       <ul class="list">
         ${members
@@ -112,7 +135,7 @@ function collaboratorsPanel(payload: TripPayload): string {
             (member) => `
               <li>
                 <span>${htmlEscape(member.name)} · ${htmlEscape(member.email)} · ${member.role === "owner" ? "擁有者" : "協作者"}</span>
-                ${member.role === "editor" ? `<button class="danger" data-remove-collaborator-id="${htmlEscape(member.userId)}" type="button">移除</button>` : ""}
+                ${member.role === "editor" ? `<details class="inline-confirm"><summary>移除</summary><form data-remove-collaborator-form="${htmlEscape(member.userId)}"><p class="muted">移除後這位協作者將無法維護此支出群組。</p><button class="danger" data-busy-action="collaborator-remove:${htmlEscape(member.userId)}" data-busy-label="移除中…" type="submit">確認移除</button></form></details>` : ""}
               </li>
             `,
           )
@@ -142,7 +165,7 @@ function exchangeRatesForm(trip: Trip): string {
           })
           .join("")}
       </div>
-      <button class="secondary" type="submit">儲存匯率</button>
+      <button class="secondary" data-busy-action="exchange-rates" data-busy-label="儲存中…" type="submit">儲存匯率</button>
     </form>
   `;
 }
