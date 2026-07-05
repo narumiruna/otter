@@ -242,6 +242,20 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(ratedTrip.data.trip.exchangeRates?.USD, 1);
   assert.equal(ratedTrip.data.trip.exchangeRates?.TWD, 0.03);
 
+  // Changing baseCurrency without providing exchangeRates should clear stale rates
+  const rebasedAfterRates = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ baseCurrency: "TWD" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(rebasedAfterRates.response.status, 200);
+  assert.equal(rebasedAfterRates.data.trip.baseCurrency, "TWD");
+  assert.equal(rebasedAfterRates.data.trip.exchangeRates, null);
+
   const invalidExchangeRate = await api<{ error: string }>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,

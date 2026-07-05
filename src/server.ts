@@ -393,6 +393,9 @@ export function createApp(pool: PgPool): express.Express {
         }
       }
 
+      const baseCurrencyChanged =
+        hasBaseCurrency && baseCurrencyValue !== trip.baseCurrency;
+
       await withTransaction(pool, async (client) => {
         if (hasArchived) {
           await client.query(
@@ -406,7 +409,7 @@ export function createApp(pool: PgPool): express.Express {
           );
         }
 
-        if (!hasExchangeRates && baseCurrencyValue === trip.baseCurrency) {
+        if (!hasExchangeRates && !baseCurrencyChanged) {
           return;
         }
         await client.query(

@@ -347,7 +347,7 @@ function settingsPanel(trip: Trip): string {
         </div>
       </div>
       <p class="muted">目前基準貨幣：${trip.baseCurrency}${trip.archivedAt ? "；此群組已封存，還原後可繼續修改。" : ""}</p>
-      ${exchangeRatesForm(trip)}
+      ${trip.archivedAt ? "" : exchangeRatesForm(trip)}
     </article>
   `;
 }
