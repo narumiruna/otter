@@ -171,6 +171,11 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
 test("workspace tabs render task-focused panels", () => {
   assert.ok(view("add-expense").includes('data-workspace-panel="add-expense"'));
   assert.ok(view("add-expense").includes('id="expense-form"'));
+  assert.ok(
+    view("add-expense").includes(
+      'id="expense-form" data-form-error-target="expense-form" novalidate',
+    ),
+  );
 
   const expensesHtml = view("expenses");
   assert.ok(expensesHtml.includes('data-workspace-panel="expenses"'));
@@ -178,7 +183,7 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes("<summary>編輯</summary>"));
   assert.ok(
     expensesHtml.includes(
-      'data-edit-expense-form="expense_1" data-form-error-target="expense-edit-expense_1"',
+      'data-edit-expense-form="expense_1" data-form-error-target="expense-edit-expense_1" novalidate',
     ),
   );
   assert.ok(expensesHtml.includes('value="Dinner &amp; Drinks"'));

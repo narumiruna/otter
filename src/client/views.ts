@@ -345,7 +345,7 @@ function expenseForm(state: AppState, trip: Trip): string {
   const selectedSplitIds = new Set(defaults.participantIds);
 
   return `
-    <form id="expense-form" data-form-error-target="${errorTarget}"${formErrorAttributes(state, errorTarget)}>
+    <form id="expense-form" data-form-error-target="${errorTarget}" novalidate${formErrorAttributes(state, errorTarget)}>
       ${formErrorHtml(state, errorTarget)}
       <label>描述<input name="description" required maxlength="120" placeholder="晚餐、飯店、車票" /></label>
       <div class="grid">
@@ -456,7 +456,7 @@ function expenseEditForm(
   return `
     <details class="expense-actions"${hasError ? " open" : ""}>
       <summary>編輯</summary>
-      <form class="expense-edit-form" data-edit-expense-form="${htmlEscape(expense.id)}" data-form-error-target="${htmlEscape(errorTarget)}"${formErrorAttributes(state, errorTarget)}>
+      <form class="expense-edit-form" data-edit-expense-form="${htmlEscape(expense.id)}" data-form-error-target="${htmlEscape(errorTarget)}" novalidate${formErrorAttributes(state, errorTarget)}>
         ${formErrorHtml(state, errorTarget)}
         <div class="grid">
           <label>描述<input name="description" required maxlength="120" value="${htmlEscape(expense.description)}" /></label>
