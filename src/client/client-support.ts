@@ -280,8 +280,9 @@ export function filterAndSortExpenses(
           if (createdAtCmp !== 0) return createdAtCmp;
           return right.id.localeCompare(left.id);
         }
+        default:
+          return 0;
       }
-      return 0;
     });
 }
 

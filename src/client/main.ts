@@ -279,46 +279,52 @@ function bindHandlers() {
     });
   }
 
-  document
-    .querySelector<HTMLFormElement>("#expense-filters")
-    ?.addEventListener("submit", (event) => {
-      event.preventDefault();
-    });
+  const expenseFiltersForm =
+    document.querySelector<HTMLFormElement>("#expense-filters");
 
-  document
-    .querySelector<HTMLFormElement>("#expense-filters")
-    ?.addEventListener("input", (event) => {
-      const activeEl = document.activeElement as HTMLInputElement | null;
-      const activeName = activeEl?.name ?? null;
-      const selectionStart = activeEl?.selectionStart ?? null;
-      const form = new FormData(event.currentTarget as HTMLFormElement);
-      const sortRaw = String(form.get("sort") ?? "");
-      state.expenseFilters = {
-        currency: String(form.get("currency") ?? ""),
-        dateFrom: String(form.get("dateFrom") ?? ""),
-        dateTo: String(form.get("dateTo") ?? ""),
-        paidById: String(form.get("paidById") ?? ""),
-        participantId: String(form.get("participantId") ?? ""),
-        query: String(form.get("query") ?? ""),
-        sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
-      };
-      render();
-      if (activeName) {
-        const restored = document.querySelector<HTMLInputElement>(
-          `#expense-filters [name="${activeName}"]`,
-        );
-        if (restored) {
-          restored.focus();
-          if (selectionStart !== null && "setSelectionRange" in restored) {
-            try {
-              restored.setSelectionRange(selectionStart, selectionStart);
-            } catch {
-              // element type may not support selection ranges
-            }
+  expenseFiltersForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+
+  expenseFiltersForm?.addEventListener("input", (event) => {
+    const activeEl = document.activeElement as HTMLInputElement | null;
+    const activeName = activeEl?.name ?? null;
+    const selectionStart = activeEl?.selectionStart ?? null;
+    const form = new FormData(event.currentTarget as HTMLFormElement);
+    const sortRaw = String(form.get("sort") ?? "");
+    state.expenseFilters = {
+      currency: String(form.get("currency") ?? ""),
+      dateFrom: String(form.get("dateFrom") ?? ""),
+      dateTo: String(form.get("dateTo") ?? ""),
+      paidById: String(form.get("paidById") ?? ""),
+      participantId: String(form.get("participantId") ?? ""),
+      query: String(form.get("query") ?? ""),
+      sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
+    };
+    render();
+    if (activeName) {
+      const restored = document
+        .querySelector<HTMLFormElement>("#expense-filters")
+        ?.elements.namedItem(activeName);
+      if (restored instanceof HTMLElement) {
+        restored.focus();
+        if (
+          selectionStart !== null &&
+          "setSelectionRange" in restored &&
+          typeof (restored as HTMLInputElement).setSelectionRange === "function"
+        ) {
+          try {
+            (restored as HTMLInputElement).setSelectionRange(
+              selectionStart,
+              selectionStart,
+            );
+          } catch {
+            // element type may not support selection ranges
           }
         }
       }
-    });
+    }
+  });
 
   document
     .querySelectorAll<HTMLButtonElement>("[data-clear-expense-filters]")
