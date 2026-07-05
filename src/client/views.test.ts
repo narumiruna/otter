@@ -7,7 +7,7 @@ import {
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
-import { dashboardView } from "./views.js";
+import { dashboardView, readonlyShareView } from "./views.js";
 
 const trip: Trip = {
   baseCurrency: "TWD",
@@ -63,10 +63,13 @@ const trip: Trip = {
 const baseState: AppState = {
   activeTab: "overview",
   busy: false,
+  csvImportErrors: [],
   devAdmin: null,
   error: "",
   expenseFilters: { ...defaultExpenseFilters },
   message: "",
+  offline: false,
+  readonlyShare: false,
   selected: {
     balances: [
       {
@@ -280,6 +283,11 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes("取消"));
   assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
   assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));
+  assert.ok(
+    expensesHtml.includes('data-receipt-upload-expense-id="expense_1"'),
+  );
+  assert.ok(expensesHtml.includes('accept="image/jpeg,image/png,image/webp"'));
+  assert.ok(expensesHtml.includes("尚未上傳收據"));
 
   const membersHtml = view("members");
   assert.ok(membersHtml.includes('data-workspace-panel="members"'));
@@ -298,12 +306,29 @@ test("workspace tabs render task-focused panels", () => {
   const settingsHtml = view("settings");
   assert.ok(settingsHtml.includes('data-workspace-panel="settings"'));
   assert.ok(settingsHtml.includes('id="export-expenses"'));
+  assert.ok(settingsHtml.includes('id="download-backup"'));
+  assert.ok(settingsHtml.includes('id="restore-backup-form"'));
+  assert.ok(settingsHtml.includes('id="csv-import-form"'));
+  assert.ok(settingsHtml.includes('id="create-share-link"'));
+  assert.ok(settingsHtml.includes('id="collaborator-form"'));
   assert.ok(settingsHtml.includes('id="archive-trip"'));
   assert.ok(settingsHtml.includes("封存支出群組"));
   assert.ok(settingsHtml.includes('id="exchange-rates-form"'));
   assert.ok(settingsHtml.includes('name="rate:USD"'));
   assert.ok(settingsHtml.includes("套用於整趟旅行目前計算"));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
+});
+
+test("restore backup form is reachable without a selected trip", () => {
+  const html = dashboardView({
+    ...baseState,
+    selected: null,
+    trips: [],
+    archivedTrips: [],
+  });
+
+  assert.ok(html.includes('id="restore-backup-form"'));
+  assert.ok(html.includes('id="restore-backup-file"'));
 });
 
 test("exchange-rates form is hidden for archived trips", () => {
@@ -419,6 +444,19 @@ test("expense filters show empty result state", () => {
 
   assert.ok(html.includes("沒有符合條件的支出"));
   assert.ok(html.includes("data-clear-expense-filters"));
+});
+
+test("readonly share view hides mutation controls", () => {
+  const selected = baseState.selected;
+  assert.ok(selected);
+  const html = readonlyShareView(selected);
+
+  assert.ok(html.includes("唯讀分享"));
+  assert.ok(html.includes("支出紀錄"));
+  assert.ok(html.includes("Dinner &amp; Drinks"));
+  assert.ok(!html.includes("data-delete-expense-id"));
+  assert.ok(!html.includes("data-receipt-upload-expense-id"));
+  assert.ok(!html.includes("標記已付款"));
 });
 
 test("expense forms render nearby errors", () => {

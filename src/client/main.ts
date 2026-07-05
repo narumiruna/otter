@@ -21,17 +21,21 @@ import {
   workspaceTabForKey,
   workspaceTabs,
 } from "./client-support.js";
-import { authView, dashboardView } from "./views.js";
+import { bindSettingsHandlers } from "./settings-handlers.js";
+import { authView, dashboardView, readonlyShareView } from "./views.js";
 
 const state: AppState = {
   activeTab: "overview",
   busy: false,
   expenseFilters: { ...defaultExpenseFilters },
+  csvImportErrors: [],
   devAdmin: null,
   error: "",
   formError: "",
   formErrorTarget: "",
   message: "",
+  offline: !navigator.onLine,
+  readonlyShare: false,
   selected: null,
   trips: [],
   archivedTrips: [],
@@ -43,6 +47,19 @@ if (!appElement) {
   throw new Error("Missing #app");
 }
 const app = appElement;
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
+}
+
+for (const eventName of ["online", "offline"]) {
+  window.addEventListener(eventName, () => {
+    state.offline = !navigator.onLine;
+    render();
+  });
+}
 
 function setMessage(message: string, error = "") {
   state.message = message;
@@ -82,6 +99,14 @@ async function run(
 
 async function init() {
   await run(async () => {
+    const shareToken = location.pathname.match(/^\/share\/([^/]+)$/)?.[1];
+    if (shareToken) {
+      state.readonlyShare = true;
+      state.selected = await api<TripPayload>(
+        `/api/share/${encodeURIComponent(shareToken)}`,
+      );
+      return;
+    }
     const me = await api<{ devAdmin?: DevAdmin | null; user: User | null }>(
       "/api/me",
     );
@@ -108,6 +133,7 @@ async function loadTrips() {
 async function selectTrip(tripId: string) {
   state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
   state.activeTab = "add-expense";
+  state.csvImportErrors = [];
   state.expenseFilters = { ...defaultExpenseFilters };
 }
 
@@ -145,10 +171,11 @@ function render() {
             : ""
         }
       </section>
+      ${state.offline ? '<p class="notice" role="status">目前離線，資料需連線後載入。</p>' : ""}
       ${state.busy ? '<p class="notice" role="status" aria-live="polite">正在處理…</p>' : ""}
       ${!state.busy && state.message ? `<p class="notice" role="status" aria-live="polite">${htmlEscape(state.message)}</p>` : ""}
       ${state.error ? `<p class="error" role="alert">${htmlEscape(state.error)}</p>` : ""}
-      ${state.user ? dashboardView(state) : authView(state)}
+      ${state.readonlyShare && state.selected ? readonlyShareView(state.selected) : state.user ? dashboardView(state) : authView(state)}
     </main>
   `;
   bindHandlers();
@@ -333,6 +360,8 @@ function bindHandlers() {
         render();
       });
     });
+
+  bindSettingsHandlers({ loadTrips, render, run, setMessage, state });
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")
@@ -797,6 +826,58 @@ function bindHandlers() {
             state.formErrorTarget = "";
           }
         }
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLFormElement>("[data-receipt-upload-expense-id]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const tripId = state.selected?.trip.id;
+        const expenseId = formElement.dataset.receiptUploadExpenseId;
+        const file = new FormData(formElement).get("receipt");
+        if (!tripId || !expenseId || !(file instanceof File)) {
+          return;
+        }
+        void run(async () => {
+          const response = await fetch(
+            `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
+            {
+              body: file,
+              credentials: "same-origin",
+              headers: { "Content-Type": file.type },
+              method: "PUT",
+            },
+          );
+          const data = (await response.json()) as
+            | TripPayload
+            | { error?: string };
+          if (!response.ok) {
+            throw new Error("error" in data ? data.error : "收據上傳失敗");
+          }
+          state.selected = data as TripPayload;
+          setMessage("已上傳收據");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-delete-receipt-expense-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const expenseId = button.dataset.deleteReceiptExpenseId;
+        if (!tripId || !expenseId || !confirm("刪除這張收據？")) {
+          return;
+        }
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/expenses/${expenseId}/receipt`,
+            { method: "DELETE" },
+          );
+          setMessage("已刪除收據");
+        });
       });
     });
 

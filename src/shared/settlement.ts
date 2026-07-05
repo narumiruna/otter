@@ -22,6 +22,8 @@ export type Expense = {
   paidById: string;
   participantIds: string[];
   participantShares?: ExpenseParticipantShare[];
+  receiptId?: string;
+  receiptUrl?: string;
   expenseDate: string;
   createdAt: string;
 };

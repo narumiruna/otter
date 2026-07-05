@@ -86,6 +86,19 @@ button.secondary:hover:not(:disabled) {
   background: #bbf7d0;
 }
 
+.button-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  border: 1px solid #b7e4d3;
+  border-radius: 999px;
+  background: #d1fae5;
+  color: #064e3b;
+  font-weight: 800;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+}
+
 button.danger {
   border-color: #fecaca;
   background: #fee2e2;

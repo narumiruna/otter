@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="otter">
+  <rect width="512" height="512" rx="112" fill="#0f766e"/>
+  <!-- ears -->
+  <circle cx="176" cy="168" r="46" fill="#6f4326"/>
+  <circle cx="336" cy="168" r="46" fill="#6f4326"/>
+  <circle cx="176" cy="168" r="22" fill="#9a6a44"/>
+  <circle cx="336" cy="168" r="22" fill="#9a6a44"/>
+  <!-- head -->
+  <ellipse cx="256" cy="272" rx="150" ry="146" fill="#7c4a2d"/>
+  <!-- muzzle (double-lobed cheeks) -->
+  <circle cx="216" cy="330" r="60" fill="#f6ead9"/>
+  <circle cx="296" cy="330" r="60" fill="#f6ead9"/>
+  <!-- eyes -->
+  <circle cx="204" cy="256" r="20" fill="#241109"/>
+  <circle cx="308" cy="256" r="20" fill="#241109"/>
+  <circle cx="211" cy="249" r="6" fill="#f6ead9"/>
+  <circle cx="315" cy="249" r="6" fill="#f6ead9"/>
+  <!-- nose -->
+  <path d="M234 296q22-20 44 0q0 24-22 34q-22-10-22-34z" fill="#241109"/>
+  <!-- smile -->
+  <path d="M256 330q-16 20-34 8M256 330q16 20 34 8" fill="none" stroke="#241109" stroke-width="9" stroke-linecap="round"/>
+  <!-- whiskers -->
+  <g stroke="#c9a988" stroke-width="7" stroke-linecap="round">
+    <path d="M150 322l-58-14"/>
+    <path d="M150 344l-56 6"/>
+    <path d="M362 322l58-14"/>
+    <path d="M362 344l56 6"/>
+  </g>
+</svg>

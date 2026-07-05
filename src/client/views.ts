@@ -22,6 +22,7 @@ import {
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
+import { restoreBackupForm, settingsPanel } from "./settings-view.js";
 
 export function authView(state: AppState): string {
   const devEmail = state.devAdmin?.email ?? "";
@@ -82,8 +83,41 @@ export function dashboardView(state: AppState): string {
             <button type="submit">新增支出群組</button>
           </form>
         </details>
+        ${state.selected ? "" : restoreBackupForm()}
       </aside>
       ${state.selected ? tripView(state) : '<section class="card empty-state"><h2>先選擇支出群組</h2><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
+    </section>
+  `;
+}
+
+export function readonlyShareView(payload: TripPayload): string {
+  return `
+    <section class="stack trip-detail readonly-share">
+      <article class="card stack trip-summary">
+        <p class="eyebrow">唯讀分享</p>
+        <div class="trip-summary-header">
+          <div class="trip-title">
+            <h2>${htmlEscape(payload.trip.name)}</h2>
+            <p class="muted">此頁只能查看支出、餘額與結清建議，不能修改資料。</p>
+          </div>
+          ${tripStatStrip(payload.trip)}
+        </div>
+      </article>
+      <article class="card stack results-card">
+        ${payload.trip.expenses.length === 0 ? '<p class="muted">還沒有支出。</p>' : spendingCharts(payload.trip)}
+        <section class="summary-section">
+          <h3>分帳結果</h3>
+          ${balanceList(payload.balances)}
+        </section>
+        <section class="summary-section">
+          <h3>結清建議</h3>
+          ${readonlySettlementList(payload)}
+        </section>
+        <section class="summary-section">
+          <h3>支出紀錄</h3>
+          ${readonlyExpenseList(payload.trip)}
+        </section>
+      </article>
     </section>
   `;
 }
@@ -219,7 +253,7 @@ function workspacePanel(
     case "members":
       return membersPanel(payload.trip);
     case "settings":
-      return settingsPanel(payload.trip);
+      return settingsPanel(state, payload);
   }
 }
 
@@ -398,56 +432,6 @@ function participantMergeForm(trip: Trip): string {
       </div>
       <p class="muted">會把來源成員的付款、分帳與結清紀錄移到目標成員，並刪除來源成員。</p>
       <button class="secondary" type="submit">合併成員</button>
-    </form>
-  `;
-}
-
-function settingsPanel(trip: Trip): string {
-  return `
-    <article id="${workspacePanelId("settings")}" class="card stack settings-card" data-workspace-panel="settings" role="tabpanel" aria-labelledby="${workspaceTabId("settings")}">
-      <h3>設定 / 匯出</h3>
-      <div class="action-groups" aria-label="支出群組操作">
-        <div class="row action-group">
-          <button id="export-expenses" class="secondary" type="button">匯出支出 CSV</button>
-          <button id="export-results" class="secondary" type="button">匯出結算 CSV</button>
-          <button id="print-trip" class="secondary" type="button">列印</button>
-        </div>
-        <div class="row action-group">
-          <button id="edit-trip-base-currency" class="secondary" type="button">改基準貨幣</button>
-          <button id="rename-trip" class="secondary" type="button">重新命名</button>
-        </div>
-        <div class="row danger-actions">
-          <button id="archive-trip" class="secondary" data-archived="${trip.archivedAt ? "true" : "false"}" type="button">${trip.archivedAt ? "還原支出群組" : "封存支出群組"}</button>
-          <button id="delete-trip" class="danger" type="button">刪除支出群組</button>
-        </div>
-      </div>
-      <p class="muted">目前基準貨幣：${trip.baseCurrency}${trip.archivedAt ? "；此群組已封存，還原後可繼續修改。" : ""}</p>
-      ${trip.archivedAt ? "" : exchangeRatesForm(trip)}
-    </article>
-  `;
-}
-
-function exchangeRatesForm(trip: Trip): string {
-  return `
-    <form id="exchange-rates-form" class="inline-tool">
-      <h4>自訂匯率</h4>
-      <p class="muted">設定 1 單位外幣等於多少 ${trip.baseCurrency}；會套用於整趟旅行目前計算。</p>
-      <div class="grid">
-        ${currencies
-          .map((currency) => {
-            const rate =
-              currency === trip.baseCurrency
-                ? 1
-                : trip.exchangeRates?.[currency];
-            return `
-              <label>${currency} → ${trip.baseCurrency}
-                <input name="rate:${currency}" inputmode="decimal" value="${htmlEscape(String(rate ?? ""))}" ${currency === trip.baseCurrency ? "readonly" : ""} placeholder="留空使用內建匯率" />
-              </label>
-            `;
-          })
-          .join("")}
-      </div>
-      <button class="secondary" type="submit">儲存匯率</button>
     </form>
   `;
 }
@@ -715,12 +699,29 @@ function expenseList(state: AppState, trip: Trip): string {
                 </div>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="刪除 ${htmlEscape(expense.description)}">刪除</button>
               </div>
+              ${receiptControls(expense)}
               ${expenseEditForm(state, trip, expense)}
             </li>
           `,
         )
         .join("")}
     </ul>
+  `;
+}
+
+function receiptControls(expense: Expense): string {
+  return `
+    <div class="row receipt-controls">
+      <form class="receipt-upload-form" data-receipt-upload-expense-id="${htmlEscape(expense.id)}">
+        <label>收據照片<input name="receipt" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+        <button class="secondary" type="submit">上傳收據</button>
+      </form>
+      ${
+        expense.receiptUrl
+          ? `<a class="secondary button-link" href="${htmlEscape(expense.receiptUrl)}" target="_blank" rel="noreferrer">查看收據</a><button class="secondary" data-delete-receipt-expense-id="${htmlEscape(expense.id)}" type="button">刪除收據</button>`
+          : '<span class="muted">尚未上傳收據</span>'
+      }
+    </div>
   `;
 }
 
@@ -788,6 +789,30 @@ function expenseEditForm(
   `;
 }
 
+function readonlyExpenseList(trip: Trip): string {
+  if (trip.expenses.length === 0) {
+    return '<p class="muted">還沒有支出。</p>';
+  }
+  const participantById = new Map(
+    trip.participants.map((person) => [person.id, person.name]),
+  );
+  return `
+    <ul class="list">
+      ${sortedExpenses(trip)
+        .map(
+          (expense) => `
+            <li>
+              <strong>${htmlEscape(expense.description)}</strong><br />
+              ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
+              <span class="muted">${htmlEscape(expenseMetaLabel(expense))} · 分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
+            </li>
+          `,
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
 function recentExpenseList(trip: Trip): string {
   if (trip.expenses.length === 0) {
     return '<p class="muted">還沒有支出。</p>';
@@ -841,6 +866,27 @@ function balanceList(balances: Balance[]): string {
             </li>
           `;
         })
+        .join("")}
+    </ul>
+  `;
+}
+
+function readonlySettlementList(payload: TripPayload): string {
+  const { settlements } = payload;
+  if (settlements.length === 0) {
+    return '<p class="muted">目前已經打平。</p>';
+  }
+  return `
+    <ul class="list">
+      ${settlements
+        .map(
+          (settlement) => `
+            <li>
+              ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
+              <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+            </li>
+          `,
+        )
         .join("")}
     </ul>
   `;
