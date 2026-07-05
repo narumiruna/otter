@@ -291,6 +291,7 @@ function bindHandlers() {
           selected.balances,
           selected.settlements,
           selected.trip.settlementPayments,
+          selected.trip.participants,
         ),
       );
       setMessage("已匯出結算 CSV");

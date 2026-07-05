@@ -8,6 +8,7 @@ CREATE TABLE settlement_payments (
   paid_at date NOT NULL,
   note text NOT NULL DEFAULT '' CHECK (char_length(note) <= 160),
   created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (from_id != to_id),
   FOREIGN KEY (trip_id, from_id) REFERENCES participants(trip_id, id) ON DELETE RESTRICT,
   FOREIGN KEY (trip_id, to_id) REFERENCES participants(trip_id, id) ON DELETE RESTRICT
 );

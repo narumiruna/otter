@@ -1,6 +1,7 @@
 import { currencyInfo, toMajor } from "./money.js";
 import type {
   Balance,
+  Participant,
   Settlement,
   SettlementPayment,
   Trip,
@@ -21,6 +22,7 @@ const resultHeaders = [
   "to",
   "amount",
   "currency",
+  "note",
 ];
 
 export function tripExpensesCsv(trip: Trip): string {
@@ -43,7 +45,9 @@ export function tripResultsCsv(
   balances: Balance[],
   settlements: Settlement[],
   payments: SettlementPayment[] = [],
+  participants: Participant[] = [],
 ): string {
+  const participantById = new Map(participants.map((p) => [p.id, p.name]));
   const balanceRows = balances.map((balance) => [
     "balance",
     balance.name,
@@ -51,6 +55,7 @@ export function tripResultsCsv(
     "",
     formatAmount(balance.amountMinor, balance.currency),
     balance.currency,
+    "",
   ]);
   const settlementRows = settlements.map((settlement) => [
     "settlement",
@@ -59,14 +64,16 @@ export function tripResultsCsv(
     settlement.toName,
     formatAmount(settlement.amountMinor, settlement.currency),
     settlement.currency,
+    "",
   ]);
   const paymentRows = payments.map((payment) => [
     "payment",
-    payment.note,
-    payment.fromId,
-    payment.toId,
+    "",
+    participantById.get(payment.fromId) ?? payment.fromId,
+    participantById.get(payment.toId) ?? payment.toId,
     formatAmount(payment.amountMinor, payment.currency),
     payment.currency,
+    payment.note,
   ]);
 
   return csvRows([
