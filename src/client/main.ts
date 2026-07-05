@@ -15,6 +15,7 @@ import {
   type TripSummary,
   type User,
   type WorkspaceTab,
+  workspaceTabForKey,
   workspaceTabs,
 } from "./client-support.js";
 import { authView, dashboardView } from "./views.js";
@@ -92,7 +93,7 @@ function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
 function render() {
   app.innerHTML = `
     <a class="skip-link" href="#main-content">跳到主要內容</a>
-    <main id="main-content" class="app${state.busy ? " is-busy" : ""}" aria-busy="${state.busy}">
+    <main id="main-content" class="app${state.busy ? " is-busy" : ""}" aria-busy="${state.busy}" tabindex="-1">
       <section class="hero${state.user ? " hero-compact" : ""}">
         <div class="brand-row">
           <span class="brand-mark" aria-hidden="true">o</span>
@@ -206,17 +207,36 @@ function bindHandlers() {
       });
     });
 
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-workspace-tab]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        if (!isWorkspaceTab(button.dataset.workspaceTab)) {
-          return;
-        }
-        state.activeTab = button.dataset.workspaceTab;
-        render();
-      });
+  const workspaceTabButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-workspace-tab]"),
+  );
+  for (const button of workspaceTabButtons) {
+    button.addEventListener("click", () => {
+      if (!isWorkspaceTab(button.dataset.workspaceTab)) {
+        return;
+      }
+      state.activeTab = button.dataset.workspaceTab;
+      render();
     });
+    button.addEventListener("keydown", (event) => {
+      if (!isWorkspaceTab(button.dataset.workspaceTab)) {
+        return;
+      }
+      const nextTab = workspaceTabForKey(
+        button.dataset.workspaceTab,
+        event.key,
+      );
+      if (!nextTab) {
+        return;
+      }
+      event.preventDefault();
+      state.activeTab = nextTab;
+      render();
+      document
+        .querySelector<HTMLButtonElement>(`#workspace-tab-${nextTab}`)
+        ?.focus();
+    });
+  }
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")

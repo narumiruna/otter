@@ -133,7 +133,7 @@ function workspaceTabBar(activeTab: WorkspaceTab): string {
             ? ` aria-controls="${workspacePanelId(tab)}"`
             : "";
           return `
-            <button id="${workspaceTabId(tab)}" class="secondary${active ? " active" : ""}" data-workspace-tab="${tab}" type="button" role="tab" aria-selected="${active}"${controls}>
+            <button id="${workspaceTabId(tab)}" class="secondary${active ? " active" : ""}" data-workspace-tab="${tab}" type="button" role="tab" aria-selected="${active}" tabindex="${active ? 0 : -1}"${controls}>
               ${workspaceTabLabel(tab)}
             </button>
           `;

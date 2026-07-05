@@ -31,6 +31,29 @@ export const workspaceTabs = [
 
 export type WorkspaceTab = (typeof workspaceTabs)[number];
 
+export function workspaceTabForKey(
+  currentTab: WorkspaceTab,
+  key: string,
+): WorkspaceTab | null {
+  const currentIndex = workspaceTabs.indexOf(currentTab);
+  switch (key) {
+    case "ArrowDown":
+    case "ArrowRight":
+      return workspaceTabs[(currentIndex + 1) % workspaceTabs.length];
+    case "ArrowLeft":
+    case "ArrowUp":
+      return workspaceTabs[
+        (currentIndex - 1 + workspaceTabs.length) % workspaceTabs.length
+      ];
+    case "Home":
+      return workspaceTabs[0];
+    case "End":
+      return workspaceTabs[workspaceTabs.length - 1];
+    default:
+      return null;
+  }
+}
+
 export type DevAdmin = {
   email: string;
   password: string;
