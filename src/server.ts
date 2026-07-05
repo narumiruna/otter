@@ -348,10 +348,30 @@ export function createApp(pool: PgPool): express.Express {
     mustBeSignedIn,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
-      const deleted = await pool.query(
-        "DELETE FROM trips WHERE id = $1 AND owner_id = $2",
-        [req.params.tripId, user.id],
-      );
+      const deleted = await withTransaction(pool, async (client) => {
+        const tripFilter =
+          "trip_id IN (SELECT id FROM trips WHERE id = $1 AND owner_id = $2)";
+        await client.query(
+          `DELETE FROM settlement_payments WHERE ${tripFilter}`,
+          [req.params.tripId, user.id],
+        );
+        await client.query(
+          `DELETE FROM expense_participants WHERE ${tripFilter}`,
+          [req.params.tripId, user.id],
+        );
+        await client.query(`DELETE FROM expenses WHERE ${tripFilter}`, [
+          req.params.tripId,
+          user.id,
+        ]);
+        await client.query(`DELETE FROM participants WHERE ${tripFilter}`, [
+          req.params.tripId,
+          user.id,
+        ]);
+        return client.query(
+          "DELETE FROM trips WHERE id = $1 AND owner_id = $2",
+          [req.params.tripId, user.id],
+        );
+      });
       if (deleted.rowCount === 0) {
         sendError(res, 404, "找不到旅行");
         return;

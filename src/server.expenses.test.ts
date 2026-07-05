@@ -687,6 +687,14 @@ test(
       paymentOnlyParticipantDelete.data.error,
       "參與者已有付款紀錄，不能刪除",
     );
+
+    const tripDeleteWithPayments = await api<{ ok: true }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}`,
+      { headers: { cookie }, method: "DELETE" },
+    );
+    assert.equal(tripDeleteWithPayments.response.status, 200);
+    assert.equal(tripDeleteWithPayments.data.ok, true);
   },
 );
 
