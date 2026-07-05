@@ -11,6 +11,7 @@ export type TripSummary = {
   id: string;
   name: string;
   baseCurrency: Currency;
+  archivedAt?: string | null;
   participantCount: number;
   expenseCount: number;
 };
@@ -62,6 +63,7 @@ export type DevAdmin = {
 export type AppState = {
   user: User | null;
   trips: TripSummary[];
+  archivedTrips: TripSummary[];
   selected: TripPayload | null;
   activeTab: WorkspaceTab;
   message: string;

@@ -140,6 +140,50 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(rebasedTrip.data.trip.name, "Kyoto");
   assert.equal(rebasedTrip.data.trip.baseCurrency, "USD");
 
+  const archivedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ archived: true }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(archivedTrip.response.status, 200);
+  assert.ok(archivedTrip.data.trip.archivedAt);
+
+  const archivedTrips = await api<TripsResponse>(baseUrl, "/api/trips", {
+    headers: { cookie },
+  });
+  assert.equal(
+    archivedTrips.data.trips.some(({ id }) => id === createdTrip.data.trip.id),
+    false,
+  );
+  assert.equal(
+    archivedTrips.data.archivedTrips.some(
+      ({ id }) => id === createdTrip.data.trip.id,
+    ),
+    true,
+  );
+
+  const loadedArchivedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    { headers: { cookie } },
+  );
+  assert.ok(loadedArchivedTrip.data.trip.archivedAt);
+
+  const restoredTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ archived: false }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(restoredTrip.data.trip.archivedAt, null);
+
   const invalidBaseCurrency = await api<{ error: string }>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,

@@ -369,6 +369,7 @@ summary:hover {
 }
 
 .trip-create,
+.archived-trips,
 .expense-actions,
 .danger-actions {
   border-top: 1px solid #e8f3ef;
@@ -376,6 +377,7 @@ summary:hover {
 }
 
 .trip-create form,
+.archived-trips .trip-list,
 .expense-actions .row {
   margin-top: 0.75rem;
 }

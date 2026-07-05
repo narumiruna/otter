@@ -73,6 +73,7 @@ export function dashboardView(state: AppState): string {
               : '<p class="muted">還沒有支出群組，先新增一個。</p>'
           }
         </div>
+        ${archivedTripList(state.archivedTrips, state.selected?.trip.id)}
         <details class="trip-create" ${state.trips.length ? "" : "open"}>
           <summary>新增支出群組</summary>
           <form id="trip-form">
@@ -87,13 +88,30 @@ export function dashboardView(state: AppState): string {
   `;
 }
 
+function archivedTripList(
+  trips: TripSummary[],
+  selectedTripId?: string,
+): string {
+  if (trips.length === 0) {
+    return "";
+  }
+  return `
+    <details class="archived-trips">
+      <summary>已封存支出群組</summary>
+      <div class="trip-list stack">
+        ${trips.map((trip) => tripButton(trip, selectedTripId)).join("")}
+      </div>
+    </details>
+  `;
+}
+
 function tripButton(trip: TripSummary, selectedTripId?: string): string {
   const isActive = selectedTripId === trip.id;
   const active = isActive ? " active" : "";
   return `
     <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button" aria-pressed="${isActive}"${isActive ? ' aria-current="true"' : ""}>
       <strong>${htmlEscape(trip.name)}</strong><br />
-      <span class="muted">${trip.participantCount} 人 · ${trip.expenseCount} 筆 · ${trip.baseCurrency}</span>
+      <span class="muted">${trip.participantCount} 人 · ${trip.expenseCount} 筆 · ${trip.baseCurrency}${trip.archivedAt ? " · 已封存" : ""}</span>
     </button>
   `;
 }
@@ -324,10 +342,11 @@ function settingsPanel(trip: Trip): string {
           <button id="rename-trip" class="secondary" type="button">重新命名</button>
         </div>
         <div class="row danger-actions">
+          <button id="archive-trip" class="secondary" data-archived="${trip.archivedAt ? "true" : "false"}" type="button">${trip.archivedAt ? "還原支出群組" : "封存支出群組"}</button>
           <button id="delete-trip" class="danger" type="button">刪除支出群組</button>
         </div>
       </div>
-      <p class="muted">目前基準貨幣：${trip.baseCurrency}</p>
+      <p class="muted">目前基準貨幣：${trip.baseCurrency}${trip.archivedAt ? "；此群組已封存，還原後可繼續修改。" : ""}</p>
     </article>
   `;
 }

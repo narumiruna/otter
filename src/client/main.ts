@@ -30,6 +30,7 @@ const state: AppState = {
   message: "",
   selected: null,
   trips: [],
+  archivedTrips: [],
   user: null,
 };
 
@@ -89,8 +90,12 @@ async function init() {
 }
 
 async function loadTrips() {
-  const data = await api<{ trips: TripSummary[] }>("/api/trips");
+  const data = await api<{
+    archivedTrips?: TripSummary[];
+    trips: TripSummary[];
+  }>("/api/trips");
   state.trips = data.trips;
+  state.archivedTrips = data.archivedTrips ?? [];
   if (!state.selected && state.trips[0]) {
     await selectTrip(state.trips[0].id);
   }
@@ -199,6 +204,7 @@ function bindHandlers() {
         await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
         state.user = null;
         state.trips = [];
+        state.archivedTrips = [];
         state.selected = null;
         state.activeTab = "overview";
         setMessage("已登出");
@@ -402,6 +408,26 @@ function bindHandlers() {
         });
         await loadTrips();
         setMessage("已更新基準貨幣");
+      });
+    });
+
+  document
+    .querySelector<HTMLButtonElement>("#archive-trip")
+    ?.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const tripId = state.selected?.trip.id;
+      const archived = button.dataset.archived !== "true";
+      if (!tripId) {
+        return;
+      }
+
+      void run(async () => {
+        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+          body: JSON.stringify({ archived }),
+          method: "PATCH",
+        });
+        await loadTrips();
+        setMessage(archived ? "已封存支出群組" : "已還原支出群組");
       });
     });
 
