@@ -7,9 +7,9 @@ import {
   type DevAdmin,
   defaultExpenseFilters,
   downloadText,
-  type ExpenseFilters,
   expenseFormError,
   htmlEscape,
+  isExpenseSort,
   safeFilename,
   splitCountLabel,
   splitShortcutChecked,
@@ -107,6 +107,7 @@ async function loadTrips() {
 async function selectTrip(tripId: string) {
   state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
   state.activeTab = "add-expense";
+  state.expenseFilters = { ...defaultExpenseFilters };
 }
 
 function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
@@ -280,8 +281,18 @@ function bindHandlers() {
 
   document
     .querySelector<HTMLFormElement>("#expense-filters")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+    });
+
+  document
+    .querySelector<HTMLFormElement>("#expense-filters")
     ?.addEventListener("input", (event) => {
+      const activeEl = document.activeElement as HTMLInputElement | null;
+      const activeName = activeEl?.name ?? null;
+      const selectionStart = activeEl?.selectionStart ?? null;
       const form = new FormData(event.currentTarget as HTMLFormElement);
+      const sortRaw = String(form.get("sort") ?? "");
       state.expenseFilters = {
         currency: String(form.get("currency") ?? ""),
         dateFrom: String(form.get("dateFrom") ?? ""),
@@ -289,9 +300,24 @@ function bindHandlers() {
         paidById: String(form.get("paidById") ?? ""),
         participantId: String(form.get("participantId") ?? ""),
         query: String(form.get("query") ?? ""),
-        sort: String(form.get("sort") ?? "date-desc") as ExpenseFilters["sort"],
+        sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
       };
       render();
+      if (activeName) {
+        const restored = document.querySelector<HTMLInputElement>(
+          `#expense-filters [name="${activeName}"]`,
+        );
+        if (restored) {
+          restored.focus();
+          if (selectionStart !== null && "setSelectionRange" in restored) {
+            try {
+              restored.setSelectionRange(selectionStart, selectionStart);
+            } catch {
+              // element type may not support selection ranges
+            }
+          }
+        }
+      }
     });
 
   document

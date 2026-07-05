@@ -185,6 +185,66 @@ test("filters and sorts expenses", () => {
     }).map(({ id }) => id),
     ["expense-2", "expense-1"],
   );
+  // expense-1 is TWD 100; expense-2 is JPY 500 ≈ TWD 110 (rate 0.22), so amount-asc puts expense-1 first
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "amount-asc",
+    }).map(({ id }) => id),
+    ["expense-1", "expense-2"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "amount-desc",
+    }).map(({ id }) => id),
+    ["expense-2", "expense-1"],
+  );
+});
+
+test("date sort uses createdAt and id as tie-breakers for same-date expenses", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T01:00:00.000Z",
+        currency: "TWD",
+        description: "Breakfast",
+        expenseDate: "2026-06-25",
+        id: "expense-a",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+      {
+        amountMinor: 200,
+        createdAt: "2026-06-25T02:00:00.000Z",
+        currency: "TWD",
+        description: "Lunch",
+        expenseDate: "2026-06-25",
+        id: "expense-b",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+    ],
+  };
+
+  // date-desc: newest createdAt first on same day
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-desc",
+    }).map(({ id }) => id),
+    ["expense-b", "expense-a"],
+  );
+  // date-asc: oldest createdAt first on same day
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-asc",
+    }).map(({ id }) => id),
+    ["expense-a", "expense-b"],
+  );
 });
 
 test("expense split labels summarize all-person splits", () => {

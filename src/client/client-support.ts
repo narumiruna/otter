@@ -80,6 +80,15 @@ export const defaultExpenseFilters: ExpenseFilters = {
   sort: "date-desc",
 };
 
+export function isExpenseSort(value: string): value is ExpenseFilters["sort"] {
+  return (
+    value === "date-desc" ||
+    value === "date-asc" ||
+    value === "amount-desc" ||
+    value === "amount-asc"
+  );
+}
+
 export type AppState = {
   user: User | null;
   trips: TripSummary[];
@@ -199,10 +208,10 @@ export function filterAndSortExpenses(
   trip: Trip,
   filters: ExpenseFilters,
 ): Trip["expenses"] {
-  const query = filters.query.trim().toLocaleLowerCase();
+  const query = filters.query.trim().toLowerCase();
   return [...trip.expenses]
     .filter((expense) => {
-      if (query && !expense.description.toLocaleLowerCase().includes(query)) {
+      if (query && !expense.description.toLowerCase().includes(query)) {
         return false;
       }
       if (filters.dateFrom && expense.expenseDate < filters.dateFrom) {
@@ -227,8 +236,13 @@ export function filterAndSortExpenses(
     })
     .sort((left, right) => {
       switch (filters.sort) {
-        case "date-asc":
-          return left.expenseDate.localeCompare(right.expenseDate);
+        case "date-asc": {
+          const dateCmp = left.expenseDate.localeCompare(right.expenseDate);
+          if (dateCmp !== 0) return dateCmp;
+          const createdAtCmp = left.createdAt.localeCompare(right.createdAt);
+          if (createdAtCmp !== 0) return createdAtCmp;
+          return left.id.localeCompare(right.id);
+        }
         case "amount-desc":
           return (
             convertMinorWithRates(
@@ -259,8 +273,13 @@ export function filterAndSortExpenses(
               trip.exchangeRates,
             )
           );
-        case "date-desc":
-          return right.expenseDate.localeCompare(left.expenseDate);
+        case "date-desc": {
+          const dateCmp = right.expenseDate.localeCompare(left.expenseDate);
+          if (dateCmp !== 0) return dateCmp;
+          const createdAtCmp = right.createdAt.localeCompare(left.createdAt);
+          if (createdAtCmp !== 0) return createdAtCmp;
+          return right.id.localeCompare(left.id);
+        }
       }
       return 0;
     });
