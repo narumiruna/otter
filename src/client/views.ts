@@ -259,6 +259,7 @@ function membersPanel(trip: Trip): string {
         <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
         <button type="submit">新增成員</button>
       </form>
+      ${participantMergeForm(trip)}
       <ul class="list">${trip.participants
         .map((person) => {
           const deleteBlockReason = participantDeleteBlockReason(
@@ -282,6 +283,29 @@ function membersPanel(trip: Trip): string {
         })
         .join("")}</ul>
     </article>
+  `;
+}
+
+function participantMergeForm(trip: Trip): string {
+  if (trip.participants.length < 2) {
+    return "";
+  }
+  const options = trip.participants
+    .map(
+      (person) =>
+        `<option value="${htmlEscape(person.id)}">${htmlEscape(person.name)}</option>`,
+    )
+    .join("");
+  return `
+    <form id="participant-merge-form" class="inline-tool">
+      <h4>合併重複成員</h4>
+      <div class="grid">
+        <label>來源成員<select name="sourceParticipantId" required>${options}</select></label>
+        <label>合併到<select name="targetParticipantId" required>${options}</select></label>
+      </div>
+      <p class="muted">會把來源成員的付款、分帳與結清紀錄移到目標成員，並刪除來源成員。</p>
+      <button class="secondary" type="submit">合併成員</button>
+    </form>
   `;
 }
 

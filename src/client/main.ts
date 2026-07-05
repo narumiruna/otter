@@ -475,6 +475,38 @@ function bindHandlers() {
     });
 
   document
+    .querySelector<HTMLFormElement>("#participant-merge-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const tripId = state.selected?.trip.id;
+      if (!tripId) {
+        return;
+      }
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const sourceParticipantId = String(form.get("sourceParticipantId") ?? "");
+      const targetParticipantId = String(form.get("targetParticipantId") ?? "");
+      if (
+        !sourceParticipantId ||
+        !targetParticipantId ||
+        sourceParticipantId === targetParticipantId ||
+        !confirm("確定要合併這兩位成員？來源成員會被刪除。")
+      ) {
+        return;
+      }
+      void run(async () => {
+        state.selected = await api<TripPayload>(
+          `/api/trips/${tripId}/participants/${sourceParticipantId}/merge`,
+          {
+            body: JSON.stringify({ targetParticipantId }),
+            method: "POST",
+          },
+        );
+        await loadTrips();
+        setMessage("已合併成員");
+      });
+    });
+
+  document
     .querySelectorAll<HTMLButtonElement>("[data-delete-participant-id]")
     .forEach((button) => {
       button.addEventListener("click", () => {
