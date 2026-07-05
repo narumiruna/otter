@@ -24,10 +24,7 @@ import {
 } from "./client-support.js";
 import { restoreBackupForm, settingsPanel } from "./settings-view.js";
 
-export function authView(state: AppState): string {
-  const devEmail = state.devAdmin?.email ?? "";
-  const devPassword = state.devAdmin?.password ?? "";
-
+export function authView(_state: AppState): string {
   return `
     <section class="grid auth-grid">
       <article class="card stack auth-copy">
@@ -42,8 +39,8 @@ export function authView(state: AppState): string {
       <article class="card stack auth-card">
         <h2>登入</h2>
         <form id="login-form">
-          <label>Email<input name="email" type="email" autocomplete="email" value="${htmlEscape(devEmail)}" required /></label>
-          <label>密碼<input name="password" type="password" autocomplete="current-password" value="${htmlEscape(devPassword)}" required /></label>
+          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+          <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
           <button type="submit">登入</button>
         </form>
       </article>

@@ -64,7 +64,6 @@ const baseState: AppState = {
   activeTab: "overview",
   busy: false,
   csvImportErrors: [],
-  devAdmin: null,
   error: "",
   expenseFilters: { ...defaultExpenseFilters },
   message: "",

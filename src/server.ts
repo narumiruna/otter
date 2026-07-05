@@ -21,8 +21,6 @@ import {
   createSession,
   currencyFromDb,
   currentUser,
-  devAdmin,
-  ensureDevAdmin,
   findUserByEmail,
   getCookie,
   hashPassword,
@@ -101,12 +99,7 @@ export function createApp(pool: PgPool): express.Express {
     "/api/me",
     asyncHandler(async (req, res) => {
       const user = await userFromRequest(pool, req);
-      res.json({
-        devAdmin: isProduction
-          ? null
-          : { email: devAdmin.email, password: devAdmin.password },
-        user: user ? publicUser(user) : null,
-      });
+      res.json({ user: user ? publicUser(user) : null });
     }),
   );
 
@@ -659,8 +652,6 @@ export function createApp(pool: PgPool): express.Express {
 async function start() {
   const pool = createPool();
   const app = createApp(pool);
-
-  await ensureDevAdmin(pool);
 
   if (isProduction) {
     const clientDir = path.resolve(__dirname, "../client");

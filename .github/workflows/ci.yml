@@ -32,5 +32,4 @@ jobs:
           node-version: 25
           cache: npm
       - run: npm ci
-      - run: npm run migrate
       - run: npm run check
