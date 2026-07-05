@@ -76,7 +76,7 @@ summary {
 .app {
   width: min(1180px, 100%);
   margin: 0 auto;
-  padding: 2rem 1rem 3rem;
+  padding: 1rem 1rem 3rem;
 }
 
 .hero,
@@ -94,6 +94,14 @@ summary {
   align-items: center;
   margin-bottom: 1rem;
   padding: 1.4rem;
+}
+
+.hero-compact {
+  padding: 0.75rem 1rem;
+}
+
+.user-menu {
+  justify-content: flex-end;
 }
 
 .hero h1,
@@ -200,6 +208,7 @@ summary {
 
 .trip-list button.active {
   outline: 3px solid #14b8a6;
+  background: #e6f7f3;
 }
 
 .notice,
@@ -252,6 +261,31 @@ summary {
 
 .checks input {
   width: auto;
+}
+
+.empty-state {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px dashed #b8d7d0;
+  border-radius: 1rem;
+  background: #f6fbfa;
+  padding: 0.9rem;
+}
+
+.empty-state h4,
+.empty-state p {
+  margin: 0;
+}
+
+.expense-create-card form {
+  gap: 0.65rem;
+}
+
+.expense-create-card button[type="submit"] {
+  position: sticky;
+  bottom: 0.75rem;
+  justify-self: start;
+  box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
 }
 
 .positive {

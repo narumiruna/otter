@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
-import type { AppState, WorkspaceTab } from "./client-support.js";
+import {
+  type AppState,
+  type WorkspaceTab,
+  workspaceTabs,
+} from "./client-support.js";
 import { dashboardView } from "./views.js";
 
 const trip: Trip = {
@@ -88,6 +92,40 @@ function view(activeTab: WorkspaceTab): string {
   return dashboardView({ ...baseState, activeTab });
 }
 
+const emptyOnePersonTrip: Trip = {
+  ...trip,
+  expenses: [],
+  participants: [{ id: "participant_alice", name: "Alice" }],
+};
+
+function emptyOnePersonView(activeTab: WorkspaceTab): string {
+  return dashboardView({
+    ...baseState,
+    activeTab,
+    selected: {
+      balances: [
+        {
+          amountMinor: 0,
+          currency: "TWD",
+          name: "Alice",
+          participantId: "participant_alice",
+        },
+      ],
+      settlements: [],
+      trip: emptyOnePersonTrip,
+    },
+    trips: [
+      {
+        baseCurrency: "TWD",
+        expenseCount: 0,
+        id: "trip_1",
+        name: "Tokyo",
+        participantCount: 1,
+      },
+    ],
+  });
+}
+
 test("dashboard view exposes workspace tabs and overview panel", () => {
   const html = view("overview");
 
@@ -100,6 +138,10 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   );
   assert.ok(
     html.indexOf("Tokyo") < html.indexOf("<summary>新增支出群組</summary>"),
+  );
+  assert.deepEqual(
+    [...workspaceTabs],
+    ["add-expense", "overview", "expenses", "members", "settings"],
   );
   assert.ok(html.includes('data-workspace-tab="overview"'));
   assert.ok(html.includes('data-workspace-tab="add-expense"'));
@@ -140,4 +182,23 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(settingsHtml.includes('data-workspace-panel="settings"'));
   assert.ok(settingsHtml.includes('id="export-expenses"'));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
+});
+
+test("empty one-person groups guide users to add members", () => {
+  const html = emptyOnePersonView("add-expense");
+
+  assert.ok(html.includes("先新增同行成員"));
+  assert.ok(html.includes('data-workspace-tab="members"'));
+  assert.ok(!html.includes('id="expense-form"'));
+});
+
+test("empty workspace states include next-step actions", () => {
+  const overviewHtml = emptyOnePersonView("overview");
+  assert.ok(overviewHtml.includes("新增第一筆支出"));
+  assert.ok(overviewHtml.includes('data-workspace-tab="add-expense"'));
+  assert.ok(overviewHtml.includes('data-workspace-tab="members"'));
+
+  const expensesHtml = emptyOnePersonView("expenses");
+  assert.ok(expensesHtml.includes("還沒有支出"));
+  assert.ok(expensesHtml.includes('data-workspace-tab="add-expense"'));
 });
