@@ -424,7 +424,7 @@ function splitParticipantInput(
         <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${selectedSplitIds.has(person.id) ? "checked" : ""} />
         ${htmlEscape(person.name)}
       </span>
-      <input name="splitValue:${htmlEscape(person.id)}" inputmode="decimal" value="${htmlEscape(value)}" placeholder="金額 / 比例 / 份數" aria-label="${htmlEscape(person.name)} 分帳金額" />
+      <input name="splitValue:${htmlEscape(person.id)}" inputmode="decimal" value="${htmlEscape(value)}" placeholder="金額 / 比例 / 份數" aria-label="${htmlEscape(person.name)} 分帳值" />
     </label>
   `;
 }

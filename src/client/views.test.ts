@@ -188,6 +188,7 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes('value="ratio"'));
   assert.ok(expensesHtml.includes('value="shares"'));
   assert.ok(expensesHtml.includes('name="splitValue:participant_alice"'));
+  assert.ok(expensesHtml.includes('aria-label="Alice 分帳值"'));
   assert.ok(expensesHtml.includes("取消"));
   assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
   assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));

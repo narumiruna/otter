@@ -128,6 +128,31 @@ function weightedShares(
   }));
 }
 
+function participantSharesFromExisting(
+  participantIds: string[],
+  amountMinor: number,
+  previousAmountMinor: number,
+  previousShares: ParticipantShare[] | undefined,
+): ParticipantShare[] | undefined {
+  if (!previousShares?.length) {
+    return undefined;
+  }
+
+  const shareByParticipant = new Map(
+    previousShares.map((share) => [share.participantId, share.shareMinor]),
+  );
+  const weights = participantIds.map(
+    (participantId) => shareByParticipant.get(participantId) ?? 0,
+  );
+  if (
+    weights.some((weight) => weight <= 0) ||
+    weights.reduce((sum, weight) => sum + weight, 0) !== previousAmountMinor
+  ) {
+    return undefined;
+  }
+  return weightedShares(participantIds, amountMinor, weights);
+}
+
 function participantSharesFromBody(
   body: Record<string, unknown>,
   participantIds: string[],
@@ -841,15 +866,27 @@ export function createApp(pool: PgPool): express.Express {
       }
 
       let participantShares: ParticipantShare[] | undefined;
-      const shouldReplaceSplits = hasParticipantIds || hasSplitMode;
+      const hasExistingShares = (expense.participantShares?.length ?? 0) > 0;
+      const shouldReplaceSplits =
+        hasParticipantIds ||
+        hasSplitMode ||
+        ((hasAmount || hasCurrency) && hasExistingShares);
       if (shouldReplaceSplits) {
         try {
-          participantShares = participantSharesFromBody(
-            body,
-            participantIds,
-            amountMinor,
-            currencyValue,
-          );
+          participantShares =
+            !hasSplitMode && hasExistingShares
+              ? participantSharesFromExisting(
+                  participantIds,
+                  amountMinor,
+                  expense.amountMinor,
+                  expense.participantShares,
+                )
+              : participantSharesFromBody(
+                  body,
+                  participantIds,
+                  amountMinor,
+                  currencyValue,
+                );
         } catch (error) {
           sendError(
             res,
