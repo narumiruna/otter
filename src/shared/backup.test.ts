@@ -61,6 +61,77 @@ test("validates trip backup version and required relationships", () => {
     () =>
       validateTripBackupV1({
         ...backup,
+        trip: {
+          ...backup.trip,
+          expenses: [
+            {
+              ...backup.trip.expenses[0],
+              participantIds: ["participant_alice", "participant_alice"],
+            },
+          ],
+        },
+      }),
+    /備份支出參與者重複/,
+  );
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...backup,
+        trip: {
+          ...backup.trip,
+          expenses: [
+            {
+              ...backup.trip.expenses[0],
+              participantIds: ["participant_alice"],
+              participantShares: [
+                { participantId: "participant_bob", shareMinor: 100 },
+              ],
+            },
+          ],
+        },
+      }),
+    /備份分帳格式錯誤/,
+  );
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...backup,
+        trip: {
+          ...backup.trip,
+          expenses: [
+            {
+              ...backup.trip.expenses[0],
+              participantShares: [
+                { participantId: "participant_alice", shareMinor: 100 },
+              ],
+            },
+          ],
+        },
+      }),
+    /備份分帳格式錯誤/,
+  );
+  assert.equal(
+    validateTripBackupV1({
+      ...backup,
+      trip: {
+        ...backup.trip,
+        expenses: [
+          {
+            ...backup.trip.expenses[0],
+            participantShares: [
+              { participantId: "participant_alice", shareMinor: 70 },
+              { participantId: "participant_bob", shareMinor: 30 },
+            ],
+          },
+        ],
+      },
+    }).trip.expenses[0].participantShares?.length,
+    2,
+  );
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...backup,
         trip: { ...backup.trip, exchangeRates: { BTC: 1 } },
       }),
     /備份匯率格式錯誤/,

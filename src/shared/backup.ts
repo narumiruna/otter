@@ -121,10 +121,15 @@ export function validateTripBackupV1(value: unknown): TripBackupV1 {
     ) {
       throw new Error("備份支出格式錯誤");
     }
+    const expenseParticipantIds = new Set<string>();
     for (const participantId of expense.participantIds) {
       if (!participantIds.has(participantId)) {
         throw new Error("備份支出參與者不存在");
       }
+      if (expenseParticipantIds.has(participantId)) {
+        throw new Error("備份支出參與者重複");
+      }
+      expenseParticipantIds.add(participantId);
     }
     if (
       expense.category !== undefined &&
@@ -143,16 +148,22 @@ export function validateTripBackupV1(value: unknown): TripBackupV1 {
       if (!Array.isArray(expense.participantShares)) {
         throw new Error("備份分帳格式錯誤");
       }
+      const shareParticipantIds = new Set<string>();
       const total = expense.participantShares.reduce((sum, share) => {
         if (
-          !participantIds.has(share.participantId) ||
+          !expenseParticipantIds.has(share.participantId) ||
+          shareParticipantIds.has(share.participantId) ||
           !Number.isSafeInteger(share.shareMinor) ||
           share.shareMinor <= 0
         ) {
           throw new Error("備份分帳格式錯誤");
         }
+        shareParticipantIds.add(share.participantId);
         return sum + share.shareMinor;
       }, 0);
+      if (shareParticipantIds.size !== expenseParticipantIds.size) {
+        throw new Error("備份分帳格式錯誤");
+      }
       if (total !== expense.amountMinor) {
         throw new Error("備份分帳加總錯誤");
       }
