@@ -248,7 +248,30 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(settingsHtml.includes('id="export-expenses"'));
   assert.ok(settingsHtml.includes('id="archive-trip"'));
   assert.ok(settingsHtml.includes("封存支出群組"));
+  assert.ok(settingsHtml.includes('id="exchange-rates-form"'));
+  assert.ok(settingsHtml.includes('name="rate:USD"'));
+  assert.ok(settingsHtml.includes("套用於整趟旅行目前計算"));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
+});
+
+test("exchange-rates form is hidden for archived trips", () => {
+  const archivedTrip: Trip = {
+    ...trip,
+    archivedAt: "2026-06-27T00:00:00.000Z",
+  };
+  const archivedState: AppState = {
+    ...baseState,
+    selected: {
+      // biome-ignore lint/style/noNonNullAssertion: baseState.selected is always set in test data
+      ...baseState.selected!,
+      trip: archivedTrip,
+    },
+  };
+  const settingsHtml = dashboardView({
+    ...archivedState,
+    activeTab: "settings",
+  });
+  assert.ok(!settingsHtml.includes('id="exchange-rates-form"'));
 });
 
 test("empty one-person groups guide users to add members", () => {

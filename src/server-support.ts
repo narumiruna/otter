@@ -97,6 +97,11 @@ type SettlementPaymentRow = {
   created_at: Date | string;
 };
 
+type ExchangeRateRow = {
+  currency: string;
+  rate_to_base: string | number;
+};
+
 export const isProduction = process.env.NODE_ENV === "production";
 export const devAdmin = {
   email: "admin@otter.local",
@@ -619,6 +624,7 @@ export async function loadTripForUser(
     expensesResult,
     splitsResult,
     settlementPaymentsResult,
+    exchangeRatesResult,
   ] = await Promise.all([
     db.query<ParticipantRow>(
       `SELECT id, name
@@ -648,6 +654,12 @@ export async function loadTripForUser(
        ORDER BY paid_at, created_at, id`,
       [tripId],
     ),
+    db.query<ExchangeRateRow>(
+      `SELECT currency, rate_to_base
+       FROM trip_exchange_rates
+       WHERE trip_id = $1`,
+      [tripId],
+    ),
   ]);
 
   const splitsByExpense = new Map<
@@ -666,8 +678,19 @@ export async function loadTripForUser(
     splitsByExpense.set(split.expense_id, splits);
   }
 
+  const exchangeRates: Partial<Record<Currency, number>> = Object.fromEntries(
+    exchangeRatesResult.rows.map((row) => [
+      currencyFromDb(row.currency),
+      Number(row.rate_to_base),
+    ]),
+  );
+  if (exchangeRatesResult.rows.length > 0) {
+    exchangeRates[currencyFromDb(tripRow.base_currency)] = 1;
+  }
+
   return {
     ...rowToTrip(tripRow),
+    ...(exchangeRatesResult.rows.length > 0 ? { exchangeRates } : {}),
     expenses: expensesResult.rows.map((row) => {
       const splits = splitsByExpense.get(row.id) ?? [];
       const participantShares = splits

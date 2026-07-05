@@ -1,5 +1,5 @@
-import type { Currency } from "./money.js";
-import { convertMinor } from "./money.js";
+import type { Currency, ExchangeRates } from "./money.js";
+import { convertMinorWithRates } from "./money.js";
 
 export type Participant = {
   id: string;
@@ -43,6 +43,7 @@ export type Trip = {
   participants: Participant[];
   expenses: Expense[];
   settlementPayments?: SettlementPayment[];
+  exchangeRates?: ExchangeRates;
   createdAt: string;
 };
 
@@ -83,10 +84,11 @@ export function calculateBalances(trip: Trip): Balance[] {
       continue;
     }
 
-    const amount = convertMinor(
+    const amount = convertMinorWithRates(
       expense.amountMinor,
       expense.currency,
       trip.baseCurrency,
+      trip.exchangeRates,
     );
     balances.set(expense.paidById, payerBalance + amount);
 
@@ -103,10 +105,11 @@ export function calculateBalances(trip: Trip): Balance[] {
 
     if (hasExplicitShares) {
       const shares = splitIds.map((participantId) =>
-        convertMinor(
+        convertMinorWithRates(
           explicitShares.get(participantId) ?? 0,
           expense.currency,
           trip.baseCurrency,
+          trip.exchangeRates,
         ),
       );
       let remainder = amount - shares.reduce((sum, share) => sum + share, 0);
@@ -141,10 +144,11 @@ export function calculateBalances(trip: Trip): Balance[] {
     if (!balances.has(payment.fromId) || !balances.has(payment.toId)) {
       continue;
     }
-    const amount = convertMinor(
+    const amount = convertMinorWithRates(
       payment.amountMinor,
       payment.currency,
       trip.baseCurrency,
+      trip.exchangeRates,
     );
     balances.set(payment.fromId, (balances.get(payment.fromId) ?? 0) + amount);
     balances.set(payment.toId, (balances.get(payment.toId) ?? 0) - amount);

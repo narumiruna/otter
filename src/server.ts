@@ -71,6 +71,30 @@ type TripSummaryRow = {
   expense_count: string | number;
 };
 
+function tripExchangeRatesFromBody(
+  value: unknown,
+  baseCurrency: Currency,
+): [Currency, number][] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("匯率格式錯誤");
+  }
+  const rows: [Currency, number][] = [];
+  for (const [currency, rawRate] of Object.entries(value)) {
+    if (!isCurrency(currency)) {
+      throw new Error("不支援的匯率貨幣");
+    }
+    if (currency === baseCurrency || String(rawRate ?? "").trim() === "") {
+      continue;
+    }
+    const rate = Number(rawRate);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new Error("匯率必須大於 0");
+    }
+    rows.push([currency, rate]);
+  }
+  return rows;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -315,11 +339,12 @@ export function createApp(pool: PgPool): express.Express {
       const hasName = "name" in body;
       const hasBaseCurrency = "baseCurrency" in body;
       const hasArchived = "archived" in body;
-      if (!hasName && !hasBaseCurrency && !hasArchived) {
+      const hasExchangeRates = "exchangeRates" in body;
+      if (!hasName && !hasBaseCurrency && !hasArchived && !hasExchangeRates) {
         sendError(res, 400, "請提供要更新的旅行內容");
         return;
       }
-      if (trip.archivedAt && (hasName || hasBaseCurrency)) {
+      if (trip.archivedAt && (hasName || hasBaseCurrency || hasExchangeRates)) {
         rejectArchivedTrip(res, trip);
         return;
       }
@@ -342,22 +367,63 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
+      let archivedAt: string | null | undefined;
       if (hasArchived) {
         if (typeof body.archived !== "boolean") {
           sendError(res, 400, "封存狀態格式錯誤");
           return;
         }
-        const archivedAt = body.archived === true ? nowIso() : null;
-        await pool.query(
-          "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
-          [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
-        );
-      } else {
-        await pool.query(
-          "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
-          [name, baseCurrencyValue, req.params.tripId, user.id],
-        );
+        archivedAt = body.archived === true ? nowIso() : null;
       }
+
+      let exchangeRates: [Currency, number][] = [];
+      if (hasExchangeRates) {
+        try {
+          exchangeRates = tripExchangeRatesFromBody(
+            body.exchangeRates,
+            baseCurrencyValue,
+          );
+        } catch (error) {
+          sendError(
+            res,
+            400,
+            error instanceof Error ? error.message : "匯率格式錯誤",
+          );
+          return;
+        }
+      }
+
+      const baseCurrencyChanged =
+        hasBaseCurrency && baseCurrencyValue !== trip.baseCurrency;
+
+      await withTransaction(pool, async (client) => {
+        if (hasArchived) {
+          await client.query(
+            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
+            [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
+          );
+        } else {
+          await client.query(
+            "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
+            [name, baseCurrencyValue, req.params.tripId, user.id],
+          );
+        }
+
+        if (!hasExchangeRates && !baseCurrencyChanged) {
+          return;
+        }
+        await client.query(
+          "DELETE FROM trip_exchange_rates WHERE trip_id = $1",
+          [req.params.tripId],
+        );
+        for (const [currency, rate] of exchangeRates) {
+          await client.query(
+            `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
+             VALUES ($1, $2, $3)`,
+            [req.params.tripId, currency, rate],
+          );
+        }
+      });
 
       const updated = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!updated) {

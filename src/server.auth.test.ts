@@ -216,6 +216,17 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   );
   assert.equal(archivedExpenseAdd.response.status, 409);
 
+  const archivedExchangeRateUpdate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ exchangeRates: { USD: "1" } }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(archivedExchangeRateUpdate.response.status, 409);
+
   const restoredTrip = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
@@ -226,6 +237,46 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
     },
   );
   assert.equal(restoredTrip.data.trip.archivedAt, null);
+
+  const ratedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({
+        exchangeRates: { JPY: "0.007", TWD: "0.03", USD: "1" },
+      }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(ratedTrip.response.status, 200);
+  assert.equal(ratedTrip.data.trip.exchangeRates?.USD, 1);
+  assert.equal(ratedTrip.data.trip.exchangeRates?.TWD, 0.03);
+
+  // Changing baseCurrency without providing exchangeRates should clear stale rates
+  const rebasedAfterRates = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ baseCurrency: "TWD" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(rebasedAfterRates.response.status, 200);
+  assert.equal(rebasedAfterRates.data.trip.baseCurrency, "TWD");
+  assert.equal(rebasedAfterRates.data.trip.exchangeRates, undefined);
+
+  const invalidExchangeRate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ exchangeRates: { USD: "0" } }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(invalidExchangeRate.response.status, 400);
 
   const invalidBaseCurrency = await api<{ error: string }>(
     baseUrl,

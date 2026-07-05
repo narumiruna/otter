@@ -9,6 +9,8 @@ export type CurrencyInfo = {
   rateToTwd: number;
 };
 
+export type ExchangeRates = Partial<Record<Currency, number>>;
+
 export const currencyInfo: Record<Currency, CurrencyInfo> = {
   TWD: { code: "TWD", label: "新台幣", minorUnits: 0, rateToTwd: 1 },
   JPY: { code: "JPY", label: "日幣", minorUnits: 0, rateToTwd: 0.22 },
@@ -60,6 +62,24 @@ export function convertMinor(
   const amountTwd = toMajor(amountMinor, from) * currencyInfo[from].rateToTwd;
   const targetMajor = amountTwd / currencyInfo[to].rateToTwd;
   return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
+}
+
+export function convertMinorWithRates(
+  amountMinor: number,
+  from: Currency,
+  to: Currency,
+  rates?: ExchangeRates,
+): number {
+  if (from === to) {
+    return amountMinor;
+  }
+  const fromRate = rates?.[from];
+  const toRate = rates?.[to];
+  if (fromRate && toRate) {
+    const targetMajor = (toMajor(amountMinor, from) * fromRate) / toRate;
+    return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
+  }
+  return convertMinor(amountMinor, from, to);
 }
 
 export function formatMinor(amountMinor: number, currency: Currency): string {

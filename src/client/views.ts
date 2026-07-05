@@ -347,7 +347,33 @@ function settingsPanel(trip: Trip): string {
         </div>
       </div>
       <p class="muted">目前基準貨幣：${trip.baseCurrency}${trip.archivedAt ? "；此群組已封存，還原後可繼續修改。" : ""}</p>
+      ${trip.archivedAt ? "" : exchangeRatesForm(trip)}
     </article>
+  `;
+}
+
+function exchangeRatesForm(trip: Trip): string {
+  return `
+    <form id="exchange-rates-form" class="inline-tool">
+      <h4>自訂匯率</h4>
+      <p class="muted">設定 1 單位外幣等於多少 ${trip.baseCurrency}；會套用於整趟旅行目前計算。</p>
+      <div class="grid">
+        ${currencies
+          .map((currency) => {
+            const rate =
+              currency === trip.baseCurrency
+                ? 1
+                : trip.exchangeRates?.[currency];
+            return `
+              <label>${currency} → ${trip.baseCurrency}
+                <input name="rate:${currency}" inputmode="decimal" value="${htmlEscape(String(rate ?? ""))}" ${currency === trip.baseCurrency ? "readonly" : ""} placeholder="留空使用內建匯率" />
+              </label>
+            `;
+          })
+          .join("")}
+      </div>
+      <button class="secondary" type="submit">儲存匯率</button>
+    </form>
   `;
 }
 
