@@ -43,6 +43,7 @@ export type AppState = {
   activeTab: WorkspaceTab;
   message: string;
   error: string;
+  busy: boolean;
   devAdmin: DevAdmin | null;
 };
 

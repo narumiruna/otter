@@ -45,6 +45,7 @@ const trip: Trip = {
 
 const baseState: AppState = {
   activeTab: "overview",
+  busy: false,
   devAdmin: null,
   error: "",
   message: "",
