@@ -348,10 +348,33 @@ export function createApp(pool: PgPool): express.Express {
     mustBeSignedIn,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
-      const deleted = await pool.query(
-        "DELETE FROM trips WHERE id = $1 AND owner_id = $2",
-        [req.params.tripId, user.id],
-      );
+      const deleted = await withTransaction(pool, async (client) => {
+        const lockedTrip = await client.query(
+          "SELECT id FROM trips WHERE id = $1 AND owner_id = $2 FOR UPDATE",
+          [req.params.tripId, user.id],
+        );
+        if (lockedTrip.rowCount === 0) {
+          return lockedTrip;
+        }
+
+        await client.query(
+          "DELETE FROM settlement_payments WHERE trip_id = $1",
+          [req.params.tripId],
+        );
+        await client.query(
+          "DELETE FROM expense_participants WHERE trip_id = $1",
+          [req.params.tripId],
+        );
+        await client.query("DELETE FROM expenses WHERE trip_id = $1", [
+          req.params.tripId,
+        ]);
+        await client.query("DELETE FROM participants WHERE trip_id = $1", [
+          req.params.tripId,
+        ]);
+        return client.query("DELETE FROM trips WHERE id = $1", [
+          req.params.tripId,
+        ]);
+      });
       if (deleted.rowCount === 0) {
         sendError(res, 404, "找不到旅行");
         return;
@@ -495,6 +518,12 @@ export function createApp(pool: PgPool): express.Express {
           `UPDATE expense_participants
            SET participant_id = $3
            WHERE trip_id = $1 AND participant_id = $2`,
+          [trip.id, sourceId, targetId],
+        );
+        await client.query(
+          `DELETE FROM settlement_payments
+           WHERE trip_id = $1
+             AND ((from_id = $2 AND to_id = $3) OR (from_id = $3 AND to_id = $2))`,
           [trip.id, sourceId, targetId],
         );
         await client.query(
