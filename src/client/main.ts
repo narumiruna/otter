@@ -5,9 +5,11 @@ import {
   type AppState,
   api,
   type DevAdmin,
+  defaultExpenseFilters,
   downloadText,
   expenseFormError,
   htmlEscape,
+  isExpenseSort,
   safeFilename,
   splitCountLabel,
   splitShortcutChecked,
@@ -23,6 +25,7 @@ import { authView, dashboardView } from "./views.js";
 const state: AppState = {
   activeTab: "overview",
   busy: false,
+  expenseFilters: { ...defaultExpenseFilters },
   devAdmin: null,
   error: "",
   formError: "",
@@ -104,6 +107,7 @@ async function loadTrips() {
 async function selectTrip(tripId: string) {
   state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
   state.activeTab = "add-expense";
+  state.expenseFilters = { ...defaultExpenseFilters };
 }
 
 function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
@@ -274,6 +278,62 @@ function bindHandlers() {
         ?.focus();
     });
   }
+
+  const expenseFiltersForm =
+    document.querySelector<HTMLFormElement>("#expense-filters");
+
+  expenseFiltersForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+
+  expenseFiltersForm?.addEventListener("input", (event) => {
+    const activeEl = document.activeElement as HTMLInputElement | null;
+    const activeName = activeEl?.name ?? null;
+    const selectionStart = activeEl?.selectionStart ?? null;
+    const form = new FormData(event.currentTarget as HTMLFormElement);
+    const sortRaw = String(form.get("sort") ?? "");
+    state.expenseFilters = {
+      currency: String(form.get("currency") ?? ""),
+      dateFrom: String(form.get("dateFrom") ?? ""),
+      dateTo: String(form.get("dateTo") ?? ""),
+      paidById: String(form.get("paidById") ?? ""),
+      participantId: String(form.get("participantId") ?? ""),
+      query: String(form.get("query") ?? ""),
+      sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
+    };
+    render();
+    if (activeName) {
+      const restored = document
+        .querySelector<HTMLFormElement>("#expense-filters")
+        ?.elements.namedItem(activeName);
+      if (restored instanceof HTMLElement) {
+        restored.focus();
+        if (
+          selectionStart !== null &&
+          "setSelectionRange" in restored &&
+          typeof (restored as HTMLInputElement).setSelectionRange === "function"
+        ) {
+          try {
+            (restored as HTMLInputElement).setSelectionRange(
+              selectionStart,
+              selectionStart,
+            );
+          } catch {
+            // element type may not support selection ranges
+          }
+        }
+      }
+    }
+  });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-clear-expense-filters]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        state.expenseFilters = { ...defaultExpenseFilters };
+        render();
+      });
+    });
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")

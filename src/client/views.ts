@@ -10,6 +10,7 @@ import {
   type AppState,
   defaultExpenseFormValues,
   expenseSplitLabel,
+  filterAndSortExpenses,
   htmlEscape,
   participantDeleteBlockReason,
   splitCountLabel,
@@ -212,6 +213,7 @@ function workspacePanel(
       return `
         <article id="${workspacePanelId("expenses")}" class="card stack expense-list-card" data-workspace-panel="expenses" role="tabpanel" aria-labelledby="${workspaceTabId("expenses")}">
           <h3>支出紀錄</h3>
+          ${expenseFiltersForm(state, payload.trip)}
           ${expenseList(state, payload.trip)}
         </article>
       `;
@@ -497,6 +499,77 @@ function splitParticipantInput(
   `;
 }
 
+function expenseFiltersForm(state: AppState, trip: Trip): string {
+  const filters = state.expenseFilters;
+  return `
+    <form id="expense-filters" class="inline-tool expense-filters">
+      <h4>搜尋與篩選</h4>
+      <div class="grid">
+        <label>關鍵字<input name="query" value="${htmlEscape(filters.query)}" placeholder="搜尋描述" /></label>
+        <label>起日<input name="dateFrom" type="date" value="${htmlEscape(filters.dateFrom)}" /></label>
+        <label>迄日<input name="dateTo" type="date" value="${htmlEscape(filters.dateTo)}" /></label>
+        <label>付款人${participantSelect("paidById", trip, filters.paidById, "全部付款人")}</label>
+        <label>分帳成員${participantSelect("participantId", trip, filters.participantId, "全部成員")}</label>
+        <label>幣別${currencyFilterSelect(filters.currency)}</label>
+        <label>排序${expenseSortSelect(filters.sort)}</label>
+      </div>
+      <button class="secondary" data-clear-expense-filters type="button">清除篩選</button>
+    </form>
+  `;
+}
+
+function participantSelect(
+  name: string,
+  trip: Trip,
+  selected: string,
+  emptyLabel: string,
+): string {
+  return `
+    <select name="${name}">
+      <option value="">${emptyLabel}</option>
+      ${trip.participants
+        .map(
+          (person) =>
+            `<option value="${htmlEscape(person.id)}" ${person.id === selected ? "selected" : ""}>${htmlEscape(person.name)}</option>`,
+        )
+        .join("")}
+    </select>
+  `;
+}
+
+function currencyFilterSelect(selected: string): string {
+  return `
+    <select name="currency">
+      <option value="">全部幣別</option>
+      ${currencies
+        .map(
+          (currency) =>
+            `<option value="${currency}" ${currency === selected ? "selected" : ""}>${currency}</option>`,
+        )
+        .join("")}
+    </select>
+  `;
+}
+
+function expenseSortSelect(selected: string): string {
+  const options = [
+    ["date-desc", "日期新到舊"],
+    ["date-asc", "日期舊到新"],
+    ["amount-desc", "金額大到小"],
+    ["amount-asc", "金額小到大"],
+  ] as const;
+  return `
+    <select name="sort">
+      ${options
+        .map(
+          ([value, label]) =>
+            `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`,
+        )
+        .join("")}
+    </select>
+  `;
+}
+
 function expenseList(state: AppState, trip: Trip): string {
   if (trip.expenses.length === 0) {
     if (needsMembersBeforeFirstExpense(trip)) {
@@ -516,12 +589,23 @@ function expenseList(state: AppState, trip: Trip): string {
     `;
   }
 
+  const expenses = filterAndSortExpenses(trip, state.expenseFilters);
+  if (expenses.length === 0) {
+    return `
+      <div class="empty-state">
+        <p class="muted">沒有符合條件的支出。</p>
+        <button class="secondary" data-clear-expense-filters type="button">清除篩選</button>
+      </div>
+    `;
+  }
+
   const participantById = new Map(
     trip.participants.map((person) => [person.id, person.name]),
   );
   return `
+    <p class="muted">顯示 ${expenses.length} / ${trip.expenses.length} 筆支出</p>
     <ul class="list">
-      ${sortedExpenses(trip)
+      ${expenses
         .map(
           (expense) => `
             <li class="expense-item">

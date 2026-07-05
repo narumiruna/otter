@@ -3,6 +3,7 @@ import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
 import {
   type AppState,
+  defaultExpenseFilters,
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
@@ -60,6 +61,7 @@ const baseState: AppState = {
   busy: false,
   devAdmin: null,
   error: "",
+  expenseFilters: { ...defaultExpenseFilters },
   message: "",
   selected: {
     balances: [
@@ -210,6 +212,11 @@ test("workspace tabs render task-focused panels", () => {
 
   const expensesHtml = view("expenses");
   assert.ok(expensesHtml.includes('data-workspace-panel="expenses"'));
+  assert.ok(expensesHtml.includes('id="expense-filters"'));
+  assert.ok(expensesHtml.includes('name="query"'));
+  assert.ok(expensesHtml.includes('name="paidById"'));
+  assert.ok(expensesHtml.includes("data-clear-expense-filters"));
+  assert.ok(expensesHtml.includes("顯示 2 / 2 筆支出"));
   assert.ok(expensesHtml.includes('<details class="expense-actions">'));
   assert.ok(expensesHtml.includes("<summary>編輯</summary>"));
   assert.ok(
@@ -332,6 +339,17 @@ test("empty groups with multiple members can start first expense", () => {
     expensesHtml,
     /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
   );
+});
+
+test("expense filters show empty result state", () => {
+  const html = dashboardView({
+    ...baseState,
+    activeTab: "expenses",
+    expenseFilters: { ...defaultExpenseFilters, query: "missing" },
+  });
+
+  assert.ok(html.includes("沒有符合條件的支出"));
+  assert.ok(html.includes("data-clear-expense-filters"));
 });
 
 test("expense forms render nearby errors", () => {
