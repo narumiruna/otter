@@ -77,11 +77,6 @@ export function workspaceTabForKey(
   }
 }
 
-export type DevAdmin = {
-  email: string;
-  password: string;
-};
-
 export type SpendingSummary = {
   totalMinor: number;
   dailyTotals: { amountMinor: number; date: string }[];
@@ -135,7 +130,6 @@ export type AppState = {
   formError?: string;
   formErrorTarget?: string;
   busy: boolean;
-  devAdmin: DevAdmin | null;
   offline: boolean;
   readonlyShare: boolean;
 };

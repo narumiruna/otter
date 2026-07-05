@@ -146,11 +146,8 @@ type TripShareLinkRow = {
 };
 
 export const isProduction = process.env.NODE_ENV === "production";
-export const devAdmin = {
-  email: "admin@otter.local",
-  name: "Alice",
-  password: "password",
-};
+export { isDateOnly } from "./shared/date.js";
+
 const sessionDays = 7;
 const sessionMaxAgeSeconds = sessionDays * 24 * 60 * 60;
 const passwordIterations = 210_000;
@@ -352,17 +349,6 @@ export function todayDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function isDateOnly(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === value
-  );
-}
-
 export function currencyFromDb(value: string): Currency {
   if (!isCurrency(value)) {
     throw new Error(`Unsupported currency in database: ${value}`);
@@ -448,169 +434,6 @@ export async function findUserByEmail(
   );
   const row = result.rows[0];
   return row ? rowToUser(row) : undefined;
-}
-
-export async function ensureDevAdmin(db: Queryable) {
-  if (isProduction) {
-    return;
-  }
-
-  const result = await db.query<{ id: string }>(
-    `INSERT INTO users (id, name, email, password_hash, created_at)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (email) DO UPDATE
-     SET name = EXCLUDED.name,
-         password_hash = EXCLUDED.password_hash
-     RETURNING id`,
-    [
-      makeId("user"),
-      devAdmin.name,
-      normalizeEmail(devAdmin.email),
-      hashPassword(devAdmin.password),
-      nowIso(),
-    ],
-  );
-  const userId = result.rows[0]?.id;
-  if (!userId) {
-    return;
-  }
-
-  await ensureDevTokyoTrip(db, userId);
-  await ensureDevOsakaTrip(db, userId);
-}
-
-async function hasDevSampleTrip(
-  db: Queryable,
-  ownerId: string,
-  tripId: string,
-  name: string,
-): Promise<boolean> {
-  const result = await db.query(
-    `SELECT 1
-     FROM trips
-     WHERE owner_id = $1
-       AND (id = $2 OR name = $3)
-     LIMIT 1`,
-    [ownerId, tripId, name],
-  );
-  return result.rows.length > 0;
-}
-
-async function ensureDevTokyoTrip(db: Queryable, ownerId: string) {
-  const tripId = "trip_dev_tokyo";
-  if (await hasDevSampleTrip(db, ownerId, tripId, "東京五日遊")) {
-    return;
-  }
-
-  await db.query(
-    `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [tripId, ownerId, "東京五日遊", "TWD", "2026-06-25T00:00:00.000Z"],
-  );
-
-  await db.query(
-    `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
-     VALUES ($1, $2, $3, 'owner', $4)
-     ON CONFLICT (trip_id, user_id) DO NOTHING`,
-    ["member_dev_tokyo_owner", tripId, ownerId, "2026-06-25T00:00:00.000Z"],
-  );
-
-  await db.query(
-    `INSERT INTO participants (id, trip_id, name, created_at)
-     VALUES ($1, $2, $3, $4),
-            ($5, $2, $6, $7),
-            ($8, $2, $9, $10)`,
-    [
-      "participant_dev_alice",
-      tripId,
-      "Alice",
-      "2026-06-25T00:00:00.000Z",
-      "participant_dev_bob",
-      "Bob",
-      "2026-06-25T00:01:00.000Z",
-      "participant_dev_chris",
-      "Chris",
-      "2026-06-25T00:02:00.000Z",
-    ],
-  );
-
-  await db.query(
-    `INSERT INTO expenses (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10),
-            ($11, $2, $12, $13, $14, $15, $16, $17, $18, $19)`,
-    [
-      "expense_dev_hotel",
-      tripId,
-      "飯店住宿",
-      128000,
-      "TWD",
-      "住宿",
-      ["hotel"],
-      "participant_dev_alice",
-      "2026-06-25",
-      "2026-06-25T00:00:00.000Z",
-      "expense_dev_breakfast",
-      "早餐",
-      4200,
-      "TWD",
-      "餐飲",
-      ["breakfast"],
-      "participant_dev_bob",
-      "2026-06-26",
-      "2026-06-26T00:00:00.000Z",
-    ],
-  );
-
-  await db.query(
-    `INSERT INTO expense_participants (expense_id, trip_id, participant_id, position)
-     VALUES ($1, $2, $3, $4),
-            ($1, $2, $5, $6),
-            ($1, $2, $7, $8),
-            ($9, $2, $3, $4),
-            ($9, $2, $5, $6)`,
-    [
-      "expense_dev_hotel",
-      tripId,
-      "participant_dev_alice",
-      0,
-      "participant_dev_bob",
-      1,
-      "participant_dev_chris",
-      2,
-      "expense_dev_breakfast",
-    ],
-  );
-}
-
-async function ensureDevOsakaTrip(db: Queryable, ownerId: string) {
-  const tripId = "trip_dev_osaka";
-  if (await hasDevSampleTrip(db, ownerId, tripId, "大阪週末")) {
-    return;
-  }
-
-  await db.query(
-    `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [tripId, ownerId, "大阪週末", "JPY", "2026-06-26T00:00:00.000Z"],
-  );
-
-  await db.query(
-    `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
-     VALUES ($1, $2, $3, 'owner', $4)
-     ON CONFLICT (trip_id, user_id) DO NOTHING`,
-    ["member_dev_osaka_owner", tripId, ownerId, "2026-06-26T00:00:00.000Z"],
-  );
-
-  await db.query(
-    `INSERT INTO participants (id, trip_id, name, created_at)
-     VALUES ($1, $2, $3, $4)`,
-    [
-      "participant_dev_osaka_alice",
-      tripId,
-      "Alice",
-      "2026-06-26T00:00:00.000Z",
-    ],
-  );
 }
 
 export async function createSession(

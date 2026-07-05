@@ -4,7 +4,6 @@ import { currencies, currencyInfo } from "../shared/money.js";
 import {
   type AppState,
   api,
-  type DevAdmin,
   defaultExpenseFilters,
   downloadText,
   expenseFormError,
@@ -29,7 +28,6 @@ const state: AppState = {
   busy: false,
   expenseFilters: { ...defaultExpenseFilters },
   csvImportErrors: [],
-  devAdmin: null,
   error: "",
   formError: "",
   formErrorTarget: "",
@@ -47,12 +45,6 @@ if (!appElement) {
   throw new Error("Missing #app");
 }
 const app = appElement;
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-  });
-}
 
 for (const eventName of ["online", "offline"]) {
   window.addEventListener(eventName, () => {
@@ -107,10 +99,7 @@ async function init() {
       );
       return;
     }
-    const me = await api<{ devAdmin?: DevAdmin | null; user: User | null }>(
-      "/api/me",
-    );
-    state.devAdmin = me.devAdmin ?? null;
+    const me = await api<{ user: User | null }>("/api/me");
     state.user = me.user;
     if (state.user) {
       await loadTrips();

@@ -4,6 +4,11 @@ import type { Server } from "node:http";
 import type { TestContext } from "node:test";
 import pg from "pg";
 import { runMigrations } from "../scripts/migrate.js";
+import type {
+  TripPayload,
+  TripSummary,
+  User,
+} from "./client/client-support.js";
 import { createApp } from "./server.js";
 
 const { Pool } = pg;
@@ -18,74 +23,15 @@ export type ApiInit = Omit<RequestInit, "headers"> & {
   headers?: Record<string, string>;
 };
 
-export type UserResponse = {
-  user: { email: string; id: string; name: string } | null;
-};
+export type { TripPayload };
 
-export type TripPayload = {
-  balances: { amountMinor: number; participantId: string }[];
-  settlements: { amountMinor: number; fromId: string; toId: string }[];
-  currentUserRole?: "owner" | "editor";
-  collaborators?: {
-    email: string;
-    name: string;
-    role: "owner" | "editor";
-    userId: string;
-  }[];
-  shareLinks?: {
-    id: string;
-    url?: string;
-    revokedAt: string | null;
-  }[];
-  trip: {
-    archivedAt?: string | null;
-    baseCurrency: string;
-    createdAt?: string;
-    exchangeRates?: Record<string, number>;
-    expenses: {
-      amountMinor: number;
-      category?: string;
-      currency: string;
-      description: string;
-      expenseDate: string;
-      id: string;
-      paidById: string;
-      participantIds: string[];
-      participantShares?: { participantId: string; shareMinor: number }[];
-      receiptId?: string;
-      receiptUrl?: string;
-      tags?: string[];
-    }[];
-    id: string;
-    name: string;
-    participants: { id: string; name: string }[];
-    settlementPayments?: {
-      amountMinor: number;
-      currency: string;
-      fromId: string;
-      id: string;
-      note: string;
-      paidAt: string;
-      toId: string;
-    }[];
-  };
+export type UserResponse = {
+  user: User | null;
 };
 
 export type TripsResponse = {
-  archivedTrips: {
-    archivedAt: string | null;
-    expenseCount: number;
-    id: string;
-    name: string;
-    participantCount: number;
-  }[];
-  trips: {
-    archivedAt: string | null;
-    expenseCount: number;
-    id: string;
-    name: string;
-    participantCount: number;
-  }[];
+  archivedTrips: TripSummary[];
+  trips: TripSummary[];
 };
 
 export async function withTestApp(
