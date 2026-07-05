@@ -8,12 +8,7 @@ import type {
 } from "pg";
 import pg from "pg";
 import { isExpenseCategory } from "./shared/expense-metadata.js";
-import {
-  type Currency,
-  currencies,
-  currencyInfo,
-  isCurrency,
-} from "./shared/money.js";
+import { type Currency, isCurrency } from "./shared/money.js";
 import {
   calculateBalances,
   calculateSettlements,
@@ -238,8 +233,6 @@ export function clearSessionCookie(res: Response) {
 export function tripPayload(trip: Trip) {
   return {
     balances: calculateBalances(trip),
-    currencies,
-    currencyInfo,
     settlements: calculateSettlements(trip),
     trip,
   };

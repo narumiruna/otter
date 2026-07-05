@@ -16,16 +16,12 @@ import {
   participantDeleteBlockReason,
   spendingSummary,
   splitCountLabel,
-  summaryAmountLabel,
   type TripPayload,
   type TripSummary,
+  todayDate,
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
-
-function localDateOnly(date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 export function authView(state: AppState): string {
   const devEmail = state.devAdmin?.email ?? "";
@@ -280,7 +276,7 @@ function spendingCharts(trip: Trip): string {
     <section class="summary-section spending-charts" aria-label="花費圖表">
       <div class="summary-card total-spending">
         <span class="muted">總支出</span>
-        <strong>${summaryAmountLabel(trip, summary.totalMinor)}</strong>
+        <strong>${formatMinor(summary.totalMinor, trip.baseCurrency)}</strong>
       </div>
       ${barChart(
         "每日花費",
@@ -338,7 +334,7 @@ function barChart(
               <li>
                 <span class="chart-label">${htmlEscape(row.label)}</span>
                 <span class="chart-track"><span class="chart-fill" style="width: ${percent}%"></span></span>
-                <span class="chart-value">${summaryAmountLabel(trip, row.amountMinor)}</span>
+                <span class="chart-value">${formatMinor(row.amountMinor, trip.baseCurrency)}</span>
               </li>
             `;
           })
@@ -872,7 +868,7 @@ function settlementList(payload: TripPayload): string {
                 <input name="toId" type="hidden" value="${htmlEscape(settlement.toId)}" />
                 <input name="amount" type="hidden" value="${htmlEscape(String(toMajor(settlement.amountMinor, settlement.currency)))}" />
                 <input name="currency" type="hidden" value="${settlement.currency}" />
-                <label>付款日期<input name="paidAt" type="date" required value="${localDateOnly()}" /></label>
+                <label>付款日期<input name="paidAt" type="date" required value="${todayDate()}" /></label>
                 <input name="note" placeholder="付款備註（可空白）" maxlength="160" />
                 <button class="secondary" type="submit">標記已付款</button>
               </form>
