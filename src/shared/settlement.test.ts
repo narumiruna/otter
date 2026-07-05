@@ -6,6 +6,62 @@ import {
   type Trip,
 } from "./settlement.js";
 
+test("uses explicit participant shares when present", () => {
+  const trip: Trip = {
+    baseCurrency: "TWD",
+    createdAt: "2026-06-25T00:00:00.000Z",
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-06-24",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob", "chen"],
+        participantShares: [
+          { participantId: "alice", shareMinor: 60 },
+          { participantId: "bob", shareMinor: 30 },
+          { participantId: "chen", shareMinor: 10 },
+        ],
+      },
+    ],
+    id: "trip-1",
+    name: "Tokyo",
+    ownerId: "user-1",
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+      { id: "chen", name: "Chen" },
+    ],
+  };
+
+  assert.deepEqual(
+    calculateBalances(trip).map(({ participantId, amountMinor }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: 40, participantId: "alice" },
+      { amountMinor: -30, participantId: "bob" },
+      { amountMinor: -10, participantId: "chen" },
+    ],
+  );
+
+  assert.deepEqual(
+    calculateSettlements(trip).map(({ amountMinor, fromId, toId }) => ({
+      amountMinor,
+      fromId,
+      toId,
+    })),
+    [
+      { amountMinor: 30, fromId: "bob", toId: "alice" },
+      { amountMinor: 10, fromId: "chen", toId: "alice" },
+    ],
+  );
+});
+
 test("splits multi-currency expenses and suggests settlements", () => {
   const trip: Trip = {
     baseCurrency: "TWD",

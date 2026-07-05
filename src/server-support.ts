@@ -82,6 +82,7 @@ type ExpenseRow = {
 type ExpenseParticipantRow = {
   expense_id: string;
   participant_id: string;
+  share_minor: string | number | null;
 };
 
 export const isProduction = process.env.NODE_ENV === "production";
@@ -606,7 +607,7 @@ export async function loadTripForUser(
       [tripId],
     ),
     db.query<ExpenseParticipantRow>(
-      `SELECT expense_id, participant_id
+      `SELECT expense_id, participant_id, share_minor
        FROM expense_participants
        WHERE trip_id = $1
        ORDER BY expense_id, position`,
@@ -614,25 +615,44 @@ export async function loadTripForUser(
     ),
   ]);
 
-  const splitsByExpense = new Map<string, string[]>();
+  const splitsByExpense = new Map<
+    string,
+    { participantId: string; shareMinor: number | null }[]
+  >();
   for (const split of splitsResult.rows) {
-    const participantIds = splitsByExpense.get(split.expense_id) ?? [];
-    participantIds.push(split.participant_id);
-    splitsByExpense.set(split.expense_id, participantIds);
+    const splits = splitsByExpense.get(split.expense_id) ?? [];
+    splits.push({
+      participantId: split.participant_id,
+      shareMinor:
+        split.share_minor === null || split.share_minor === undefined
+          ? null
+          : Number(split.share_minor),
+    });
+    splitsByExpense.set(split.expense_id, splits);
   }
 
   return {
     ...rowToTrip(tripRow),
-    expenses: expensesResult.rows.map((row) => ({
-      amountMinor: Number(row.amount_minor),
-      createdAt: iso(row.created_at),
-      currency: currencyFromDb(row.currency),
-      description: row.description,
-      expenseDate: dateOnly(row.expense_date),
-      id: row.id,
-      paidById: row.paid_by_id,
-      participantIds: splitsByExpense.get(row.id) ?? [],
-    })),
+    expenses: expensesResult.rows.map((row) => {
+      const splits = splitsByExpense.get(row.id) ?? [];
+      const participantShares = splits
+        .filter((split) => split.shareMinor !== null)
+        .map((split) => ({
+          participantId: split.participantId,
+          shareMinor: split.shareMinor ?? 0,
+        }));
+      return {
+        amountMinor: Number(row.amount_minor),
+        createdAt: iso(row.created_at),
+        currency: currencyFromDb(row.currency),
+        description: row.description,
+        expenseDate: dateOnly(row.expense_date),
+        id: row.id,
+        paidById: row.paid_by_id,
+        participantIds: splits.map((split) => split.participantId),
+        ...(participantShares.length > 0 ? { participantShares } : {}),
+      };
+    }),
     participants: participantsResult.rows.map((row) => ({
       id: row.id,
       name: row.name,

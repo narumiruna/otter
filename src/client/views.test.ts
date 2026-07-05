@@ -183,6 +183,11 @@ test("workspace tabs render task-focused panels", () => {
   );
   assert.ok(expensesHtml.includes('value="Dinner &amp; Drinks"'));
   assert.ok(expensesHtml.includes('name="participantIds"'));
+  assert.ok(expensesHtml.includes('name="splitMode"'));
+  assert.ok(expensesHtml.includes('value="amount"'));
+  assert.ok(expensesHtml.includes('value="ratio"'));
+  assert.ok(expensesHtml.includes('value="shares"'));
+  assert.ok(expensesHtml.includes('name="splitValue:participant_alice"'));
   assert.ok(expensesHtml.includes("取消"));
   assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
   assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));
@@ -248,6 +253,8 @@ test("empty groups with multiple members can start first expense", () => {
 
   const addExpenseHtml = emptyTripView("add-expense", emptyMultiPersonTrip);
   assert.ok(addExpenseHtml.includes('name="expenseDate" type="date"'));
+  assert.ok(addExpenseHtml.includes('name="splitMode"'));
+  assert.ok(addExpenseHtml.includes('name="splitValue:participant_alice"'));
   assert.ok(addExpenseHtml.includes('value="participant_alice" checked'));
   assert.ok(addExpenseHtml.includes('value="participant_bob" checked'));
 

@@ -33,6 +33,7 @@ export type TripPayload = {
       expenseDate: string;
       id: string;
       participantIds: string[];
+      participantShares?: { participantId: string; shareMinor: number }[];
     }[];
     id: string;
     name: string;
@@ -71,7 +72,7 @@ export async function withTestApp(
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 2);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 3);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
 
   const app = createApp(pool);

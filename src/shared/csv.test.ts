@@ -37,6 +37,44 @@ test("exports trip expenses as escaped CSV", () => {
   );
 });
 
+test("exports explicit split shares in expense CSV", () => {
+  const trip: Trip = {
+    baseCurrency: "TWD",
+    createdAt: "2026-06-25T00:00:00.000Z",
+    expenses: [
+      {
+        amountMinor: 1000,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "TWD",
+        description: "Taxi",
+        expenseDate: "2026-06-24",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+        participantShares: [
+          { participantId: "alice", shareMinor: 700 },
+          { participantId: "bob", shareMinor: 300 },
+        ],
+      },
+    ],
+    id: "trip-1",
+    name: "Tokyo",
+    ownerId: "user-1",
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+    ],
+  };
+
+  assert.equal(
+    tripExpensesCsv(trip),
+    [
+      "date,description,amount,currency,paid_by,split_participants",
+      "2026-06-24,Taxi,1000,TWD,Alice,Alice=700; Bob=300",
+    ].join("\n"),
+  );
+});
+
 test("exports balances and settlements as escaped CSV", () => {
   assert.equal(
     tripResultsCsv(
