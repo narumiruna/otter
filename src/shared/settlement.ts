@@ -1,3 +1,4 @@
+import type { ExpenseCategory } from "./expense-metadata.js";
 import type { Currency, ExchangeRates } from "./money.js";
 import { convertMinorWithRates } from "./money.js";
 
@@ -16,6 +17,8 @@ export type Expense = {
   description: string;
   amountMinor: number;
   currency: Currency;
+  category?: ExpenseCategory;
+  tags?: string[];
   paidById: string;
   participantIds: string[];
   participantShares?: ExpenseParticipantShare[];

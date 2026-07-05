@@ -10,6 +10,7 @@ test("exports trip expenses as escaped CSV", () => {
     expenses: [
       {
         amountMinor: 12345,
+        category: "餐飲",
         createdAt: "2026-06-25T00:00:00.000Z",
         currency: "USD",
         description: 'Dinner, "sushi"',
@@ -17,6 +18,7 @@ test("exports trip expenses as escaped CSV", () => {
         id: "expense-1",
         paidById: "alice",
         participantIds: ["alice", "bob"],
+        tags: ["food", "night"],
       },
     ],
     id: "trip-1",
@@ -31,8 +33,8 @@ test("exports trip expenses as escaped CSV", () => {
   assert.equal(
     tripExpensesCsv(trip),
     [
-      "date,description,amount,currency,paid_by,split_participants",
-      '2026-06-24,"Dinner, ""sushi""",123.45,USD,Alice,"Alice; Bob, Jr"',
+      "date,description,amount,currency,paid_by,category,tags,split_participants",
+      '2026-06-24,"Dinner, ""sushi""",123.45,USD,Alice,餐飲,food|night,"Alice; Bob, Jr"',
     ].join("\n"),
   );
 });
@@ -69,8 +71,8 @@ test("exports explicit split shares in expense CSV", () => {
   assert.equal(
     tripExpensesCsv(trip),
     [
-      "date,description,amount,currency,paid_by,split_participants",
-      "2026-06-24,Taxi,1000,TWD,Alice,Alice=700; Bob=300",
+      "date,description,amount,currency,paid_by,category,tags,split_participants",
+      "2026-06-24,Taxi,1000,TWD,Alice,其他,,Alice=700; Bob=300",
     ].join("\n"),
   );
 });

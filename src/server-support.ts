@@ -7,6 +7,7 @@ import type {
   QueryResultRow,
 } from "pg";
 import pg from "pg";
+import { isExpenseCategory } from "./shared/expense-metadata.js";
 import {
   type Currency,
   currencies,
@@ -75,6 +76,8 @@ type ExpenseRow = {
   description: string;
   amount_minor: string | number;
   currency: string;
+  category: string;
+  tags: string[] | null;
   paid_by_id: string;
   expense_date: Date | string;
   created_at: Date | string;
@@ -483,15 +486,17 @@ async function ensureDevTokyoTrip(db: Queryable, ownerId: string) {
   );
 
   await db.query(
-    `INSERT INTO expenses (id, trip_id, description, amount_minor, currency, paid_by_id, expense_date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8),
-            ($9, $2, $10, $11, $12, $13, $14, $15)`,
+    `INSERT INTO expenses (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10),
+            ($11, $2, $12, $13, $14, $15, $16, $17, $18, $19)`,
     [
       "expense_dev_hotel",
       tripId,
       "飯店住宿",
       128000,
       "TWD",
+      "住宿",
+      ["hotel"],
       "participant_dev_alice",
       "2026-06-25",
       "2026-06-25T00:00:00.000Z",
@@ -499,6 +504,8 @@ async function ensureDevTokyoTrip(db: Queryable, ownerId: string) {
       "早餐",
       4200,
       "TWD",
+      "餐飲",
+      ["breakfast"],
       "participant_dev_bob",
       "2026-06-26",
       "2026-06-26T00:00:00.000Z",
@@ -634,7 +641,7 @@ export async function loadTripForUser(
       [tripId],
     ),
     db.query<ExpenseRow>(
-      `SELECT id, description, amount_minor, currency, paid_by_id, expense_date::text AS expense_date, created_at
+      `SELECT id, description, amount_minor, currency, category, tags, paid_by_id, expense_date::text AS expense_date, created_at
        FROM expenses
        WHERE trip_id = $1
        ORDER BY created_at, id`,
@@ -701,10 +708,12 @@ export async function loadTripForUser(
         }));
       return {
         amountMinor: Number(row.amount_minor),
+        category: isExpenseCategory(row.category) ? row.category : "其他",
         createdAt: iso(row.created_at),
         currency: currencyFromDb(row.currency),
         description: row.description,
         expenseDate: dateOnly(row.expense_date),
+        tags: row.tags ?? [],
         id: row.id,
         paidById: row.paid_by_id,
         participantIds: splits.map((split) => split.participantId),

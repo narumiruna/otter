@@ -67,10 +67,13 @@ export type ExpenseFilters = {
   paidById: string;
   participantId: string;
   currency: string;
+  category: string;
+  tag: string;
   sort: "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 };
 
 export const defaultExpenseFilters: ExpenseFilters = {
+  category: "",
   currency: "",
   dateFrom: "",
   dateTo: "",
@@ -78,6 +81,7 @@ export const defaultExpenseFilters: ExpenseFilters = {
   participantId: "",
   query: "",
   sort: "date-desc",
+  tag: "",
 };
 
 export function isExpenseSort(value: string): value is ExpenseFilters["sort"] {
@@ -230,6 +234,15 @@ export function filterAndSortExpenses(
         return false;
       }
       if (filters.currency && expense.currency !== filters.currency) {
+        return false;
+      }
+      if (
+        filters.category &&
+        (expense.category ?? "其他") !== filters.category
+      ) {
+        return false;
+      }
+      if (filters.tag && !(expense.tags ?? []).includes(filters.tag)) {
         return false;
       }
       return true;

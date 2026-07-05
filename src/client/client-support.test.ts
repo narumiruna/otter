@@ -141,20 +141,24 @@ test("filters and sorts expenses", () => {
       {
         amountMinor: 100,
         createdAt: "2026-06-25T00:00:00.000Z",
+        category: "餐飲",
         currency: "TWD",
         description: "Dinner",
         expenseDate: "2026-06-25",
         id: "expense-1",
+        tags: ["food"],
         paidById: "alice",
         participantIds: ["alice", "bob"],
       },
       {
         amountMinor: 500,
         createdAt: "2026-06-24T00:00:00.000Z",
+        category: "交通",
         currency: "JPY",
         description: "Train",
         expenseDate: "2026-06-24",
         id: "expense-2",
+        tags: ["jr"],
         paidById: "bob",
         participantIds: ["bob"],
       },
@@ -164,8 +168,10 @@ test("filters and sorts expenses", () => {
   assert.deepEqual(
     filterAndSortExpenses(trip, {
       ...defaultExpenseFilters,
+      category: "交通",
       participantId: "bob",
       query: "tr",
+      tag: "jr",
     }).map(({ id }) => id),
     ["expense-2"],
   );

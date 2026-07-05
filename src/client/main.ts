@@ -293,6 +293,7 @@ function bindHandlers() {
     const form = new FormData(event.currentTarget as HTMLFormElement);
     const sortRaw = String(form.get("sort") ?? "");
     state.expenseFilters = {
+      category: String(form.get("category") ?? ""),
       currency: String(form.get("currency") ?? ""),
       dateFrom: String(form.get("dateFrom") ?? ""),
       dateTo: String(form.get("dateTo") ?? ""),
@@ -300,6 +301,7 @@ function bindHandlers() {
       participantId: String(form.get("participantId") ?? ""),
       query: String(form.get("query") ?? ""),
       sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
+      tag: String(form.get("tag") ?? ""),
     };
     render();
     if (activeName) {
@@ -709,12 +711,14 @@ function bindHandlers() {
               body: JSON.stringify({
                 amount,
                 currency: String(form.get("currency") ?? "TWD"),
+                category: String(form.get("category") ?? ""),
                 description: String(form.get("description") ?? ""),
                 expenseDate: String(form.get("expenseDate") ?? ""),
                 paidById: String(form.get("paidById") ?? ""),
                 participantIds,
                 splitMode: String(form.get("splitMode") ?? "equal"),
                 splitValues: splitValuesFromForm(form, participantIds),
+                tags: String(form.get("tags") ?? ""),
               }),
               method: "POST",
             },
@@ -759,12 +763,14 @@ function bindHandlers() {
                 body: JSON.stringify({
                   amount,
                   currency: String(form.get("currency") ?? "TWD"),
+                  category: String(form.get("category") ?? ""),
                   description: String(form.get("description") ?? ""),
                   expenseDate: String(form.get("expenseDate") ?? ""),
                   paidById: String(form.get("paidById") ?? ""),
                   participantIds,
                   splitMode: String(form.get("splitMode") ?? "equal"),
                   splitValues: splitValuesFromForm(form, participantIds),
+                  tags: String(form.get("tags") ?? ""),
                 }),
                 method: "PATCH",
               },
