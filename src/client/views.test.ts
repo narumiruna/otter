@@ -198,6 +198,12 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   );
   assert.match(html, /data-workspace-tab="expenses"[^>]+tabindex="-1"/);
   assert.ok(html.includes('data-workspace-panel="overview"'));
+  assert.ok(html.includes("花費圖表"));
+  assert.ok(html.includes("總支出"));
+  assert.ok(html.includes("每日花費"));
+  assert.ok(html.includes("每人實付"));
+  assert.ok(html.includes("分類占比"));
+  assert.ok(html.includes("餐飲"));
   assert.ok(html.includes("最近支出"));
   assert.ok(html.includes("標記已付款"));
   assert.ok(html.includes('class="settlement-summary"'));

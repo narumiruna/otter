@@ -1,4 +1,8 @@
-import { type Currency, convertMinorWithRates } from "../shared/money.js";
+import {
+  type Currency,
+  convertMinorWithRates,
+  formatMinor,
+} from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
 
 export type User = {
@@ -58,6 +62,13 @@ export function workspaceTabForKey(
 export type DevAdmin = {
   email: string;
   password: string;
+};
+
+export type SpendingSummary = {
+  totalMinor: number;
+  dailyTotals: { amountMinor: number; date: string }[];
+  payerTotals: { amountMinor: number; name: string; participantId: string }[];
+  categoryTotals: { amountMinor: number; category: string }[];
 };
 
 export type ExpenseFilters = {
@@ -206,6 +217,57 @@ export function splitShortcutChecked(
     return false;
   }
   return null;
+}
+
+export function spendingSummary(trip: Trip): SpendingSummary {
+  const participantById = new Map(
+    trip.participants.map((participant) => [participant.id, participant.name]),
+  );
+  const dailyTotals = new Map<string, number>();
+  const payerTotals = new Map<string, number>();
+  const categoryTotals = new Map<string, number>();
+  let totalMinor = 0;
+
+  for (const expense of trip.expenses) {
+    const amount = convertMinorWithRates(
+      expense.amountMinor,
+      expense.currency,
+      trip.baseCurrency,
+      trip.exchangeRates,
+    );
+    totalMinor += amount;
+    dailyTotals.set(
+      expense.expenseDate,
+      (dailyTotals.get(expense.expenseDate) ?? 0) + amount,
+    );
+    payerTotals.set(
+      expense.paidById,
+      (payerTotals.get(expense.paidById) ?? 0) + amount,
+    );
+    const category = expense.category ?? "其他";
+    categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + amount);
+  }
+
+  return {
+    categoryTotals: [...categoryTotals.entries()]
+      .map(([category, amountMinor]) => ({ amountMinor, category }))
+      .sort((left, right) => right.amountMinor - left.amountMinor),
+    dailyTotals: [...dailyTotals.entries()]
+      .map(([date, amountMinor]) => ({ amountMinor, date }))
+      .sort((left, right) => left.date.localeCompare(right.date)),
+    payerTotals: [...payerTotals.entries()]
+      .map(([participantId, amountMinor]) => ({
+        amountMinor,
+        name: participantById.get(participantId) ?? "未知",
+        participantId,
+      }))
+      .sort((left, right) => right.amountMinor - left.amountMinor),
+    totalMinor,
+  };
+}
+
+export function summaryAmountLabel(trip: Trip, amountMinor: number): string {
+  return formatMinor(amountMinor, trip.baseCurrency);
 }
 
 export function filterAndSortExpenses(

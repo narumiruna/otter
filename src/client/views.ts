@@ -14,7 +14,9 @@ import {
   filterAndSortExpenses,
   htmlEscape,
   participantDeleteBlockReason,
+  spendingSummary,
   splitCountLabel,
+  summaryAmountLabel,
   type TripPayload,
   type TripSummary,
   type WorkspaceTab,
@@ -255,7 +257,7 @@ function firstExpenseCta(trip: Trip): string {
 function overviewPanel(payload: TripPayload): string {
   return `
     <article id="${workspacePanelId("overview")}" class="card stack results-card" data-workspace-panel="overview" role="tabpanel" aria-labelledby="${workspaceTabId("overview")}">
-      ${payload.trip.expenses.length === 0 ? firstExpenseCta(payload.trip) : ""}
+      ${payload.trip.expenses.length === 0 ? firstExpenseCta(payload.trip) : spendingCharts(payload.trip)}
       <section class="summary-section">
         <h3>分帳結果</h3>
         ${balanceList(payload.balances)}
@@ -269,6 +271,80 @@ function overviewPanel(payload: TripPayload): string {
         ${recentExpenseList(payload.trip)}
       </section>
     </article>
+  `;
+}
+
+function spendingCharts(trip: Trip): string {
+  const summary = spendingSummary(trip);
+  return `
+    <section class="summary-section spending-charts" aria-label="花費圖表">
+      <div class="summary-card total-spending">
+        <span class="muted">總支出</span>
+        <strong>${summaryAmountLabel(trip, summary.totalMinor)}</strong>
+      </div>
+      ${barChart(
+        "每日花費",
+        summary.dailyTotals.map((item) => ({
+          label: item.date,
+          amountMinor: item.amountMinor,
+        })),
+        trip,
+      )}
+      ${barChart(
+        "每人實付",
+        summary.payerTotals.map((item) => ({
+          label: item.name,
+          amountMinor: item.amountMinor,
+        })),
+        trip,
+      )}
+      ${barChart(
+        "分類占比",
+        summary.categoryTotals.map((item) => ({
+          label: item.category,
+          amountMinor: item.amountMinor,
+        })),
+        trip,
+      )}
+    </section>
+  `;
+}
+
+function barChart(
+  title: string,
+  rows: { amountMinor: number; label: string }[],
+  trip: Trip,
+): string {
+  if (rows.length === 0) {
+    return `
+      <div class="chart-card">
+        <h3>${htmlEscape(title)}</h3>
+        <p class="muted">尚無資料可顯示。</p>
+      </div>
+    `;
+  }
+  const max = Math.max(...rows.map((row) => row.amountMinor), 1);
+  return `
+    <div class="chart-card">
+      <h3>${htmlEscape(title)}</h3>
+      <ul class="chart-bars">
+        ${rows
+          .map((row) => {
+            const percent = Math.max(
+              4,
+              Math.round((row.amountMinor / max) * 100),
+            );
+            return `
+              <li>
+                <span class="chart-label">${htmlEscape(row.label)}</span>
+                <span class="chart-track"><span class="chart-fill" style="width: ${percent}%"></span></span>
+                <span class="chart-value">${summaryAmountLabel(trip, row.amountMinor)}</span>
+              </li>
+            `;
+          })
+          .join("")}
+      </ul>
+    </div>
   `;
 }
 

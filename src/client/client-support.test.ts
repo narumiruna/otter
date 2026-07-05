@@ -9,6 +9,7 @@ import {
   expenseSplitLabel,
   filterAndSortExpenses,
   participantDeleteBlockReason,
+  spendingSummary,
   splitCountLabel,
   splitSelectionError,
   splitShortcutChecked,
@@ -132,6 +133,58 @@ test("workspace tab keyboard navigation follows ARIA tab keys", () => {
   assert.equal(workspaceTabForKey("expenses", "Home"), "add-expense");
   assert.equal(workspaceTabForKey("expenses", "End"), "settings");
   assert.equal(workspaceTabForKey("expenses", "Enter"), null);
+});
+
+test("summarizes spending charts", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    baseCurrency: "TWD",
+    expenses: [
+      {
+        amountMinor: 100_00,
+        category: "住宿",
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "USD",
+        description: "Hotel",
+        expenseDate: "2026-06-25",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+      {
+        amountMinor: 500,
+        category: "交通",
+        createdAt: "2026-06-24T00:00:00.000Z",
+        currency: "TWD",
+        description: "Train",
+        expenseDate: "2026-06-24",
+        id: "expense-2",
+        paidById: "bob",
+        participantIds: ["bob"],
+      },
+    ],
+    exchangeRates: { TWD: 1, USD: 30 },
+  };
+
+  assert.deepEqual(spendingSummary({ ...trip, expenses: [] }), {
+    categoryTotals: [],
+    dailyTotals: [],
+    payerTotals: [],
+    totalMinor: 0,
+  });
+  assert.deepEqual(spendingSummary(trip).dailyTotals, [
+    { amountMinor: 500, date: "2026-06-24" },
+    { amountMinor: 3000, date: "2026-06-25" },
+  ]);
+  assert.deepEqual(spendingSummary(trip).payerTotals, [
+    { amountMinor: 3000, name: "Alice", participantId: "alice" },
+    { amountMinor: 500, name: "Bob", participantId: "bob" },
+  ]);
+  assert.deepEqual(spendingSummary(trip).categoryTotals, [
+    { amountMinor: 3000, category: "住宿" },
+    { amountMinor: 500, category: "交通" },
+  ]);
+  assert.equal(spendingSummary(trip).totalMinor, 3500);
 });
 
 test("filters and sorts expenses", () => {
