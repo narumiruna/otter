@@ -595,6 +595,46 @@ test(
     const expense = withExpense.data.trip.expenses[0];
     assert.ok(expense);
 
+    // settlement payment from bob (source) to owner: should be rewritten to bobby after merge
+    const withPayment = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/settlement-payments`,
+      {
+        body: JSON.stringify({
+          amount: "20",
+          currency: "TWD",
+          fromId: bob.id,
+          paidAt: "2026-06-24",
+          toId: owner.id,
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(withPayment.response.status, 201);
+    const payment = withPayment.data.trip.settlementPayments?.find(
+      ({ fromId, toId }) => fromId === bob.id && toId === owner.id,
+    );
+    assert.ok(payment);
+
+    // settlement payment from bob (source) to bobby (target): should be deleted after merge (becomes self-payment)
+    const withSelfPayment = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/settlement-payments`,
+      {
+        body: JSON.stringify({
+          amount: "10",
+          currency: "TWD",
+          fromId: bob.id,
+          paidAt: "2026-06-24",
+          toId: bobby.id,
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(withSelfPayment.response.status, 201);
+
     const invalidMerge = await api<{ error: string }>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}/merge`,
@@ -629,6 +669,12 @@ test(
       { participantId: owner.id, shareMinor: 30 },
       { participantId: bobby.id, shareMinor: 70 },
     ]);
+    // payment from bob→owner should be rewritten to bobby→owner
+    assert.equal(merged.data.trip.settlementPayments?.length, 1);
+    const mergedPayment = merged.data.trip.settlementPayments?.[0];
+    assert.equal(mergedPayment?.id, payment.id);
+    assert.equal(mergedPayment?.fromId, bobby.id);
+    assert.equal(mergedPayment?.toId, owner.id);
   },
 );
 
