@@ -45,12 +45,7 @@ import {
   verifyPassword,
   withTransaction,
 } from "./server-support.js";
-import {
-  type Currency,
-  currencies,
-  currencyInfo,
-  isCurrency,
-} from "./shared/money.js";
+import { type Currency, isCurrency } from "./shared/money.js";
 import type { Participant, Trip } from "./shared/settlement.js";
 
 type TripSummaryRow = {
@@ -101,8 +96,6 @@ export function createApp(pool: PgPool): express.Express {
     asyncHandler(async (req, res) => {
       const user = await userFromRequest(pool, req);
       res.json({
-        currencies,
-        currencyInfo,
         devAdmin: isProduction
           ? null
           : { email: devAdmin.email, password: devAdmin.password },

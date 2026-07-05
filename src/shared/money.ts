@@ -3,7 +3,6 @@ export const currencies = ["TWD", "JPY", "USD", "EUR"] as const;
 export type Currency = (typeof currencies)[number];
 
 export type CurrencyInfo = {
-  code: Currency;
   label: string;
   minorUnits: number;
   rateToTwd: number;
@@ -12,10 +11,10 @@ export type CurrencyInfo = {
 export type ExchangeRates = Partial<Record<Currency, number>>;
 
 export const currencyInfo: Record<Currency, CurrencyInfo> = {
-  TWD: { code: "TWD", label: "新台幣", minorUnits: 0, rateToTwd: 1 },
-  JPY: { code: "JPY", label: "日幣", minorUnits: 0, rateToTwd: 0.22 },
-  USD: { code: "USD", label: "美金", minorUnits: 2, rateToTwd: 32 },
-  EUR: { code: "EUR", label: "歐元", minorUnits: 2, rateToTwd: 35 },
+  TWD: { label: "新台幣", minorUnits: 0, rateToTwd: 1 },
+  JPY: { label: "日幣", minorUnits: 0, rateToTwd: 0.22 },
+  USD: { label: "美金", minorUnits: 2, rateToTwd: 32 },
+  EUR: { label: "歐元", minorUnits: 2, rateToTwd: 35 },
 };
 
 export function isCurrency(value: unknown): value is Currency {
@@ -50,20 +49,6 @@ export function toMajor(amountMinor: number, currency: Currency): number {
   return amountMinor / 10 ** currencyInfo[currency].minorUnits;
 }
 
-export function convertMinor(
-  amountMinor: number,
-  from: Currency,
-  to: Currency,
-): number {
-  if (from === to) {
-    return amountMinor;
-  }
-
-  const amountTwd = toMajor(amountMinor, from) * currencyInfo[from].rateToTwd;
-  const targetMajor = amountTwd / currencyInfo[to].rateToTwd;
-  return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
-}
-
 export function convertMinorWithRates(
   amountMinor: number,
   from: Currency,
@@ -79,7 +64,9 @@ export function convertMinorWithRates(
     const targetMajor = (toMajor(amountMinor, from) * fromRate) / toRate;
     return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
   }
-  return convertMinor(amountMinor, from, to);
+  const amountTwd = toMajor(amountMinor, from) * currencyInfo[from].rateToTwd;
+  const targetMajor = amountTwd / currencyInfo[to].rateToTwd;
+  return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
 }
 
 export function formatMinor(amountMinor: number, currency: Currency): string {

@@ -15,6 +15,7 @@ import {
   splitShortcutChecked,
   type TripPayload,
   type TripSummary,
+  todayDate,
   type User,
   type WorkspaceTab,
   workspaceTabForKey,
@@ -124,10 +125,6 @@ function splitValuesFromForm(
       String(form.get(`splitValue:${participantId}`) ?? ""),
     ]),
   );
-}
-
-function localDateOnly(date = new Date()): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function render() {
@@ -397,7 +394,7 @@ function bindHandlers() {
                 currency: String(form.get("currency") ?? ""),
                 fromId: String(form.get("fromId") ?? ""),
                 note: String(form.get("note") ?? ""),
-                paidAt: String(form.get("paidAt") || localDateOnly()),
+                paidAt: String(form.get("paidAt") || todayDate()),
                 toId: String(form.get("toId") ?? ""),
               }),
               method: "POST",

@@ -1,8 +1,4 @@
-import {
-  type Currency,
-  convertMinorWithRates,
-  formatMinor,
-} from "../shared/money.js";
+import { type Currency, convertMinorWithRates } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
 
 export type User = {
@@ -264,10 +260,6 @@ export function spendingSummary(trip: Trip): SpendingSummary {
       .sort((left, right) => right.amountMinor - left.amountMinor),
     totalMinor,
   };
-}
-
-export function summaryAmountLabel(trip: Trip, amountMinor: number): string {
-  return formatMinor(amountMinor, trip.baseCurrency);
 }
 
 export function filterAndSortExpenses(

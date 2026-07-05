@@ -45,10 +45,6 @@ function expenseCategoryFromBody(value: unknown): ExpenseCategory {
   return value;
 }
 
-function expenseTagsFromBody(value: unknown): string[] {
-  return normalizeExpenseTags(value);
-}
-
 export function registerExpenseRoutes(
   app: express.Express,
   pool: PgPool,
@@ -101,7 +97,7 @@ export function registerExpenseRoutes(
       let tags: string[];
       try {
         category = expenseCategoryFromBody(body.category);
-        tags = expenseTagsFromBody(body.tags);
+        tags = normalizeExpenseTags(body.tags);
       } catch (error) {
         sendError(
           res,
@@ -271,7 +267,7 @@ export function registerExpenseRoutes(
           category = expenseCategoryFromBody(body.category);
         }
         if (hasTags) {
-          tags = expenseTagsFromBody(body.tags);
+          tags = normalizeExpenseTags(body.tags);
         }
       } catch (error) {
         sendError(
