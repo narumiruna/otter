@@ -141,7 +141,7 @@ function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
       return `
         <article class="card stack expense-create-card" data-workspace-panel="add-expense">
           <h3>記帳</h3>
-          ${expenseForm(payload.trip)}
+          ${addExpenseContent(payload.trip)}
         </article>
       `;
     case "expenses":
@@ -158,9 +158,37 @@ function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
   }
 }
 
+function needsMembersBeforeFirstExpense(trip: Trip): boolean {
+  return trip.participants.length === 1 && trip.expenses.length === 0;
+}
+
+function firstExpenseCta(trip: Trip): string {
+  if (needsMembersBeforeFirstExpense(trip)) {
+    return `
+      <div class="empty-state">
+        <h4>先新增同行成員</h4>
+        <p class="muted">目前只有你自己。先把同行朋友加進來，下一筆支出才知道要分給誰。</p>
+        <button class="secondary" data-workspace-tab="members" type="button">新增成員</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="empty-state">
+      <h4>先記一筆或新增成員</h4>
+      <p class="muted">有同行成員後，新增第一筆共同支出就會自動算出餘額。</p>
+      <div class="row">
+        <button data-workspace-tab="add-expense" type="button">新增第一筆支出</button>
+        <button class="secondary" data-workspace-tab="members" type="button">新增成員</button>
+      </div>
+    </div>
+  `;
+}
+
 function overviewPanel(payload: TripPayload): string {
   return `
     <article class="card stack results-card" data-workspace-panel="overview">
+      ${payload.trip.expenses.length === 0 ? firstExpenseCta(payload.trip) : ""}
       <h3>分帳結果</h3>
       ${balanceList(payload.balances)}
       <h3>結清建議</h3>
@@ -228,6 +256,19 @@ function settingsPanel(trip: Trip): string {
   `;
 }
 
+function addExpenseContent(trip: Trip): string {
+  if (needsMembersBeforeFirstExpense(trip)) {
+    return `
+      <div class="empty-state">
+        <h4>先新增同行成員</h4>
+        <p class="muted">目前只有你自己。先把同行朋友加進來，下一筆支出才知道要分給誰。</p>
+        <button class="secondary" data-workspace-tab="members" type="button">去新增成員</button>
+      </div>
+    `;
+  }
+  return expenseForm(trip);
+}
+
 function expenseForm(trip: Trip): string {
   if (trip.participants.length === 0) {
     return '<p class="muted">先新增參與者。</p>';
@@ -289,7 +330,21 @@ function currencySelect(name: string, selected: Currency): string {
 
 function expenseList(trip: Trip): string {
   if (trip.expenses.length === 0) {
-    return '<p class="muted">還沒有支出。</p>';
+    if (needsMembersBeforeFirstExpense(trip)) {
+      return `
+        <div class="empty-state">
+          <p class="muted">還沒有支出。</p>
+          <button class="secondary" data-workspace-tab="members" type="button">新增成員</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="empty-state">
+        <p class="muted">還沒有支出。</p>
+        <button class="secondary" data-workspace-tab="add-expense" type="button">新增第一筆支出</button>
+      </div>
+    `;
   }
 
   const participantById = new Map(

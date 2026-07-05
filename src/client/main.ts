@@ -74,7 +74,7 @@ async function loadTrips() {
 
 async function selectTrip(tripId: string) {
   state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
-  state.activeTab = "overview";
+  state.activeTab = "add-expense";
 }
 
 function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
@@ -84,14 +84,14 @@ function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
 function render() {
   app.innerHTML = `
     <main class="app">
-      <section class="hero">
+      <section class="hero${state.user ? " hero-compact" : ""}">
         <div>
           <h1>otter</h1>
-          <p class="muted">旅行和朋友聚會的 TypeScript 記帳拆帳 app</p>
+          ${state.user ? "" : '<p class="muted">旅行和朋友聚會的 TypeScript 記帳拆帳 app</p>'}
         </div>
         ${
           state.user
-            ? `<div class="row"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary">登出</button></div>`
+            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary">登出</button></div>`
             : ""
         }
       </section>
@@ -173,7 +173,7 @@ function bindHandlers() {
           }),
           method: "POST",
         });
-        state.activeTab = "overview";
+        state.activeTab = "add-expense";
         await loadTrips();
         setMessage("已新增支出群組");
       });

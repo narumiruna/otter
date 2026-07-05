@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
-import type { AppState, WorkspaceTab } from "./client-support.js";
+import {
+  type AppState,
+  type WorkspaceTab,
+  workspaceTabs,
+} from "./client-support.js";
 import { dashboardView } from "./views.js";
 
 const trip: Trip = {
@@ -88,6 +92,49 @@ function view(activeTab: WorkspaceTab): string {
   return dashboardView({ ...baseState, activeTab });
 }
 
+const emptyOnePersonTrip: Trip = {
+  ...trip,
+  expenses: [],
+  participants: [{ id: "participant_alice", name: "Alice" }],
+};
+
+const emptyMultiPersonTrip: Trip = {
+  ...trip,
+  expenses: [],
+};
+
+function emptyTripView(activeTab: WorkspaceTab, selectedTrip: Trip): string {
+  return dashboardView({
+    ...baseState,
+    activeTab,
+    selected: {
+      balances: [
+        {
+          amountMinor: 0,
+          currency: "TWD",
+          name: "Alice",
+          participantId: "participant_alice",
+        },
+      ],
+      settlements: [],
+      trip: selectedTrip,
+    },
+    trips: [
+      {
+        baseCurrency: "TWD",
+        expenseCount: 0,
+        id: "trip_1",
+        name: "Tokyo",
+        participantCount: selectedTrip.participants.length,
+      },
+    ],
+  });
+}
+
+function emptyOnePersonView(activeTab: WorkspaceTab): string {
+  return emptyTripView(activeTab, emptyOnePersonTrip);
+}
+
 test("dashboard view exposes workspace tabs and overview panel", () => {
   const html = view("overview");
 
@@ -100,6 +147,10 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   );
   assert.ok(
     html.indexOf("Tokyo") < html.indexOf("<summary>新增支出群組</summary>"),
+  );
+  assert.deepEqual(
+    [...workspaceTabs],
+    ["add-expense", "overview", "expenses", "members", "settings"],
   );
   assert.ok(html.includes('data-workspace-tab="overview"'));
   assert.ok(html.includes('data-workspace-tab="add-expense"'));
@@ -140,4 +191,54 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(settingsHtml.includes('data-workspace-panel="settings"'));
   assert.ok(settingsHtml.includes('id="export-expenses"'));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
+});
+
+test("empty one-person groups guide users to add members", () => {
+  const addExpenseHtml = emptyOnePersonView("add-expense");
+  assert.ok(addExpenseHtml.includes("先新增同行成員"));
+  assert.match(
+    addExpenseHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>去新增成員<\/button>/,
+  );
+  assert.ok(!addExpenseHtml.includes('id="expense-form"'));
+
+  const overviewHtml = emptyOnePersonView("overview");
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+  assert.doesNotMatch(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+
+  const expensesHtml = emptyOnePersonView("expenses");
+  assert.ok(expensesHtml.includes("還沒有支出"));
+  assert.match(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+  assert.doesNotMatch(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+});
+
+test("empty groups with multiple members can start first expense", () => {
+  const overviewHtml = emptyTripView("overview", emptyMultiPersonTrip);
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+
+  const expensesHtml = emptyTripView("expenses", emptyMultiPersonTrip);
+  assert.ok(expensesHtml.includes("還沒有支出"));
+  assert.match(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
 });

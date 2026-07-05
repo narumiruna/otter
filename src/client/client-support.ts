@@ -22,8 +22,8 @@ export type TripPayload = {
 };
 
 export const workspaceTabs = [
-  "overview",
   "add-expense",
+  "overview",
   "expenses",
   "members",
   "settings",
