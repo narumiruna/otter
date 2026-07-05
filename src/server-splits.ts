@@ -67,6 +67,31 @@ function weightedShares(
   }));
 }
 
+export function participantSharesFromExisting(
+  participantIds: string[],
+  amountMinor: number,
+  previousAmountMinor: number,
+  previousShares: ParticipantShare[] | undefined,
+): ParticipantShare[] | undefined {
+  if (!previousShares?.length) {
+    return undefined;
+  }
+
+  const shareByParticipant = new Map(
+    previousShares.map((share) => [share.participantId, share.shareMinor]),
+  );
+  const weights = participantIds.map(
+    (participantId) => shareByParticipant.get(participantId) ?? 0,
+  );
+  if (
+    weights.some((weight) => weight <= 0) ||
+    weights.reduce((sum, weight) => sum + weight, 0) !== previousAmountMinor
+  ) {
+    return undefined;
+  }
+  return weightedShares(participantIds, amountMinor, weights);
+}
+
 export function participantSharesFromBody(
   body: Record<string, unknown>,
   participantIds: string[],

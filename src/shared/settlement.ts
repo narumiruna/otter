@@ -95,16 +95,30 @@ export function calculateBalances(trip: Trip): Balance[] {
         share.shareMinor,
       ]) ?? [],
     );
-    const hasExplicitShares = splitIds.every((id) => explicitShares.has(id));
+    const hasExplicitShares =
+      splitIds.every((id) => explicitShares.has(id)) &&
+      splitIds.reduce((sum, id) => sum + (explicitShares.get(id) ?? 0), 0) ===
+        expense.amountMinor;
 
     if (hasExplicitShares) {
-      for (const participantId of splitIds) {
-        const share = convertMinor(
+      const shares = splitIds.map((participantId) =>
+        convertMinor(
           explicitShares.get(participantId) ?? 0,
           expense.currency,
           trip.baseCurrency,
+        ),
+      );
+      let remainder = amount - shares.reduce((sum, share) => sum + share, 0);
+      for (const [index, participantId] of splitIds.entries()) {
+        const adjustment =
+          index === shares.length - 1 ? remainder : Math.sign(remainder);
+        remainder -= adjustment;
+        balances.set(
+          participantId,
+          (balances.get(participantId) ?? 0) -
+            (shares[index] ?? 0) -
+            adjustment,
         );
-        balances.set(participantId, (balances.get(participantId) ?? 0) - share);
       }
       continue;
     }

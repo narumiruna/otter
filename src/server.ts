@@ -10,6 +10,7 @@ import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js
 import {
   type ParticipantShare,
   participantSharesFromBody,
+  participantSharesFromExisting,
 } from "./server-splits.js";
 import {
   asyncHandler,
@@ -736,16 +737,27 @@ export function createApp(pool: PgPool): express.Express {
       }
 
       let participantShares: ParticipantShare[] | undefined;
+      const hasExistingShares = (expense.participantShares?.length ?? 0) > 0;
       const shouldReplaceSplits =
-        hasParticipantIds || hasSplitMode || hasAmount || hasCurrency;
+        hasParticipantIds ||
+        hasSplitMode ||
+        ((hasAmount || hasCurrency) && hasExistingShares);
       if (shouldReplaceSplits) {
         try {
-          participantShares = participantSharesFromBody(
-            body,
-            participantIds,
-            amountMinor,
-            currencyValue,
-          );
+          participantShares =
+            !hasSplitMode && hasExistingShares
+              ? participantSharesFromExisting(
+                  participantIds,
+                  amountMinor,
+                  expense.amountMinor,
+                  expense.participantShares,
+                )
+              : participantSharesFromBody(
+                  body,
+                  participantIds,
+                  amountMinor,
+                  currencyValue,
+                );
         } catch (error) {
           sendError(
             res,

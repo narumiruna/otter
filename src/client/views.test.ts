@@ -184,8 +184,11 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
 });
 
 test("workspace tabs render task-focused panels", () => {
-  assert.ok(view("add-expense").includes('data-workspace-panel="add-expense"'));
-  assert.ok(view("add-expense").includes('id="expense-form"'));
+  const addExpenseHtml = view("add-expense");
+  assert.ok(addExpenseHtml.includes('data-workspace-panel="add-expense"'));
+  assert.ok(addExpenseHtml.includes('id="expense-form"'));
+  assert.ok(addExpenseHtml.includes('data-form-error-target="expense-form"'));
+  assert.ok(addExpenseHtml.includes("novalidate"));
 
   const expensesHtml = view("expenses");
   assert.ok(expensesHtml.includes('data-workspace-panel="expenses"'));
@@ -193,7 +196,7 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes("<summary>編輯</summary>"));
   assert.ok(
     expensesHtml.includes(
-      'data-edit-expense-form="expense_1" data-form-error-target="expense-edit-expense_1"',
+      'data-edit-expense-form="expense_1" data-form-error-target="expense-edit-expense_1" novalidate',
     ),
   );
   assert.ok(expensesHtml.includes('value="Dinner &amp; Drinks"'));
@@ -203,6 +206,7 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes('value="ratio"'));
   assert.ok(expensesHtml.includes('value="shares"'));
   assert.ok(expensesHtml.includes('name="splitValue:participant_alice"'));
+  assert.ok(expensesHtml.includes('aria-label="Alice 分帳值"'));
   assert.ok(expensesHtml.includes("取消"));
   assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
   assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));

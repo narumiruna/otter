@@ -727,7 +727,9 @@ test(
       },
     );
     assert.equal(amountSplit.response.status, 201);
-    assert.deepEqual(amountSplit.data.trip.expenses[0]?.participantShares, [
+    const taxiExpense = amountSplit.data.trip.expenses[0];
+    assert.ok(taxiExpense);
+    assert.deepEqual(taxiExpense.participantShares, [
       { participantId: owner.id, shareMinor: 70 },
       { participantId: bob.id, shareMinor: 30 },
     ]);
@@ -741,6 +743,24 @@ test(
         { amountMinor: -30, participantId: bob.id },
       ],
     );
+
+    const reamountedAmountSplit = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses/${taxiExpense.id}`,
+      {
+        body: JSON.stringify({ amount: "200" }),
+        headers: { cookie },
+        method: "PATCH",
+      },
+    );
+    assert.equal(reamountedAmountSplit.response.status, 200);
+    const reamountedTaxiExpense = reamountedAmountSplit.data.trip.expenses.find(
+      ({ id }) => id === taxiExpense.id,
+    );
+    assert.deepEqual(reamountedTaxiExpense?.participantShares, [
+      { participantId: owner.id, shareMinor: 140 },
+      { participantId: bob.id, shareMinor: 60 },
+    ]);
 
     const ratioSplit = await api<TripPayload>(
       baseUrl,
