@@ -30,7 +30,7 @@ npm install
 docker compose -f compose.dev.yml up --build
 ```
 
-開啟 <http://localhost:3000>。dev compose 會啟動 Postgres、執行 `npm run migrate`，再啟動 app。
+開啟 <http://localhost:3420>。dev compose 會啟動 Postgres、執行 `npm run migrate`，再啟動 app。
 
 如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`：
 
@@ -89,7 +89,7 @@ Development container（含 Postgres）：
 docker compose -f compose.dev.yml up --build
 ```
 
-兩個 compose 檔都會把 app 暴露在 <http://localhost:3000>；container 啟動時會先套用 migrations。
+兩個 compose 檔都會把 app 暴露在 <http://localhost:3420>；container 啟動時會先套用 migrations。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 

@@ -26,9 +26,9 @@ services:
     environment:
       DATABASE_URL: postgres://otter:otter_dev_password@postgres:5432/otter_dev
       NODE_ENV: development
-      PORT: 3000
+      PORT: 3420
     ports:
-      - "3000:3000"
+      - "3420:3420"
     volumes:
       - .:/app
       - /app/node_modules
