@@ -98,7 +98,12 @@ const emptyOnePersonTrip: Trip = {
   participants: [{ id: "participant_alice", name: "Alice" }],
 };
 
-function emptyOnePersonView(activeTab: WorkspaceTab): string {
+const emptyMultiPersonTrip: Trip = {
+  ...trip,
+  expenses: [],
+};
+
+function emptyTripView(activeTab: WorkspaceTab, selectedTrip: Trip): string {
   return dashboardView({
     ...baseState,
     activeTab,
@@ -112,7 +117,7 @@ function emptyOnePersonView(activeTab: WorkspaceTab): string {
         },
       ],
       settlements: [],
-      trip: emptyOnePersonTrip,
+      trip: selectedTrip,
     },
     trips: [
       {
@@ -120,10 +125,14 @@ function emptyOnePersonView(activeTab: WorkspaceTab): string {
         expenseCount: 0,
         id: "trip_1",
         name: "Tokyo",
-        participantCount: 1,
+        participantCount: selectedTrip.participants.length,
       },
     ],
   });
+}
+
+function emptyOnePersonView(activeTab: WorkspaceTab): string {
+  return emptyTripView(activeTab, emptyOnePersonTrip);
 }
 
 test("dashboard view exposes workspace tabs and overview panel", () => {
@@ -185,20 +194,51 @@ test("workspace tabs render task-focused panels", () => {
 });
 
 test("empty one-person groups guide users to add members", () => {
-  const html = emptyOnePersonView("add-expense");
+  const addExpenseHtml = emptyOnePersonView("add-expense");
+  assert.ok(addExpenseHtml.includes("先新增同行成員"));
+  assert.match(
+    addExpenseHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>去新增成員<\/button>/,
+  );
+  assert.ok(!addExpenseHtml.includes('id="expense-form"'));
 
-  assert.ok(html.includes("先新增同行成員"));
-  assert.ok(html.includes('data-workspace-tab="members"'));
-  assert.ok(!html.includes('id="expense-form"'));
-});
-
-test("empty workspace states include next-step actions", () => {
   const overviewHtml = emptyOnePersonView("overview");
-  assert.ok(overviewHtml.includes("新增第一筆支出"));
-  assert.ok(overviewHtml.includes('data-workspace-tab="add-expense"'));
-  assert.ok(overviewHtml.includes('data-workspace-tab="members"'));
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+  assert.doesNotMatch(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
 
   const expensesHtml = emptyOnePersonView("expenses");
   assert.ok(expensesHtml.includes("還沒有支出"));
-  assert.ok(expensesHtml.includes('data-workspace-tab="add-expense"'));
+  assert.match(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+  assert.doesNotMatch(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+});
+
+test("empty groups with multiple members can start first expense", () => {
+  const overviewHtml = emptyTripView("overview", emptyMultiPersonTrip);
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+  assert.match(
+    overviewHtml,
+    /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
+  );
+
+  const expensesHtml = emptyTripView("expenses", emptyMultiPersonTrip);
+  assert.ok(expensesHtml.includes("還沒有支出"));
+  assert.match(
+    expensesHtml,
+    /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
 });
