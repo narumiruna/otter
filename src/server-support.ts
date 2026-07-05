@@ -684,11 +684,13 @@ export async function loadTripForUser(
       Number(row.rate_to_base),
     ]),
   );
-  exchangeRates[currencyFromDb(tripRow.base_currency)] = 1;
+  if (exchangeRatesResult.rows.length > 0) {
+    exchangeRates[currencyFromDb(tripRow.base_currency)] = 1;
+  }
 
   return {
     ...rowToTrip(tripRow),
-    exchangeRates,
+    ...(exchangeRatesResult.rows.length > 0 ? { exchangeRates } : {}),
     expenses: expensesResult.rows.map((row) => {
       const splits = splitsByExpense.get(row.id) ?? [];
       const participantShares = splits

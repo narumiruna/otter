@@ -216,6 +216,17 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   );
   assert.equal(archivedExpenseAdd.response.status, 409);
 
+  const archivedExchangeRateUpdate = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ exchangeRates: { USD: "1" } }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(archivedExchangeRateUpdate.response.status, 409);
+
   const restoredTrip = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
@@ -254,13 +265,13 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   );
   assert.equal(rebasedAfterRates.response.status, 200);
   assert.equal(rebasedAfterRates.data.trip.baseCurrency, "TWD");
-  assert.equal(rebasedAfterRates.data.trip.exchangeRates, null);
+  assert.equal(rebasedAfterRates.data.trip.exchangeRates, undefined);
 
   const invalidExchangeRate = await api<{ error: string }>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
     {
-      body: JSON.stringify({ exchangeRates: { TWD: "0" } }),
+      body: JSON.stringify({ exchangeRates: { USD: "0" } }),
       headers: { cookie },
       method: "PATCH",
     },
