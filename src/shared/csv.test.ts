@@ -102,12 +102,25 @@ test("exports balances and settlements as escaped CSV", () => {
           toName: "Alice, A",
         },
       ],
+      [
+        {
+          amountMinor: 100,
+          createdAt: "2026-06-25T00:00:00.000Z",
+          currency: "TWD",
+          fromId: "bob",
+          id: "payment-1",
+          note: "paid cash",
+          paidAt: "2026-06-25",
+          toId: "alice",
+        },
+      ],
     ),
     [
       "type,participant,from,to,amount,currency",
       'balance,"Alice, A",,,100,TWD',
       'balance,"Bob ""B""",,,-100,TWD',
       'settlement,,"Bob ""B""","Alice, A",100,TWD',
+      "payment,paid cash,bob,alice,100,TWD",
     ].join("\n"),
   );
 });

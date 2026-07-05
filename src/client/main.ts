@@ -287,7 +287,11 @@ function bindHandlers() {
       }
       downloadText(
         `${safeFilename(selected.trip.name)}-results.csv`,
-        tripResultsCsv(selected.balances, selected.settlements),
+        tripResultsCsv(
+          selected.balances,
+          selected.settlements,
+          selected.trip.settlementPayments,
+        ),
       );
       setMessage("已匯出結算 CSV");
       render();
@@ -297,6 +301,54 @@ function bindHandlers() {
     .querySelector<HTMLButtonElement>("#print-trip")
     ?.addEventListener("click", () => {
       window.print();
+    });
+
+  document
+    .querySelectorAll<HTMLFormElement>("[data-settlement-payment-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const tripId = state.selected?.trip.id;
+        if (!tripId) {
+          return;
+        }
+        const form = new FormData(formElement);
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/settlement-payments`,
+            {
+              body: JSON.stringify({
+                amount: String(form.get("amount") ?? ""),
+                currency: String(form.get("currency") ?? ""),
+                fromId: String(form.get("fromId") ?? ""),
+                note: String(form.get("note") ?? ""),
+                toId: String(form.get("toId") ?? ""),
+              }),
+              method: "POST",
+            },
+          );
+          setMessage("已記錄付款");
+        });
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-delete-settlement-payment-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const tripId = state.selected?.trip.id;
+        const paymentId = button.dataset.deleteSettlementPaymentId;
+        if (!tripId || !paymentId || !confirm("刪除這筆付款紀錄？")) {
+          return;
+        }
+        void run(async () => {
+          state.selected = await api<TripPayload>(
+            `/api/trips/${tripId}/settlement-payments/${paymentId}`,
+            { method: "DELETE" },
+          );
+          setMessage("已刪除付款紀錄");
+        });
+      });
     });
 
   document

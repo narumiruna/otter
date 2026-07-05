@@ -5,12 +5,7 @@ import {
   formatMinor,
   toMajor,
 } from "../shared/money.js";
-import type {
-  Balance,
-  Expense,
-  Settlement,
-  Trip,
-} from "../shared/settlement.js";
+import type { Balance, Expense, Trip } from "../shared/settlement.js";
 import {
   type AppState,
   defaultExpenseFormValues,
@@ -242,7 +237,7 @@ function overviewPanel(payload: TripPayload): string {
       </section>
       <section class="summary-section">
         <h3>結清建議</h3>
-        ${settlementList(payload.settlements)}
+        ${settlementList(payload)}
       </section>
       <section class="summary-section">
         <h3>最近支出</h3>
@@ -589,9 +584,11 @@ function balanceList(balances: Balance[]): string {
   `;
 }
 
-function settlementList(settlements: Settlement[]): string {
+function settlementList(payload: TripPayload): string {
+  const { settlements, trip } = payload;
+  const history = settlementPaymentList(trip);
   if (settlements.length === 0) {
-    return '<p class="muted">目前已經打平。</p>';
+    return `<p class="muted">目前已經打平。</p>${history}`;
   }
 
   return `
@@ -600,12 +597,50 @@ function settlementList(settlements: Settlement[]): string {
         .map(
           (settlement) => `
             <li>
-              ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
-              <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+              <form class="settlement-payment-form" data-settlement-payment-form>
+                ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
+                <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+                <input name="fromId" type="hidden" value="${htmlEscape(settlement.fromId)}" />
+                <input name="toId" type="hidden" value="${htmlEscape(settlement.toId)}" />
+                <input name="amount" type="hidden" value="${htmlEscape(String(toMajor(settlement.amountMinor, settlement.currency)))}" />
+                <input name="currency" type="hidden" value="${settlement.currency}" />
+                <input name="note" placeholder="付款備註（可空白）" maxlength="160" />
+                <button class="secondary" type="submit">標記已付款</button>
+              </form>
             </li>
           `,
         )
         .join("")}
     </ul>
+    ${history}
+  `;
+}
+
+function settlementPaymentList(trip: Trip): string {
+  const payments = trip.settlementPayments ?? [];
+  if (payments.length === 0) {
+    return "";
+  }
+  const participantById = new Map(
+    trip.participants.map((person) => [person.id, person.name]),
+  );
+  return `
+    <section class="summary-section settlement-history">
+      <h4>付款紀錄</h4>
+      <ul class="list">
+        ${payments
+          .map(
+            (payment) => `
+              <li>
+                ${htmlEscape(payment.paidAt)} · ${htmlEscape(participantById.get(payment.fromId) ?? "未知")} 已付給 ${htmlEscape(participantById.get(payment.toId) ?? "未知")}
+                <strong>${formatMinor(payment.amountMinor, payment.currency)}</strong>
+                ${payment.note ? `<span class="muted">${htmlEscape(payment.note)}</span>` : ""}
+                <button class="secondary" data-delete-settlement-payment-id="${htmlEscape(payment.id)}" type="button">刪除紀錄</button>
+              </li>
+            `,
+          )
+          .join("")}
+      </ul>
+    </section>
   `;
 }

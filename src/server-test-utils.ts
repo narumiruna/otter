@@ -38,6 +38,15 @@ export type TripPayload = {
     id: string;
     name: string;
     participants: { id: string; name: string }[];
+    settlementPayments?: {
+      amountMinor: number;
+      currency: string;
+      fromId: string;
+      id: string;
+      note: string;
+      paidAt: string;
+      toId: string;
+    }[];
   };
 };
 
@@ -72,7 +81,7 @@ export async function withTestApp(
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 3);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 4);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
 
   const app = createApp(pool);

@@ -85,6 +85,17 @@ type ExpenseParticipantRow = {
   share_minor: string | number | null;
 };
 
+type SettlementPaymentRow = {
+  id: string;
+  from_id: string;
+  to_id: string;
+  amount_minor: string | number;
+  currency: string;
+  paid_at: Date | string;
+  note: string;
+  created_at: Date | string;
+};
+
 export const isProduction = process.env.NODE_ENV === "production";
 export const devAdmin = {
   email: "admin@otter.local",
@@ -591,7 +602,12 @@ export async function loadTripForUser(
     return undefined;
   }
 
-  const [participantsResult, expensesResult, splitsResult] = await Promise.all([
+  const [
+    participantsResult,
+    expensesResult,
+    splitsResult,
+    settlementPaymentsResult,
+  ] = await Promise.all([
     db.query<ParticipantRow>(
       `SELECT id, name
        FROM participants
@@ -611,6 +627,13 @@ export async function loadTripForUser(
        FROM expense_participants
        WHERE trip_id = $1
        ORDER BY expense_id, position`,
+      [tripId],
+    ),
+    db.query<SettlementPaymentRow>(
+      `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, note, created_at
+       FROM settlement_payments
+       WHERE trip_id = $1
+       ORDER BY paid_at, created_at, id`,
       [tripId],
     ),
   ]);
@@ -656,6 +679,16 @@ export async function loadTripForUser(
     participants: participantsResult.rows.map((row) => ({
       id: row.id,
       name: row.name,
+    })),
+    settlementPayments: settlementPaymentsResult.rows.map((row) => ({
+      amountMinor: Number(row.amount_minor),
+      createdAt: iso(row.created_at),
+      currency: currencyFromDb(row.currency),
+      fromId: row.from_id,
+      id: row.id,
+      note: row.note,
+      paidAt: dateOnly(row.paid_at),
+      toId: row.to_id,
     })),
   };
 }

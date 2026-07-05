@@ -1,5 +1,10 @@
 import { currencyInfo, toMajor } from "./money.js";
-import type { Balance, Settlement, Trip } from "./settlement.js";
+import type {
+  Balance,
+  Settlement,
+  SettlementPayment,
+  Trip,
+} from "./settlement.js";
 
 const expenseHeaders = [
   "date",
@@ -37,6 +42,7 @@ export function tripExpensesCsv(trip: Trip): string {
 export function tripResultsCsv(
   balances: Balance[],
   settlements: Settlement[],
+  payments: SettlementPayment[] = [],
 ): string {
   const balanceRows = balances.map((balance) => [
     "balance",
@@ -54,8 +60,21 @@ export function tripResultsCsv(
     formatAmount(settlement.amountMinor, settlement.currency),
     settlement.currency,
   ]);
+  const paymentRows = payments.map((payment) => [
+    "payment",
+    payment.note,
+    payment.fromId,
+    payment.toId,
+    formatAmount(payment.amountMinor, payment.currency),
+    payment.currency,
+  ]);
 
-  return csvRows([resultHeaders, ...balanceRows, ...settlementRows]);
+  return csvRows([
+    resultHeaders,
+    ...balanceRows,
+    ...settlementRows,
+    ...paymentRows,
+  ]);
 }
 
 function splitParticipantsCell(
