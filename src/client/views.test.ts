@@ -169,16 +169,25 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
 });
 
 test("workspace tabs render task-focused panels", () => {
-  assert.ok(view("add-expense").includes('data-workspace-panel="add-expense"'));
-  assert.ok(view("add-expense").includes('id="expense-form"'));
+  const addExpenseHtml = view("add-expense");
+  assert.ok(addExpenseHtml.includes('data-workspace-panel="add-expense"'));
+  assert.ok(addExpenseHtml.includes('id="expense-form"'));
+  assert.ok(addExpenseHtml.includes('data-form-error-target="expense-form"'));
+  assert.ok(addExpenseHtml.includes("novalidate"));
 
   const expensesHtml = view("expenses");
   assert.ok(expensesHtml.includes('data-workspace-panel="expenses"'));
   assert.ok(expensesHtml.includes('<details class="expense-actions">'));
-  assert.ok(expensesHtml.includes("<summary>更多操作</summary>"));
+  assert.ok(expensesHtml.includes("<summary>編輯</summary>"));
   assert.ok(
-    expensesHtml.includes('aria-label="修改 Dinner &amp; Drinks 日期"'),
+    expensesHtml.includes(
+      'data-edit-expense-form="expense_1" data-form-error-target="expense-edit-expense_1" novalidate',
+    ),
   );
+  assert.ok(expensesHtml.includes('value="Dinner &amp; Drinks"'));
+  assert.ok(expensesHtml.includes('name="participantIds"'));
+  assert.ok(expensesHtml.includes("取消"));
+  assert.ok(!expensesHtml.includes("data-edit-expense-date-id="));
   assert.ok(expensesHtml.includes('aria-label="刪除 Dinner &amp; Drinks"'));
 
   const membersHtml = view("members");
@@ -240,10 +249,40 @@ test("empty groups with multiple members can start first expense", () => {
     /<button[^>]*data-workspace-tab="members"[^>]*>新增成員<\/button>/,
   );
 
+  const addExpenseHtml = emptyTripView("add-expense", emptyMultiPersonTrip);
+  assert.ok(addExpenseHtml.includes('name="expenseDate" type="date"'));
+  assert.ok(addExpenseHtml.includes('value="participant_alice" checked'));
+  assert.ok(addExpenseHtml.includes('value="participant_bob" checked'));
+
   const expensesHtml = emptyTripView("expenses", emptyMultiPersonTrip);
   assert.ok(expensesHtml.includes("還沒有支出"));
   assert.match(
     expensesHtml,
     /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
+  );
+});
+
+test("expense forms render nearby errors", () => {
+  const createHtml = dashboardView({
+    ...baseState,
+    activeTab: "add-expense",
+    formError: "請輸入支出金額",
+    formErrorTarget: "expense-form",
+  });
+  assert.match(
+    createHtml,
+    /<p id="expense-form-error" class="form-error" role="alert">請輸入支出金額<\/p>/,
+  );
+
+  const editHtml = dashboardView({
+    ...baseState,
+    activeTab: "expenses",
+    formError: "金額格式錯誤",
+    formErrorTarget: "expense-edit-expense_1",
+  });
+  assert.match(editHtml, /<details class="expense-actions" open>/);
+  assert.match(
+    editHtml,
+    /<p id="expense-edit-expense_1-error" class="form-error" role="alert">金額格式錯誤<\/p>/,
   );
 });

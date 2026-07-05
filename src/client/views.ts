@@ -5,16 +5,21 @@ import {
   formatMinor,
   toMajor,
 } from "../shared/money.js";
-import type { Balance, Settlement, Trip } from "../shared/settlement.js";
+import type {
+  Balance,
+  Expense,
+  Settlement,
+  Trip,
+} from "../shared/settlement.js";
 import {
   type AppState,
+  defaultExpenseFormValues,
   expenseSplitLabel,
   htmlEscape,
   participantDeleteBlockReason,
   splitCountLabel,
   type TripPayload,
   type TripSummary,
-  todayDate,
   type WorkspaceTab,
   workspaceTabs,
 } from "./client-support.js";
@@ -78,7 +83,7 @@ export function dashboardView(state: AppState): string {
           </form>
         </details>
       </aside>
-      ${state.selected ? tripView(state.selected, state.activeTab) : '<section class="card empty-state"><h2>先選擇支出群組</h2><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
+      ${state.selected ? tripView(state) : '<section class="card empty-state"><h2>先選擇支出群組</h2><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
     </section>
   `;
 }
@@ -94,7 +99,12 @@ function tripButton(trip: TripSummary, selectedTripId?: string): string {
   `;
 }
 
-function tripView(payload: TripPayload, activeTab: WorkspaceTab): string {
+function tripView(state: AppState): string {
+  const payload = state.selected;
+  if (!payload) {
+    return '<section class="card empty-state"><h2>先選擇支出群組</h2><p class="muted">選擇或新增支出群組後開始記帳。</p></section>';
+  }
+  const activeTab = state.activeTab;
   const { trip } = payload;
   return `
     <section class="stack trip-detail">
@@ -108,7 +118,7 @@ function tripView(payload: TripPayload, activeTab: WorkspaceTab): string {
         </div>
         ${workspaceTabBar(activeTab)}
       </article>
-      ${workspacePanel(payload, activeTab)}
+      ${workspacePanel(state, payload, activeTab)}
     </section>
   `;
 }
@@ -166,7 +176,11 @@ function workspaceTabLabel(tab: WorkspaceTab): string {
   }
 }
 
-function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
+function workspacePanel(
+  state: AppState,
+  payload: TripPayload,
+  activeTab: WorkspaceTab,
+): string {
   switch (activeTab) {
     case "overview":
       return overviewPanel(payload);
@@ -174,14 +188,14 @@ function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
       return `
         <article id="${workspacePanelId("add-expense")}" class="card stack expense-create-card" data-workspace-panel="add-expense" role="tabpanel" aria-labelledby="${workspaceTabId("add-expense")}">
           <h3>記帳</h3>
-          ${addExpenseContent(payload.trip)}
+          ${addExpenseContent(state, payload.trip)}
         </article>
       `;
     case "expenses":
       return `
         <article id="${workspacePanelId("expenses")}" class="card stack expense-list-card" data-workspace-panel="expenses" role="tabpanel" aria-labelledby="${workspaceTabId("expenses")}">
           <h3>支出紀錄</h3>
-          ${expenseList(payload.trip)}
+          ${expenseList(state, payload.trip)}
         </article>
       `;
     case "members":
@@ -295,7 +309,20 @@ function settingsPanel(trip: Trip): string {
   `;
 }
 
-function addExpenseContent(trip: Trip): string {
+function formErrorHtml(state: AppState, target: string): string {
+  if (state.formErrorTarget !== target || !state.formError) {
+    return "";
+  }
+  return `<p id="${htmlEscape(target)}-error" class="form-error" role="alert">${htmlEscape(state.formError)}</p>`;
+}
+
+function formErrorAttributes(state: AppState, target: string): string {
+  return state.formErrorTarget === target && state.formError
+    ? ` aria-describedby="${htmlEscape(target)}-error" aria-invalid="true"`
+    : "";
+}
+
+function addExpenseContent(state: AppState, trip: Trip): string {
   if (needsMembersBeforeFirstExpense(trip)) {
     return `
       <div class="empty-state">
@@ -305,25 +332,30 @@ function addExpenseContent(trip: Trip): string {
       </div>
     `;
   }
-  return expenseForm(trip);
+  return expenseForm(state, trip);
 }
 
-function expenseForm(trip: Trip): string {
+function expenseForm(state: AppState, trip: Trip): string {
   if (trip.participants.length === 0) {
     return '<p class="muted">先新增參與者。</p>';
   }
 
+  const defaults = defaultExpenseFormValues(trip);
+  const errorTarget = "expense-form";
+  const selectedSplitIds = new Set(defaults.participantIds);
+
   return `
-    <form id="expense-form">
+    <form id="expense-form" data-form-error-target="${errorTarget}" novalidate${formErrorAttributes(state, errorTarget)}>
+      ${formErrorHtml(state, errorTarget)}
       <label>描述<input name="description" required maxlength="120" placeholder="晚餐、飯店、車票" /></label>
       <div class="grid">
-        <label>日期<input name="expenseDate" type="date" required value="${todayDate()}" /></label>
+        <label>日期<input name="expenseDate" type="date" required value="${defaults.expenseDate}" /></label>
         <label>金額<input name="amount" inputmode="decimal" required placeholder="1000" /></label>
-        <label>貨幣${currencySelect("currency", trip.baseCurrency)}</label>
+        <label>貨幣${currencySelect("currency", defaults.currency)}</label>
       </div>
       <label>付款人
         <select name="paidById" required>
-          ${trip.participants.map((person) => `<option value="${htmlEscape(person.id)}">${htmlEscape(person.name)}</option>`).join("")}
+          ${trip.participants.map((person) => `<option value="${htmlEscape(person.id)}" ${person.id === defaults.paidById ? "selected" : ""}>${htmlEscape(person.name)}</option>`).join("")}
         </select>
       </label>
       <fieldset class="split-fieldset">
@@ -331,14 +363,14 @@ function expenseForm(trip: Trip): string {
         <div class="row split-tools">
           <button class="secondary" data-split-shortcut="all" type="button">全選</button>
           <button class="secondary" data-split-shortcut="none" type="button">清除</button>
-          <span id="split-count" class="muted">${splitCountLabel(trip.participants.length, trip.participants.length)}</span>
+          <span id="split-count" class="muted">${splitCountLabel(defaults.participantIds.length, trip.participants.length)}</span>
         </div>
         <div class="checks">
           ${trip.participants
             .map(
               (person) => `
                 <label>
-                  <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" checked />
+                  <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${selectedSplitIds.has(person.id) ? "checked" : ""} />
                   ${htmlEscape(person.name)}
                 </label>
               `,
@@ -367,7 +399,7 @@ function currencySelect(name: string, selected: Currency): string {
   `;
 }
 
-function expenseList(trip: Trip): string {
+function expenseList(state: AppState, trip: Trip): string {
   if (trip.expenses.length === 0) {
     if (needsMembersBeforeFirstExpense(trip)) {
       return `
@@ -403,22 +435,61 @@ function expenseList(trip: Trip): string {
                 </div>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="刪除 ${htmlEscape(expense.description)}">刪除</button>
               </div>
-              <details class="expense-actions">
-                <summary>更多操作</summary>
-                <div class="row">
-                  <button class="secondary" data-edit-expense-date-id="${htmlEscape(expense.id)}" data-expense-date="${htmlEscape(expense.expenseDate)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 日期">改日期</button>
-                  <button class="secondary" data-edit-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 描述">改描述</button>
-                  <button class="secondary" data-edit-expense-amount-id="${htmlEscape(expense.id)}" data-expense-amount="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 金額">改金額</button>
-                  <button class="secondary" data-edit-expense-currency-id="${htmlEscape(expense.id)}" data-expense-currency="${expense.currency}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 貨幣">改貨幣</button>
-                  <button class="secondary" data-edit-expense-payer-id="${htmlEscape(expense.id)}" data-expense-paid-by-id="${htmlEscape(expense.paidById)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 付款人">改付款人</button>
-                  <button class="secondary" data-edit-expense-split-id="${htmlEscape(expense.id)}" type="button" aria-label="修改 ${htmlEscape(expense.description)} 分帳參與者">改分帳</button>
-                </div>
-              </details>
+              ${expenseEditForm(state, trip, expense)}
             </li>
           `,
         )
         .join("")}
     </ul>
+  `;
+}
+
+function expenseEditForm(
+  state: AppState,
+  trip: Trip,
+  expense: Expense,
+): string {
+  const errorTarget = `expense-edit-${expense.id}`;
+  const hasError = state.formErrorTarget === errorTarget && !!state.formError;
+  const splitIds = new Set(expense.participantIds);
+
+  return `
+    <details class="expense-actions"${hasError ? " open" : ""}>
+      <summary>編輯</summary>
+      <form class="expense-edit-form" data-edit-expense-form="${htmlEscape(expense.id)}" data-form-error-target="${htmlEscape(errorTarget)}" novalidate${formErrorAttributes(state, errorTarget)}>
+        ${formErrorHtml(state, errorTarget)}
+        <div class="grid">
+          <label>描述<input name="description" required maxlength="120" value="${htmlEscape(expense.description)}" /></label>
+          <label>日期<input name="expenseDate" type="date" required value="${htmlEscape(expense.expenseDate)}" /></label>
+          <label>金額<input name="amount" inputmode="decimal" required value="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" /></label>
+          <label>貨幣${currencySelect("currency", expense.currency)}</label>
+          <label>付款人
+            <select name="paidById" required>
+              ${trip.participants.map((person) => `<option value="${htmlEscape(person.id)}" ${person.id === expense.paidById ? "selected" : ""}>${htmlEscape(person.name)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+        <fieldset class="split-fieldset">
+          <legend>分帳參與者</legend>
+          <div class="checks">
+            ${trip.participants
+              .map(
+                (person) => `
+                  <label>
+                    <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${splitIds.has(person.id) ? "checked" : ""} />
+                    ${htmlEscape(person.name)}
+                  </label>
+                `,
+              )
+              .join("")}
+          </div>
+        </fieldset>
+        <div class="row form-actions">
+          <button type="submit">儲存</button>
+          <button class="secondary" data-cancel-expense-edit type="button">取消</button>
+        </div>
+      </form>
+    </details>
   `;
 }
 
