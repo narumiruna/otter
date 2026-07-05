@@ -1,32 +1,32 @@
 default:
-	@just --list
+    @just --list
 
 install:
-	npm install
+    npm install
 
 ci:
-	npm ci
+    npm ci
 
 up:
-	docker compose -f compose.yml up --build
+    docker compose -f compose.yml up -d --build
 
 dev command='':
-	@if [ '{{command}}' = 'up' ]; then docker compose -f compose.dev.yml up --build; else npm run dev; fi
+    @if [ '{{ command }}' = 'up' ]; then docker compose -f compose.dev.yml up -d --build; else npm run dev; fi
 
 build:
-	npm run build
+    npm run build
 
 start:
-	npm start
+    npm start
 
 typecheck:
-	npm run typecheck
+    npm run typecheck
 
 test:
-	npm test
+    npm test
 
 biome:
-	npm run biome:ci
+    npm run biome:ci
 
 check:
-	npm run check
+    npm run check
