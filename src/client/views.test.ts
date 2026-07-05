@@ -248,6 +248,9 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(settingsHtml.includes('id="export-expenses"'));
   assert.ok(settingsHtml.includes('id="archive-trip"'));
   assert.ok(settingsHtml.includes("封存支出群組"));
+  assert.ok(settingsHtml.includes('id="exchange-rates-form"'));
+  assert.ok(settingsHtml.includes('name="rate:USD"'));
+  assert.ok(settingsHtml.includes("套用於整趟旅行目前計算"));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
 });
 

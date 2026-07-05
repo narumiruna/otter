@@ -231,6 +231,44 @@ test("settlement payments reduce remaining balances", () => {
   );
 });
 
+test("uses trip exchange rates when present", () => {
+  const trip: Trip = {
+    baseCurrency: "TWD",
+    createdAt: "2026-06-25T00:00:00.000Z",
+    exchangeRates: { TWD: 1, USD: 30 },
+    expenses: [
+      {
+        amountMinor: 100_00,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "USD",
+        description: "Hotel",
+        expenseDate: "2026-06-24",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+    ],
+    id: "trip-1",
+    name: "Tokyo",
+    ownerId: "user-1",
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+    ],
+  };
+
+  assert.deepEqual(
+    calculateBalances(trip).map(({ participantId, amountMinor }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: 1500, participantId: "alice" },
+      { amountMinor: -1500, participantId: "bob" },
+    ],
+  );
+});
+
 test("splits multi-currency expenses and suggests settlements", () => {
   const trip: Trip = {
     baseCurrency: "TWD",

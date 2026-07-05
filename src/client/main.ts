@@ -432,6 +432,30 @@ function bindHandlers() {
     });
 
   document
+    .querySelector<HTMLFormElement>("#exchange-rates-form")
+    ?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const tripId = state.selected?.trip.id;
+      if (!tripId) {
+        return;
+      }
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      const exchangeRates = Object.fromEntries(
+        currencies.map((currency) => [
+          currency,
+          String(form.get(`rate:${currency}`) ?? ""),
+        ]),
+      );
+      void run(async () => {
+        state.selected = await api<TripPayload>(`/api/trips/${tripId}`, {
+          body: JSON.stringify({ exchangeRates }),
+          method: "PATCH",
+        });
+        setMessage("已更新匯率");
+      });
+    });
+
+  document
     .querySelector<HTMLButtonElement>("#delete-trip")
     ?.addEventListener("click", () => {
       const tripId = state.selected?.trip.id;
