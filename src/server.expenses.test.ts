@@ -524,6 +524,115 @@ test(
 );
 
 test(
+  "participant merge API rewrites used participants",
+  postgresTestOptions,
+  async (t) => {
+    const { baseUrl } = await withTestApp(t);
+    const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        email: `merge-${Date.now()}@example.com`,
+        name: "Alice",
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    const cookie = register.response.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+
+    const createdTrip = await api<TripPayload>(baseUrl, "/api/trips", {
+      body: JSON.stringify({ baseCurrency: "TWD", name: "Tokyo" }),
+      headers: { cookie },
+      method: "POST",
+    });
+    const owner = createdTrip.data.trip.participants[0];
+    assert.ok(owner);
+
+    const withBob = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants`,
+      {
+        body: JSON.stringify({ name: "Bob" }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    const bob = withBob.data.trip.participants.find(
+      ({ name }) => name === "Bob",
+    );
+    assert.ok(bob);
+    const withBobby = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants`,
+      {
+        body: JSON.stringify({ name: "Bobby" }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    const bobby = withBobby.data.trip.participants.find(
+      ({ name }) => name === "Bobby",
+    );
+    assert.ok(bobby);
+
+    const withExpense = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses`,
+      {
+        body: JSON.stringify({
+          amount: "100",
+          currency: "TWD",
+          description: "Dinner",
+          expenseDate: "2026-06-24",
+          paidById: bob.id,
+          participantIds: [owner.id, bob.id, bobby.id],
+          splitMode: "amount",
+          splitValues: { [owner.id]: "30", [bob.id]: "30", [bobby.id]: "40" },
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    const expense = withExpense.data.trip.expenses[0];
+    assert.ok(expense);
+
+    const invalidMerge = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: bob.id }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(invalidMerge.response.status, 400);
+
+    const merged = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: bobby.id }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(merged.response.status, 200);
+    assert.deepEqual(
+      merged.data.trip.participants.map(({ id }) => id),
+      [owner.id, bobby.id],
+    );
+    const mergedExpense = merged.data.trip.expenses.find(
+      ({ id }) => id === expense.id,
+    );
+    assert.equal(mergedExpense?.paidById, bobby.id);
+    assert.deepEqual(mergedExpense?.participantIds, [owner.id, bobby.id]);
+    assert.deepEqual(mergedExpense?.participantShares, [
+      { participantId: owner.id, shareMinor: 30 },
+      { participantId: bobby.id, shareMinor: 70 },
+    ]);
+  },
+);
+
+test(
   "settlement payment APIs adjust remaining settlements",
   postgresTestOptions,
   async (t) => {

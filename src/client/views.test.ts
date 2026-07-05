@@ -210,6 +210,9 @@ test("workspace tabs render task-focused panels", () => {
   const membersHtml = view("members");
   assert.ok(membersHtml.includes('data-workspace-panel="members"'));
   assert.ok(membersHtml.includes('id="participant-form"'));
+  assert.ok(membersHtml.includes('id="participant-merge-form"'));
+  assert.ok(membersHtml.includes('name="sourceParticipantId"'));
+  assert.ok(membersHtml.includes('name="targetParticipantId"'));
   assert.ok(membersHtml.includes('aria-label="重新命名 Alice"'));
   assert.ok(membersHtml.includes('aria-label="刪除 Charlie"'));
   assert.ok(
@@ -242,6 +245,9 @@ test("empty one-person groups guide users to add members", () => {
     overviewHtml,
     /<button[^>]*data-workspace-tab="add-expense"[^>]*>新增第一筆支出<\/button>/,
   );
+
+  const membersHtml = emptyOnePersonView("members");
+  assert.ok(!membersHtml.includes('id="participant-merge-form"'));
 
   const expensesHtml = emptyOnePersonView("expenses");
   assert.ok(expensesHtml.includes("還沒有支出"));
