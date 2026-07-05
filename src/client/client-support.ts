@@ -66,6 +66,8 @@ export type AppState = {
   activeTab: WorkspaceTab;
   message: string;
   error: string;
+  formError?: string;
+  formErrorTarget?: string;
   busy: boolean;
   devAdmin: DevAdmin | null;
 };
@@ -120,6 +122,25 @@ export function todayDate(): string {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+export function defaultExpenseFormValues(trip: Trip) {
+  return {
+    currency: trip.baseCurrency,
+    expenseDate: todayDate(),
+    paidById: trip.participants[0]?.id ?? "",
+    participantIds: trip.participants.map((participant) => participant.id),
+  };
+}
+
+export function expenseFormError(values: {
+  amount: string;
+  participantIds: readonly string[];
+}): string | null {
+  if (!values.amount.trim()) {
+    return "請輸入支出金額";
+  }
+  return splitSelectionError(values.participantIds);
 }
 
 export function safeFilename(value: string): string {

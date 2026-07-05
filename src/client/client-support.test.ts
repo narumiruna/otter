@@ -3,11 +3,14 @@ import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
 import {
   api,
+  defaultExpenseFormValues,
+  expenseFormError,
   expenseSplitLabel,
   participantDeleteBlockReason,
   splitCountLabel,
   splitSelectionError,
   splitShortcutChecked,
+  todayDate,
   workspaceTabForKey,
 } from "./client-support.js";
 
@@ -78,6 +81,39 @@ test("split count label formats selected and total counts", () => {
 test("split selection validation catches empty choices", () => {
   assert.equal(splitSelectionError([]), "請至少選擇一位分帳參與者");
   assert.equal(splitSelectionError(["alice"]), null);
+});
+
+test("expense form defaults use the trip context", () => {
+  assert.deepEqual(defaultExpenseFormValues(baseTrip), {
+    currency: "TWD",
+    expenseDate: todayDate(),
+    paidById: "alice",
+    participantIds: ["alice", "bob"],
+  });
+  assert.deepEqual(
+    defaultExpenseFormValues({ ...baseTrip, participants: [] }),
+    {
+      currency: "TWD",
+      expenseDate: todayDate(),
+      paidById: "",
+      participantIds: [],
+    },
+  );
+});
+
+test("expense form validation returns field-level messages", () => {
+  assert.equal(
+    expenseFormError({ amount: "", participantIds: ["alice"] }),
+    "請輸入支出金額",
+  );
+  assert.equal(
+    expenseFormError({ amount: "100", participantIds: [] }),
+    "請至少選擇一位分帳參與者",
+  );
+  assert.equal(
+    expenseFormError({ amount: "100", participantIds: ["alice"] }),
+    null,
+  );
 });
 
 test("split shortcut values map to checked states", () => {

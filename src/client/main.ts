@@ -1,15 +1,15 @@
 import "./styles.css";
 import { tripExpensesCsv, tripResultsCsv } from "../shared/csv.js";
-import { currencies, currencyInfo, isCurrency } from "../shared/money.js";
+import { currencies, currencyInfo } from "../shared/money.js";
 import {
   type AppState,
   api,
   type DevAdmin,
   downloadText,
+  expenseFormError,
   htmlEscape,
   safeFilename,
   splitCountLabel,
-  splitSelectionError,
   splitShortcutChecked,
   type TripPayload,
   type TripSummary,
@@ -25,6 +25,8 @@ const state: AppState = {
   busy: false,
   devAdmin: null,
   error: "",
+  formError: "",
+  formErrorTarget: "",
   message: "",
   selected: null,
   trips: [],
@@ -42,18 +44,29 @@ function setMessage(message: string, error = "") {
   state.error = error;
 }
 
-async function run(action: () => Promise<void>) {
+async function run(
+  action: () => Promise<void>,
+  options: { errorTarget?: string } = {},
+) {
   if (state.busy) {
     return;
   }
 
   try {
     state.busy = true;
+    state.formError = "";
+    state.formErrorTarget = "";
     setMessage("", "");
     render();
     await action();
   } catch (error) {
-    setMessage("", error instanceof Error ? error.message : "發生錯誤");
+    const message = error instanceof Error ? error.message : "發生錯誤";
+    if (options.errorTarget) {
+      state.formError = message;
+      state.formErrorTarget = options.errorTarget;
+    } else {
+      setMessage("", message);
+    }
   } finally {
     state.busy = false;
     render();
@@ -469,228 +482,87 @@ function bindHandlers() {
         ),
       ).map((input) => input.value);
 
-      void run(async () => {
-        const splitError = splitSelectionError(participantIds);
-        if (splitError) {
-          throw new Error(splitError);
-        }
-        state.selected = await api<TripPayload>(
-          `/api/trips/${tripId}/expenses`,
-          {
-            body: JSON.stringify({
-              amount: String(form.get("amount") ?? ""),
-              currency: String(form.get("currency") ?? "TWD"),
-              description: String(form.get("description") ?? ""),
-              expenseDate: String(form.get("expenseDate") ?? ""),
-              paidById: String(form.get("paidById") ?? ""),
-              participantIds,
-            }),
-            method: "POST",
-          },
-        );
-        await loadTrips();
-        setMessage("已記錄支出");
-      });
-    });
-
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-date-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpenseDateId;
-        const expenseDate = prompt(
-          "新的支出日期 (YYYY-MM-DD)",
-          button.dataset.expenseDate ?? "",
-        );
-        if (!tripId || !expenseId || expenseDate === null) {
-          return;
-        }
-
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            {
-              body: JSON.stringify({ expenseDate }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新支出日期");
-        });
-      });
-    });
-
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpenseId;
-        const description = prompt(
-          "新的支出描述",
-          button.dataset.expenseDescription ?? "",
-        );
-        if (!tripId || !expenseId || description === null) {
-          return;
-        }
-
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            {
-              body: JSON.stringify({ description }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新支出描述");
-        });
-      });
-    });
-
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-amount-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpenseAmountId;
-        const amount = prompt(
-          "新的支出金額",
-          button.dataset.expenseAmount ?? "",
-        );
-        if (!tripId || !expenseId || amount === null) {
-          return;
-        }
-
-        void run(async () => {
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            {
-              body: JSON.stringify({ amount }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新支出金額");
-        });
-      });
-    });
-
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-currency-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpenseCurrencyId;
-        const currentCurrency = button.dataset.expenseCurrency;
-        const currentIndex = isCurrency(currentCurrency)
-          ? currencies.indexOf(currentCurrency)
-          : 0;
-        const choice = prompt(
-          `新的貨幣編號：\n${currencies.map((currency, index) => `${index + 1}. ${currency} · ${currencyInfo[currency].label}`).join("\n")}`,
-          String(currentIndex + 1 || 1),
-        );
-        if (!tripId || !expenseId || choice === null) {
-          return;
-        }
-
-        void run(async () => {
-          const currency = currencies[Number(choice) - 1];
-          if (!currency) {
-            throw new Error("請輸入有效貨幣編號");
+      void run(
+        async () => {
+          const amount = String(form.get("amount") ?? "");
+          const formError = expenseFormError({ amount, participantIds });
+          if (formError) {
+            throw new Error(formError);
           }
           state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
+            `/api/trips/${tripId}/expenses`,
             {
-              body: JSON.stringify({ currency }),
-              method: "PATCH",
+              body: JSON.stringify({
+                amount,
+                currency: String(form.get("currency") ?? "TWD"),
+                description: String(form.get("description") ?? ""),
+                expenseDate: String(form.get("expenseDate") ?? ""),
+                paidById: String(form.get("paidById") ?? ""),
+                participantIds,
+              }),
+              method: "POST",
             },
           );
-          setMessage("已更新支出貨幣");
-        });
-      });
+          await loadTrips();
+          setMessage("已記錄支出");
+        },
+        { errorTarget: "expense-form" },
+      );
     });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-payer-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
+    .querySelectorAll<HTMLFormElement>("[data-edit-expense-form]")
+    .forEach((formElement) => {
+      formElement.addEventListener("submit", (event) => {
+        event.preventDefault();
         const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpensePayerId;
-        const participants = state.selected?.trip.participants ?? [];
-        const currentIndex = participants.findIndex(
-          (person) => person.id === button.dataset.expensePaidById,
-        );
-        const choice = prompt(
-          `新的付款人編號：\n${participants.map((person, index) => `${index + 1}. ${person.name}`).join("\n")}`,
-          String(currentIndex + 1 || 1),
-        );
-        if (!tripId || !expenseId || choice === null) {
+        const expenseId = formElement.dataset.editExpenseForm;
+        const errorTarget =
+          formElement.dataset.formErrorTarget ?? `expense-edit-${expenseId}`;
+        if (!tripId || !expenseId) {
           return;
         }
 
-        void run(async () => {
-          const payer = participants[Number(choice) - 1];
-          if (!payer) {
-            throw new Error("請輸入有效付款人編號");
-          }
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            {
-              body: JSON.stringify({ paidById: payer.id }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新付款人");
-        });
-      });
-    });
+        const form = new FormData(formElement);
+        const participantIds = Array.from(
+          formElement.querySelectorAll<HTMLInputElement>(
+            'input[name="participantIds"]:checked',
+          ),
+        ).map((input) => input.value);
 
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-edit-expense-split-id]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const tripId = state.selected?.trip.id;
-        const expenseId = button.dataset.editExpenseSplitId;
-        const participants = state.selected?.trip.participants ?? [];
-        const expense = state.selected?.trip.expenses.find(
-          (item) => item.id === expenseId,
-        );
-        const currentChoices =
-          expense?.participantIds
-            .map((id) => participants.findIndex((person) => person.id === id))
-            .filter((index) => index >= 0)
-            .map((index) => String(index + 1))
-            .join(",") ?? "";
-        const choice = prompt(
-          `新的分帳參與者編號（逗號分隔）：\n${participants.map((person, index) => `${index + 1}. ${person.name}`).join("\n")}`,
-          currentChoices,
-        );
-        if (!tripId || !expenseId || choice === null) {
-          return;
-        }
-
-        void run(async () => {
-          const participantIds: string[] = [];
-          for (const text of new Set(
-            choice.split(/[\s,，]+/).filter(Boolean),
-          )) {
-            const participant = participants[Number(text) - 1];
-            if (!participant) {
-              throw new Error("請輸入有效分帳參與者編號");
+        void run(
+          async () => {
+            const amount = String(form.get("amount") ?? "");
+            const formError = expenseFormError({ amount, participantIds });
+            if (formError) {
+              throw new Error(formError);
             }
-            participantIds.push(participant.id);
-          }
-          if (participantIds.length === 0) {
-            throw new Error("請至少選擇一位分帳參與者");
-          }
-          state.selected = await api<TripPayload>(
-            `/api/trips/${tripId}/expenses/${expenseId}`,
-            {
-              body: JSON.stringify({ participantIds }),
-              method: "PATCH",
-            },
-          );
-          setMessage("已更新分帳參與者");
-        });
+            state.selected = await api<TripPayload>(
+              `/api/trips/${tripId}/expenses/${expenseId}`,
+              {
+                body: JSON.stringify({
+                  amount,
+                  currency: String(form.get("currency") ?? "TWD"),
+                  description: String(form.get("description") ?? ""),
+                  expenseDate: String(form.get("expenseDate") ?? ""),
+                  paidById: String(form.get("paidById") ?? ""),
+                  participantIds,
+                }),
+                method: "PATCH",
+              },
+            );
+            setMessage("已更新支出");
+          },
+          { errorTarget },
+        );
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-cancel-expense-edit]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        button.closest("details")?.removeAttribute("open");
       });
     });
 

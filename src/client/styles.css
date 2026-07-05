@@ -492,6 +492,16 @@ summary:hover {
   color: #991b1b;
 }
 
+.form-error {
+  border: 1px solid #fecaca;
+  border-radius: 0.85rem;
+  margin: 0;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 800;
+  padding: 0.65rem 0.75rem;
+}
+
 .summary-section {
   display: grid;
   gap: 0.65rem;
