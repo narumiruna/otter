@@ -57,7 +57,9 @@ async function run(
     state.formError = "";
     state.formErrorTarget = "";
     setMessage("", "");
-    render();
+    if (!options.errorTarget) {
+      render();
+    }
     await action();
   } catch (error) {
     const message = error instanceof Error ? error.message : "發生錯誤";
@@ -562,7 +564,20 @@ function bindHandlers() {
     .querySelectorAll<HTMLButtonElement>("[data-cancel-expense-edit]")
     .forEach((button) => {
       button.addEventListener("click", () => {
-        button.closest("details")?.removeAttribute("open");
+        const details = button.closest("details");
+        if (!details) {
+          return;
+        }
+        details.removeAttribute("open");
+        const form = details.querySelector<HTMLFormElement>("form");
+        if (form) {
+          form.reset();
+          const errorTarget = form.dataset.formErrorTarget;
+          if (errorTarget && state.formErrorTarget === errorTarget) {
+            state.formError = "";
+            state.formErrorTarget = "";
+          }
+        }
       });
     });
 
