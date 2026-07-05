@@ -1,3 +1,5 @@
+dev_database_url := 'postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev'
+
 default:
     @just --list
 
@@ -10,8 +12,14 @@ ci:
 up:
     docker compose -f compose.yml up -d --build
 
-dev command='':
-    @if [ '{{ command }}' = 'up' ]; then docker compose -f compose.dev.yml up -d --build; else npm run dev; fi
+dev command='local':
+    @if [ '{{ command }}' = 'up' ]; then \
+        docker compose -f compose.dev.yml up -d --build; \
+    else \
+        docker compose -f compose.dev.yml up -d --wait postgres && \
+        DATABASE_URL="${DATABASE_URL:-{{ dev_database_url }}}" npm run migrate && \
+        DATABASE_URL="${DATABASE_URL:-{{ dev_database_url }}}" npm run dev; \
+    fi
 
 build:
     npm run build
