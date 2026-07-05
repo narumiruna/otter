@@ -162,6 +162,75 @@ test("keeps explicit multi-currency shares balanced after rounding", () => {
   );
 });
 
+test("settlement payments reduce remaining balances", () => {
+  const trip: Trip = {
+    baseCurrency: "TWD",
+    createdAt: "2026-06-25T00:00:00.000Z",
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-06-24",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+    ],
+    id: "trip-1",
+    name: "Tokyo",
+    ownerId: "user-1",
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+    ],
+    settlementPayments: [
+      {
+        amountMinor: 20,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "TWD",
+        fromId: "bob",
+        id: "payment-1",
+        note: "partial",
+        paidAt: "2026-06-25",
+        toId: "alice",
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    calculateBalances(trip).map(({ participantId, amountMinor }) => ({
+      amountMinor,
+      participantId,
+    })),
+    [
+      { amountMinor: 30, participantId: "alice" },
+      { amountMinor: -30, participantId: "bob" },
+    ],
+  );
+
+  assert.deepEqual(
+    calculateSettlements({
+      ...trip,
+      settlementPayments: [
+        ...(trip.settlementPayments ?? []),
+        {
+          amountMinor: 30,
+          createdAt: "2026-06-25T00:00:00.000Z",
+          currency: "TWD",
+          fromId: "bob",
+          id: "payment-2",
+          note: "rest",
+          paidAt: "2026-06-26",
+          toId: "alice",
+        },
+      ],
+    }),
+    [],
+  );
+});
+
 test("splits multi-currency expenses and suggests settlements", () => {
   const trip: Trip = {
     baseCurrency: "TWD",

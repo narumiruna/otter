@@ -41,6 +41,18 @@ const trip: Trip = {
     { id: "participant_bob", name: "Bob" },
     { id: "participant_charlie", name: "Charlie" },
   ],
+  settlementPayments: [
+    {
+      amountMinor: 100,
+      createdAt: "2026-06-26T00:00:00.000Z",
+      currency: "TWD",
+      fromId: "participant_bob",
+      id: "payment_1",
+      note: "cash",
+      paidAt: "2026-06-26",
+      toId: "participant_alice",
+    },
+  ],
 };
 
 const baseState: AppState = {
@@ -165,6 +177,11 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.match(html, /data-workspace-tab="expenses"[^>]+tabindex="-1"/);
   assert.ok(html.includes('data-workspace-panel="overview"'));
   assert.ok(html.includes("最近支出"));
+  assert.ok(html.includes("標記已付款"));
+  assert.ok(html.includes('class="settlement-summary"'));
+  assert.ok(html.includes('name="paidAt" type="date"'));
+  assert.ok(html.includes("付款紀錄"));
+  assert.ok(html.includes('data-delete-settlement-payment-id="payment_1"'));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
 });
 

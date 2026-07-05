@@ -23,6 +23,17 @@ export type Expense = {
   createdAt: string;
 };
 
+export type SettlementPayment = {
+  id: string;
+  fromId: string;
+  toId: string;
+  amountMinor: number;
+  currency: Currency;
+  paidAt: string;
+  note: string;
+  createdAt: string;
+};
+
 export type Trip = {
   id: string;
   ownerId: string;
@@ -30,6 +41,7 @@ export type Trip = {
   baseCurrency: Currency;
   participants: Participant[];
   expenses: Expense[];
+  settlementPayments?: SettlementPayment[];
   createdAt: string;
 };
 
@@ -122,6 +134,19 @@ export function calculateBalances(trip: Trip): Balance[] {
         (balances.get(participantId) ?? 0) - share - extra,
       );
     }
+  }
+
+  for (const payment of trip.settlementPayments ?? []) {
+    if (!balances.has(payment.fromId) || !balances.has(payment.toId)) {
+      continue;
+    }
+    const amount = convertMinor(
+      payment.amountMinor,
+      payment.currency,
+      trip.baseCurrency,
+    );
+    balances.set(payment.fromId, (balances.get(payment.fromId) ?? 0) + amount);
+    balances.set(payment.toId, (balances.get(payment.toId) ?? 0) - amount);
   }
 
   return trip.participants.map((participant) => ({
