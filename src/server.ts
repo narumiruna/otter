@@ -518,6 +518,12 @@ export function createApp(pool: PgPool): express.Express {
           [trip.id, sourceId, targetId],
         );
         await client.query(
+          `DELETE FROM settlement_payments
+           WHERE trip_id = $1
+             AND ((from_id = $2 AND to_id = $3) OR (from_id = $3 AND to_id = $2))`,
+          [trip.id, sourceId, targetId],
+        );
+        await client.query(
           "UPDATE settlement_payments SET from_id = $3 WHERE trip_id = $1 AND from_id = $2",
           [trip.id, sourceId, targetId],
         );
