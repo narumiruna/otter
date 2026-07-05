@@ -31,6 +31,30 @@ export type Session = {
   expiresAt: string;
 };
 
+export type TripRole = "owner" | "editor";
+
+export type TripCollaborator = {
+  userId: string;
+  name: string;
+  email: string;
+  role: TripRole;
+  createdAt: string;
+};
+
+export type TripShareLink = {
+  id: string;
+  createdAt: string;
+  revokedAt: string | null;
+  expiresAt: string | null;
+  url?: string;
+};
+
+export type LoadedTrip = Trip & {
+  currentUserRole?: TripRole;
+  collaborators?: TripCollaborator[];
+  shareLinks?: TripShareLink[];
+};
+
 type Queryable = {
   query<Row extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -59,6 +83,7 @@ type TripRow = {
   base_currency: string;
   archived_at: Date | string | null;
   created_at: Date | string;
+  current_user_role?: TripRole;
 };
 
 type ParticipantRow = {
@@ -98,6 +123,26 @@ type SettlementPaymentRow = {
 type ExchangeRateRow = {
   currency: string;
   rate_to_base: string | number;
+};
+
+type ReceiptAttachmentRow = {
+  id: string;
+  expense_id: string;
+};
+
+type TripMemberRow = {
+  user_id: string;
+  name: string;
+  email: string;
+  role: TripRole;
+  created_at: Date | string;
+};
+
+type TripShareLinkRow = {
+  id: string;
+  created_at: Date | string;
+  revoked_at: Date | string | null;
+  expires_at: Date | string | null;
 };
 
 export const isProduction = process.env.NODE_ENV === "production";
@@ -230,11 +275,15 @@ export function clearSessionCookie(res: Response) {
   res.setHeader("Set-Cookie", clearSessionCookieHeader());
 }
 
-export function tripPayload(trip: Trip) {
+export function tripPayload(trip: LoadedTrip) {
+  const { collaborators, currentUserRole, shareLinks, ...plainTrip } = trip;
   return {
-    balances: calculateBalances(trip),
-    settlements: calculateSettlements(trip),
-    trip,
+    balances: calculateBalances(plainTrip),
+    settlements: calculateSettlements(plainTrip),
+    trip: plainTrip,
+    ...(currentUserRole ? { currentUserRole } : {}),
+    ...(collaborators ? { collaborators } : {}),
+    ...(shareLinks ? { shareLinks } : {}),
   };
 }
 
@@ -460,6 +509,13 @@ async function ensureDevTokyoTrip(db: Queryable, ownerId: string) {
   );
 
   await db.query(
+    `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
+     VALUES ($1, $2, $3, 'owner', $4)
+     ON CONFLICT (trip_id, user_id) DO NOTHING`,
+    ["member_dev_tokyo_owner", tripId, ownerId, "2026-06-25T00:00:00.000Z"],
+  );
+
+  await db.query(
     `INSERT INTO participants (id, trip_id, name, created_at)
      VALUES ($1, $2, $3, $4),
             ($5, $2, $6, $7),
@@ -539,6 +595,13 @@ async function ensureDevOsakaTrip(db: Queryable, ownerId: string) {
   );
 
   await db.query(
+    `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
+     VALUES ($1, $2, $3, 'owner', $4)
+     ON CONFLICT (trip_id, user_id) DO NOTHING`,
+    ["member_dev_osaka_owner", tripId, ownerId, "2026-06-26T00:00:00.000Z"],
+  );
+
+  await db.query(
     `INSERT INTO participants (id, trip_id, name, created_at)
      VALUES ($1, $2, $3, $4)`,
     [
@@ -607,13 +670,37 @@ export async function loadTripForUser(
   db: Queryable,
   userId: string,
   tripId: string,
-): Promise<Trip | undefined> {
-  const tripResult = await db.query<TripRow>(
-    `SELECT id, owner_id, name, base_currency, archived_at, created_at
-     FROM trips
-     WHERE id = $1 AND owner_id = $2`,
-    [tripId, userId],
-  );
+): Promise<LoadedTrip | undefined> {
+  return loadTrip(db, tripId, userId);
+}
+
+export async function loadTripById(
+  db: Queryable,
+  tripId: string,
+): Promise<LoadedTrip | undefined> {
+  return loadTrip(db, tripId);
+}
+
+async function loadTrip(
+  db: Queryable,
+  tripId: string,
+  userId?: string,
+): Promise<LoadedTrip | undefined> {
+  const tripResult = userId
+    ? await db.query<TripRow>(
+        `SELECT trips.id, trips.owner_id, trips.name, trips.base_currency, trips.archived_at, trips.created_at,
+                trip_members.role AS current_user_role
+         FROM trips
+         JOIN trip_members ON trip_members.trip_id = trips.id
+         WHERE trips.id = $1 AND trip_members.user_id = $2`,
+        [tripId, userId],
+      )
+    : await db.query<TripRow>(
+        `SELECT id, owner_id, name, base_currency, archived_at, created_at
+         FROM trips
+         WHERE id = $1`,
+        [tripId],
+      );
   const tripRow = tripResult.rows[0];
   if (!tripRow) {
     return undefined;
@@ -625,6 +712,9 @@ export async function loadTripForUser(
     splitsResult,
     settlementPaymentsResult,
     exchangeRatesResult,
+    receiptAttachmentsResult,
+    tripMembersResult,
+    shareLinksResult,
   ] = await Promise.all([
     db.query<ParticipantRow>(
       `SELECT id, name
@@ -660,6 +750,33 @@ export async function loadTripForUser(
        WHERE trip_id = $1`,
       [tripId],
     ),
+    db.query<ReceiptAttachmentRow>(
+      `SELECT id, expense_id
+       FROM receipt_attachments
+       WHERE trip_id = $1`,
+      [tripId],
+    ),
+    userId
+      ? db.query<TripMemberRow>(
+          `SELECT users.id AS user_id, users.name, users.email, trip_members.role, trip_members.created_at
+           FROM trip_members
+           JOIN users ON users.id = trip_members.user_id
+           WHERE trip_members.trip_id = $1
+           ORDER BY CASE trip_members.role WHEN 'owner' THEN 0 ELSE 1 END, trip_members.created_at`,
+          [tripId],
+        )
+      : Promise.resolve({ rows: [] } as unknown as QueryResult<TripMemberRow>),
+    tripRow.current_user_role === "owner"
+      ? db.query<TripShareLinkRow>(
+          `SELECT id, created_at, revoked_at, expires_at
+           FROM trip_share_links
+           WHERE trip_id = $1
+           ORDER BY created_at DESC, id`,
+          [tripId],
+        )
+      : Promise.resolve({
+          rows: [],
+        } as unknown as QueryResult<TripShareLinkRow>),
   ]);
 
   const splitsByExpense = new Map<
@@ -678,6 +795,9 @@ export async function loadTripForUser(
     splitsByExpense.set(split.expense_id, splits);
   }
 
+  const receiptByExpense = new Map(
+    receiptAttachmentsResult.rows.map((row) => [row.expense_id, row.id]),
+  );
   const exchangeRates: Partial<Record<Currency, number>> = Object.fromEntries(
     exchangeRatesResult.rows.map((row) => [
       currencyFromDb(row.currency),
@@ -690,7 +810,17 @@ export async function loadTripForUser(
 
   return {
     ...rowToTrip(tripRow),
+    ...(tripRow.current_user_role
+      ? { currentUserRole: tripRow.current_user_role }
+      : {}),
     ...(exchangeRatesResult.rows.length > 0 ? { exchangeRates } : {}),
+    collaborators: tripMembersResult.rows.map((row) => ({
+      createdAt: iso(row.created_at),
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      userId: row.user_id,
+    })),
     expenses: expensesResult.rows.map((row) => {
       const splits = splitsByExpense.get(row.id) ?? [];
       const participantShares = splits
@@ -699,6 +829,7 @@ export async function loadTripForUser(
           participantId: split.participantId,
           shareMinor: split.shareMinor ?? 0,
         }));
+      const receiptId = receiptByExpense.get(row.id);
       return {
         amountMinor: Number(row.amount_minor),
         category: isExpenseCategory(row.category) ? row.category : "其他",
@@ -711,6 +842,12 @@ export async function loadTripForUser(
         paidById: row.paid_by_id,
         participantIds: splits.map((split) => split.participantId),
         ...(participantShares.length > 0 ? { participantShares } : {}),
+        ...(receiptId
+          ? {
+              receiptId,
+              receiptUrl: `/api/trips/${encodeURIComponent(tripId)}/expenses/${encodeURIComponent(row.id)}/receipt`,
+            }
+          : {}),
       };
     }),
     participants: participantsResult.rows.map((row) => ({
@@ -726,6 +863,12 @@ export async function loadTripForUser(
       note: row.note,
       paidAt: dateOnly(row.paid_at),
       toId: row.to_id,
+    })),
+    shareLinks: shareLinksResult.rows.map((row) => ({
+      createdAt: iso(row.created_at),
+      expiresAt: row.expires_at ? iso(row.expires_at) : null,
+      id: row.id,
+      revokedAt: row.revoked_at ? iso(row.revoked_at) : null,
     })),
   };
 }

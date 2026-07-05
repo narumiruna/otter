@@ -16,10 +16,32 @@ export type TripSummary = {
   expenseCount: number;
 };
 
+export type TripRole = "owner" | "editor";
+
+export type TripCollaborator = {
+  userId: string;
+  name: string;
+  email: string;
+  role: TripRole;
+  createdAt: string;
+};
+
+export type TripShareLink = {
+  id: string;
+  createdAt: string;
+  revokedAt: string | null;
+  expiresAt: string | null;
+  url?: string;
+};
+
 export type TripPayload = {
   trip: Trip;
   balances: Balance[];
   settlements: Settlement[];
+  currentUserRole?: TripRole;
+  collaborators?: TripCollaborator[];
+  shareLinks?: TripShareLink[];
+  readonly?: boolean;
 };
 
 export const workspaceTabs = [
@@ -107,12 +129,15 @@ export type AppState = {
   selected: TripPayload | null;
   activeTab: WorkspaceTab;
   expenseFilters: ExpenseFilters;
+  csvImportErrors: string[];
   message: string;
   error: string;
   formError?: string;
   formErrorTarget?: string;
   busy: boolean;
   devAdmin: DevAdmin | null;
+  offline: boolean;
+  readonlyShare: boolean;
 };
 
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -392,10 +417,12 @@ export function participantDeleteBlockReason(
   return null;
 }
 
-export function downloadText(filename: string, text: string) {
-  const url = URL.createObjectURL(
-    new Blob([text], { type: "text/csv;charset=utf-8" }),
-  );
+export function downloadText(
+  filename: string,
+  text: string,
+  type = "text/csv;charset=utf-8",
+) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;

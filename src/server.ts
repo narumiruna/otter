@@ -6,9 +6,14 @@ import express, {
   type Response,
 } from "express";
 import type { Pool as PgPool } from "pg";
+import { registerBackupRoutes } from "./server-backup.js";
+import { registerCollaborationRoutes } from "./server-collaboration.js";
+import { registerCsvImportRoutes } from "./server-csv-import.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
+import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
+import { registerShareRoutes } from "./server-sharing.js";
 import {
   asyncHandler,
   clearSessionCookie,
@@ -89,6 +94,7 @@ export function createApp(pool: PgPool): express.Express {
   const app = express();
   const mustBeSignedIn = requireUser(pool);
 
+  registerBackupRoutes(app, pool, mustBeSignedIn);
   app.use(express.json({ limit: "1mb" }));
 
   app.get(
@@ -212,10 +218,11 @@ export function createApp(pool: PgPool): express.Express {
                 count(DISTINCT participants.id) AS participant_count,
                 count(DISTINCT expenses.id) AS expense_count
          FROM trips
+         JOIN trip_members ON trip_members.trip_id = trips.id
          LEFT JOIN participants ON participants.trip_id = trips.id
          LEFT JOIN expenses ON expenses.trip_id = trips.id
-         WHERE trips.owner_id = $1
-         GROUP BY trips.id
+         WHERE trip_members.user_id = $1
+         GROUP BY trips.id, trip_members.role
          ORDER BY trips.created_at, trips.id`,
         [user.id],
       );
@@ -281,6 +288,11 @@ export function createApp(pool: PgPool): express.Express {
           [trip.id, trip.ownerId, trip.name, trip.baseCurrency, trip.createdAt],
         );
         await client.query(
+          `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
+           VALUES ($1, $2, $3, 'owner', $4)`,
+          [makeId("member"), trip.id, user.id, createdAt],
+        );
+        await client.query(
           `INSERT INTO participants (id, trip_id, name, created_at)
            VALUES ($1, $2, $3, $4)`,
           [ownerParticipant.id, trip.id, ownerParticipant.name, createdAt],
@@ -317,6 +329,10 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (trip.currentUserRole !== "owner") {
+        sendError(res, 403, "只有擁有者可管理旅行設定");
         return;
       }
 
@@ -598,8 +614,12 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
+  registerCollaborationRoutes(app, pool, mustBeSignedIn);
+  registerCsvImportRoutes(app, pool, mustBeSignedIn);
   registerExpenseRoutes(app, pool, mustBeSignedIn);
+  registerReceiptRoutes(app, pool, mustBeSignedIn);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn);
+  registerShareRoutes(app, pool, mustBeSignedIn);
 
   app.use("/api", (_req, res) => {
     sendError(res, 404, "找不到 API");
