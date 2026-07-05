@@ -36,6 +36,7 @@ import {
   participantExists,
   participantNameExists,
   publicUser,
+  rejectArchivedTrip,
   requestBody,
   requireUser,
   type Session,
@@ -318,6 +319,10 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 400, "請提供要更新的旅行內容");
         return;
       }
+      if (trip.archivedAt && (hasName || hasBaseCurrency)) {
+        rejectArchivedTrip(res, trip);
+        return;
+      }
 
       const name = hasName ? stringField(body, "name") : trip.name;
       if (!name || name.length > 100) {
@@ -413,6 +418,9 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 404, "找不到旅行");
         return;
       }
+      if (rejectArchivedTrip(res, trip)) {
+        return;
+      }
 
       const name = stringField(requestBody(req), "name");
       if (!name || name.length > 80) {
@@ -445,6 +453,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -489,6 +500,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -541,6 +555,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -677,6 +694,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -889,6 +909,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 

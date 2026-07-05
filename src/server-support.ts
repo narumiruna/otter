@@ -243,6 +243,14 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
+export function rejectArchivedTrip(res: Response, trip: Trip): boolean {
+  if (!trip.archivedAt) {
+    return false;
+  }
+  sendError(res, 409, "支出群組已封存，請先還原");
+  return true;
+}
+
 export function participantNameExists(
   trip: Trip,
   name: string,
