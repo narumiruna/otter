@@ -330,10 +330,10 @@ function barChart(
       <ul class="chart-bars">
         ${rows
           .map((row) => {
-            const percent = Math.max(
-              4,
-              Math.round((row.amountMinor / max) * 100),
-            );
+            const percent =
+              row.amountMinor <= 0
+                ? 0
+                : Math.max(4, Math.round((row.amountMinor / max) * 100));
             return `
               <li>
                 <span class="chart-label">${htmlEscape(row.label)}</span>
