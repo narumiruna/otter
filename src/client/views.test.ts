@@ -15,6 +15,7 @@ const trip: Trip = {
   expenses: [
     {
       amountMinor: 1200,
+      category: "餐飲",
       createdAt: "2026-06-25T00:00:00.000Z",
       currency: "TWD",
       description: "Dinner & Drinks",
@@ -22,9 +23,11 @@ const trip: Trip = {
       id: "expense_1",
       paidById: "participant_alice",
       participantIds: ["participant_alice", "participant_bob"],
+      tags: ["dinner", "team"],
     },
     {
       amountMinor: 500,
+      category: "餐飲",
       createdAt: "2026-06-26T00:00:00.000Z",
       currency: "TWD",
       description: "Breakfast",
@@ -32,6 +35,7 @@ const trip: Trip = {
       id: "expense_2",
       paidById: "participant_bob",
       participantIds: ["participant_alice", "participant_bob"],
+      tags: ["breakfast"],
     },
   ],
   id: "trip_1",
@@ -215,6 +219,8 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes('id="expense-filters"'));
   assert.ok(expensesHtml.includes('name="query"'));
   assert.ok(expensesHtml.includes('name="paidById"'));
+  assert.ok(expensesHtml.includes('name="category"'));
+  assert.ok(expensesHtml.includes('name="tag"'));
   assert.ok(expensesHtml.includes("data-clear-expense-filters"));
   assert.ok(expensesHtml.includes("顯示 2 / 2 筆支出"));
   assert.ok(expensesHtml.includes('<details class="expense-actions">'));
@@ -227,6 +233,8 @@ test("workspace tabs render task-focused panels", () => {
   assert.ok(expensesHtml.includes('value="Dinner &amp; Drinks"'));
   assert.ok(expensesHtml.includes('name="participantIds"'));
   assert.ok(expensesHtml.includes('name="splitMode"'));
+  assert.ok(expensesHtml.includes('name="tags"'));
+  assert.ok(expensesHtml.includes("餐飲 · dinner、team"));
   assert.ok(expensesHtml.includes('value="amount"'));
   assert.ok(expensesHtml.includes('value="ratio"'));
   assert.ok(expensesHtml.includes('value="shares"'));
@@ -279,6 +287,30 @@ test("exchange-rates form is hidden for archived trips", () => {
     activeTab: "settings",
   });
   assert.ok(!settingsHtml.includes('id="exchange-rates-form"'));
+});
+
+test("expense metadata escapes tags", () => {
+  const expense = trip.expenses[0];
+  assert.ok(expense);
+  const selected = baseState.selected;
+  assert.ok(selected);
+  const unsafeTrip: Trip = {
+    ...trip,
+    expenses: [
+      {
+        ...expense,
+        tags: ["<svg/onload=alert(1)>"],
+      },
+    ],
+  };
+  const html = dashboardView({
+    ...baseState,
+    activeTab: "expenses",
+    selected: { ...selected, trip: unsafeTrip },
+  });
+
+  assert.ok(html.includes("&lt;svg/onload=alert(1)&gt;"));
+  assert.ok(!html.includes("<svg/onload=alert(1)>"));
 });
 
 test("empty one-person groups guide users to add members", () => {

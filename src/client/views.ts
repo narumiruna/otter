@@ -1,3 +1,4 @@
+import { expenseCategories } from "../shared/expense-metadata.js";
 import {
   type Currency,
   currencies,
@@ -419,6 +420,10 @@ function expenseForm(state: AppState, trip: Trip): string {
       ${formErrorHtml(state, errorTarget)}
       <label>描述<input name="description" required maxlength="120" placeholder="晚餐、飯店、車票" /></label>
       <div class="grid">
+        <label>分類${categorySelect("category")}</label>
+        <label>標籤<input name="tags" maxlength="249" placeholder="逗號分隔，例如 早餐,交通" /></label>
+      </div>
+      <div class="grid">
         <label>日期<input name="expenseDate" type="date" required value="${defaults.expenseDate}" /></label>
         <label>金額<input name="amount" inputmode="decimal" required placeholder="1000" /></label>
         <label>貨幣${currencySelect("currency", defaults.currency)}</label>
@@ -511,6 +516,8 @@ function expenseFiltersForm(state: AppState, trip: Trip): string {
         <label>付款人${participantSelect("paidById", trip, filters.paidById, "全部付款人")}</label>
         <label>分帳成員${participantSelect("participantId", trip, filters.participantId, "全部成員")}</label>
         <label>幣別${currencyFilterSelect(filters.currency)}</label>
+        <label>分類${categorySelect("category", filters.category, "全部分類")}</label>
+        <label>標籤<input name="tag" value="${htmlEscape(filters.tag)}" placeholder="標籤完全符合" /></label>
         <label>排序${expenseSortSelect(filters.sort)}</label>
       </div>
       <button class="secondary" data-clear-expense-filters type="button">清除篩選</button>
@@ -531,6 +538,24 @@ function participantSelect(
         .map(
           (person) =>
             `<option value="${htmlEscape(person.id)}" ${person.id === selected ? "selected" : ""}>${htmlEscape(person.name)}</option>`,
+        )
+        .join("")}
+    </select>
+  `;
+}
+
+function categorySelect(
+  name: string,
+  selected = "其他",
+  emptyLabel?: string,
+): string {
+  return `
+    <select name="${name}">
+      ${emptyLabel ? `<option value="">${emptyLabel}</option>` : ""}
+      ${expenseCategories
+        .map(
+          (category) =>
+            `<option value="${htmlEscape(category)}" ${category === selected ? "selected" : ""}>${htmlEscape(category)}</option>`,
         )
         .join("")}
     </select>
@@ -613,6 +638,7 @@ function expenseList(state: AppState, trip: Trip): string {
                 <div class="expense-summary">
                   <strong>${htmlEscape(expense.description)}</strong><br />
                   ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
+                  <span class="muted">${htmlEscape(expenseMetaLabel(expense))}</span><br />
                   <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
                 </div>
                 <button class="secondary" data-delete-expense-id="${htmlEscape(expense.id)}" data-expense-description="${htmlEscape(expense.description)}" type="button" aria-label="刪除 ${htmlEscape(expense.description)}">刪除</button>
@@ -624,6 +650,11 @@ function expenseList(state: AppState, trip: Trip): string {
         .join("")}
     </ul>
   `;
+}
+
+function expenseMetaLabel(expense: Expense): string {
+  const tags = expense.tags?.length ? ` · ${expense.tags.join("、")}` : "";
+  return `${expense.category ?? "其他"}${tags}`;
 }
 
 function expenseEditForm(
@@ -649,6 +680,8 @@ function expenseEditForm(
         ${formErrorHtml(state, errorTarget)}
         <div class="grid">
           <label>描述<input name="description" required maxlength="120" value="${htmlEscape(expense.description)}" /></label>
+          <label>分類${categorySelect("category", expense.category ?? "其他")}</label>
+          <label>標籤<input name="tags" maxlength="249" value="${htmlEscape((expense.tags ?? []).join(", "))}" /></label>
           <label>日期<input name="expenseDate" type="date" required value="${htmlEscape(expense.expenseDate)}" /></label>
           <label>金額<input name="amount" inputmode="decimal" required value="${htmlEscape(String(toMajor(expense.amountMinor, expense.currency)))}" /></label>
           <label>貨幣${currencySelect("currency", expense.currency)}</label>

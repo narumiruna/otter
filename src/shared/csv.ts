@@ -13,6 +13,8 @@ const expenseHeaders = [
   "amount",
   "currency",
   "paid_by",
+  "category",
+  "tags",
   "split_participants",
 ];
 const resultHeaders = [
@@ -35,6 +37,8 @@ export function tripExpensesCsv(trip: Trip): string {
     formatAmount(expense.amountMinor, expense.currency),
     expense.currency,
     participantById.get(expense.paidById) ?? "未知",
+    expense.category ?? "其他",
+    (expense.tags ?? []).join("|"),
     splitParticipantsCell(trip, expense),
   ]);
 

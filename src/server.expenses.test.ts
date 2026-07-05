@@ -126,7 +126,7 @@ test(
     assert.equal(invalidCreateSplit.response.status, 400);
     assert.equal(invalidCreateSplit.data.error, "分帳參與者必須是旅行參與者");
 
-    const withExpense = await api<TripPayload>(
+    const invalidTags = await api<{ error: string }>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses`,
       {
@@ -134,9 +134,30 @@ test(
           amount: "100",
           currency: "TWD",
           description: "Dinner",
+          paidById: owner.id,
+          participantIds: [owner.id, bob.id],
+          tags: "this-tag-is-way-too-long-for-now",
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(invalidTags.response.status, 400);
+    assert.equal(invalidTags.data.error, "標籤最多 24 字");
+
+    const withExpense = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/expenses`,
+      {
+        body: JSON.stringify({
+          amount: "100",
+          category: "餐飲",
+          currency: "TWD",
+          description: "Dinner",
           expenseDate: "2026-06-24",
           paidById: owner.id,
           participantIds: [owner.id, bob.id],
+          tags: "food, dinner, food",
         }),
         headers: { cookie },
         method: "POST",
@@ -145,6 +166,11 @@ test(
     assert.equal(withExpense.response.status, 201);
     assert.equal(withExpense.data.trip.expenses.length, 1);
     assert.equal(withExpense.data.trip.expenses[0]?.expenseDate, "2026-06-24");
+    assert.equal(withExpense.data.trip.expenses[0]?.category, "餐飲");
+    assert.deepEqual(withExpense.data.trip.expenses[0]?.tags, [
+      "food",
+      "dinner",
+    ]);
     const expense = withExpense.data.trip.expenses[0];
     assert.ok(expense);
 
@@ -207,13 +233,22 @@ test(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
-        body: JSON.stringify({ description: "Supper" }),
+        body: JSON.stringify({
+          category: "交通",
+          description: "Supper",
+          tags: ["late", "taxi"],
+        }),
         headers: { cookie },
         method: "PATCH",
       },
     );
     assert.equal(renamedExpense.response.status, 200);
     assert.equal(renamedExpense.data.trip.expenses[0]?.description, "Supper");
+    assert.equal(renamedExpense.data.trip.expenses[0]?.category, "交通");
+    assert.deepEqual(renamedExpense.data.trip.expenses[0]?.tags, [
+      "late",
+      "taxi",
+    ]);
 
     const forbiddenExpenseRename = await api<{ error: string }>(
       baseUrl,
