@@ -82,8 +82,19 @@ const baseState: AppState = {
     ],
     trip,
   },
+  archivedTrips: [
+    {
+      archivedAt: "2026-06-27T00:00:00.000Z",
+      baseCurrency: "EUR",
+      expenseCount: 3,
+      id: "trip_archived",
+      name: "Archived Trip",
+      participantCount: 2,
+    },
+  ],
   trips: [
     {
+      archivedAt: null,
       baseCurrency: "TWD",
       expenseCount: 2,
       id: "trip_1",
@@ -91,6 +102,7 @@ const baseState: AppState = {
       participantCount: 3,
     },
     {
+      archivedAt: null,
       baseCurrency: "USD",
       expenseCount: 0,
       id: "trip_2",
@@ -132,8 +144,10 @@ function emptyTripView(activeTab: WorkspaceTab, selectedTrip: Trip): string {
       settlements: [],
       trip: selectedTrip,
     },
+    archivedTrips: [],
     trips: [
       {
+        archivedAt: null,
         baseCurrency: "TWD",
         expenseCount: 0,
         id: "trip_1",
@@ -170,6 +184,8 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.ok(html.includes('data-workspace-tab="expenses"'));
   assert.ok(html.includes('data-workspace-tab="members"'));
   assert.ok(html.includes('data-workspace-tab="settings"'));
+  assert.ok(html.includes("已封存支出群組"));
+  assert.ok(html.includes("Archived Trip"));
   assert.match(
     html,
     /data-workspace-tab="overview"[^>]+aria-selected="true"[^>]+tabindex="0"/,
@@ -230,6 +246,8 @@ test("workspace tabs render task-focused panels", () => {
   const settingsHtml = view("settings");
   assert.ok(settingsHtml.includes('data-workspace-panel="settings"'));
   assert.ok(settingsHtml.includes('id="export-expenses"'));
+  assert.ok(settingsHtml.includes('id="archive-trip"'));
+  assert.ok(settingsHtml.includes("封存支出群組"));
   assert.ok(settingsHtml.includes('id="delete-trip"'));
 });
 

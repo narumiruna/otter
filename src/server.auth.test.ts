@@ -140,6 +140,93 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
   assert.equal(rebasedTrip.data.trip.name, "Kyoto");
   assert.equal(rebasedTrip.data.trip.baseCurrency, "USD");
 
+  const archivedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ archived: true }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(archivedTrip.response.status, 200);
+  assert.ok(archivedTrip.data.trip.archivedAt);
+
+  const archivedTrips = await api<TripsResponse>(baseUrl, "/api/trips", {
+    headers: { cookie },
+  });
+  assert.equal(
+    archivedTrips.data.trips.some(({ id }) => id === createdTrip.data.trip.id),
+    false,
+  );
+  assert.equal(
+    archivedTrips.data.archivedTrips.some(
+      ({ id }) => id === createdTrip.data.trip.id,
+    ),
+    true,
+  );
+
+  const loadedArchivedTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    { headers: { cookie } },
+  );
+  assert.ok(loadedArchivedTrip.data.trip.archivedAt);
+
+  const archivedRename = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ name: "Archived Kyoto" }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(archivedRename.response.status, 409);
+  assert.equal(archivedRename.data.error, "支出群組已封存，請先還原");
+
+  const archivedParticipantAdd = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/participants`,
+    {
+      body: JSON.stringify({ name: "Bob" }),
+      headers: { cookie },
+      method: "POST",
+    },
+  );
+  assert.equal(archivedParticipantAdd.response.status, 409);
+
+  const owner = createdTrip.data.trip.participants[0];
+  assert.ok(owner);
+  const archivedExpenseAdd = await api<{ error: string }>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}/expenses`,
+    {
+      body: JSON.stringify({
+        amount: "100",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-06-24",
+        paidById: owner.id,
+        participantIds: [owner.id],
+      }),
+      headers: { cookie },
+      method: "POST",
+    },
+  );
+  assert.equal(archivedExpenseAdd.response.status, 409);
+
+  const restoredTrip = await api<TripPayload>(
+    baseUrl,
+    `/api/trips/${createdTrip.data.trip.id}`,
+    {
+      body: JSON.stringify({ archived: false }),
+      headers: { cookie },
+      method: "PATCH",
+    },
+  );
+  assert.equal(restoredTrip.data.trip.archivedAt, null);
+
   const invalidBaseCurrency = await api<{ error: string }>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,

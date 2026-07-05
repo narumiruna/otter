@@ -61,6 +61,7 @@ type TripRow = {
   owner_id: string;
   name: string;
   base_currency: string;
+  archived_at: Date | string | null;
   created_at: Date | string;
 };
 
@@ -242,6 +243,14 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
+export function rejectArchivedTrip(res: Response, trip: Trip): boolean {
+  if (!trip.archivedAt) {
+    return false;
+  }
+  sendError(res, 409, "支出群組已封存，請先還原");
+  return true;
+}
+
 export function participantNameExists(
   trip: Trip,
   name: string,
@@ -321,8 +330,11 @@ function rowToUser(row: UserRow): User {
   };
 }
 
-function rowToTrip(row: TripRow): Omit<Trip, "expenses" | "participants"> {
+function rowToTrip(
+  row: TripRow,
+): Omit<Trip, "expenses" | "participants" | "settlementPayments"> {
   return {
+    archivedAt: row.archived_at ? iso(row.archived_at) : null,
     baseCurrency: currencyFromDb(row.base_currency),
     createdAt: iso(row.created_at),
     id: row.id,
@@ -592,7 +604,7 @@ export async function loadTripForUser(
   tripId: string,
 ): Promise<Trip | undefined> {
   const tripResult = await db.query<TripRow>(
-    `SELECT id, owner_id, name, base_currency, created_at
+    `SELECT id, owner_id, name, base_currency, archived_at, created_at
      FROM trips
      WHERE id = $1 AND owner_id = $2`,
     [tripId, userId],

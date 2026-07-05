@@ -8,6 +8,7 @@ import {
   makeId,
   nowIso,
   participantExists,
+  rejectArchivedTrip,
   requestBody,
   sendError,
   stringField,
@@ -29,6 +30,9 @@ export function registerSettlementPaymentRoutes(
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -111,6 +115,9 @@ export function registerSettlementPaymentRoutes(
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 

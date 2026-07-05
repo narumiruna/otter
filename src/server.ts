@@ -6,6 +6,7 @@ import express, {
   type Response,
 } from "express";
 import type { Pool as PgPool } from "pg";
+import { registerParticipantMergeRoute } from "./server-participant-merge.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import {
   type ParticipantShare,
@@ -35,6 +36,7 @@ import {
   participantExists,
   participantNameExists,
   publicUser,
+  rejectArchivedTrip,
   requestBody,
   requireUser,
   type Session,
@@ -63,6 +65,7 @@ type TripSummaryRow = {
   id: string;
   name: string;
   base_currency: string;
+  archived_at: Date | string | null;
   created_at: Date | string;
   participant_count: string | number;
   expense_count: string | number;
@@ -195,6 +198,7 @@ export function createApp(pool: PgPool): express.Express {
         `SELECT trips.id,
                 trips.name,
                 trips.base_currency,
+                trips.archived_at,
                 trips.created_at,
                 count(DISTINCT participants.id) AS participant_count,
                 count(DISTINCT expenses.id) AS expense_count
@@ -207,15 +211,18 @@ export function createApp(pool: PgPool): express.Express {
         [user.id],
       );
 
+      const trips = result.rows.map((row) => ({
+        archivedAt: row.archived_at ? iso(row.archived_at) : null,
+        baseCurrency: currencyFromDb(row.base_currency),
+        createdAt: iso(row.created_at),
+        expenseCount: Number(row.expense_count),
+        id: row.id,
+        name: row.name,
+        participantCount: Number(row.participant_count),
+      }));
       res.json({
-        trips: result.rows.map((row) => ({
-          baseCurrency: currencyFromDb(row.base_currency),
-          createdAt: iso(row.created_at),
-          expenseCount: Number(row.expense_count),
-          id: row.id,
-          name: row.name,
-          participantCount: Number(row.participant_count),
-        })),
+        archivedTrips: trips.filter((trip) => trip.archivedAt),
+        trips: trips.filter((trip) => !trip.archivedAt),
       });
     }),
   );
@@ -307,8 +314,13 @@ export function createApp(pool: PgPool): express.Express {
       const body = requestBody(req);
       const hasName = "name" in body;
       const hasBaseCurrency = "baseCurrency" in body;
-      if (!hasName && !hasBaseCurrency) {
+      const hasArchived = "archived" in body;
+      if (!hasName && !hasBaseCurrency && !hasArchived) {
         sendError(res, 400, "請提供要更新的旅行內容");
+        return;
+      }
+      if (trip.archivedAt && (hasName || hasBaseCurrency)) {
+        rejectArchivedTrip(res, trip);
         return;
       }
 
@@ -330,10 +342,22 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      await pool.query(
-        "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
-        [name, baseCurrencyValue, req.params.tripId, user.id],
-      );
+      if (hasArchived) {
+        if (typeof body.archived !== "boolean") {
+          sendError(res, 400, "封存狀態格式錯誤");
+          return;
+        }
+        const archivedAt = body.archived === true ? nowIso() : null;
+        await pool.query(
+          "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
+          [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
+        );
+      } else {
+        await pool.query(
+          "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
+          [name, baseCurrencyValue, req.params.tripId, user.id],
+        );
+      }
 
       const updated = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!updated) {
@@ -394,6 +418,9 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 404, "找不到旅行");
         return;
       }
+      if (rejectArchivedTrip(res, trip)) {
+        return;
+      }
 
       const name = stringField(requestBody(req), "name");
       if (!name || name.length > 80) {
@@ -428,6 +455,9 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 404, "找不到旅行");
         return;
       }
+      if (rejectArchivedTrip(res, trip)) {
+        return;
+      }
 
       const name = stringField(requestBody(req), "name");
       if (!name || name.length > 80) {
@@ -460,97 +490,7 @@ export function createApp(pool: PgPool): express.Express {
     }),
   );
 
-  app.post(
-    "/api/trips/:tripId/participants/:participantId/merge",
-    mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
-      if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
-      }
-      const sourceId = req.params.participantId;
-      const targetId = stringField(requestBody(req), "targetParticipantId");
-      if (!participantExists(trip, sourceId)) {
-        sendError(res, 404, "找不到參與者");
-        return;
-      }
-      if (!targetId || !participantExists(trip, targetId)) {
-        sendError(res, 400, "目標參與者必須是旅行參與者");
-        return;
-      }
-      if (sourceId === targetId) {
-        sendError(res, 400, "不能合併同一位參與者");
-        return;
-      }
-
-      await withTransaction(pool, async (client) => {
-        await client.query(
-          "UPDATE expenses SET paid_by_id = $3 WHERE trip_id = $1 AND paid_by_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `UPDATE expense_participants target
-           SET share_minor = CASE
-             WHEN target.share_minor IS NULL OR source.share_minor IS NULL THEN NULL
-             ELSE target.share_minor + source.share_minor
-           END
-           FROM expense_participants source
-           WHERE target.trip_id = $1
-             AND source.trip_id = $1
-             AND source.participant_id = $2
-             AND target.participant_id = $3
-             AND target.expense_id = source.expense_id`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `DELETE FROM expense_participants source
-           USING expense_participants target
-           WHERE source.trip_id = $1
-             AND target.trip_id = $1
-             AND source.participant_id = $2
-             AND target.participant_id = $3
-             AND source.expense_id = target.expense_id`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `UPDATE expense_participants
-           SET participant_id = $3
-           WHERE trip_id = $1 AND participant_id = $2`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `DELETE FROM settlement_payments
-           WHERE trip_id = $1
-             AND ((from_id = $2 AND to_id = $3) OR (from_id = $3 AND to_id = $2))`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "UPDATE settlement_payments SET from_id = $3 WHERE trip_id = $1 AND from_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "UPDATE settlement_payments SET to_id = $3 WHERE trip_id = $1 AND to_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "DELETE FROM settlement_payments WHERE trip_id = $1 AND from_id = to_id",
-          [trip.id],
-        );
-        await client.query(
-          "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
-          [trip.id, sourceId],
-        );
-      });
-
-      const updated = await loadTripForUser(pool, user.id, trip.id);
-      if (!updated) {
-        throw new Error("Trip disappeared after participant merge");
-      }
-      res.json(tripPayload(updated));
-    }),
-  );
+  registerParticipantMergeRoute(app, pool, mustBeSignedIn);
 
   app.delete(
     "/api/trips/:tripId/participants/:participantId",
@@ -560,6 +500,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -612,6 +555,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -748,6 +694,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
@@ -960,6 +909,9 @@ export function createApp(pool: PgPool): express.Express {
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!trip) {
         sendError(res, 404, "找不到旅行");
+        return;
+      }
+      if (rejectArchivedTrip(res, trip)) {
         return;
       }
 
