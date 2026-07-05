@@ -198,6 +198,12 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   );
   assert.match(html, /data-workspace-tab="expenses"[^>]+tabindex="-1"/);
   assert.ok(html.includes('data-workspace-panel="overview"'));
+  assert.ok(html.includes("花費圖表"));
+  assert.ok(html.includes("總支出"));
+  assert.ok(html.includes("每日花費"));
+  assert.ok(html.includes("每人實付"));
+  assert.ok(html.includes("分類占比"));
+  assert.ok(html.includes('<span class="chart-label">餐飲</span>'));
   assert.ok(html.includes("最近支出"));
   assert.ok(html.includes("標記已付款"));
   assert.ok(html.includes('class="settlement-summary"'));
@@ -205,6 +211,37 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.ok(html.includes("付款紀錄"));
   assert.ok(html.includes('data-delete-settlement-payment-id="payment_1"'));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
+});
+
+test("spending charts render zero amounts without a visible bar", () => {
+  const zeroTrip: Trip = {
+    ...trip,
+    baseCurrency: "TWD",
+    expenses: [
+      {
+        amountMinor: 1,
+        category: "交通",
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "JPY",
+        description: "Tiny fare",
+        expenseDate: "2026-06-25",
+        id: "expense_zero",
+        paidById: "participant_alice",
+        participantIds: ["participant_alice"],
+        tags: [],
+      },
+    ],
+  };
+  const selected = baseState.selected;
+  assert.ok(selected);
+  const html = dashboardView({
+    ...baseState,
+    activeTab: "overview",
+    selected: { ...selected, trip: zeroTrip },
+  });
+
+  assert.ok(html.includes('style="width: 0%"'));
+  assert.ok(!html.includes('style="width: 4%"'));
 });
 
 test("workspace tabs render task-focused panels", () => {
