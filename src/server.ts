@@ -467,6 +467,15 @@ export function createApp(pool: PgPool): express.Express {
         sendError(res, 409, "參與者已有支出，不能刪除");
         return;
       }
+      if (
+        (trip.settlementPayments ?? []).some(
+          (payment) =>
+            payment.fromId === participantId || payment.toId === participantId,
+        )
+      ) {
+        sendError(res, 409, "參與者已有付款紀錄，不能刪除");
+        return;
+      }
 
       await pool.query(
         "DELETE FROM participants WHERE trip_id = $1 AND id = $2",

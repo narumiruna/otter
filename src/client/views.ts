@@ -19,6 +19,10 @@ import {
   workspaceTabs,
 } from "./client-support.js";
 
+function localDateOnly(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export function authView(state: AppState): string {
   const devEmail = state.devAdmin?.email ?? "";
   const devPassword = state.devAdmin?.password ?? "";
@@ -597,13 +601,16 @@ function settlementList(payload: TripPayload): string {
         .map(
           (settlement) => `
             <li>
-              <form class="settlement-payment-form" data-settlement-payment-form>
+              <span class="settlement-summary">
                 ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
                 <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+              </span>
+              <form class="settlement-payment-form" data-settlement-payment-form>
                 <input name="fromId" type="hidden" value="${htmlEscape(settlement.fromId)}" />
                 <input name="toId" type="hidden" value="${htmlEscape(settlement.toId)}" />
                 <input name="amount" type="hidden" value="${htmlEscape(String(toMajor(settlement.amountMinor, settlement.currency)))}" />
                 <input name="currency" type="hidden" value="${settlement.currency}" />
+                <label>付款日期<input name="paidAt" type="date" required value="${localDateOnly()}" /></label>
                 <input name="note" placeholder="付款備註（可空白）" maxlength="160" />
                 <button class="secondary" type="submit">標記已付款</button>
               </form>

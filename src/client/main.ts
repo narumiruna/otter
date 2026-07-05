@@ -117,6 +117,10 @@ function splitValuesFromForm(
   );
 }
 
+function localDateOnly(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function render() {
   app.innerHTML = `
     <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -325,6 +329,7 @@ function bindHandlers() {
                 currency: String(form.get("currency") ?? ""),
                 fromId: String(form.get("fromId") ?? ""),
                 note: String(form.get("note") ?? ""),
+                paidAt: String(form.get("paidAt") || localDateOnly()),
                 toId: String(form.get("toId") ?? ""),
               }),
               method: "POST",

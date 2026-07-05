@@ -646,6 +646,47 @@ test(
       })),
       [{ amountMinor: 50, fromId: bob.id, toId: owner.id }],
     );
+
+    const withCharlie = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants`,
+      {
+        body: JSON.stringify({ name: "Charlie" }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    const charlie = withCharlie.data.trip.participants.find(
+      ({ name }) => name === "Charlie",
+    );
+    assert.ok(charlie);
+
+    const charliePayment = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/settlement-payments`,
+      {
+        body: JSON.stringify({
+          amount: "10",
+          currency: "TWD",
+          fromId: charlie.id,
+          toId: owner.id,
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(charliePayment.response.status, 201);
+
+    const paymentOnlyParticipantDelete = await api<{ error: string }>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/participants/${charlie.id}`,
+      { headers: { cookie }, method: "DELETE" },
+    );
+    assert.equal(paymentOnlyParticipantDelete.response.status, 409);
+    assert.equal(
+      paymentOnlyParticipantDelete.data.error,
+      "參與者已有付款紀錄，不能刪除",
+    );
   },
 );
 

@@ -178,6 +178,8 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.ok(html.includes('data-workspace-panel="overview"'));
   assert.ok(html.includes("最近支出"));
   assert.ok(html.includes("標記已付款"));
+  assert.ok(html.includes('class="settlement-summary"'));
+  assert.ok(html.includes('name="paidAt" type="date"'));
   assert.ok(html.includes("付款紀錄"));
   assert.ok(html.includes('data-delete-settlement-payment-id="payment_1"'));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));
