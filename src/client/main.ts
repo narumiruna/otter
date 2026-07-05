@@ -5,7 +5,9 @@ import {
   type AppState,
   api,
   type DevAdmin,
+  defaultExpenseFilters,
   downloadText,
+  type ExpenseFilters,
   expenseFormError,
   htmlEscape,
   safeFilename,
@@ -23,6 +25,7 @@ import { authView, dashboardView } from "./views.js";
 const state: AppState = {
   activeTab: "overview",
   busy: false,
+  expenseFilters: { ...defaultExpenseFilters },
   devAdmin: null,
   error: "",
   formError: "",
@@ -274,6 +277,31 @@ function bindHandlers() {
         ?.focus();
     });
   }
+
+  document
+    .querySelector<HTMLFormElement>("#expense-filters")
+    ?.addEventListener("input", (event) => {
+      const form = new FormData(event.currentTarget as HTMLFormElement);
+      state.expenseFilters = {
+        currency: String(form.get("currency") ?? ""),
+        dateFrom: String(form.get("dateFrom") ?? ""),
+        dateTo: String(form.get("dateTo") ?? ""),
+        paidById: String(form.get("paidById") ?? ""),
+        participantId: String(form.get("participantId") ?? ""),
+        query: String(form.get("query") ?? ""),
+        sort: String(form.get("sort") ?? "date-desc") as ExpenseFilters["sort"],
+      };
+      render();
+    });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-clear-expense-filters]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        state.expenseFilters = { ...defaultExpenseFilters };
+        render();
+      });
+    });
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")

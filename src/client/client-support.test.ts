@@ -3,9 +3,11 @@ import test from "node:test";
 import type { Trip } from "../shared/settlement.js";
 import {
   api,
+  defaultExpenseFilters,
   defaultExpenseFormValues,
   expenseFormError,
   expenseSplitLabel,
+  filterAndSortExpenses,
   participantDeleteBlockReason,
   splitCountLabel,
   splitSelectionError,
@@ -130,6 +132,59 @@ test("workspace tab keyboard navigation follows ARIA tab keys", () => {
   assert.equal(workspaceTabForKey("expenses", "Home"), "add-expense");
   assert.equal(workspaceTabForKey("expenses", "End"), "settings");
   assert.equal(workspaceTabForKey("expenses", "Enter"), null);
+});
+
+test("filters and sorts expenses", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-06-25",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+      {
+        amountMinor: 500,
+        createdAt: "2026-06-24T00:00:00.000Z",
+        currency: "JPY",
+        description: "Train",
+        expenseDate: "2026-06-24",
+        id: "expense-2",
+        paidById: "bob",
+        participantIds: ["bob"],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      participantId: "bob",
+      query: "tr",
+    }).map(({ id }) => id),
+    ["expense-2"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      currency: "TWD",
+      dateFrom: "2026-06-25",
+      paidById: "alice",
+    }).map(({ id }) => id),
+    ["expense-1"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-asc",
+    }).map(({ id }) => id),
+    ["expense-2", "expense-1"],
+  );
 });
 
 test("expense split labels summarize all-person splits", () => {

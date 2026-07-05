@@ -1,4 +1,4 @@
-import type { Currency } from "../shared/money.js";
+import { type Currency, convertMinorWithRates } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
 
 export type User = {
@@ -60,12 +60,33 @@ export type DevAdmin = {
   password: string;
 };
 
+export type ExpenseFilters = {
+  query: string;
+  dateFrom: string;
+  dateTo: string;
+  paidById: string;
+  participantId: string;
+  currency: string;
+  sort: "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
+};
+
+export const defaultExpenseFilters: ExpenseFilters = {
+  currency: "",
+  dateFrom: "",
+  dateTo: "",
+  paidById: "",
+  participantId: "",
+  query: "",
+  sort: "date-desc",
+};
+
 export type AppState = {
   user: User | null;
   trips: TripSummary[];
   archivedTrips: TripSummary[];
   selected: TripPayload | null;
   activeTab: WorkspaceTab;
+  expenseFilters: ExpenseFilters;
   message: string;
   error: string;
   formError?: string;
@@ -172,6 +193,77 @@ export function splitShortcutChecked(
     return false;
   }
   return null;
+}
+
+export function filterAndSortExpenses(
+  trip: Trip,
+  filters: ExpenseFilters,
+): Trip["expenses"] {
+  const query = filters.query.trim().toLocaleLowerCase();
+  return [...trip.expenses]
+    .filter((expense) => {
+      if (query && !expense.description.toLocaleLowerCase().includes(query)) {
+        return false;
+      }
+      if (filters.dateFrom && expense.expenseDate < filters.dateFrom) {
+        return false;
+      }
+      if (filters.dateTo && expense.expenseDate > filters.dateTo) {
+        return false;
+      }
+      if (filters.paidById && expense.paidById !== filters.paidById) {
+        return false;
+      }
+      if (
+        filters.participantId &&
+        !expense.participantIds.includes(filters.participantId)
+      ) {
+        return false;
+      }
+      if (filters.currency && expense.currency !== filters.currency) {
+        return false;
+      }
+      return true;
+    })
+    .sort((left, right) => {
+      switch (filters.sort) {
+        case "date-asc":
+          return left.expenseDate.localeCompare(right.expenseDate);
+        case "amount-desc":
+          return (
+            convertMinorWithRates(
+              right.amountMinor,
+              right.currency,
+              trip.baseCurrency,
+              trip.exchangeRates,
+            ) -
+            convertMinorWithRates(
+              left.amountMinor,
+              left.currency,
+              trip.baseCurrency,
+              trip.exchangeRates,
+            )
+          );
+        case "amount-asc":
+          return (
+            convertMinorWithRates(
+              left.amountMinor,
+              left.currency,
+              trip.baseCurrency,
+              trip.exchangeRates,
+            ) -
+            convertMinorWithRates(
+              right.amountMinor,
+              right.currency,
+              trip.baseCurrency,
+              trip.exchangeRates,
+            )
+          );
+        case "date-desc":
+          return right.expenseDate.localeCompare(left.expenseDate);
+      }
+      return 0;
+    });
 }
 
 export function expenseSplitLabel(
