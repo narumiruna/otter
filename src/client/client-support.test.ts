@@ -8,6 +8,7 @@ import {
   splitCountLabel,
   splitSelectionError,
   splitShortcutChecked,
+  workspaceTabForKey,
 } from "./client-support.js";
 
 const baseTrip: Trip = {
@@ -83,6 +84,16 @@ test("split shortcut values map to checked states", () => {
   assert.equal(splitShortcutChecked("all"), true);
   assert.equal(splitShortcutChecked("none"), false);
   assert.equal(splitShortcutChecked(undefined), null);
+});
+
+test("workspace tab keyboard navigation follows ARIA tab keys", () => {
+  assert.equal(workspaceTabForKey("overview", "ArrowRight"), "expenses");
+  assert.equal(workspaceTabForKey("overview", "ArrowLeft"), "add-expense");
+  assert.equal(workspaceTabForKey("settings", "ArrowRight"), "add-expense");
+  assert.equal(workspaceTabForKey("add-expense", "ArrowLeft"), "settings");
+  assert.equal(workspaceTabForKey("expenses", "Home"), "add-expense");
+  assert.equal(workspaceTabForKey("expenses", "End"), "settings");
+  assert.equal(workspaceTabForKey("expenses", "Enter"), null);
 });
 
 test("expense split labels summarize all-person splits", () => {

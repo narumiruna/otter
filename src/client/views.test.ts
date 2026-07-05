@@ -45,6 +45,7 @@ const trip: Trip = {
 
 const baseState: AppState = {
   activeTab: "overview",
+  busy: false,
   devAdmin: null,
   error: "",
   message: "",
@@ -157,7 +158,11 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
   assert.ok(html.includes('data-workspace-tab="expenses"'));
   assert.ok(html.includes('data-workspace-tab="members"'));
   assert.ok(html.includes('data-workspace-tab="settings"'));
-  assert.match(html, /data-workspace-tab="overview"[^>]+aria-selected="true"/);
+  assert.match(
+    html,
+    /data-workspace-tab="overview"[^>]+aria-selected="true"[^>]+tabindex="0"/,
+  );
+  assert.match(html, /data-workspace-tab="expenses"[^>]+tabindex="-1"/);
   assert.ok(html.includes('data-workspace-panel="overview"'));
   assert.ok(html.includes("最近支出"));
   assert.ok(html.indexOf("Dinner &amp; Drinks") < html.indexOf("Breakfast"));

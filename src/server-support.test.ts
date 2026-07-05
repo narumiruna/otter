@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Request } from "express";
+import type { QueryResult, QueryResultRow } from "pg";
 import {
   clearSessionCookieHeader,
+  ensureDevAdmin,
   getCookie,
   sessionCookieHeader,
 } from "./server-support.js";
@@ -75,4 +77,48 @@ test("COOKIE_SECURE overrides session cookie security", () => {
   withCookieEnv("production", "false", () => {
     assert.doesNotMatch(sessionCookieHeader("session 1"), /; Secure/);
   });
+});
+
+test("dev admin includes visible sample trips", async () => {
+  const queries: { text: string; values: unknown[] }[] = [];
+  const db = {
+    async query<Row extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: unknown[],
+    ): Promise<QueryResult<Row>> {
+      queries.push({ text, values: values ?? [] });
+      const rows = text.includes("RETURNING id")
+        ? ([{ id: "user_dev" }] as Row[])
+        : [];
+      return { rows } as QueryResult<Row>;
+    },
+  };
+
+  await ensureDevAdmin(db);
+
+  assert.equal(queries[0]?.values[1], "Alice");
+  assert.deepEqual(
+    queries
+      .filter((query) => query.text.includes("INSERT INTO trips"))
+      .map((query) => query.values[2]),
+    ["東京五日遊", "大阪週末"],
+  );
+  assert.ok(
+    queries.some(
+      (query) =>
+        query.text.includes("INSERT INTO participants") &&
+        query.values.includes("Bob") &&
+        query.values.includes("Chris"),
+    ),
+  );
+  assert.ok(
+    queries.some(
+      (query) =>
+        query.text.includes("INSERT INTO expenses") &&
+        query.values.includes("飯店住宿") &&
+        query.values.includes("早餐") &&
+        query.values.includes(128000) &&
+        query.values.includes(4200),
+    ),
+  );
 });

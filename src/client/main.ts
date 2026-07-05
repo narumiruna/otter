@@ -15,12 +15,14 @@ import {
   type TripSummary,
   type User,
   type WorkspaceTab,
+  workspaceTabForKey,
   workspaceTabs,
 } from "./client-support.js";
 import { authView, dashboardView } from "./views.js";
 
 const state: AppState = {
   activeTab: "overview",
+  busy: false,
   devAdmin: null,
   error: "",
   message: "",
@@ -41,12 +43,19 @@ function setMessage(message: string, error = "") {
 }
 
 async function run(action: () => Promise<void>) {
+  if (state.busy) {
+    return;
+  }
+
   try {
+    state.busy = true;
     setMessage("", "");
+    render();
     await action();
   } catch (error) {
     setMessage("", error instanceof Error ? error.message : "發生錯誤");
   } finally {
+    state.busy = false;
     render();
   }
 }
@@ -83,19 +92,24 @@ function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
 
 function render() {
   app.innerHTML = `
-    <main class="app">
+    <a class="skip-link" href="#main-content">跳到主要內容</a>
+    <main id="main-content" class="app${state.busy ? " is-busy" : ""}" aria-busy="${state.busy}" tabindex="-1">
       <section class="hero${state.user ? " hero-compact" : ""}">
-        <div>
-          <h1>otter</h1>
-          ${state.user ? "" : '<p class="muted">旅行和朋友聚會的 TypeScript 記帳拆帳 app</p>'}
+        <div class="brand-row">
+          <span class="brand-mark" aria-hidden="true">o</span>
+          <div>
+            <h1>otter</h1>
+            <p class="muted">${state.user ? "旅行拆帳工作區" : "旅行和朋友聚會的 TypeScript 記帳拆帳 app"}</p>
+          </div>
         </div>
         ${
           state.user
-            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary">登出</button></div>`
+            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" type="button">登出</button></div>`
             : ""
         }
       </section>
-      ${state.message ? `<p class="notice" role="status" aria-live="polite">${htmlEscape(state.message)}</p>` : ""}
+      ${state.busy ? '<p class="notice" role="status" aria-live="polite">正在處理…</p>' : ""}
+      ${!state.busy && state.message ? `<p class="notice" role="status" aria-live="polite">${htmlEscape(state.message)}</p>` : ""}
       ${state.error ? `<p class="error" role="alert">${htmlEscape(state.error)}</p>` : ""}
       ${state.user ? dashboardView(state) : authView(state)}
     </main>
@@ -193,17 +207,36 @@ function bindHandlers() {
       });
     });
 
-  document
-    .querySelectorAll<HTMLButtonElement>("[data-workspace-tab]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        if (!isWorkspaceTab(button.dataset.workspaceTab)) {
-          return;
-        }
-        state.activeTab = button.dataset.workspaceTab;
-        render();
-      });
+  const workspaceTabButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-workspace-tab]"),
+  );
+  for (const button of workspaceTabButtons) {
+    button.addEventListener("click", () => {
+      if (!isWorkspaceTab(button.dataset.workspaceTab)) {
+        return;
+      }
+      state.activeTab = button.dataset.workspaceTab;
+      render();
     });
+    button.addEventListener("keydown", (event) => {
+      if (!isWorkspaceTab(button.dataset.workspaceTab)) {
+        return;
+      }
+      const nextTab = workspaceTabForKey(
+        button.dataset.workspaceTab,
+        event.key,
+      );
+      if (!nextTab) {
+        return;
+      }
+      event.preventDefault();
+      state.activeTab = nextTab;
+      render();
+      document
+        .querySelector<HTMLButtonElement>(`#workspace-tab-${nextTab}`)
+        ?.focus();
+    });
+  }
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")

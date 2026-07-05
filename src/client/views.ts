@@ -24,8 +24,17 @@ export function authView(state: AppState): string {
   const devPassword = state.devAdmin?.password ?? "";
 
   return `
-    <section class="grid">
-      <article class="card stack">
+    <section class="grid auth-grid">
+      <article class="card stack auth-copy">
+        <p class="eyebrow">旅行拆帳，不靠腦補</p>
+        <h2>把支出、餘額和結清建議放在同一個工作區。</h2>
+        <ul class="feature-list">
+          <li>先建支出群組，再邀成員一起分帳。</li>
+          <li>記錄付款人、貨幣與分帳對象。</li>
+          <li>即時查看誰應收、誰應付。</li>
+        </ul>
+      </article>
+      <article class="card stack auth-card">
         <h2>登入</h2>
         <form id="login-form">
           <label>Email<input name="email" type="email" autocomplete="email" value="${htmlEscape(devEmail)}" required /></label>
@@ -33,7 +42,7 @@ export function authView(state: AppState): string {
           <button type="submit">登入</button>
         </form>
       </article>
-      <article class="card stack">
+      <article class="card stack auth-card">
         <h2>註冊</h2>
         <form id="register-form">
           <label>名稱<input name="name" autocomplete="name" required maxlength="80" /></label>
@@ -69,7 +78,7 @@ export function dashboardView(state: AppState): string {
           </form>
         </details>
       </aside>
-      ${state.selected ? tripView(state.selected, state.activeTab) : '<section class="card"><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
+      ${state.selected ? tripView(state.selected, state.activeTab) : '<section class="card empty-state"><h2>先選擇支出群組</h2><p class="muted">選擇或新增支出群組後開始記帳。</p></section>'}
     </section>
   `;
 }
@@ -78,7 +87,7 @@ function tripButton(trip: TripSummary, selectedTripId?: string): string {
   const isActive = selectedTripId === trip.id;
   const active = isActive ? " active" : "";
   return `
-    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button" aria-pressed="${isActive}">
+    <button class="${active}" data-trip-id="${htmlEscape(trip.id)}" type="button" aria-pressed="${isActive}"${isActive ? ' aria-current="true"' : ""}>
       <strong>${htmlEscape(trip.name)}</strong><br />
       <span class="muted">${trip.participantCount} 人 · ${trip.expenseCount} 筆 · ${trip.baseCurrency}</span>
     </button>
@@ -90,14 +99,27 @@ function tripView(payload: TripPayload, activeTab: WorkspaceTab): string {
   return `
     <section class="stack trip-detail">
       <article class="card stack trip-summary">
-        <div class="trip-title">
-          <h2>${htmlEscape(trip.name)}</h2>
-          <p class="muted">基準貨幣：${trip.baseCurrency}。匯率目前使用固定原型值，可之後改接即時匯率。</p>
+        <div class="trip-summary-header">
+          <div class="trip-title">
+            <h2>${htmlEscape(trip.name)}</h2>
+            <p class="muted">基準貨幣：${trip.baseCurrency}。匯率目前使用固定原型值，可之後改接即時匯率。</p>
+          </div>
+          ${tripStatStrip(trip)}
         </div>
         ${workspaceTabBar(activeTab)}
       </article>
       ${workspacePanel(payload, activeTab)}
     </section>
+  `;
+}
+
+function tripStatStrip(trip: Trip): string {
+  return `
+    <div class="stat-strip" aria-label="支出群組摘要">
+      <div class="stat"><span>${trip.participants.length}</span><small>成員</small></div>
+      <div class="stat"><span>${trip.expenses.length}</span><small>支出</small></div>
+      <div class="stat"><span>${trip.baseCurrency}</span><small>基準</small></div>
+    </div>
   `;
 }
 
@@ -107,8 +129,11 @@ function workspaceTabBar(activeTab: WorkspaceTab): string {
       ${workspaceTabs
         .map((tab) => {
           const active = tab === activeTab;
+          const controls = active
+            ? ` aria-controls="${workspacePanelId(tab)}"`
+            : "";
           return `
-            <button class="secondary${active ? " active" : ""}" data-workspace-tab="${tab}" type="button" role="tab" aria-selected="${active}">
+            <button id="${workspaceTabId(tab)}" class="secondary${active ? " active" : ""}" data-workspace-tab="${tab}" type="button" role="tab" aria-selected="${active}" tabindex="${active ? 0 : -1}"${controls}>
               ${workspaceTabLabel(tab)}
             </button>
           `;
@@ -116,6 +141,14 @@ function workspaceTabBar(activeTab: WorkspaceTab): string {
         .join("")}
     </nav>
   `;
+}
+
+function workspaceTabId(tab: WorkspaceTab): string {
+  return `workspace-tab-${tab}`;
+}
+
+function workspacePanelId(tab: WorkspaceTab): string {
+  return `workspace-panel-${tab}`;
 }
 
 function workspaceTabLabel(tab: WorkspaceTab): string {
@@ -139,14 +172,14 @@ function workspacePanel(payload: TripPayload, activeTab: WorkspaceTab): string {
       return overviewPanel(payload);
     case "add-expense":
       return `
-        <article class="card stack expense-create-card" data-workspace-panel="add-expense">
+        <article id="${workspacePanelId("add-expense")}" class="card stack expense-create-card" data-workspace-panel="add-expense" role="tabpanel" aria-labelledby="${workspaceTabId("add-expense")}">
           <h3>記帳</h3>
           ${addExpenseContent(payload.trip)}
         </article>
       `;
     case "expenses":
       return `
-        <article class="card stack expense-list-card" data-workspace-panel="expenses">
+        <article id="${workspacePanelId("expenses")}" class="card stack expense-list-card" data-workspace-panel="expenses" role="tabpanel" aria-labelledby="${workspaceTabId("expenses")}">
           <h3>支出紀錄</h3>
           ${expenseList(payload.trip)}
         </article>
@@ -187,21 +220,27 @@ function firstExpenseCta(trip: Trip): string {
 
 function overviewPanel(payload: TripPayload): string {
   return `
-    <article class="card stack results-card" data-workspace-panel="overview">
+    <article id="${workspacePanelId("overview")}" class="card stack results-card" data-workspace-panel="overview" role="tabpanel" aria-labelledby="${workspaceTabId("overview")}">
       ${payload.trip.expenses.length === 0 ? firstExpenseCta(payload.trip) : ""}
-      <h3>分帳結果</h3>
-      ${balanceList(payload.balances)}
-      <h3>結清建議</h3>
-      ${settlementList(payload.settlements)}
-      <h3>最近支出</h3>
-      ${recentExpenseList(payload.trip)}
+      <section class="summary-section">
+        <h3>分帳結果</h3>
+        ${balanceList(payload.balances)}
+      </section>
+      <section class="summary-section">
+        <h3>結清建議</h3>
+        ${settlementList(payload.settlements)}
+      </section>
+      <section class="summary-section">
+        <h3>最近支出</h3>
+        ${recentExpenseList(payload.trip)}
+      </section>
     </article>
   `;
 }
 
 function membersPanel(trip: Trip): string {
   return `
-    <article class="card stack participants-card" data-workspace-panel="members">
+    <article id="${workspacePanelId("members")}" class="card stack participants-card" data-workspace-panel="members" role="tabpanel" aria-labelledby="${workspaceTabId("members")}">
       <h3>成員</h3>
       <form id="participant-form">
         <label>名稱<input name="name" required maxlength="80" placeholder="朋友名字" /></label>
@@ -235,7 +274,7 @@ function membersPanel(trip: Trip): string {
 
 function settingsPanel(trip: Trip): string {
   return `
-    <article class="card stack settings-card" data-workspace-panel="settings">
+    <article id="${workspacePanelId("settings")}" class="card stack settings-card" data-workspace-panel="settings" role="tabpanel" aria-labelledby="${workspaceTabId("settings")}">
       <h3>設定 / 匯出</h3>
       <div class="action-groups" aria-label="支出群組操作">
         <div class="row action-group">
@@ -287,9 +326,9 @@ function expenseForm(trip: Trip): string {
           ${trip.participants.map((person) => `<option value="${htmlEscape(person.id)}">${htmlEscape(person.name)}</option>`).join("")}
         </select>
       </label>
-      <div>
-        <div class="row">
-          <strong>分帳參與者</strong>
+      <fieldset class="split-fieldset">
+        <legend>分帳參與者</legend>
+        <div class="row split-tools">
           <button class="secondary" data-split-shortcut="all" type="button">全選</button>
           <button class="secondary" data-split-shortcut="none" type="button">清除</button>
           <span id="split-count" class="muted">${splitCountLabel(trip.participants.length, trip.participants.length)}</span>
@@ -306,7 +345,7 @@ function expenseForm(trip: Trip): string {
             )
             .join("")}
         </div>
-      </div>
+      </fieldset>
       <button type="submit">記錄支出</button>
     </form>
   `;
