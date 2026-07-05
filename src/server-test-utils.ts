@@ -32,6 +32,7 @@ export type TripPayload = {
       description: string;
       expenseDate: string;
       id: string;
+      paidById: string;
       participantIds: string[];
       participantShares?: { participantId: string; shareMinor: number }[];
     }[];
