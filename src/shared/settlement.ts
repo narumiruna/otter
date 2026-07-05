@@ -83,7 +83,10 @@ export function calculateBalances(trip: Trip): Balance[] {
         share.shareMinor,
       ]) ?? [],
     );
-    const hasExplicitShares = splitIds.every((id) => explicitShares.has(id));
+    const hasExplicitShares =
+      splitIds.every((id) => explicitShares.has(id)) &&
+      splitIds.reduce((sum, id) => sum + (explicitShares.get(id) ?? 0), 0) ===
+        expense.amountMinor;
 
     if (hasExplicitShares) {
       for (const participantId of splitIds) {

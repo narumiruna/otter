@@ -841,8 +841,7 @@ export function createApp(pool: PgPool): express.Express {
       }
 
       let participantShares: ParticipantShare[] | undefined;
-      const shouldReplaceSplits =
-        hasParticipantIds || hasSplitMode || hasAmount || hasCurrency;
+      const shouldReplaceSplits = hasParticipantIds || hasSplitMode;
       if (shouldReplaceSplits) {
         try {
           participantShares = participantSharesFromBody(
