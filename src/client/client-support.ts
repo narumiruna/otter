@@ -130,6 +130,8 @@ export type AppState = {
   formError?: string;
   formErrorTarget?: string;
   busy: boolean;
+  pendingAction: string;
+  focusTarget: string;
   offline: boolean;
   readonlyShare: boolean;
 };
