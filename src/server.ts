@@ -337,20 +337,22 @@ export function createApp(pool: PgPool): express.Express {
         return;
       }
 
-      const archivedAt = hasArchived
-        ? body.archived === true
-          ? nowIso()
-          : null
-        : trip.archivedAt;
-      if (hasArchived && typeof body.archived !== "boolean") {
-        sendError(res, 400, "封存狀態格式錯誤");
-        return;
+      if (hasArchived) {
+        if (typeof body.archived !== "boolean") {
+          sendError(res, 400, "封存狀態格式錯誤");
+          return;
+        }
+        const archivedAt = body.archived === true ? nowIso() : null;
+        await pool.query(
+          "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
+          [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
+        );
+      } else {
+        await pool.query(
+          "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
+          [name, baseCurrencyValue, req.params.tripId, user.id],
+        );
       }
-
-      await pool.query(
-        "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
-        [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
-      );
 
       const updated = await loadTripForUser(pool, user.id, req.params.tripId);
       if (!updated) {
