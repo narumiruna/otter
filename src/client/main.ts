@@ -105,6 +105,18 @@ function isWorkspaceTab(value: string | undefined): value is WorkspaceTab {
   return workspaceTabs.includes(value as WorkspaceTab);
 }
 
+function splitValuesFromForm(
+  form: FormData,
+  participantIds: string[],
+): Record<string, string> {
+  return Object.fromEntries(
+    participantIds.map((participantId) => [
+      participantId,
+      String(form.get(`splitValue:${participantId}`) ?? ""),
+    ]),
+  );
+}
+
 function render() {
   app.innerHTML = `
     <a class="skip-link" href="#main-content">跳到主要內容</a>
@@ -501,6 +513,8 @@ function bindHandlers() {
                 expenseDate: String(form.get("expenseDate") ?? ""),
                 paidById: String(form.get("paidById") ?? ""),
                 participantIds,
+                splitMode: String(form.get("splitMode") ?? "equal"),
+                splitValues: splitValuesFromForm(form, participantIds),
               }),
               method: "POST",
             },
@@ -549,6 +563,8 @@ function bindHandlers() {
                   expenseDate: String(form.get("expenseDate") ?? ""),
                   paidById: String(form.get("paidById") ?? ""),
                   participantIds,
+                  splitMode: String(form.get("splitMode") ?? "equal"),
+                  splitValues: splitValuesFromForm(form, participantIds),
                 }),
                 method: "PATCH",
               },

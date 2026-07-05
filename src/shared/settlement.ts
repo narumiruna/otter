@@ -6,6 +6,11 @@ export type Participant = {
   name: string;
 };
 
+export type ExpenseParticipantShare = {
+  participantId: string;
+  shareMinor: number;
+};
+
 export type Expense = {
   id: string;
   description: string;
@@ -13,6 +18,7 @@ export type Expense = {
   currency: Currency;
   paidById: string;
   participantIds: string[];
+  participantShares?: ExpenseParticipantShare[];
   expenseDate: string;
   createdAt: string;
 };
@@ -70,6 +76,40 @@ export function calculateBalances(trip: Trip): Balance[] {
       trip.baseCurrency,
     );
     balances.set(expense.paidById, payerBalance + amount);
+
+    const explicitShares = new Map(
+      expense.participantShares?.map((share) => [
+        share.participantId,
+        share.shareMinor,
+      ]) ?? [],
+    );
+    const hasExplicitShares =
+      splitIds.every((id) => explicitShares.has(id)) &&
+      splitIds.reduce((sum, id) => sum + (explicitShares.get(id) ?? 0), 0) ===
+        expense.amountMinor;
+
+    if (hasExplicitShares) {
+      const shares = splitIds.map((participantId) =>
+        convertMinor(
+          explicitShares.get(participantId) ?? 0,
+          expense.currency,
+          trip.baseCurrency,
+        ),
+      );
+      let remainder = amount - shares.reduce((sum, share) => sum + share, 0);
+      for (const [index, participantId] of splitIds.entries()) {
+        const adjustment =
+          index === shares.length - 1 ? remainder : Math.sign(remainder);
+        remainder -= adjustment;
+        balances.set(
+          participantId,
+          (balances.get(participantId) ?? 0) -
+            (shares[index] ?? 0) -
+            adjustment,
+        );
+      }
+      continue;
+    }
 
     const share = Math.floor(amount / splitIds.length);
     let remainder = amount % splitIds.length;

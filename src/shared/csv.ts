@@ -28,9 +28,7 @@ export function tripExpensesCsv(trip: Trip): string {
     formatAmount(expense.amountMinor, expense.currency),
     expense.currency,
     participantById.get(expense.paidById) ?? "未知",
-    expense.participantIds
-      .map((id) => participantById.get(id) ?? "未知")
-      .join("; "),
+    splitParticipantsCell(trip, expense),
   ]);
 
   return csvRows([expenseHeaders, ...rows]);
@@ -58,6 +56,30 @@ export function tripResultsCsv(
   ]);
 
   return csvRows([resultHeaders, ...balanceRows, ...settlementRows]);
+}
+
+function splitParticipantsCell(
+  trip: Trip,
+  expense: Trip["expenses"][number],
+): string {
+  const participantById = new Map(
+    trip.participants.map((participant) => [participant.id, participant.name]),
+  );
+  const shares = new Map(
+    expense.participantShares?.map((share) => [
+      share.participantId,
+      share.shareMinor,
+    ]) ?? [],
+  );
+  return expense.participantIds
+    .map((id) => {
+      const name = participantById.get(id) ?? "未知";
+      const share = shares.get(id);
+      return share === undefined
+        ? name
+        : `${name}=${formatAmount(share, expense.currency)}`;
+    })
+    .join("; ");
 }
 
 function csvRows(rows: string[][]): string {

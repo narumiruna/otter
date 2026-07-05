@@ -365,16 +365,11 @@ function expenseForm(state: AppState, trip: Trip): string {
           <button class="secondary" data-split-shortcut="none" type="button">清除</button>
           <span id="split-count" class="muted">${splitCountLabel(defaults.participantIds.length, trip.participants.length)}</span>
         </div>
-        <div class="checks">
+        <label>分帳方式${splitModeSelect("equal")}</label>
+        <p class="muted split-hint">平均分帳可留空；金額、比例或份數模式請在每位成員旁輸入值。</p>
+        <div class="checks split-checks">
           ${trip.participants
-            .map(
-              (person) => `
-                <label>
-                  <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${selectedSplitIds.has(person.id) ? "checked" : ""} />
-                  ${htmlEscape(person.name)}
-                </label>
-              `,
-            )
+            .map((person) => splitParticipantInput(person, selectedSplitIds))
             .join("")}
         </div>
       </fieldset>
@@ -396,6 +391,41 @@ function currencySelect(name: string, selected: Currency): string {
         )
         .join("")}
     </select>
+  `;
+}
+
+function splitModeSelect(selected: "equal" | "amount" | "ratio" | "shares") {
+  const modes = [
+    ["equal", "平均"],
+    ["amount", "指定金額"],
+    ["ratio", "比例"],
+    ["shares", "份數"],
+  ] as const;
+  return `
+    <select name="splitMode">
+      ${modes
+        .map(
+          ([value, label]) =>
+            `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`,
+        )
+        .join("")}
+    </select>
+  `;
+}
+
+function splitParticipantInput(
+  person: { id: string; name: string },
+  selectedSplitIds: Set<string>,
+  value = "",
+): string {
+  return `
+    <label>
+      <span>
+        <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${selectedSplitIds.has(person.id) ? "checked" : ""} />
+        ${htmlEscape(person.name)}
+      </span>
+      <input name="splitValue:${htmlEscape(person.id)}" inputmode="decimal" value="${htmlEscape(value)}" placeholder="金額 / 比例 / 份數" aria-label="${htmlEscape(person.name)} 分帳值" />
+    </label>
   `;
 }
 
@@ -452,6 +482,13 @@ function expenseEditForm(
   const errorTarget = `expense-edit-${expense.id}`;
   const hasError = state.formErrorTarget === errorTarget && !!state.formError;
   const splitIds = new Set(expense.participantIds);
+  const shareByParticipant = new Map(
+    expense.participantShares?.map((share) => [
+      share.participantId,
+      String(toMajor(share.shareMinor, expense.currency)),
+    ]) ?? [],
+  );
+  const splitMode = shareByParticipant.size > 0 ? "amount" : "equal";
 
   return `
     <details class="expense-actions"${hasError ? " open" : ""}>
@@ -471,15 +508,16 @@ function expenseEditForm(
         </div>
         <fieldset class="split-fieldset">
           <legend>分帳參與者</legend>
-          <div class="checks">
+          <label>分帳方式${splitModeSelect(splitMode)}</label>
+          <p class="muted split-hint">平均分帳可留空；金額、比例或份數模式請在每位成員旁輸入值。</p>
+          <div class="checks split-checks">
             ${trip.participants
-              .map(
-                (person) => `
-                  <label>
-                    <input name="participantIds" type="checkbox" value="${htmlEscape(person.id)}" ${splitIds.has(person.id) ? "checked" : ""} />
-                    ${htmlEscape(person.name)}
-                  </label>
-                `,
+              .map((person) =>
+                splitParticipantInput(
+                  person,
+                  splitIds,
+                  shareByParticipant.get(person.id) ?? "",
+                ),
               )
               .join("")}
           </div>
