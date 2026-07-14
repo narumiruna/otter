@@ -1,0 +1,181 @@
+@media (min-width: 720px) {
+  .trip-summary-header {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+    align-items: start;
+  }
+}
+
+@media (max-width: 980px) {
+  .auth-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-copy {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trip-sidebar {
+    position: static;
+  }
+
+  .trip-sidebar > .trip-list {
+    display: grid;
+    grid-auto-columns: minmax(15rem, 72vw);
+    grid-auto-flow: column;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 0.2rem 0.2rem 0.55rem;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: thin;
+  }
+
+  .trip-sidebar > .trip-list button {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .hero:not(.hero-compact) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero:not(.hero-compact) .user-menu {
+    justify-content: flex-start;
+  }
+
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-compact {
+    top: 0.35rem;
+  }
+
+  .hero-compact .brand-row p,
+  .user-name {
+    display: none;
+  }
+
+  /* biome-ignore lint/style/noDescendingSpecificity: The compact header overrides the auth header at this breakpoint. */
+  .user-menu {
+    justify-content: flex-end;
+  }
+
+  .workspace-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -0.25rem;
+    border-radius: var(--radius-lg);
+    scroll-snap-type: inline proximity;
+  }
+
+  /* biome-ignore lint/style/noDescendingSpecificity: Tab sizing is a breakpoint-specific override. */
+  .workspace-tabs button {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .expense-create-card button[type="submit"] {
+    position: sticky;
+    z-index: 10;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: 100%;
+    box-shadow: 0 10px 28px rgba(6, 95, 70, 0.24);
+  }
+
+  .chart-bars li {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.action-group button, .empty-state .row button, .split-tools button) {
+    flex: 1 1 9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+
+  /* biome-ignore lint/style/noDescendingSpecificity: Reduced-motion behavior must override every interactive variant. */
+  button,
+  .checks label,
+  .skip-link {
+    transition: none;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media print {
+  :root {
+    background: var(--color-surface);
+    color: #111827;
+  }
+
+  .app {
+    width: 100%;
+    padding: 0;
+  }
+
+  .hero,
+  .card,
+  .list li,
+  .checks label,
+  .stat {
+    border-color: #d1d5db;
+    background: var(--color-surface);
+    box-shadow: none;
+  }
+
+  .app
+    :is(
+      aside.card,
+      button,
+      form,
+      .trip-create,
+      .expense-actions,
+      .workspace-tabs,
+      .notice,
+      .error,
+      .skip-link
+    ) {
+    display: none;
+  }
+
+  .chart-card,
+  .summary-card {
+    break-inside: avoid;
+  }
+
+  .grid,
+  .dashboard-grid,
+  .trip-summary-header {
+    display: block;
+  }
+
+  .card {
+    break-inside: avoid;
+    margin-bottom: 0.75rem;
+  }
+
+  .muted {
+    color: #4b5563;
+  }
+}

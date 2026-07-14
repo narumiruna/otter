@@ -204,6 +204,9 @@ test("dashboard view exposes workspace tabs and overview panel", () => {
 
   assert.ok(html.includes('class="grid dashboard-grid"'));
   assert.ok(html.includes("<h2>支出群組</h2>"));
+  assert.ok(html.includes('class="count-badge"'));
+  assert.ok(html.includes('aria-label="2 個使用中支出群組"'));
+  assert.ok(html.includes('aria-label="1 個已封存支出群組"'));
   assert.match(html, /data-trip-id="trip_1"[^>]+aria-pressed="true"/);
   assert.match(html, /data-trip-id="trip_2"[^>]+aria-pressed="false"/);
   assert.ok(

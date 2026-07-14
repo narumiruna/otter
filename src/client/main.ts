@@ -1,4 +1,5 @@
 import "./styles.css";
+import "./responsive.css";
 import { tripExpensesCsv, tripResultsCsv } from "../shared/csv.js";
 import { currencies } from "../shared/money.js";
 import {
@@ -179,7 +180,7 @@ function render() {
         </div>
         ${
           state.user
-            ? `<div class="row user-menu"><span>${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" data-busy-action="logout" data-busy-label="登出中…" type="button">登出</button></div>`
+            ? `<div class="row user-menu"><span class="user-avatar" aria-hidden="true">${htmlEscape(state.user.name.trim().charAt(0).toLocaleUpperCase() || "O")}</span><span class="user-name">${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" data-busy-action="logout" data-busy-label="登出中…" type="button">登出</button></div>`
             : ""
         }
       </section>

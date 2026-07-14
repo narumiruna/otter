@@ -76,8 +76,11 @@ export function dashboardView(state: AppState): string {
   return `
     <section class="grid dashboard-grid">
       <aside class="card stack trip-sidebar">
-        <h2>支出群組</h2>
-        <div class="trip-list stack">
+        <div class="sidebar-heading">
+          <h2>支出群組</h2>
+          <span class="count-badge" aria-label="${state.trips.length} 個使用中支出群組">${state.trips.length}</span>
+        </div>
+        <div class="trip-list stack" aria-label="使用中支出群組">
           ${
             state.trips.length
               ? state.trips
@@ -143,7 +146,7 @@ function archivedTripList(
   }
   return `
     <details class="archived-trips">
-      <summary>已封存支出群組</summary>
+      <summary>已封存支出群組 <span class="summary-count" aria-label="${trips.length} 個已封存支出群組">${trips.length}</span></summary>
       <div class="trip-list stack">
         ${trips.map((trip) => tripButton(trip, selectedTripId)).join("")}
       </div>
