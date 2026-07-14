@@ -188,6 +188,17 @@ test("auth view shows helper text and nearby errors", () => {
   assert.ok(html.includes('data-busy-action="register"'));
 });
 
+test("auth view prefills development login credentials safely", () => {
+  const html = authView(
+    { ...baseState, selected: null, user: null },
+    { email: "admin&dev@otter.local", password: 'admin"1234' },
+  );
+
+  assert.ok(html.includes('value="admin&amp;dev@otter.local"'));
+  assert.ok(html.includes('value="admin&quot;1234"'));
+  assert.ok(html.includes("開發環境測試帳號已預先填入"));
+});
+
 test("dashboard view exposes workspace tabs and overview panel", () => {
   const html = view("overview");
 

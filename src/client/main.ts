@@ -21,7 +21,14 @@ import {
   workspaceTabs,
 } from "./client-support.js";
 import { bindSettingsHandlers } from "./settings-handlers.js";
-import { authView, dashboardView, readonlyShareView } from "./views.js";
+import {
+  authView,
+  dashboardView,
+  type LoginCredentials,
+  readonlyShareView,
+} from "./views.js";
+
+let devLoginCredentials: LoginCredentials | undefined;
 
 const state: AppState = {
   activeTab: "overview",
@@ -111,6 +118,10 @@ async function init() {
       );
       return;
     }
+    const config = await api<{
+      devLoginCredentials: LoginCredentials | null;
+    }>("/api/config");
+    devLoginCredentials = config.devLoginCredentials ?? undefined;
     const me = await api<{ user: User | null }>("/api/me");
     state.user = me.user;
     if (state.user) {
@@ -176,7 +187,7 @@ function render() {
       ${state.busy ? '<p id="busy-message" class="notice" role="status" aria-live="polite" tabindex="-1">正在處理…</p>' : ""}
       ${!state.busy && state.message ? `<p id="status-message" class="notice" role="status" aria-live="polite" tabindex="-1">${htmlEscape(state.message)}</p>` : ""}
       ${state.error ? `<p id="global-error" class="error" role="alert" tabindex="-1">${htmlEscape(state.error)}</p>` : ""}
-      ${state.readonlyShare && state.selected ? readonlyShareView(state.selected) : state.user ? dashboardView(state) : authView(state)}
+      ${state.readonlyShare && state.selected ? readonlyShareView(state.selected) : state.user ? dashboardView(state) : authView(state, devLoginCredentials)}
     </main>
   `;
   applyBusyState();

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import type { TestContext } from "node:test";
+import type { Pool as PgPool } from "pg";
 import pg from "pg";
 import { runMigrations } from "../scripts/migrate.js";
 import type {
@@ -34,8 +35,14 @@ export type TripsResponse = {
   trips: TripSummary[];
 };
 
+type TestAppOptions = {
+  appOptions?: Parameters<typeof createApp>[1];
+  prepare?: (pool: PgPool) => Promise<void>;
+};
+
 export async function withTestApp(
   t: TestContext,
+  options: TestAppOptions = {},
 ): Promise<{ baseUrl: string }> {
   assert.ok(testDatabaseUrl);
   const schema = `otter_test_${process.pid}_${Date.now()}_${randomUUID().replaceAll("-", "")}`;
@@ -58,8 +65,9 @@ export async function withTestApp(
 
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 10);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
+  await options.prepare?.(pool);
 
-  const app = createApp(pool);
+  const app = createApp(pool, options.appOptions);
   server = await listen(app);
   const address = server.address();
   assert.ok(address && typeof address === "object");

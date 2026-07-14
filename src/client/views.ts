@@ -24,7 +24,18 @@ import {
 } from "./client-support.js";
 import { restoreBackupForm, settingsPanel } from "./settings-view.js";
 
-export function authView(state: AppState): string {
+export type LoginCredentials = { email: string; password: string };
+
+export function authView(
+  state: AppState,
+  loginCredentials?: LoginCredentials,
+): string {
+  const emailValue = loginCredentials
+    ? ` value="${htmlEscape(loginCredentials.email)}"`
+    : "";
+  const passwordValue = loginCredentials
+    ? ` value="${htmlEscape(loginCredentials.password)}"`
+    : "";
   return `
     <section class="grid auth-grid">
       <article class="card stack auth-copy">
@@ -40,9 +51,9 @@ export function authView(state: AppState): string {
         <h2>登入</h2>
         <form id="login-form" novalidate${formErrorAttributes(state, "login-form")}>
           ${formErrorHtml(state, "login-form")}
-          <label>Email<input name="email" type="email" autocomplete="email" required /></label>
-          <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
-          <p class="helper-text">使用註冊時設定的 email 和密碼登入。</p>
+          <label>Email<input name="email" type="email" autocomplete="email"${emailValue} required /></label>
+          <label>密碼<input name="password" type="password" autocomplete="current-password"${passwordValue} required /></label>
+          <p class="helper-text">${loginCredentials ? "開發環境測試帳號已預先填入。" : "使用註冊時設定的 email 和密碼登入。"}</p>
           <button data-busy-action="login" data-busy-label="登入中…" type="submit">登入</button>
         </form>
       </article>

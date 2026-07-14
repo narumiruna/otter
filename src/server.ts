@@ -9,6 +9,12 @@ import type { Pool as PgPool } from "pg";
 import { registerBackupRoutes } from "./server-backup.js";
 import { registerCollaborationRoutes } from "./server-collaboration.js";
 import { registerCsvImportRoutes } from "./server-csv-import.js";
+import {
+  type DevelopmentAdminCredentials,
+  developmentAdminCredentials,
+  ensureDevelopmentAdmin,
+  ensureDevelopmentFixtures,
+} from "./server-dev.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
@@ -88,12 +94,28 @@ function tripExchangeRatesFromBody(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function createApp(pool: PgPool): express.Express {
+export type CreateAppOptions = {
+  devLoginCredentials?: DevelopmentAdminCredentials | null;
+};
+
+export function createApp(
+  pool: PgPool,
+  options: CreateAppOptions = {},
+): express.Express {
   const app = express();
   const mustBeSignedIn = requireUser(pool);
 
   registerBackupRoutes(app, pool, mustBeSignedIn);
   app.use(express.json({ limit: "1mb" }));
+
+  app.get("/api/config", (_req, res) => {
+    const credentials = options.devLoginCredentials;
+    res.json({
+      devLoginCredentials: credentials
+        ? { email: credentials.email, password: credentials.password }
+        : null,
+    });
+  });
 
   app.get(
     "/api/me",
@@ -651,7 +673,13 @@ export function createApp(pool: PgPool): express.Express {
 
 async function start() {
   const pool = createPool();
-  const app = createApp(pool);
+  const credentials = developmentAdminCredentials(process.env);
+  if (credentials) {
+    const userId = await ensureDevelopmentAdmin(pool, credentials);
+    await ensureDevelopmentFixtures(pool, userId);
+    console.log(`Development fixtures ready for: ${credentials.email}`);
+  }
+  const app = createApp(pool, { devLoginCredentials: credentials });
 
   if (isProduction) {
     const clientDir = path.resolve(__dirname, "../client");

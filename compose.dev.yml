@@ -25,6 +25,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://otter:otter_dev_password@postgres:5432/otter_dev
+      DEV_ADMIN_EMAIL: admin@otter.local
+      DEV_ADMIN_NAME: Admin
+      DEV_ADMIN_PASSWORD: admin1234
       NODE_ENV: development
       PORT: 3420
     ports:
