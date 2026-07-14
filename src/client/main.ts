@@ -172,7 +172,7 @@ function render() {
     <main id="main-content" class="app${state.busy ? " is-busy" : ""}" aria-busy="${state.busy}" tabindex="-1">
       <section class="hero${state.user ? " hero-compact" : ""}">
         <div class="brand-row">
-          <span class="brand-mark" aria-hidden="true">o</span>
+          <span class="brand-mark" aria-hidden="true"></span>
           <div>
             <h1>otter</h1>
             <p class="muted">${state.user ? "旅行拆帳工作區" : "旅行和朋友聚會的 TypeScript 記帳拆帳 app"}</p>

@@ -412,6 +412,7 @@ function membersPanel(trip: Trip): string {
           return `
             <li>
               <div class="row">
+                <span class="member-avatar" aria-hidden="true">${htmlEscape(person.name.trim().charAt(0).toLocaleUpperCase() || "?")}</span>
                 <span>${htmlEscape(person.name)}</span>
                 <details class="inline-confirm">
                   <summary>重新命名</summary>
@@ -423,7 +424,7 @@ function membersPanel(trip: Trip): string {
                 ${
                   deleteBlockReason
                     ? `<button class="danger" disabled title="${htmlEscape(deleteBlockReason)}" type="button" aria-label="無法刪除 ${htmlEscape(person.name)}" aria-describedby="${deleteReasonId}">刪除</button><span id="${deleteReasonId}" class="muted">${htmlEscape(deleteBlockReason)}</span>`
-                    : `<details class="inline-confirm"><summary>刪除</summary><form data-delete-participant-form="${htmlEscape(person.id)}"><p class="muted">刪除 ${htmlEscape(person.name)} 後無法復原。</p><button class="danger" data-busy-action="participant-delete:${htmlEscape(person.id)}" data-busy-label="刪除中…" type="submit" aria-label="確認刪除 ${htmlEscape(person.name)}">確認刪除</button></form></details>`
+                    : `<details class="inline-confirm danger-zone"><summary>刪除</summary><form data-delete-participant-form="${htmlEscape(person.id)}"><p class="muted">刪除 ${htmlEscape(person.name)} 後無法復原。</p><button class="danger" data-busy-action="participant-delete:${htmlEscape(person.id)}" data-busy-label="刪除中…" type="submit" aria-label="確認刪除 ${htmlEscape(person.name)}">確認刪除</button></form></details>`
                 }
               </div>
             </li>
@@ -713,13 +714,14 @@ function expenseList(state: AppState, trip: Trip): string {
           (expense) => `
             <li class="expense-item">
               <div class="row expense-row">
+                <span class="expense-icon" aria-hidden="true">${categoryIcon(expense.category)}</span>
                 <div class="expense-summary">
                   <strong>${htmlEscape(expense.description)}</strong><br />
                   ${htmlEscape(expense.expenseDate)} · ${formatMinor(expense.amountMinor, expense.currency)} · ${htmlEscape(participantById.get(expense.paidById) ?? "未知")} 付款<br />
                   <span class="muted">${htmlEscape(expenseMetaLabel(expense))}</span><br />
                   <span class="muted">分給 ${htmlEscape(expenseSplitLabel(trip, expense.participantIds))}</span>
                 </div>
-                <details class="inline-confirm">
+                <details class="inline-confirm danger-zone">
                   <summary>刪除</summary>
                   <form data-delete-expense-form="${htmlEscape(expense.id)}">
                     <p class="muted">刪除 ${htmlEscape(expense.description)} 後會重新計算餘額。</p>
@@ -746,7 +748,7 @@ function receiptControls(expense: Expense): string {
       </form>
       ${
         expense.receiptUrl
-          ? `<a class="secondary button-link" href="${htmlEscape(expense.receiptUrl)}" target="_blank" rel="noreferrer">查看收據</a><details class="inline-confirm"><summary>刪除收據</summary><form data-delete-receipt-form="${htmlEscape(expense.id)}"><p class="muted">刪除後可再上傳新的收據。</p><button class="danger" data-busy-action="receipt-delete:${htmlEscape(expense.id)}" data-busy-label="刪除中…" type="submit">確認刪除收據</button></form></details>`
+          ? `<a class="secondary button-link" href="${htmlEscape(expense.receiptUrl)}" target="_blank" rel="noreferrer">查看收據</a><details class="inline-confirm danger-zone"><summary>刪除收據</summary><form data-delete-receipt-form="${htmlEscape(expense.id)}"><p class="muted">刪除後可再上傳新的收據。</p><button class="danger" data-busy-action="receipt-delete:${htmlEscape(expense.id)}" data-busy-label="刪除中…" type="submit">確認刪除收據</button></form></details>`
           : '<span class="muted">尚未上傳收據</span>'
       }
     </div>
@@ -756,6 +758,19 @@ function receiptControls(expense: Expense): string {
 function expenseMetaLabel(expense: Expense): string {
   const tags = expense.tags?.length ? ` · ${expense.tags.join("、")}` : "";
   return `${expense.category ?? "其他"}${tags}`;
+}
+
+const categoryIcons: Record<string, string> = {
+  住宿: "🏨",
+  餐飲: "🍜",
+  交通: "🚃",
+  門票: "🎟️",
+  購物: "🛍️",
+  其他: "📌",
+};
+
+function categoryIcon(category: string | undefined): string {
+  return categoryIcons[category ?? "其他"] ?? "📌";
 }
 
 function expenseEditForm(
@@ -909,9 +924,11 @@ function readonlySettlementList(payload: TripPayload): string {
       ${settlements
         .map(
           (settlement) => `
-            <li>
-              ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
-              <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+            <li class="settlement-row">
+              <span class="settlement-from">${htmlEscape(settlement.fromName)}</span>
+              <span class="settlement-arrow muted" aria-hidden="true">→</span>
+              <span class="settlement-to">${htmlEscape(settlement.toName)}</span>
+              <span class="settlement-amount">${formatMinor(settlement.amountMinor, settlement.currency)}</span>
             </li>
           `,
         )
@@ -933,9 +950,11 @@ function settlementList(payload: TripPayload): string {
         .map(
           (settlement) => `
             <li>
-              <span class="settlement-summary">
-                ${htmlEscape(settlement.fromName)} 付給 ${htmlEscape(settlement.toName)}
-                <strong>${formatMinor(settlement.amountMinor, settlement.currency)}</strong>
+              <span class="settlement-summary settlement-row">
+                <span class="settlement-from">${htmlEscape(settlement.fromName)}</span>
+                <span class="settlement-arrow muted" aria-hidden="true">→</span>
+                <span class="settlement-to">${htmlEscape(settlement.toName)}</span>
+                <span class="settlement-amount">${formatMinor(settlement.amountMinor, settlement.currency)}</span>
               </span>
               <form class="settlement-payment-form" data-settlement-payment-form>
                 <input name="fromId" type="hidden" value="${htmlEscape(settlement.fromId)}" />
@@ -974,7 +993,7 @@ function settlementPaymentList(trip: Trip): string {
                 ${htmlEscape(payment.paidAt)} · ${htmlEscape(participantById.get(payment.fromId) ?? "未知")} 已付給 ${htmlEscape(participantById.get(payment.toId) ?? "未知")}
                 <strong>${formatMinor(payment.amountMinor, payment.currency)}</strong>
                 ${payment.note ? `<span class="muted">${htmlEscape(payment.note)}</span>` : ""}
-                <details class="inline-confirm">
+                <details class="inline-confirm danger-zone">
                   <summary>刪除紀錄</summary>
                   <form data-delete-settlement-payment-form="${htmlEscape(payment.id)}">
                     <p class="muted">刪除後會重新計算剩餘結清建議。</p>

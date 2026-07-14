@@ -108,7 +108,7 @@ function shareLinksPanel(payload: TripPayload): string {
                     <li>
                       <span>${htmlEscape(link.createdAt.slice(0, 10))}${link.revokedAt ? " · 已撤銷" : " · 可使用"}</span>
                       ${link.url ? `<button class="secondary" data-copy-share-url="${htmlEscape(link.url)}" type="button">複製連結</button>` : ""}
-                      ${link.revokedAt ? "" : `<details class="inline-confirm"><summary>撤銷</summary><form data-revoke-share-link-form="${htmlEscape(link.id)}"><p class="muted">撤銷後知道舊連結的人將無法查看。</p><button class="danger" data-busy-action="share-revoke:${htmlEscape(link.id)}" data-busy-label="撤銷中…" type="submit">確認撤銷</button></form></details>`}
+                      ${link.revokedAt ? "" : `<details class="inline-confirm danger-zone"><summary>撤銷</summary><form data-revoke-share-link-form="${htmlEscape(link.id)}"><p class="muted">撤銷後知道舊連結的人將無法查看。</p><button class="danger" data-busy-action="share-revoke:${htmlEscape(link.id)}" data-busy-label="撤銷中…" type="submit">確認撤銷</button></form></details>`}
                     </li>
                   `,
                 )
@@ -135,7 +135,7 @@ function collaboratorsPanel(payload: TripPayload): string {
             (member) => `
               <li>
                 <span>${htmlEscape(member.name)} · ${htmlEscape(member.email)} · ${member.role === "owner" ? "擁有者" : "協作者"}</span>
-                ${member.role === "editor" ? `<details class="inline-confirm"><summary>移除</summary><form data-remove-collaborator-form="${htmlEscape(member.userId)}"><p class="muted">移除後這位協作者將無法維護此支出群組。</p><button class="danger" data-busy-action="collaborator-remove:${htmlEscape(member.userId)}" data-busy-label="移除中…" type="submit">確認移除</button></form></details>` : ""}
+                ${member.role === "editor" ? `<details class="inline-confirm danger-zone"><summary>移除</summary><form data-remove-collaborator-form="${htmlEscape(member.userId)}"><p class="muted">移除後這位協作者將無法維護此支出群組。</p><button class="danger" data-busy-action="collaborator-remove:${htmlEscape(member.userId)}" data-busy-label="移除中…" type="submit">確認移除</button></form></details>` : ""}
               </li>
             `,
           )
