@@ -72,7 +72,7 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     margin-inline: -0.25rem;
-    border-radius: var(--radius-lg);
+    border-radius: var(--otter-radius-lg);
     scroll-snap-type: inline proximity;
   }
 
@@ -125,7 +125,7 @@
 
 @media print {
   :root {
-    background: var(--color-surface);
+    background: var(--otter-color-surface);
     color: #111827;
   }
 
@@ -140,7 +140,7 @@
   .checks label,
   .stat {
     border-color: #d1d5db;
-    background: var(--color-surface);
+    background: var(--otter-color-surface);
     box-shadow: none;
   }
 

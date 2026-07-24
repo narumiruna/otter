@@ -1,14 +1,13 @@
-import "./styles.css";
-import "./responsive.css";
+import type { QueryClient } from "@tanstack/react-query";
 import { tripExpensesCsv, tripResultsCsv } from "../shared/csv.js";
 import { currencies } from "../shared/money.js";
+import type { LoginCredentials, RegisterCredentials } from "./auth-screen.js";
 import {
   type AppState,
   api,
   defaultExpenseFilters,
   downloadText,
   expenseFormError,
-  htmlEscape,
   isExpenseSort,
   safeFilename,
   splitCountLabel,
@@ -22,16 +21,11 @@ import {
   workspaceTabs,
 } from "./client-support.js";
 import { bindSettingsHandlers } from "./settings-handlers.js";
-import {
-  authView,
-  dashboardView,
-  type LoginCredentials,
-  readonlyShareView,
-} from "./views.js";
 
-let devLoginCredentials: LoginCredentials | undefined;
+let queryClient: QueryClient;
+let requestRender: () => void = () => undefined;
 
-const state: AppState = {
+export const state: AppState = {
   activeTab: "overview",
   busy: false,
   expenseFilters: { ...defaultExpenseFilters },
@@ -50,17 +44,17 @@ const state: AppState = {
   user: null,
 };
 
-const appElement = document.querySelector<HTMLDivElement>("#app");
-if (!appElement) {
-  throw new Error("Missing #app");
+export function connectLegacyController(
+  client: QueryClient,
+  render: () => void,
+) {
+  queryClient = client;
+  requestRender = render;
 }
-const app = appElement;
 
-for (const eventName of ["online", "offline"]) {
-  window.addEventListener(eventName, () => {
-    state.offline = !navigator.onLine;
-    render();
-  });
+export function setOffline(offline: boolean) {
+  state.offline = offline;
+  requestRender();
 }
 
 function setMessage(message: string, error = "") {
@@ -68,7 +62,7 @@ function setMessage(message: string, error = "") {
   state.error = error;
 }
 
-async function run(
+export async function run(
   action: () => Promise<void>,
   options: { action?: string; errorTarget?: string } = {},
 ) {
@@ -83,10 +77,15 @@ async function run(
     state.formError = "";
     state.formErrorTarget = "";
     setMessage("", "");
-    if (options.errorTarget) {
+    if (
+      options.errorTarget === "login-form" ||
+      options.errorTarget === "register-form"
+    ) {
+      requestRender();
+    } else if (options.errorTarget) {
       applyBusyState();
     } else {
-      render();
+      requestRender();
     }
     await action();
     if (state.message) {
@@ -105,37 +104,24 @@ async function run(
   } finally {
     state.busy = false;
     state.pendingAction = "";
-    render();
+    requestRender();
   }
 }
 
-async function init() {
-  await run(async () => {
-    const shareToken = location.pathname.match(/^\/share\/([^/]+)$/)?.[1];
-    if (shareToken) {
-      state.readonlyShare = true;
-      state.selected = await api<TripPayload>(
-        `/api/share/${encodeURIComponent(shareToken)}`,
-      );
-      return;
-    }
-    const config = await api<{
-      devLoginCredentials: LoginCredentials | null;
-    }>("/api/config");
-    devLoginCredentials = config.devLoginCredentials ?? undefined;
-    const me = await api<{ user: User | null }>("/api/me");
-    state.user = me.user;
-    if (state.user) {
-      await loadTrips();
-    }
+export async function loadTrips() {
+  await queryClient.invalidateQueries({
+    exact: true,
+    queryKey: ["trips"],
+    refetchType: "none",
   });
-}
-
-async function loadTrips() {
-  const data = await api<{
-    archivedTrips?: TripSummary[];
-    trips: TripSummary[];
-  }>("/api/trips");
+  const data = await queryClient.fetchQuery({
+    queryKey: ["trips"],
+    queryFn: () =>
+      api<{
+        archivedTrips?: TripSummary[];
+        trips: TripSummary[];
+      }>("/api/trips"),
+  });
   state.trips = data.trips;
   state.archivedTrips = data.archivedTrips ?? [];
   if (!state.selected && state.trips[0]) {
@@ -144,7 +130,10 @@ async function loadTrips() {
 }
 
 async function selectTrip(tripId: string) {
-  state.selected = await api<TripPayload>(`/api/trips/${tripId}`);
+  state.selected = await queryClient.fetchQuery({
+    queryKey: ["trip", tripId],
+    queryFn: () => api<TripPayload>(`/api/trips/${tripId}`),
+  });
   state.activeTab = "add-expense";
   state.csvImportErrors = [];
   state.expenseFilters = { ...defaultExpenseFilters };
@@ -166,33 +155,9 @@ function splitValuesFromForm(
   );
 }
 
-function render() {
-  app.innerHTML = `
-    <a class="skip-link" href="#main-content">跳到主要內容</a>
-    <main id="main-content" class="app${state.busy ? " is-busy" : ""}" aria-busy="${state.busy}" tabindex="-1">
-      <section class="hero${state.user ? " hero-compact" : ""}">
-        <div class="brand-row">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <div>
-            <h1>otter</h1>
-            <p class="muted">${state.user ? "旅行拆帳工作區" : "旅行和朋友聚會的 TypeScript 記帳拆帳 app"}</p>
-          </div>
-        </div>
-        ${
-          state.user
-            ? `<div class="row user-menu"><span class="user-avatar" aria-hidden="true">${htmlEscape(state.user.name.trim().charAt(0).toLocaleUpperCase() || "O")}</span><span class="user-name">${htmlEscape(state.user.name)}</span><button id="logout" class="secondary" data-busy-action="logout" data-busy-label="登出中…" type="button">登出</button></div>`
-            : ""
-        }
-      </section>
-      ${state.offline ? '<p class="notice" role="status">目前離線，資料需連線後載入。</p>' : ""}
-      ${state.busy ? '<p id="busy-message" class="notice" role="status" aria-live="polite" tabindex="-1">正在處理…</p>' : ""}
-      ${!state.busy && state.message ? `<p id="status-message" class="notice" role="status" aria-live="polite" tabindex="-1">${htmlEscape(state.message)}</p>` : ""}
-      ${state.error ? `<p id="global-error" class="error" role="alert" tabindex="-1">${htmlEscape(state.error)}</p>` : ""}
-      ${state.readonlyShare && state.selected ? readonlyShareView(state.selected) : state.user ? dashboardView(state) : authView(state, devLoginCredentials)}
-    </main>
-  `;
+export function commitLegacyView() {
   applyBusyState();
-  bindHandlers();
+  bindLegacyHandlers();
   restoreFocus();
 }
 
@@ -222,73 +187,59 @@ function restoreFocus() {
   state.focusTarget = "";
 }
 
-function bindHandlers() {
-  document
-    .querySelector<HTMLFormElement>("#login-form")
-    ?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(
-        async () => {
-          const data = await api<{ user: User }>("/api/auth/login", {
-            body: JSON.stringify({
-              email: String(form.get("email") ?? ""),
-              password: String(form.get("password") ?? ""),
-            }),
-            method: "POST",
-          });
-          state.user = data.user;
-          state.selected = null;
-          state.activeTab = "overview";
-          await loadTrips();
-          setMessage("登入成功");
-        },
-        { action: "login", errorTarget: "login-form" },
-      );
-    });
+export async function login(credentials: LoginCredentials) {
+  await run(
+    async () => {
+      const data = await api<{ user: User }>("/api/auth/login", {
+        body: JSON.stringify(credentials),
+        method: "POST",
+      });
+      queryClient.removeQueries({ queryKey: ["trips"] });
+      state.user = data.user;
+      state.selected = null;
+      state.activeTab = "overview";
+      await loadTrips();
+      setMessage("登入成功");
+    },
+    { action: "login", errorTarget: "login-form" },
+  );
+}
 
-  document
-    .querySelector<HTMLFormElement>("#register-form")
-    ?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = new FormData(event.currentTarget as HTMLFormElement);
-      void run(
-        async () => {
-          const data = await api<{ user: User }>("/api/auth/register", {
-            body: JSON.stringify({
-              email: String(form.get("email") ?? ""),
-              name: String(form.get("name") ?? ""),
-              password: String(form.get("password") ?? ""),
-            }),
-            method: "POST",
-          });
-          state.user = data.user;
-          state.selected = null;
-          state.activeTab = "overview";
-          await loadTrips();
-          setMessage("註冊成功");
-        },
-        { action: "register", errorTarget: "register-form" },
-      );
-    });
+export async function register(credentials: RegisterCredentials) {
+  await run(
+    async () => {
+      const data = await api<{ user: User }>("/api/auth/register", {
+        body: JSON.stringify(credentials),
+        method: "POST",
+      });
+      queryClient.removeQueries({ queryKey: ["trips"] });
+      state.user = data.user;
+      state.selected = null;
+      state.activeTab = "overview";
+      await loadTrips();
+      setMessage("註冊成功");
+    },
+    { action: "register", errorTarget: "register-form" },
+  );
+}
 
-  document
-    .querySelector<HTMLButtonElement>("#logout")
-    ?.addEventListener("click", () => {
-      void run(
-        async () => {
-          await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
-          state.user = null;
-          state.trips = [];
-          state.archivedTrips = [];
-          state.selected = null;
-          state.activeTab = "overview";
-          setMessage("已登出");
-        },
-        { action: "logout" },
-      );
-    });
+export async function logout() {
+  await run(
+    async () => {
+      await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
+      queryClient.removeQueries();
+      state.user = null;
+      state.trips = [];
+      state.archivedTrips = [];
+      state.selected = null;
+      state.activeTab = "overview";
+      setMessage("已登出");
+    },
+    { action: "logout" },
+  );
+}
 
+function bindLegacyHandlers() {
   document
     .querySelector<HTMLFormElement>("#trip-form")
     ?.addEventListener("submit", (event) => {
@@ -337,7 +288,7 @@ function bindHandlers() {
         return;
       }
       state.activeTab = button.dataset.workspaceTab;
-      render();
+      requestRender();
     });
     button.addEventListener("keydown", (event) => {
       if (!isWorkspaceTab(button.dataset.workspaceTab)) {
@@ -352,7 +303,7 @@ function bindHandlers() {
       }
       event.preventDefault();
       state.activeTab = nextTab;
-      render();
+      requestRender();
       document
         .querySelector<HTMLButtonElement>(`#workspace-tab-${nextTab}`)
         ?.focus();
@@ -383,7 +334,7 @@ function bindHandlers() {
       sort: isExpenseSort(sortRaw) ? sortRaw : defaultExpenseFilters.sort,
       tag: String(form.get("tag") ?? ""),
     };
-    render();
+    requestRender();
     if (activeName) {
       const restored = document
         .querySelector<HTMLFormElement>("#expense-filters")
@@ -413,11 +364,17 @@ function bindHandlers() {
     .forEach((button) => {
       button.addEventListener("click", () => {
         state.expenseFilters = { ...defaultExpenseFilters };
-        render();
+        requestRender();
       });
     });
 
-  bindSettingsHandlers({ loadTrips, render, run, setMessage, state });
+  bindSettingsHandlers({
+    loadTrips,
+    render: requestRender,
+    run,
+    setMessage,
+    state,
+  });
 
   document
     .querySelector<HTMLButtonElement>("#export-expenses")
@@ -431,7 +388,7 @@ function bindHandlers() {
         tripExpensesCsv(trip),
       );
       setMessage("已匯出支出 CSV");
-      render();
+      requestRender();
     });
 
   document
@@ -451,7 +408,7 @@ function bindHandlers() {
         ),
       );
       setMessage("已匯出結算 CSV");
-      render();
+      requestRender();
     });
 
   document
@@ -995,5 +952,3 @@ function bindHandlers() {
       });
     });
 }
-
-void init();
