@@ -22,6 +22,7 @@ export type AppBootstrap = {
 
 export async function fetchAppBootstrap(
   pathname: string,
+  search = "",
 ): Promise<AppBootstrap> {
   const shareToken = pathname.match(/^\/share\/([^/]+)$/)?.[1];
   if (shareToken) {
@@ -52,11 +53,19 @@ export async function fetchAppBootstrap(
   }
 
   const collection = await api<TripCollection>("/api/trips");
-  const selected = collection.trips[0]
-    ? await api<TripPayload>(`/api/trips/${collection.trips[0].id}`)
+  const archivedTrips = collection.archivedTrips ?? [];
+  const requestedTripId = new URLSearchParams(search).get("trip");
+  const selectedSummary =
+    [...collection.trips, ...archivedTrips].find(
+      (trip) => trip.id === requestedTripId,
+    ) ??
+    collection.trips[0] ??
+    archivedTrips[0];
+  const selected = selectedSummary
+    ? await api<TripPayload>(`/api/trips/${selectedSummary.id}`)
     : null;
   return {
-    archivedTrips: collection.archivedTrips ?? [],
+    archivedTrips,
     devLoginCredentials: config.devLoginCredentials ?? undefined,
     readonlyShare: false,
     selected,

@@ -44,39 +44,6 @@ export type TripPayload = {
   readonly?: boolean;
 };
 
-export const workspaceTabs = [
-  "add-expense",
-  "overview",
-  "expenses",
-  "members",
-  "settings",
-] as const;
-
-export type WorkspaceTab = (typeof workspaceTabs)[number];
-
-export function workspaceTabForKey(
-  currentTab: WorkspaceTab,
-  key: string,
-): WorkspaceTab | null {
-  const currentIndex = workspaceTabs.indexOf(currentTab);
-  switch (key) {
-    case "ArrowDown":
-    case "ArrowRight":
-      return workspaceTabs[(currentIndex + 1) % workspaceTabs.length];
-    case "ArrowLeft":
-    case "ArrowUp":
-      return workspaceTabs[
-        (currentIndex - 1 + workspaceTabs.length) % workspaceTabs.length
-      ];
-    case "Home":
-      return workspaceTabs[0];
-    case "End":
-      return workspaceTabs[workspaceTabs.length - 1];
-    default:
-      return null;
-  }
-}
-
 export type SpendingSummary = {
   totalMinor: number;
   dailyTotals: { amountMinor: number; date: string }[];
@@ -106,34 +73,6 @@ export const defaultExpenseFilters: ExpenseFilters = {
   query: "",
   sort: "date-desc",
   tag: "",
-};
-
-export function isExpenseSort(value: string): value is ExpenseFilters["sort"] {
-  return (
-    value === "date-desc" ||
-    value === "date-asc" ||
-    value === "amount-desc" ||
-    value === "amount-asc"
-  );
-}
-
-export type AppState = {
-  user: User | null;
-  trips: TripSummary[];
-  archivedTrips: TripSummary[];
-  selected: TripPayload | null;
-  activeTab: WorkspaceTab;
-  expenseFilters: ExpenseFilters;
-  csvImportErrors: string[];
-  message: string;
-  error: string;
-  formError?: string;
-  formErrorTarget?: string;
-  busy: boolean;
-  pendingAction: string;
-  focusTarget: string;
-  offline: boolean;
-  readonlyShare: boolean;
 };
 
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -174,66 +113,14 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function htmlEscape(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 export function todayDate(): string {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
 }
 
-export function defaultExpenseFormValues(trip: Trip) {
-  return {
-    currency: trip.baseCurrency,
-    expenseDate: todayDate(),
-    paidById: trip.participants[0]?.id ?? "",
-    participantIds: trip.participants.map((participant) => participant.id),
-  };
-}
-
-export function expenseFormError(values: {
-  amount: string;
-  participantIds: readonly string[];
-}): string | null {
-  if (!values.amount.trim()) {
-    return "請輸入支出金額";
-  }
-  return splitSelectionError(values.participantIds);
-}
-
 export function safeFilename(value: string): string {
   return value.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "trip";
-}
-
-export function splitCountLabel(
-  selectedCount: number,
-  totalCount: number,
-): string {
-  return `已選 ${selectedCount} / ${totalCount}`;
-}
-
-export function splitSelectionError(
-  participantIds: readonly string[],
-): string | null {
-  return participantIds.length === 0 ? "請至少選擇一位分帳參與者" : null;
-}
-
-export function splitShortcutChecked(
-  value: string | undefined,
-): boolean | null {
-  if (value === "all") {
-    return true;
-  }
-  if (value === "none") {
-    return false;
-  }
-  return null;
 }
 
 export function spendingSummary(trip: Trip): SpendingSummary {

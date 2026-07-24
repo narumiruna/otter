@@ -4,17 +4,10 @@ import type { Trip } from "../shared/settlement.js";
 import {
   api,
   defaultExpenseFilters,
-  defaultExpenseFormValues,
-  expenseFormError,
   expenseSplitLabel,
   filterAndSortExpenses,
   participantDeleteBlockReason,
   spendingSummary,
-  splitCountLabel,
-  splitSelectionError,
-  splitShortcutChecked,
-  todayDate,
-  workspaceTabForKey,
 } from "./client-support.js";
 
 const baseTrip: Trip = {
@@ -75,64 +68,6 @@ test("api rejects successful non-JSON responses", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
-});
-
-test("split count label formats selected and total counts", () => {
-  assert.equal(splitCountLabel(2, 5), "已選 2 / 5");
-});
-
-test("split selection validation catches empty choices", () => {
-  assert.equal(splitSelectionError([]), "請至少選擇一位分帳參與者");
-  assert.equal(splitSelectionError(["alice"]), null);
-});
-
-test("expense form defaults use the trip context", () => {
-  assert.deepEqual(defaultExpenseFormValues(baseTrip), {
-    currency: "TWD",
-    expenseDate: todayDate(),
-    paidById: "alice",
-    participantIds: ["alice", "bob"],
-  });
-  assert.deepEqual(
-    defaultExpenseFormValues({ ...baseTrip, participants: [] }),
-    {
-      currency: "TWD",
-      expenseDate: todayDate(),
-      paidById: "",
-      participantIds: [],
-    },
-  );
-});
-
-test("expense form validation returns field-level messages", () => {
-  assert.equal(
-    expenseFormError({ amount: "", participantIds: ["alice"] }),
-    "請輸入支出金額",
-  );
-  assert.equal(
-    expenseFormError({ amount: "100", participantIds: [] }),
-    "請至少選擇一位分帳參與者",
-  );
-  assert.equal(
-    expenseFormError({ amount: "100", participantIds: ["alice"] }),
-    null,
-  );
-});
-
-test("split shortcut values map to checked states", () => {
-  assert.equal(splitShortcutChecked("all"), true);
-  assert.equal(splitShortcutChecked("none"), false);
-  assert.equal(splitShortcutChecked(undefined), null);
-});
-
-test("workspace tab keyboard navigation follows ARIA tab keys", () => {
-  assert.equal(workspaceTabForKey("overview", "ArrowRight"), "expenses");
-  assert.equal(workspaceTabForKey("overview", "ArrowLeft"), "add-expense");
-  assert.equal(workspaceTabForKey("settings", "ArrowRight"), "add-expense");
-  assert.equal(workspaceTabForKey("add-expense", "ArrowLeft"), "settings");
-  assert.equal(workspaceTabForKey("expenses", "Home"), "add-expense");
-  assert.equal(workspaceTabForKey("expenses", "End"), "settings");
-  assert.equal(workspaceTabForKey("expenses", "Enter"), null);
 });
 
 test("summarizes spending charts", () => {

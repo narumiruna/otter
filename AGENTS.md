@@ -24,7 +24,9 @@ Run commands from the repository root.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.
 - `npm run biome:ci` - run Biome formatting/lint checks.
 - `npm run typecheck` - check client/shared and server TypeScript projects.
-- `npm test` - run Node test files under `src/` ending in `.test.ts`.
+- `npm test` - run Node and component test files under `src/`.
+- `npm run test:components` - run interactive React component tests without PostgreSQL.
+- `npm run test:e2e` - run Playwright Chromium workflow, responsive, and accessibility tests; requires a migrated `DATABASE_URL` and installed Chromium.
 - `npm run build` - build Vite client output and compile the server.
 - `npm run check` - run Biome, typecheck, tests, and build.
 
