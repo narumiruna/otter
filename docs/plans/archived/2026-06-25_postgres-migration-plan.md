@@ -31,8 +31,8 @@
 - [x] Add `db/migrations/001_init.sql` with tables `users`, `sessions`, `trips`, `participants`, `expenses`, `expense_participants`, plus `schema_migrations`; verify by reviewing SQL constraints for primary keys, foreign keys, `email` uniqueness, participant membership joins, and `amount_minor > 0`.
 - [x] Add `scripts/migrate.ts` to read `DATABASE_URL`, acquire a migration lock, apply pending `db/migrations/*.sql` inside transactions, and record versions in `schema_migrations`; verify with a local Postgres container and `npm run migrate` applying `001_init.sql` once, then no-oping on the second run.
 - [x] Add npm scripts `migrate`, `db:reset:dev` if needed, and update `.pre-commit-config.yaml` only if the aggregate check changes; verify with `npm run migrate -- --help` or runner usage output and `npm run check`.
-- [x] Update `compose.dev.yml` with a `postgres` service, `DATABASE_URL` for `otter-dev`, a healthcheck, and a named volume; verify with `docker compose -f compose.dev.yml up --build` reaching a healthy DB and app startup.
-- [x] Update production `compose.yml` to require `DATABASE_URL` or include a Postgres service only if this repo owns production DB hosting; verify by running `docker compose -f compose.yml config` without exposing secrets.
+- [x] Update `compose.dev.yaml` with a `postgres` service, `DATABASE_URL` for `otter-dev`, a healthcheck, and a named volume; verify with `docker compose -f compose.dev.yaml up --build` reaching a healthy DB and app startup.
+- [x] Update production `compose.yaml` to require `DATABASE_URL` or include a Postgres service only if this repo owns production DB hosting; verify by running `docker compose -f compose.yaml config` without exposing secrets.
 - [x] Replace the in-memory JSON `Store` in `src/server.ts` with `pg` queries using a shared pool; verify existing API endpoints still return the same response shapes by running focused Node tests or manual curl flow for register, login, create trip, add participant, add expense, get trip.
 - [x] Keep settlement calculation in shared TypeScript by loading a trip graph from Postgres into the existing `Trip` type; verify `npm test` keeps `src/shared/settlement.test.ts` green and an API trip response includes `balances` and `settlements`.
 - [x] Add minimal DB-backed integration tests for auth + trip creation using a disposable test database or transaction reset; verify with `npm test` and no committed test data.
@@ -56,7 +56,7 @@
 
 - [x] App no longer reads or writes `data/otter.json`, verified by `rg "otter.json|loadStore|saveStore|DATA_FILE" src README.md AGENTS.md` returning no stale runtime path.
 - [x] Database schema is reproducible from an empty Postgres database, verified by `npm run migrate` applying all migrations and a second run no-oping.
-- [x] Dev environment starts app + Postgres, verified by `docker compose -f compose.dev.yml up --build` and opening or curling `http://localhost:3000/api/me`.
+- [x] Dev environment starts app + Postgres, verified by `docker compose -f compose.dev.yaml up --build` and opening or curling `http://localhost:3000/api/me`.
 - [x] Existing user/trip/expense behavior works against Postgres, verified by automated tests or a documented curl/manual flow.
 - [x] Full quality gate passes, verified by `npm run check`.
 - [x] README and AGENTS mention Postgres setup and migration commands, verified by reading both files after edits.

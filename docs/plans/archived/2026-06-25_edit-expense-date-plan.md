@@ -17,7 +17,7 @@
 - [x] Add an edit-date button in `src/client/main.ts` expense rows using native `prompt()` prefilled from the current date; verified with `npm run typecheck` and build.
 - [x] Extend `src/server.test.ts` to update date, reject malformed dates, and keep cross-account updates rejected; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`.
 - [x] Update README feature list and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

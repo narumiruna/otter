@@ -16,7 +16,7 @@
 - [x] Add a CSV formatter for balances and settlements that escapes commas/quotes/newlines and includes record type, participant/from/to, amount, and currency; verified with focused `npm test` case.
 - [x] Add an export button in `src/client/main.ts` that downloads the selected trip results CSV with a safe filename; verified with `npm run typecheck` and build.
 - [x] Update README feature list and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

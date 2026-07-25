@@ -16,7 +16,7 @@
 - [x] Update expense creation validation in `src/server.ts` to reject invalid split participant IDs while still deduping valid IDs; verified with DB-backed API test.
 - [x] Add an integration test for invalid create-time `participantIds`; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm run check`, `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm run check`, `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

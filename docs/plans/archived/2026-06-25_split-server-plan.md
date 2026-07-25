@@ -17,7 +17,7 @@
 - [x] Keep route registration and app startup in `src/server.ts`, importing the extracted helpers; verified by `npm run typecheck`.
 - [x] Confirm `src/server.ts` is below 1,000 lines; verified by `wc -l src/server.ts src/server-support.ts`.
 - [x] Update `docs/progress-log.md`; verified by reading it.
-- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`, `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`, `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

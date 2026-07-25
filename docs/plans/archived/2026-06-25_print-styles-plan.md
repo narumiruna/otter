@@ -15,7 +15,7 @@
 
 - [x] Add `@media print` styles in `src/client/styles.css` to remove app controls, shadows, backgrounds, and side trip navigation from printed output; verified by reading the CSS and running build through `npm run check`.
 - [x] Update README and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

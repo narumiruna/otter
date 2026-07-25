@@ -16,7 +16,7 @@
 - [x] Move pure view rendering functions from `src/client/main.ts` into new `src/client/views.ts`; verified `main.ts` line count drops below 750 and TypeScript compiles.
 - [x] Update `src/client/main.ts` imports and render calls to use the new view module; verified with `npm run typecheck` and `npm run build` through `npm run check`.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm run check`, `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm run check`, `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

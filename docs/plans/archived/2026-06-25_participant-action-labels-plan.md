@@ -16,7 +16,7 @@
 - [x] Add participant-specific `aria-label` attributes to rename/delete buttons in `src/client/views.ts`; verified by reading the button markup and running `npm run typecheck`.
 - [x] Add `aria-describedby` from disabled participant delete buttons to their visible reason text in `src/client/views.ts`; verified by reading the generated IDs and attributes.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

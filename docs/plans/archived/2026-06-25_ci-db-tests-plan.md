@@ -13,7 +13,7 @@
 
 ## Plan
 
-- [x] Add a Postgres service and test database environment to `.github/workflows/ci.yml`; verified by reviewing the workflow and matching `compose.dev.yml` credentials/image.
+- [x] Add a Postgres service and test database environment to `.github/workflows/ci.yml`; verified by reviewing the workflow and matching `compose.dev.yaml` credentials/image.
 - [x] Run migrations before `npm run check` in CI so DB-backed tests have schema; verified with local equivalent `DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm run migrate`.
 - [x] Run local CI-equivalent check with `TEST_DATABASE_URL=... npm run check`; verified DB-backed tests were not skipped.
 - [x] Update `docs/progress-log.md`; verified by reading the file.

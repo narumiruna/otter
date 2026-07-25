@@ -16,7 +16,7 @@
 - [x] Add a small CSV formatter for trip expenses that escapes commas/quotes/newlines and includes date, description, amount, currency, payer, and split participants; verified with focused `npm test` case.
 - [x] Add an export button in `src/client/main.ts` that downloads the selected trip expense CSV with a safe filename; verified with `npm run typecheck` and build.
 - [x] Update README feature list and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

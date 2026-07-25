@@ -16,7 +16,7 @@
 - [x] Add participant-name duplicate detection for create and rename in `src/server.ts`/support helpers, excluding the participant being renamed; verified with DB-backed API tests.
 - [x] Extend `src/server.expenses.test.ts` to reject duplicate participant create and rename while preserving owner-scoped 404 behavior; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`.
 - [x] Update README feature list and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

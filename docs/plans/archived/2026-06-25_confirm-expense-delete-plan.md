@@ -15,7 +15,7 @@
 
 - [x] Update `src/client/main.ts` expense delete click handler to call native `confirm()` with the expense description before API deletion; verified by source review and `npm run typecheck`.
 - [x] Update `docs/progress-log.md` with the completed cycle outcome; verified by reading the log.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

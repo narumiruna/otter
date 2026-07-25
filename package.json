@@ -8,7 +8,7 @@
     "build": "vite build && tsc -p tsconfig.server.json && tsc -p tsconfig.scripts.json",
     "start": "node dist/scripts/migrate.js && node dist/server/server.js",
     "migrate": "tsx scripts/migrate.ts",
-    "db:reset:dev": "docker compose -f compose.dev.yml down -v",
+    "db:reset:dev": "docker compose -f compose.dev.yaml down -v",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.scripts.json",
     "test": "node --import tsx --test --test-concurrency=1 src/*.test.ts src/**/*.test.ts src/**/*.test.tsx src/**/**/*.test.ts src/**/**/*.test.tsx",
     "biome:ci": "biome ci .",

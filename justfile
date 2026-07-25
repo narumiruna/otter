@@ -8,10 +8,10 @@ ci:
     npm ci
 
 produp:
-    docker compose -f compose.yml up -d --build
+    docker compose -f compose.yaml up -d --build
 
 dev:
-    docker compose -f compose.dev.yml up -d --build
+    docker compose -f compose.dev.yaml up -d --build
 
 build:
     npm run build

@@ -16,7 +16,7 @@
 - [x] Update `expenseList` in `src/client/views.ts` to sort by `expenseDate` descending, then `createdAt` descending, then `id` descending; verified with `npm run typecheck`.
 - [x] Extend `src/client/views.test.ts` to assert newer expense dates render before older dates even when array order differs; verified with `npm test -- src/client/views.test.ts`.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

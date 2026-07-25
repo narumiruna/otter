@@ -17,7 +17,7 @@
 - [x] Add delete buttons in `src/client/main.ts` participant rows using native `confirm()` and refresh the selected trip; verified with `npm run typecheck` and build.
 - [x] Extend `src/server.test.ts` to reject deletion while a participant is used, delete after the expense is removed, and reject deleting the last participant; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`.
 - [x] Update README feature list; verified by reading `README.md`.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

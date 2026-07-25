@@ -16,7 +16,7 @@
 - [x] Add `src/client/views.test.ts` using Node `node:test` assertions against `dashboardView`; verified it checks selected trip ARIA state, participant action labels/descriptions, and expense action labels.
 - [x] Run the targeted test file with `npm test -- src/client/views.test.ts`; verified it passes after formatting the new file.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

@@ -17,7 +17,7 @@
 - [x] Split auth/trip coverage into `src/server.auth.test.ts` and participant/expense coverage into `src/server.expenses.test.ts`, preserving existing assertions; verified with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`.
 - [x] Remove the old monolithic `src/server.test.ts` after coverage is preserved; verified with `test ! -e src/server.test.ts`.
 - [x] Update `docs/progress-log.md`; verified by reading it.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

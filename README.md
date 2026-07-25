@@ -97,13 +97,13 @@ npm run check
 Production-like（使用外部 Postgres，必須提供 `DATABASE_URL`）：
 
 ```bash
-DATABASE_URL=postgres://user:pass@db:5432/otter docker compose -f compose.yml up --build
+DATABASE_URL=postgres://user:pass@db:5432/otter docker compose -f compose.yaml up --build
 ```
 
 Development container（含 Postgres）：
 
 ```bash
-docker compose -f compose.dev.yml up --build
+docker compose -f compose.dev.yaml up --build
 ```
 
 兩個 compose 檔都會把 app 暴露在 <http://localhost:3420>；container 啟動時會先套用 migrations。

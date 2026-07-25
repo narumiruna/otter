@@ -4,7 +4,7 @@
 
 ## Context
 
-目前 `setSessionCookie` 只有在 `COOKIE_SECURE=true` 時加入 `Secure`。`compose.yml` 會設定 `NODE_ENV=production`，但沒有設定 `COOKIE_SECURE`，因此 production-like 啟動預設不會使用 Secure cookie。
+目前 `setSessionCookie` 只有在 `COOKIE_SECURE=true` 時加入 `Secure`。`compose.yaml` 會設定 `NODE_ENV=production`，但沒有設定 `COOKIE_SECURE`，因此 production-like 啟動預設不會使用 Secure cookie。
 
 ## Non-Goals
 
@@ -16,7 +16,7 @@
 - [x] Update cookie helper code so `NODE_ENV=production` uses `Secure` by default, while `COOKIE_SECURE=false` can disable it for trusted HTTP testing; verified with unit tests.
 - [x] Add tests for default development cookies, production default Secure cookies, and explicit `COOKIE_SECURE` overrides; verified with `npm test`.
 - [x] Update README and `docs/progress-log.md`; verified by reading both files.
-- [x] Run full QA and compose smoke; verified with DB-backed `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`, `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with DB-backed `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test`, `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 

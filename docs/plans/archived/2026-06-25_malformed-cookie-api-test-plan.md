@@ -16,7 +16,7 @@
 - [x] Add `/api/me` malformed cookie assertion to `src/server.auth.test.ts`; verified it expects HTTP 200 and `user: null`.
 - [x] Run DB-backed auth tests with `TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test -- src/server.auth.test.ts`; verified the test passes.
 - [x] Update `docs/progress-log.md`; verified by reading the file.
-- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
+- [x] Run full QA and compose smoke; verified with `npm run check`, `docker compose -f compose.dev.yaml up --build -d`, and `curl http://127.0.0.1:3000/api/me`.
 
 ## Risks
 
