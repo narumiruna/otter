@@ -19,7 +19,7 @@ services:
     build:
       context: .
       target: deps
-    command: sh -c "npm run migrate && npm run dev"
+    command: sh -c "npm run migrate && npm run dev:server"
     depends_on:
       postgres:
         condition: service_healthy

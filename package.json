@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "docker compose -f compose.dev.yaml up --build",
+    "dev:server": "tsx watch src/server.ts",
     "build": "vite build && tsc -p tsconfig.server.json && tsc -p tsconfig.scripts.json",
     "start": "node dist/scripts/migrate.js && node dist/server/server.js",
     "migrate": "tsx scripts/migrate.ts",

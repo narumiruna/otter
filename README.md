@@ -35,23 +35,23 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 
 ```bash
 npm install
-just dev
+npm run dev
 ```
 
-開啟 <http://localhost:3420>。dev compose 會啟動 Postgres、執行 `npm run migrate`、建立開發用帳號，再啟動 app。登入頁會預先填入：
+開啟 <http://localhost:3420>。`npm run dev` 會在前景啟動 dev compose；它會啟動 Postgres、執行 `npm run migrate`、建立開發用帳號，再啟動 app。登入頁會預先填入：
 
 - Email：`admin@otter.local`
 - 密碼：`admin1234`
 
 開發帳號只會在 `NODE_ENV=development` 時建立，且是一般帳號（系統沒有全域 admin 權限）。啟動時也會以可重複執行的方式加入 4 組範例資料：東京賞櫻、台南美食、紐約出差，以及一組已封存的歐洲跨年；內容涵蓋多幣別、分類、標籤、指定分帳與部分結清。
 
-`just dev` 會以背景 container 啟動完整開發環境；若要在前景執行 app，請改用下方的手動指令。
+`just dev` 會改以背景 container 啟動同一套完整開發環境。
 
 如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`：
 
 ```bash
 DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run migrate
-DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run dev
+DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run dev:server
 ```
 
 常用檢查：

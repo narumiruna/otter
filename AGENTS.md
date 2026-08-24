@@ -19,7 +19,7 @@ Run commands from the repository root.
 
 - `npm install` - install dependencies for local development.
 - `npm ci` - install dependencies exactly from `package-lock.json`, as CI does.
-- `npm run dev` - start the Express/Vite dev server; requires `DATABASE_URL` unless run through compose.
+- [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to run only the Express/Vite server.
 - `npm run migrate` - apply pending PostgreSQL migrations from `db/migrations/`.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.
 - `npm run biome:ci` - run Biome formatting/lint checks.
