@@ -19,16 +19,16 @@ export function MorePage({
 }) {
   const isOwner = payload.currentUserRole !== "editor";
   return (
-    <section className="grid gap-4" aria-labelledby="more-heading">
-      <header className="surface">
+    <section className="more-page grid gap-4" aria-labelledby="more-heading">
+      <header className="page-intro">
         <SectionHeading
           description={
             isOwner
-              ? "低頻與高影響操作集中在這裡；每個區塊會先顯示目前狀態。"
+              ? "管理分享、群組偏好與資料工具。高影響操作會在執行前再次確認。"
               : "你是協作者，可使用資料工具；只有擁有者能管理權限與群組設定。"
           }
         >
-          <span id="more-heading">更多</span>
+          <span id="more-heading">群組設定</span>
         </SectionHeading>
       </header>
       {isOwner ? <AccessSettings payload={payload} /> : null}

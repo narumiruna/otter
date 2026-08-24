@@ -38,7 +38,7 @@ export function DataSettings({
   const { announce } = useWorkspace();
   const { trip } = payload;
   return (
-    <details className="surface disclosure">
+    <details className="surface disclosure" name="trip-settings">
       <summary>
         <Download aria-hidden="true" />
         <span>資料與匯出</span>

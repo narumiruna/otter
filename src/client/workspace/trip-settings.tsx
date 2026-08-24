@@ -70,7 +70,7 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <details className="surface disclosure">
+    <details className="surface disclosure" name="trip-settings">
       <summary>
         <Settings2 aria-hidden="true" />
         <span>群組偏好</span>
@@ -191,7 +191,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <details className="surface disclosure">
+    <details className="surface disclosure" name="trip-settings">
       <summary>
         <Calculator aria-hidden="true" />
         <span>換算方式</span>
@@ -310,7 +310,7 @@ export function LifecycleSettings({
     }
   }
   return (
-    <details className="surface disclosure danger-surface">
+    <details className="surface disclosure danger-surface" name="trip-settings">
       <summary>
         <Archive aria-hidden="true" />
         <span>群組生命週期</span>

@@ -128,9 +128,19 @@
 
 .otter-button {
   min-height: 2.5rem;
-  gap: 0.45rem;
+  gap: 0.5rem;
+  border-radius: var(--radius-3);
   font-weight: 650;
+  letter-spacing: -0.01em;
   touch-action: manipulation;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.otter-button:where(.rt-variant-outline) {
+  background: var(--color-panel-solid);
 }
 
 .otter-button[data-icon-only] {

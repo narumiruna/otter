@@ -224,9 +224,15 @@ export function AuthenticatedWorkspace({
     >
       <div className="workspace-layout">
         <aside className="workspace-sidebar" aria-label="群組切換">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">群組</h2>
-            <span className="count-pill">
+          <div className="sidebar-heading">
+            <div>
+              <span className="sidebar-eyebrow">群組空間</span>
+              <h2>群組</h2>
+            </div>
+            <span
+              className="count-pill"
+              title={`${collectionQuery.data.trips.length} 個使用中群組`}
+            >
               {collectionQuery.data.trips.length}
             </span>
           </div>
@@ -400,23 +406,25 @@ function TripHeader({
           </DialogContent>
         </Dialog>
       </div>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
-            {payload.trip.name}
-          </h2>
-          {archived ? <span className="status-badge">已封存</span> : null}
-          <span className="status-badge">
-            {payload.currentUserRole === "editor" ? "協作者" : "擁有者"}
-          </span>
+      <div className="trip-heading">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
+              {payload.trip.name}
+            </h2>
+            {archived ? <span className="status-badge">已封存</span> : null}
+            <span className="status-badge">
+              {payload.currentUserRole === "editor" ? "協作者" : "擁有者"}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            基準貨幣 {payload.trip.baseCurrency} ·{" "}
+            {Object.keys(payload.trip.exchangeRates ?? {}).length
+              ? "使用自訂匯率"
+              : "使用內建固定匯率"}
+            {pendingTripId ? " · 正在載入群組…" : ""}
+          </p>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          基準貨幣 {payload.trip.baseCurrency} ·{" "}
-          {Object.keys(payload.trip.exchangeRates ?? {}).length
-            ? "使用自訂匯率"
-            : "使用內建固定匯率"}
-          {pendingTripId ? " · 正在載入群組…" : ""}
-        </p>
       </div>
       <dl className="trip-stats">
         <Stat label="成員" value={payload.trip.participants.length} />
@@ -495,9 +503,11 @@ function TripList({
 }) {
   const row = (trip: TripSummary) => (
     <BusyButton
+      aria-current={trip.id === selectedTripId ? "true" : undefined}
       busy={pendingTripId === trip.id}
       busyLabel="載入中…"
-      className="h-auto w-full justify-start rounded-xl px-3 py-3 text-left"
+      className="trip-switcher-item h-auto w-full justify-start px-3 py-3 text-left"
+      data-active={trip.id === selectedTripId || undefined}
       key={trip.id}
       onClick={() => void selectTrip(trip.id)}
       variant={trip.id === selectedTripId ? "secondary" : "ghost"}

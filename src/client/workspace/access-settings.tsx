@@ -22,7 +22,7 @@ export function AccessSettings({ payload }: { payload: TripPayload }) {
     (link) => !link.revokedAt,
   ).length;
   return (
-    <details className="surface disclosure">
+    <details className="surface disclosure" name="trip-settings">
       <summary>
         <ShieldCheck aria-hidden="true" />
         <span>分享與權限</span>
@@ -31,7 +31,7 @@ export function AccessSettings({ payload }: { payload: TripPayload }) {
           位協作者
         </span>
       </summary>
-      <div className="grid gap-6 pt-5">
+      <div className="settings-grid pt-2">
         <ShareLinks payload={payload} />
         <Collaborators payload={payload} />
       </div>
@@ -77,7 +77,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <section className="grid gap-3">
+    <section className="settings-panel grid gap-4">
       <SectionHeading description="知道連結的人不需登入即可查看支出、餘額與結清；不能修改資料。">
         唯讀分享連結
       </SectionHeading>
@@ -95,7 +95,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
           </BusyButton>
         }
       />
-      <ul className="grid gap-2">
+      <ul className="settings-list grid gap-2">
         {payload.shareLinks?.length ? (
           payload.shareLinks.map((link) => (
             <li
@@ -177,7 +177,7 @@ function Collaborators({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <section className="grid gap-3 border-t pt-5">
+    <section className="settings-panel grid gap-4">
       <SectionHeading description="協作者必須是既有使用者，可維護支出與分帳成員，但不能管理擁有者設定。">
         協作者
       </SectionHeading>
@@ -203,7 +203,7 @@ function Collaborators({ payload }: { payload: TripPayload }) {
         </BusyButton>
       </form>
       <ActionError message={error} />
-      <ul className="grid gap-2">
+      <ul className="settings-list grid gap-2">
         {payload.collaborators?.map((member) => (
           <li
             className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm"
