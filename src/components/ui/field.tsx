@@ -247,6 +247,4 @@ export {
   FieldTitle,
 };
 
-// Keep a React binding for Node's tsx test loader, which uses the classic JSX
-// transform for generated shadcn components.
 void React;

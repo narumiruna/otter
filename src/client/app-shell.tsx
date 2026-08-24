@@ -1,5 +1,8 @@
+import {
+  ExitIcon as LogOut,
+  GlobeIcon as WifiOff,
+} from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, WifiOff } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

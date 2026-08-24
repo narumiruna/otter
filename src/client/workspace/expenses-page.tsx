@@ -1,11 +1,11 @@
 import {
-  FileImage,
-  Pencil,
-  Receipt,
-  Search,
-  Trash2,
-  Upload,
-} from "lucide-react";
+  ImageIcon as FileImage,
+  Pencil2Icon as Pencil,
+  FileTextIcon as Receipt,
+  MagnifyingGlassIcon as Search,
+  TrashIcon as Trash2,
+  UploadIcon as Upload,
+} from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { expenseCategories } from "../../shared/expense-metadata.js";

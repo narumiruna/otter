@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import type { NextFunction, Request, Response } from "express";
 import type {
   Pool as PgPool,
   PoolClient,
@@ -7,6 +6,13 @@ import type {
   QueryResultRow,
 } from "pg";
 import pg from "pg";
+import {
+  asyncHandler,
+  type OtterContext,
+  type OtterMiddleware,
+  type RouteRequest,
+  type RouteResponse,
+} from "./server-http.js";
 import { isExpenseCategory } from "./shared/expense-metadata.js";
 import { type Currency, isCurrency } from "./shared/money.js";
 import {
@@ -61,12 +67,6 @@ type Queryable = {
     values?: unknown[],
   ): Promise<QueryResult<Row>>;
 };
-
-type Handler = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => Promise<void> | void;
 
 type UserRow = {
   id: string;
@@ -208,7 +208,7 @@ export function verifyPassword(
   );
 }
 
-export function requestBody(req: Request): Record<string, unknown> {
+export function requestBody(req: RouteRequest): Record<string, unknown> {
   return req.body && typeof req.body === "object"
     ? (req.body as Record<string, unknown>)
     : {};
@@ -222,11 +222,11 @@ export function stringField(
   return typeof value === "string" ? value.trim() : undefined;
 }
 
-export function sendError(res: Response, status: number, error: string) {
+export function sendError(res: RouteResponse, status: number, error: string) {
   res.status(status).json({ error });
 }
 
-export function getCookie(req: Request, name: string): string | undefined {
+export function getCookie(req: RouteRequest, name: string): string | undefined {
   const cookieHeader = req.headers.cookie;
   if (!cookieHeader) {
     return undefined;
@@ -264,11 +264,11 @@ export function clearSessionCookieHeader(): string {
   return `otter_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secureCookieAttribute()}`;
 }
 
-export function setSessionCookie(res: Response, sessionId: string) {
+export function setSessionCookie(res: RouteResponse, sessionId: string) {
   res.setHeader("Set-Cookie", sessionCookieHeader(sessionId));
 }
 
-export function clearSessionCookie(res: Response) {
+export function clearSessionCookie(res: RouteResponse) {
   res.setHeader("Set-Cookie", clearSessionCookieHeader());
 }
 
@@ -290,7 +290,7 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
-export function rejectArchivedTrip(res: Response, trip: Trip): boolean {
+export function rejectArchivedTrip(res: RouteResponse, trip: Trip): boolean {
   if (!trip.archivedAt) {
     return false;
   }
@@ -329,11 +329,7 @@ export async function tripNameExistsForUser(
   return result.rows.length > 0;
 }
 
-export function asyncHandler(handler: Handler): Handler {
-  return (req, res, next) => {
-    void Promise.resolve(handler(req, res, next)).catch(next);
-  };
-}
+export { asyncHandler };
 
 export function iso(value: Date | string): string {
   return (value instanceof Date ? value : new Date(value)).toISOString();
@@ -388,8 +384,12 @@ export function isPgCode(error: unknown, code: string): boolean {
   );
 }
 
-export function currentUser(res: Response): User {
-  return res.locals.user as User;
+export function currentUser(res: RouteResponse): User {
+  const user = res.locals.user;
+  if (!user) {
+    throw new Error("Authenticated user is missing from Hono context");
+  }
+  return user;
 }
 
 function databaseUrl(): string {
@@ -455,7 +455,7 @@ export async function createSession(
 
 export async function userFromRequest(
   db: Queryable,
-  req: Request,
+  req: RouteRequest,
 ): Promise<User | undefined> {
   const sessionId = getCookie(req, "otter_session");
   if (!sessionId) {
@@ -476,17 +476,23 @@ export async function userFromRequest(
   return row ? rowToUser(row) : undefined;
 }
 
-export function requireUser(db: Queryable): Handler {
-  return asyncHandler(async (req, res, next) => {
-    const user = await userFromRequest(db, req);
+export function requireUser(db: Queryable): OtterMiddleware {
+  return async (context: OtterContext, next) => {
+    const request: RouteRequest = {
+      body: {},
+      get: (name) => context.req.header(name),
+      headers: Object.fromEntries(context.req.raw.headers.entries()),
+      params: context.req.param(),
+      protocol: new URL(context.req.url).protocol.slice(0, -1),
+    };
+    const user = await userFromRequest(db, request);
     if (!user) {
-      sendError(res, 401, "請先登入");
-      return;
+      return context.json({ error: "請先登入" }, 401);
     }
 
-    res.locals.user = user;
-    next();
-  });
+    context.set("user", user);
+    await next();
+  };
 }
 
 export async function loadTripForUser(

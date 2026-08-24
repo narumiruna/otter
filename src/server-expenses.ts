@@ -1,5 +1,5 @@
-import type express from "express";
 import type { Pool as PgPool } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   type ParticipantShare,
   participantSharesFromBody,
@@ -46,9 +46,9 @@ function expenseCategoryFromBody(value: unknown): ExpenseCategory {
 }
 
 export function registerExpenseRoutes(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/expenses",

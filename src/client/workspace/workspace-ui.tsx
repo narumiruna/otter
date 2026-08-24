@@ -1,4 +1,7 @@
-import { AlertTriangle, LoaderCircle } from "lucide-react";
+import {
+  ExclamationTriangleIcon as AlertTriangle,
+  ReloadIcon as LoaderCircle,
+} from "@radix-ui/react-icons";
 import {
   cloneElement,
   type ReactElement,

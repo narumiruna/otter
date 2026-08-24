@@ -1,5 +1,5 @@
-import type express from "express";
 import type { Pool as PgPool } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -14,9 +14,9 @@ import {
 } from "./server-support.js";
 
 export function registerParticipantMergeRoute(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/participants/:participantId/merge",

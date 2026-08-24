@@ -23,6 +23,7 @@
     "src/client/**/*.ts",
     "src/client/**/*.tsx",
     "src/shared/**/*.ts",
-    "vite.config.ts"
+    "vite.config.ts",
+    "vitest.config.ts"
   ]
 }

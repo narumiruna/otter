@@ -14,7 +14,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev",
+    command: "npm run dev:server",
     env: {
       ...process.env,
       DEV_ADMIN_EMAIL: "admin@otter.local",

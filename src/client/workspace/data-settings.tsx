@@ -1,4 +1,9 @@
-import { Download, FileInput, FileUp, Printer } from "lucide-react";
+import {
+  DownloadIcon as Download,
+  FileTextIcon as FileInput,
+  UploadIcon as FileUp,
+  ReaderIcon as Printer,
+} from "@radix-ui/react-icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {

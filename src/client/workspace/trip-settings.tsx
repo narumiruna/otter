@@ -1,4 +1,9 @@
-import { Archive, Calculator, Settings2, Trash2 } from "lucide-react";
+import {
+  ArchiveIcon as Archive,
+  TokensIcon as Calculator,
+  GearIcon as Settings2,
+  TrashIcon as Trash2,
+} from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";

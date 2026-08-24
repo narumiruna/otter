@@ -1,20 +1,61 @@
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
-// biome-ignore lint/style/useImportType: Node's tsx test loader requires a React runtime binding.
-import * as React from "react";
+import { Cross2Icon } from "@radix-ui/react-icons";
+import { Heading, Text } from "@radix-ui/themes";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import {
+  type ComponentProps,
+  cloneElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
-function Dialog(props: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+type RenderElement = ReactElement<{
+  children?: ReactNode;
+  className?: string;
+  disabled?: boolean;
+}>;
+
+type TriggerProps = Omit<
+  ComponentProps<typeof DialogPrimitive.Trigger>,
+  "asChild"
+> & {
+  render?: RenderElement;
+};
+
+type CloseProps = Omit<
+  ComponentProps<typeof DialogPrimitive.Close>,
+  "asChild"
+> & {
+  render?: RenderElement;
+};
+
+function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root {...props} />;
 }
 
-function DialogTrigger(props: DialogPrimitive.Trigger.Props) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
+function DialogTrigger({ children, render, ...props }: TriggerProps) {
+  if (render) {
+    return (
+      <DialogPrimitive.Trigger asChild {...props}>
+        {cloneElement(render, { children: children ?? render.props.children })}
+      </DialogPrimitive.Trigger>
+    );
+  }
+  return (
+    <DialogPrimitive.Trigger {...props}>{children}</DialogPrimitive.Trigger>
+  );
 }
 
-function DialogClose(props: DialogPrimitive.Close.Props) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
+function DialogClose({ children, render, ...props }: CloseProps) {
+  if (render) {
+    return (
+      <DialogPrimitive.Close asChild {...props}>
+        {cloneElement(render, { children: children ?? render.props.children })}
+      </DialogPrimitive.Close>
+    );
+  }
+  return <DialogPrimitive.Close {...props}>{children}</DialogPrimitive.Close>;
 }
 
 function DialogContent({
@@ -22,68 +63,93 @@ function DialogContent({
   className,
   showCloseButton = true,
   ...props
-}: DialogPrimitive.Popup.Props & { showCloseButton?: boolean }) {
+}: ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean;
+}) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-      <DialogPrimitive.Popup
-        className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-2xl bg-popover p-5 text-popover-foreground shadow-2xl ring-1 ring-black/10 outline-none data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
-          className,
-        )}
+      <DialogPrimitive.Overlay className="radix-dialog-overlay" />
+      <DialogPrimitive.Content
+        className={cn("radix-dialog-content", className)}
         {...props}
       >
         {children}
         {showCloseButton ? (
-          <DialogPrimitive.Close
-            render={
-              <Button
-                className="absolute top-3 right-3"
-                size="icon"
-                variant="ghost"
-              />
-            }
-          >
-            <XIcon aria-hidden="true" />
-            <span className="sr-only">關閉</span>
+          <DialogPrimitive.Close asChild>
+            <Button
+              aria-label="關閉"
+              className="radix-dialog-close"
+              size="icon"
+              variant="ghost"
+            >
+              <Cross2Icon aria-hidden="true" />
+            </Button>
           </DialogPrimitive.Close>
         ) : null}
-      </DialogPrimitive.Popup>
+      </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
 }
 
-function DialogHeader(props: React.ComponentProps<"div">) {
-  return <div {...props} className={cn("grid gap-2 pr-8", props.className)} />;
-}
-
-function DialogFooter(props: React.ComponentProps<"div">) {
+function DialogHeader(props: ComponentProps<"div">) {
   return (
-    <div
-      {...props}
-      className={cn(
-        "flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end",
-        props.className,
-      )}
-    />
+    <div {...props} className={cn("radix-dialog-header", props.className)} />
   );
 }
 
-function DialogTitle(props: DialogPrimitive.Title.Props) {
+function DialogFooter(props: ComponentProps<"div">) {
   return (
-    <DialogPrimitive.Title
-      {...props}
-      className={cn("text-lg font-semibold", props.className)}
-    />
+    <div {...props} className={cn("radix-dialog-footer", props.className)} />
   );
 }
 
-function DialogDescription(props: DialogPrimitive.Description.Props) {
+function DialogTitle({
+  children,
+  className,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Title>) {
   return (
-    <DialogPrimitive.Description
-      {...props}
-      className={cn("text-sm text-muted-foreground", props.className)}
-    />
+    <DialogPrimitive.Title asChild {...props}>
+      <Heading as="h2" size="5" className={className}>
+        {children}
+      </Heading>
+    </DialogPrimitive.Title>
+  );
+}
+
+function DialogDescription({
+  children,
+  className,
+  render,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Description> & {
+  render?: RenderElement;
+}) {
+  if (render) {
+    return (
+      <DialogPrimitive.Description asChild {...props}>
+        {cloneElement(render, {
+          children: children ?? render.props.children,
+          className: cn(
+            "radix-dialog-description",
+            className,
+            render.props.className,
+          ),
+        })}
+      </DialogPrimitive.Description>
+    );
+  }
+  return (
+    <DialogPrimitive.Description asChild {...props}>
+      <Text
+        as="p"
+        color="gray"
+        size="2"
+        className={cn("radix-dialog-description", className)}
+      >
+        {children}
+      </Text>
+    </DialogPrimitive.Description>
   );
 }
 

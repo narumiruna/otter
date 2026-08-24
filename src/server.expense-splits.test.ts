@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import {
   api,
   postgresTestOptions,
@@ -11,8 +11,8 @@ import {
 test(
   "expense API accepts uneven split modes",
   postgresTestOptions,
-  async (t) => {
-    const { baseUrl } = await withTestApp(t);
+  async () => {
+    const { baseUrl } = await withTestApp();
     const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
         email: `split-${Date.now()}@example.com`,

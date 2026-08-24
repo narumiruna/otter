@@ -1,4 +1,8 @@
-import { ChevronLeft, ReceiptText, Users } from "lucide-react";
+import {
+  ChevronLeftIcon as ChevronLeft,
+  ReaderIcon as ReceiptText,
+  GroupIcon as Users,
+} from "@radix-ui/react-icons";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";

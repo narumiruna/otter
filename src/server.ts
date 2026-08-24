@@ -1,10 +1,9 @@
+import { createServer as createNodeServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import express, {
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
+import { getRequestListener, serve as serveNode } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { Hono } from "hono";
 import type { Pool as PgPool } from "pg";
 import { registerBackupRoutes } from "./server-backup.js";
 import { registerCollaborationRoutes } from "./server-collaboration.js";
@@ -16,6 +15,7 @@ import {
   ensureDevelopmentFixtures,
 } from "./server-dev.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
+import type { OtterApp, OtterEnv } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
@@ -101,16 +101,15 @@ export type CreateAppOptions = {
 export function createApp(
   pool: PgPool,
   options: CreateAppOptions = {},
-): express.Express {
-  const app = express();
+): OtterApp {
+  const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUser(pool);
 
   registerBackupRoutes(app, pool, mustBeSignedIn);
-  app.use(express.json({ limit: "1mb" }));
 
-  app.get("/api/config", (_req, res) => {
+  app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;
-    res.json({
+    return context.json({
       devLoginCredentials: credentials
         ? { email: credentials.email, password: credentials.password }
         : null,
@@ -636,37 +635,19 @@ export function createApp(
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn);
   registerShareRoutes(app, pool, mustBeSignedIn);
 
-  app.use("/api", (_req, res) => {
-    sendError(res, 404, "找不到 API");
-  });
+  app.all("/api", (context) => context.json({ error: "找不到 API" }, 404));
+  app.all("/api/*", (context) => context.json({ error: "找不到 API" }, 404));
 
-  app.use(
-    (error: unknown, _req: Request, res: Response, next: NextFunction) => {
-      if (res.headersSent) {
-        next(error);
-        return;
-      }
-      if (error && typeof error === "object") {
-        const parseError = error as { status?: unknown; type?: unknown };
-        if (
-          parseError.status === 400 &&
-          parseError.type === "entity.parse.failed"
-        ) {
-          sendError(res, 400, "JSON 格式錯誤");
-          return;
-        }
-        if (
-          parseError.status === 413 &&
-          parseError.type === "entity.too.large"
-        ) {
-          sendError(res, 413, "請求內容太大");
-          return;
-        }
-      }
-      console.error(error);
-      sendError(res, 500, "伺服器錯誤");
-    },
+  app.notFound((context) =>
+    context.req.path.startsWith("/api")
+      ? context.json({ error: "找不到 API" }, 404)
+      : context.text("Not found", 404),
   );
+
+  app.onError((error, context) => {
+    console.error(error);
+    return context.json({ error: "伺服器錯誤" }, 500);
+  });
 
   return app;
 }
@@ -681,23 +662,33 @@ async function start() {
   }
   const app = createApp(pool, { devLoginCredentials: credentials });
 
+  const port = Number(process.env.PORT ?? 3420);
   if (isProduction) {
     const clientDir = path.resolve(__dirname, "../client");
-    app.use(express.static(clientDir));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(clientDir, "index.html"));
-    });
-  } else {
-    const { createServer } = await import("vite");
-    const vite = await createServer({
-      appType: "spa",
-      server: { middlewareMode: true },
-    });
-    app.use(vite.middlewares);
+    app.use("*", serveStatic({ root: clientDir }));
+    app.get("*", serveStatic({ path: "index.html", root: clientDir }));
+    serveNode({ fetch: app.fetch, hostname: "0.0.0.0", port }, () =>
+      console.log(`otter listening on http://0.0.0.0:${port}`),
+    );
+    return;
   }
 
-  const port = Number(process.env.PORT ?? 3420);
-  app.listen(port, "0.0.0.0", () => {
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    appType: "spa",
+    server: { middlewareMode: true },
+  });
+  const honoListener = getRequestListener(app.fetch);
+  const server = createNodeServer((request, response) => {
+    if (request.url?.startsWith("/api")) {
+      void honoListener(request, response);
+      return;
+    }
+    vite.middlewares(request, response, () => {
+      void honoListener(request, response);
+    });
+  });
+  server.listen(port, "0.0.0.0", () => {
     console.log(`otter listening on http://0.0.0.0:${port}`);
   });
 }

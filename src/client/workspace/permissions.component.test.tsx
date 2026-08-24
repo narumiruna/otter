@@ -1,28 +1,12 @@
+// @vitest-environment jsdom
+
 import assert from "node:assert/strict";
-import test from "node:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
-import { JSDOM } from "jsdom";
+import { test } from "vitest";
 import type { TripPayload } from "../client-support.js";
 import { MorePage } from "./more-page.js";
 import { WorkspaceProvider } from "./workspace-context.js";
-
-function installDom() {
-  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-    url: "http://localhost/?view=more",
-  });
-  Object.assign(globalThis, {
-    document: dom.window.document,
-    HTMLElement: dom.window.HTMLElement,
-    Node: dom.window.Node,
-    window: dom.window,
-  });
-  Object.defineProperty(globalThis, "navigator", {
-    configurable: true,
-    value: dom.window.navigator,
-  });
-  return dom;
-}
 
 const editorPayload: TripPayload = {
   balances: [],
@@ -42,7 +26,7 @@ const editorPayload: TripPayload = {
 };
 
 test("editor More view omits every owner-only mutation surface", () => {
-  const dom = installDom();
+  window.history.replaceState({}, "", "/?view=more");
   const client = new QueryClient();
   const view = render(
     <QueryClientProvider client={client}>
@@ -69,5 +53,4 @@ test("editor More view omits every owner-only mutation surface", () => {
 
   view.unmount();
   client.clear();
-  dom.window.close();
 });

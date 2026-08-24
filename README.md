@@ -21,13 +21,14 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 ## 技術
 
 - 前端：React + Vite + TypeScript。
-- UI：shadcn/ui（Base UI primitives）+ Tailwind CSS。
+- UI：Radix Themes、Colors、Primitives、Icons，以及 Tailwind CSS layout utilities。
 - Server state：TanStack Query；表單：React Hook Form。
-- 後端：Express + TypeScript。
+- 後端：Hono + `@hono/node-server` + TypeScript。
 - 資料庫：PostgreSQL + raw SQL migrations。
 - 共用拆帳邏輯：`src/shared/`。
+- 單元與元件測試：Vitest + Testing Library；瀏覽器測試：Playwright + axe。
 - 格式與 lint：Biome CI。
-- Git hook：`.pre-commit-config.yaml` 可用 `prek install` 安裝。
+- Git hook：Husky；`npm install` 會透過 `prepare` 安裝 hook。
 
 前端工作區已完整使用 React feature components；TanStack Query 只在 API 成功後更新遠端狀態，React Hook Form 管理草稿、驗證、預覽與取消。URL 的 `trip`、`view`、`mode` query parameters 支援返回、上一頁與直接連結，且不會移除未知參數。
 
@@ -78,15 +79,13 @@ TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev 
 npm run db:reset:dev
 ```
 
-`npm run check` 會執行 Biome CI、TypeScript typecheck、Node/component 測試與 production build，且維持不依賴資料庫。`npm run test:e2e` 會用 Playwright Chromium 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility；先執行 `npx playwright install chromium`，並提供已遷移的 `DATABASE_URL`。
+`npm run check` 會執行 Biome CI、TypeScript typecheck、Vitest 與 production build，且維持不依賴資料庫。
+`npm run test:e2e` 會用 Playwright Chromium 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility；先執行 `npx playwright install chromium`，並提供已遷移的 `DATABASE_URL`。
 
-## Pre-commit / prek
+## Pre-commit / Husky
 
-```bash
-prek install
-```
-
-目前 hook 會執行：
+`npm install` 或 `npm ci` 會透過 `prepare` 安裝 `.husky/pre-commit`。
+目前 pre-commit hook 會執行完整檢查：
 
 ```bash
 npm run check

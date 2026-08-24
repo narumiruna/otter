@@ -1,25 +1,23 @@
-// biome-ignore-all lint/a11y/noLabelWithoutControl: This reusable label receives its control association from callers through htmlFor.
-import * as ReactRuntime from "react";
-
-const React = ReactRuntime;
-
+// biome-ignore-all lint/a11y/noLabelWithoutControl: Callers provide htmlFor or nest the associated control.
+import { Text } from "@radix-ui/themes";
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-function Label({ className, ...props }: ReactRuntime.ComponentProps<"label">) {
+function Label({
+  className,
+  color: _color,
+  ...props
+}: ComponentProps<"label">) {
   return (
-    <label
+    <Text
+      as="label"
       data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className,
-      )}
+      size="2"
+      weight="medium"
+      className={cn("otter-label", className)}
       {...props}
     />
   );
 }
 
 export { Label };
-
-// Keep a React binding for Node's tsx test loader, which uses the classic JSX
-// transform for generated shadcn components.
-void React;

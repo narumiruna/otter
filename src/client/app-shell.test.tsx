@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { test } from "vitest";
 import { AuthScreen } from "./auth-screen.js";
 
 test("React auth screen renders accessible RHF forms with development credentials", () => {

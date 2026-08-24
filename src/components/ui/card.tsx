@@ -1,49 +1,38 @@
-import type * as ReactTypes from "react";
-import * as ReactRuntime from "react";
-
-const React = ReactRuntime;
-
+import { type CardProps, Card as RadixCard, Text } from "@radix-ui/themes";
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 function Card({
   className,
   size = "default",
   ...props
-}: ReactTypes.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: Omit<CardProps, "size"> & { size?: "default" | "sm" }) {
   return (
-    <div
+    <RadixCard
       data-slot="card"
       data-size={size}
-      className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-        className,
-      )}
+      size={size === "sm" ? "1" : "2"}
+      className={cn("otter-card", className)}
       {...props}
     />
   );
 }
 
-function CardHeader({ className, ...props }: ReactTypes.ComponentProps<"div">) {
+function CardHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
-      className={cn(
-        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing)",
-        className,
-      )}
+      className={cn("otter-card-header", className)}
       {...props}
     />
   );
 }
 
-function CardTitle({ className, ...props }: ReactTypes.ComponentProps<"div">) {
+function CardTitle({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn(
-        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
-        className,
-      )}
+      className={cn("otter-card-title", className)}
       {...props}
     />
   );
@@ -51,51 +40,49 @@ function CardTitle({ className, ...props }: ReactTypes.ComponentProps<"div">) {
 
 function CardDescription({
   className,
+  children,
+  color: _color,
   ...props
-}: ReactTypes.ComponentProps<"div">) {
+}: ComponentProps<"div">) {
   return (
-    <div
+    <Text
+      as="div"
+      color="gray"
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      size="2"
+      className={className}
       {...props}
-    />
+    >
+      {children}
+    </Text>
   );
 }
 
-function CardAction({ className, ...props }: ReactTypes.ComponentProps<"div">) {
+function CardAction({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
-        className,
-      )}
+      className={cn("otter-card-action", className)}
       {...props}
     />
   );
 }
 
-function CardContent({
-  className,
-  ...props
-}: ReactTypes.ComponentProps<"div">) {
+function CardContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-(--card-spacing)", className)}
+      className={cn("otter-card-content", className)}
       {...props}
     />
   );
 }
 
-function CardFooter({ className, ...props }: ReactTypes.ComponentProps<"div">) {
+function CardFooter({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn(
-        "flex items-center rounded-b-xl border-t bg-muted/50 p-(--card-spacing)",
-        className,
-      )}
+      className={cn("otter-card-footer", className)}
       {...props}
     />
   );
@@ -110,7 +97,3 @@ export {
   CardHeader,
   CardTitle,
 };
-
-// Keep a React binding for Node's tsx test loader, which uses the classic JSX
-// transform for generated shadcn components.
-void React;

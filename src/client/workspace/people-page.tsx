@@ -1,4 +1,9 @@
-import { Merge, Pencil, Trash2, UserPlus } from "lucide-react";
+import {
+  MixIcon as Merge,
+  Pencil2Icon as Pencil,
+  TrashIcon as Trash2,
+  PersonIcon as UserPlus,
+} from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";

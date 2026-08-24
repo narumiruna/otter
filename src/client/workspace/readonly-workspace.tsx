@@ -1,4 +1,4 @@
-import { Eye } from "lucide-react";
+import { EyeOpenIcon as Eye } from "@radix-ui/react-icons";
 import { formatMinor } from "../../shared/money.js";
 import { expenseSplitLabel, type TripPayload } from "../client-support.js";
 import { OverviewPage } from "./overview-page.js";

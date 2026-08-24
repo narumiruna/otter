@@ -1,4 +1,10 @@
-import { Copy, Link, ShieldCheck, Trash2, UserRoundPlus } from "lucide-react";
+import {
+  CopyIcon as Copy,
+  Link2Icon as Link,
+  LockClosedIcon as ShieldCheck,
+  TrashIcon as Trash2,
+  PersonIcon as UserRoundPlus,
+} from "@radix-ui/react-icons";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";

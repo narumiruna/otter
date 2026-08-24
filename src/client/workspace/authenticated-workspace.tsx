@@ -1,14 +1,14 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Archive,
-  ChevronDown,
-  CircleDollarSign,
-  LayoutDashboard,
-  ListFilter,
-  MoreHorizontal,
-  Plus,
-  Users,
-} from "lucide-react";
+  ArchiveIcon as Archive,
+  ChevronDownIcon as ChevronDown,
+  TokensIcon as CircleDollarSign,
+  DashboardIcon as LayoutDashboard,
+  MixerHorizontalIcon as ListFilter,
+  DotsHorizontalIcon as MoreHorizontal,
+  PlusIcon as Plus,
+  GroupIcon as Users,
+} from "@radix-ui/react-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {

@@ -1,5 +1,5 @@
-import express from "express";
 import type { Pool as PgPool, PoolClient } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -15,9 +15,9 @@ import {
 import { type TripBackupV1, validateTripBackupV1 } from "./shared/backup.js";
 
 export function registerBackupRoutes(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.get(
     "/api/trips/:tripId/backup",
@@ -42,7 +42,6 @@ export function registerBackupRoutes(
 
   app.post(
     "/api/trips/restore",
-    express.json({ limit: "10mb" }),
     mustBeSignedIn,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);

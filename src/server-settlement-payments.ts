@@ -1,5 +1,5 @@
-import type express from "express";
 import type { Pool as PgPool } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -18,9 +18,9 @@ import {
 import { isCurrency, parseAmountToMinor } from "./shared/money.js";
 
 export function registerSettlementPaymentRoutes(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/settlement-payments",

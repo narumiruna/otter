@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import type express from "express";
 import type { Pool as PgPool } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -38,9 +38,9 @@ export function verifyShareTokenHash(
 }
 
 export function registerShareRoutes(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/share-links",

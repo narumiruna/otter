@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import type { TestContext } from "node:test";
+import { createAdaptorServer } from "@hono/node-server";
 import type { Pool as PgPool } from "pg";
 import pg from "pg";
+import { onTestFinished } from "vitest";
 import { runMigrations } from "../scripts/migrate.js";
 import type {
   TripPayload,
@@ -41,7 +42,6 @@ type TestAppOptions = {
 };
 
 export async function withTestApp(
-  t: TestContext,
   options: TestAppOptions = {},
 ): Promise<{ baseUrl: string }> {
   assert.ok(testDatabaseUrl);
@@ -54,7 +54,7 @@ export async function withTestApp(
   });
   let server: Server | undefined;
 
-  t.after(async () => {
+  onTestFinished(async () => {
     if (server) {
       await closeServer(server);
     }
@@ -68,7 +68,7 @@ export async function withTestApp(
   await options.prepare?.(pool);
 
   const app = createApp(pool, options.appOptions);
-  server = await listen(app);
+  server = await listen(createAdaptorServer({ fetch: app.fetch }));
   const address = server.address();
   assert.ok(address && typeof address === "object");
   return { baseUrl: `http://127.0.0.1:${address.port}` };
@@ -87,9 +87,9 @@ export async function api<T>(
   return { data, response };
 }
 
-async function listen(app: ReturnType<typeof createApp>): Promise<Server> {
+async function listen(server: Server): Promise<Server> {
   return new Promise((resolve) => {
-    const server = app.listen(0, "127.0.0.1", () => resolve(server));
+    server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import {
   developmentAdminCredentials,
   ensureDevelopmentAdmin,
@@ -51,8 +51,8 @@ test("development admin credentials reject incomplete configuration", () => {
 test(
   "development admin is seeded, exposed for prefilling, and can log in",
   postgresTestOptions,
-  async (t) => {
-    const { baseUrl } = await withTestApp(t, {
+  async () => {
+    const { baseUrl } = await withTestApp({
       appOptions: { devLoginCredentials: credentials },
       prepare: async (pool) => {
         const userId = await ensureDevelopmentAdmin(pool, credentials);

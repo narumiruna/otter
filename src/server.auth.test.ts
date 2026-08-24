@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import {
   api,
   postgresTestOptions,
@@ -9,9 +9,13 @@ import {
   withTestApp,
 } from "./server-test-utils.js";
 
-test("auth and trip APIs use Postgres", postgresTestOptions, async (t) => {
-  const { baseUrl } = await withTestApp(t);
+test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
+  const { baseUrl } = await withTestApp();
   const email = `alice-${Date.now()}@example.com`;
+
+  const missingApi = await api<{ error: string }>(baseUrl, "/api/not-found");
+  assert.equal(missingApi.response.status, 404);
+  assert.equal(missingApi.data.error, "找不到 API");
 
   const malformedJson = await fetch(`${baseUrl}/api/auth/login`, {
     body: "{",

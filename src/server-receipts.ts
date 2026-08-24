@@ -1,5 +1,5 @@
-import express from "express";
 import type { Pool as PgPool } from "pg";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -12,20 +12,15 @@ import {
 } from "./server-support.js";
 
 const receiptMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const receiptUpload = express.raw({
-  limit: "5mb",
-  type: [...receiptMimeTypes],
-});
 
 export function registerReceiptRoutes(
-  app: express.Express,
+  app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: express.RequestHandler,
+  mustBeSignedIn: OtterMiddleware,
 ) {
   app.put(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
-    receiptUpload,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);

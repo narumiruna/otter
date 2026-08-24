@@ -1,6 +1,12 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import "@radix-ui/colors/sage.css";
+@import "@radix-ui/colors/sage-dark.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/green-dark.css";
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/red-dark.css";
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/amber-dark.css";
 @import "@fontsource-variable/geist";
 @import "./styles.css";
 
@@ -49,73 +55,53 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: #eef2ec;
-  --foreground: #16211b;
-  --card: #ffffff;
-  --card-foreground: #16211b;
-  --popover: #ffffff;
-  --popover-foreground: #16211b;
-  --primary: #0d7a4a;
-  --primary-foreground: #ffffff;
-  --secondary: #e8f4ec;
-  --secondary-foreground: #0a5f39;
-  --muted: #f2f7f2;
-  --muted-foreground: #5f6f66;
-  --accent: #e9faf1;
-  --accent-foreground: #0a5f39;
-  --destructive: #c23b2e;
-  --border: #e2e9e2;
-  --input: #cfe2d5;
-  --ring: #0d7a4a;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+:root,
+.radix-themes {
+  --background: var(--sage-2);
+  --foreground: var(--sage-12);
+  --card: var(--color-panel-solid);
+  --card-foreground: var(--sage-12);
+  --popover: var(--color-panel-solid);
+  --popover-foreground: var(--sage-12);
+  --primary: var(--green-12);
+  --primary-foreground: var(--sage-1);
+  --secondary: var(--green-3);
+  --secondary-foreground: var(--green-12);
+  --muted: var(--sage-3);
+  --muted-foreground: var(--sage-11);
+  --accent: var(--green-3);
+  --accent-foreground: var(--green-12);
+  --destructive: var(--red-11);
+  --border: var(--sage-6);
+  --input: var(--sage-7);
+  --ring: var(--green-8);
+  --chart-1: var(--green-9);
+  --chart-2: var(--green-7);
+  --chart-3: var(--amber-9);
+  --chart-4: var(--sage-9);
+  --chart-5: var(--red-9);
+  --radius: var(--radius-3);
+  --sidebar: var(--sage-2);
+  --sidebar-foreground: var(--sage-12);
+  --sidebar-primary: var(--green-12);
+  --sidebar-primary-foreground: var(--sage-1);
+  --sidebar-accent: var(--green-3);
+  --sidebar-accent-foreground: var(--green-12);
+  --sidebar-border: var(--sage-6);
+  --sidebar-ring: var(--green-8);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+.radix-themes {
+  --accent-9: var(--green-11);
+  --accent-10: var(--green-12);
+}
+
+.radix-themes:where(.dark, .dark-theme) {
+  --accent-contrast: var(--sage-1);
+  --primary: var(--green-11);
+  --primary-foreground: var(--sage-1);
+  --sidebar-primary: var(--green-11);
+  --sidebar-primary-foreground: var(--sage-1);
 }
 
 @layer base {
@@ -131,5 +117,169 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+.radix-themes {
+  min-height: 100dvh;
+  color: var(--foreground);
+  font-family: "Geist Variable", sans-serif;
+}
+
+.otter-button {
+  min-height: 2.5rem;
+  gap: 0.45rem;
+  font-weight: 650;
+  touch-action: manipulation;
+}
+
+.otter-button[data-icon-only] {
+  width: 2.5rem;
+  min-width: 2.5rem;
+  padding-inline: 0;
+}
+
+.otter-button-link {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.otter-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.otter-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow: hidden;
+}
+
+.otter-card-header,
+.otter-card-content,
+.otter-card-footer {
+  padding-inline: var(--space-4);
+}
+
+.otter-card-header {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+}
+
+.otter-card-title {
+  color: var(--foreground);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-4);
+}
+
+.otter-card-action {
+  justify-self: end;
+}
+
+.otter-card-footer {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  padding-block: var(--space-3);
+}
+
+.otter-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1.25;
+}
+
+.otter-separator {
+  width: 100%;
+}
+
+.radix-dialog-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  background: color-mix(in srgb, var(--sage-12) 52%, transparent);
+  backdrop-filter: blur(3px);
+  animation: radix-overlay-in 180ms ease-out;
+}
+
+.radix-dialog-content {
+  position: fixed;
+  z-index: 90;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(36rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  transform: translate(-50%, -50%);
+  gap: var(--space-4);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-5);
+  background: var(--color-panel-solid);
+  color: var(--foreground);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-6);
+  animation: radix-dialog-in 200ms ease-out;
+}
+
+.radix-dialog-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+
+.radix-dialog-header {
+  display: grid;
+  gap: var(--space-2);
+  padding-right: var(--space-7);
+}
+
+.radix-dialog-description {
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+
+.radix-dialog-footer {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .radix-dialog-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+@keyframes radix-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes radix-dialog-in {
+  from {
+    transform: translate(-50%, -48%) scale(0.97);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .radix-dialog-overlay,
+  .radix-dialog-content {
+    animation: none;
+    transition: none;
   }
 }

@@ -1,10 +1,10 @@
 import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
-  HandCoins,
-  Trash2,
-} from "lucide-react";
+  ArrowRightIcon as ArrowRight,
+  CheckCircledIcon as CheckCircle2,
+  ChevronDownIcon as ChevronDown,
+  TokensIcon as HandCoins,
+  TrashIcon as Trash2,
+} from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";

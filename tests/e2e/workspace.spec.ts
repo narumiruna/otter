@@ -372,6 +372,25 @@ test("offline state keeps reading available and disables mutations", async ({
   await context.setOffline(false);
 });
 
+test("Radix dark theme respects reduced motion without overflow", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await login(page);
+
+  const theme = page.locator(".radix-themes");
+  await expect(theme).toHaveClass(/dark/);
+  await expect(theme).toHaveAttribute("data-accent-color", "green");
+  expect(await overflowingElements(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "記錄付款" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "記錄結清付款" });
+  await expect(dialog).toBeVisible();
+  expect(
+    await dialog.evaluate((element) => getComputedStyle(element).animationName),
+  ).toBe("none");
+});
+
 test("primary workspace has no serious automated accessibility violations", async ({
   page,
 }) => {
