@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { expectNoOverflow } from "./layout-assertions.js";
 
 async function overflowingElements(page: Page) {
   return page.locator("body *").evaluateAll((elements) =>
@@ -167,6 +168,14 @@ test("dialogs manage focus and archived groups expose no mutation actions", asyn
   await page.getByRole("button", { name: /已封存/ }).click();
   await expect(page.getByText("已封存・唯讀。資料會保留")).toBeVisible();
   await expect(page.getByRole("button", { name: "記一筆" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "記錄付款" })).toHaveCount(0);
+  const history = page.locator("summary").filter({ hasText: "付款紀錄" });
+  if (await history.count()) {
+    await history.click();
+    await expect(
+      page.getByRole("button", { name: "刪除", exact: true }),
+    ).toHaveCount(0);
+  }
   await page.getByRole("button", { name: "支出", exact: true }).click();
   await expect(page.getByRole("button", { name: "編輯" })).toHaveCount(0);
 });
@@ -311,11 +320,7 @@ test("supported viewports reflow without body overflow", async ({ page }) => {
   await login(page);
   for (const width of [320, 375, 768, 1024, 1440]) {
     await page.setViewportSize({ height: 900, width });
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.body.scrollWidth <= window.innerWidth),
-      )
-      .toBe(true);
+    await expectNoOverflow(page);
     await expect(page.getByRole("button", { name: "記一筆" })).toBeVisible();
   }
   await page.setViewportSize({ height: 844, width: 390 });
@@ -324,11 +329,7 @@ test("supported viewports reflow without body overflow", async ({ page }) => {
   });
   expect(await overflowingElements(page)).toEqual([]);
   await page.setViewportSize({ height: 390, width: 844 });
-  await expect
-    .poll(() =>
-      page.evaluate(() => document.body.scrollWidth <= window.innerWidth),
-    )
-    .toBe(true);
+  await expectNoOverflow(page);
 });
 
 test("long localized content and dense expense history remain usable", async ({

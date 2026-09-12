@@ -14,9 +14,14 @@ test("auth screen progressively discloses registration and returns to login", as
 
   assert.ok(view.getByRole("heading", { name: "登入" }));
   assert.equal(view.queryByLabelText("名稱"), null);
+  assert.equal(view.getByText("WELCOME BACK").getAttribute("lang"), "en");
   await user.click(view.getByRole("button", { name: "建立帳號" }));
   assert.ok(view.getByRole("heading", { name: "建立帳號" }));
   assert.ok(view.getByLabelText("名稱"));
+  assert.equal(
+    view.getByText("START A NEW JOURNEY").getAttribute("lang"),
+    "en",
+  );
   await user.click(view.getByRole("button", { name: "返回登入" }));
   assert.ok(view.getByRole("heading", { name: "登入" }));
 

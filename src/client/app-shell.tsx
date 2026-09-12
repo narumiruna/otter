@@ -171,10 +171,16 @@ export function AppShell() {
             href="/"
             aria-label="otter 首頁"
           >
-            <span className="brand-mark" aria-hidden="true" />
+            <img
+              className="brand-mark"
+              src="/icon.svg"
+              alt=""
+              width={44}
+              height={44}
+            />
             <span>
               <h1 className="brand-name">otter</h1>
-              <span className="brand-tagline">旅行和聚會的清楚拆帳</span>
+              <span className="brand-tagline">一起旅行，輕鬆分帳</span>
             </span>
           </a>
           {appData?.user ? (
@@ -198,7 +204,9 @@ export function AppShell() {
                 </span>
               </Button>
             </div>
-          ) : null}
+          ) : (
+            <span className="header-note">好朋友，好好分帳。</span>
+          )}
         </header>
         {offline ? (
           <div className="offline-banner" role="status">

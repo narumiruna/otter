@@ -172,23 +172,32 @@ export function ConfirmDialog({
 export function BalanceList({ balances }: { balances: Balance[] }) {
   if (balances.length === 0) return <p className="empty-copy">還沒有餘額。</p>;
   return (
-    <ul className="divide-y rounded-xl border bg-card">
+    <ul className="balance-list">
       {balances.map((balance) => {
-        const positive = balance.amountMinor >= 0;
+        const positive = balance.amountMinor > 0;
+        const settled = balance.amountMinor === 0;
         return (
-          <li
-            className="flex items-center justify-between gap-4 p-3"
-            key={balance.participantId}
-          >
-            <span className="font-medium break-anywhere">{balance.name}</span>
+          <li className="balance-row" key={balance.participantId}>
+            <span className="balance-person">
+              <span className="person-avatar" aria-hidden="true">
+                {balance.name.trim().charAt(0).toLocaleUpperCase() || "?"}
+              </span>
+              <span className="font-medium break-anywhere">{balance.name}</span>
+            </span>
             <span
               className={cn(
-                "font-semibold tabular-nums",
-                positive ? "text-primary" : "text-destructive",
+                "balance-amount tabular-nums",
+                settled
+                  ? "text-muted-foreground"
+                  : positive
+                    ? "text-primary"
+                    : "text-destructive",
               )}
             >
-              {positive ? "應收" : "應付"}{" "}
-              {formatMinor(Math.abs(balance.amountMinor), balance.currency)}
+              <span>{settled ? "已打平" : positive ? "應收" : "應付"}</span>
+              <strong>
+                {formatMinor(Math.abs(balance.amountMinor), balance.currency)}
+              </strong>
             </span>
           </li>
         );
@@ -205,8 +214,8 @@ export function SectionHeading({
   description?: string;
 }) {
   return (
-    <header className="grid gap-1">
-      <h3 className="text-lg font-semibold tracking-tight">{children}</h3>
+    <header className="section-heading">
+      <h3>{children}</h3>
       {description ? (
         <p className="text-sm text-muted-foreground">{description}</p>
       ) : null}
