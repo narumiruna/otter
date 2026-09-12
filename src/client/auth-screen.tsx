@@ -1,4 +1,9 @@
-import { CheckCircledIcon as CheckCircle2 } from "@radix-ui/react-icons";
+import {
+  ArrowRightIcon,
+  CheckCircledIcon as CheckCircle2,
+  GlobeIcon,
+  LockClosedIcon,
+} from "@radix-ui/react-icons";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -48,8 +53,46 @@ export function AuthScreen({
   return (
     <section className="auth-layout">
       <article className="auth-promise">
-        <p className="eyebrow">旅行拆帳，不靠腦補</p>
-        <h2>把支出、餘額和結清建議放在同一個清楚的工作區。</h2>
+        <p className="eyebrow">
+          <GlobeIcon aria-hidden="true" /> 一起出發，輕鬆分帳
+        </p>
+        <h2>
+          把時間留給旅途，
+          <br />
+          <span>把分帳交給 otter。</span>
+        </h2>
+        <p className="auth-description">
+          從一頓晚餐到一趟旅行，記下每筆共同支出，讓朋友之間的帳目簡單、清楚。
+        </p>
+        <div
+          className="auth-example"
+          role="img"
+          aria-label="分帳示意：週末小旅行，三人晚餐共 TWD 1,800，每人分攤 TWD 600。"
+        >
+          <div className="auth-example-heading">
+            <span>
+              <GlobeIcon aria-hidden="true" /> 週末小旅行
+            </span>
+            <span className="auth-example-label">分帳示意</span>
+          </div>
+          <div className="auth-example-total">
+            <span>一起吃的晚餐</span>
+            <strong>
+              <small>TWD</small> 1,800
+            </strong>
+          </div>
+          <div className="auth-example-split">
+            <div className="example-avatars" aria-hidden="true">
+              <span>你</span>
+              <span>安</span>
+              <span>宇</span>
+            </div>
+            <span>
+              3 人均分 <ArrowRightIcon aria-hidden="true" /> 每人{" "}
+              <strong>$600</strong>
+            </span>
+          </div>
+        </div>
         <ul>
           {[
             "快速記錄共同支出",
@@ -65,13 +108,16 @@ export function AuthScreen({
       </article>
       <Card className="auth-card">
         <CardHeader>
+          <span className="auth-card-eyebrow">
+            {mode === "login" ? "WELCOME BACK" : "START A NEW JOURNEY"}
+          </span>
           <CardTitle>
             <h2>{mode === "login" ? "登入" : "建立帳號"}</h2>
           </CardTitle>
           <CardDescription>
             {mode === "login"
-              ? "使用既有帳號繼續管理群組。"
-              : "建立帳號後即可新增第一個群組。"}
+              ? "歡迎回來，繼續你們的旅程。"
+              : "從第一個群組，開始輕鬆分帳。"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -204,6 +250,10 @@ export function AuthScreen({
               </FieldGroup>
             </form>
           )}
+          <p className="auth-note">
+            <LockClosedIcon aria-hidden="true" />{" "}
+            分帳成員不需帳號，也能一起記在群組裡。
+          </p>
         </CardContent>
       </Card>
     </section>

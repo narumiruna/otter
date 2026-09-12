@@ -26,6 +26,8 @@ import {
   type TripPayload,
   todayDate,
 } from "../client-support.js";
+import { ExpenseCategoryIcon } from "./expense-category-icon.js";
+import { OverviewSummary } from "./overview-summary.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BalanceList,
@@ -48,7 +50,8 @@ export function OverviewPage({
 }) {
   const { trip } = payload;
   return (
-    <div className="grid gap-5">
+    <div className="overview-grid">
+      <OverviewSummary payload={payload} />
       {trip.expenses.length === 0 ? (
         <EmptyOverview
           trip={trip}
@@ -58,24 +61,28 @@ export function OverviewPage({
         />
       ) : null}
       <section
-        className="surface grid gap-4"
+        className="surface overview-settlements grid gap-4"
         aria-labelledby="settlement-heading"
       >
         <SectionHeading description="依目前支出與已記錄付款計算。">
           <span id="settlement-heading">待結清</span>
+          <span className="count-pill">{payload.settlements.length} 筆</span>
         </SectionHeading>
         <SettlementList payload={payload} readonly={readonly} />
       </section>
       <section
-        className="surface grid gap-4"
+        className="surface overview-balances grid gap-4"
         aria-labelledby="balances-heading"
       >
-        <SectionHeading>
+        <SectionHeading description="代墊與分攤，一眼看清楚。">
           <span id="balances-heading">每人餘額</span>
         </SectionHeading>
         <BalanceList balances={payload.balances} />
       </section>
-      <section className="surface grid gap-4" aria-labelledby="recent-heading">
+      <section
+        className="surface overview-recent grid gap-4"
+        aria-labelledby="recent-heading"
+      >
         <SectionHeading>
           <span id="recent-heading">最近支出</span>
         </SectionHeading>
@@ -106,7 +113,8 @@ function EmptyOverview({
     );
   const needsPeople = trip.participants.length < 2;
   return (
-    <section className="surface empty-state">
+    <section className="surface empty-state overview-empty">
+      <HandCoins className="empty-state-icon" aria-hidden="true" />
       <h3>{needsPeople ? "先新增同行成員" : "記錄第一筆共同支出"}</h3>
       <p>
         {needsPeople
@@ -138,7 +146,7 @@ function SettlementList({
 }) {
   if (payload.settlements.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <div className="settled-state">
         <CheckCircle2 className="text-primary" aria-hidden="true" />
         <div>
           <strong>目前已經打平</strong>
@@ -150,10 +158,10 @@ function SettlementList({
     );
   }
   return (
-    <ul className="grid gap-3">
+    <ul className="settlement-list">
       {payload.settlements.map((settlement) => (
         <li
-          className="rounded-xl border bg-card p-4"
+          className="settlement-item"
           key={`${settlement.fromId}:${settlement.toId}`}
         >
           <div className="flex flex-wrap items-center gap-2">
@@ -302,7 +310,13 @@ function PaymentDialog({
   );
 }
 
-export function SettlementHistory({ trip }: { trip: Trip }) {
+export function SettlementHistory({
+  trip,
+  readonly = false,
+}: {
+  trip: Trip;
+  readonly?: boolean;
+}) {
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const participantById = useMemo(
@@ -335,33 +349,35 @@ export function SettlementHistory({ trip }: { trip: Trip }) {
             {payment.note ? (
               <span className="text-muted-foreground">{payment.note}</span>
             ) : null}
-            <ConfirmDialog
-              confirmLabel="刪除付款紀錄"
-              description="刪除後會重新計算剩餘結清建議。"
-              destructive
-              disabled={offline}
-              onConfirm={async () => {
-                try {
-                  setError("");
-                  await requestPayload(
-                    `/api/trips/${trip.id}/settlement-payments/${payment.id}`,
-                    { method: "DELETE" },
-                    "已刪除付款紀錄",
-                  );
-                } catch (caught) {
-                  setError(
-                    caught instanceof Error ? caught.message : "刪除失敗",
-                  );
+            {!readonly ? (
+              <ConfirmDialog
+                confirmLabel="刪除付款紀錄"
+                description="刪除後會重新計算剩餘結清建議。"
+                destructive
+                disabled={offline}
+                onConfirm={async () => {
+                  try {
+                    setError("");
+                    await requestPayload(
+                      `/api/trips/${trip.id}/settlement-payments/${payment.id}`,
+                      { method: "DELETE" },
+                      "已刪除付款紀錄",
+                    );
+                  } catch (caught) {
+                    setError(
+                      caught instanceof Error ? caught.message : "刪除失敗",
+                    );
+                  }
+                }}
+                title="刪除這筆付款紀錄？"
+                trigger={
+                  <Button className="ml-auto" size="sm" variant="ghost">
+                    <Trash2 aria-hidden="true" />
+                    刪除
+                  </Button>
                 }
-              }}
-              title="刪除這筆付款紀錄？"
-              trigger={
-                <Button className="ml-auto" size="sm" variant="ghost">
-                  <Trash2 aria-hidden="true" />
-                  刪除
-                </Button>
-              }
-            />
+              />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -382,19 +398,20 @@ function RecentExpenses({ trip }: { trip: Trip }) {
     )
     .slice(0, 3);
   return (
-    <ul className="divide-y rounded-xl border">
+    <ul className="recent-expenses">
       {recent.map((expense) => (
-        <li className="grid gap-1 p-3" key={expense.id}>
-          <div className="flex justify-between gap-4">
-            <strong className="break-anywhere">{expense.description}</strong>
-            <span className="font-semibold tabular-nums">
-              {formatMinor(expense.amountMinor, expense.currency)}
+        <li className="recent-expense-row" key={expense.id}>
+          <ExpenseCategoryIcon category={expense.category} />
+          <div className="recent-expense-info">
+            <strong>{expense.description}</strong>
+            <span>
+              {expense.expenseDate} · {names.get(expense.paidById)} 付款 · 分給{" "}
+              {expenseSplitLabel(trip, expense.participantIds)}
             </span>
           </div>
-          <span className="text-sm text-muted-foreground">
-            {expense.expenseDate} · {names.get(expense.paidById)} 付款 · 分給{" "}
-            {expenseSplitLabel(trip, expense.participantIds)}
-          </span>
+          <strong className="recent-expense-amount">
+            {formatMinor(expense.amountMinor, expense.currency)}
+          </strong>
         </li>
       ))}
     </ul>

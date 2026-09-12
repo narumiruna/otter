@@ -9,12 +9,16 @@
 @import "@radix-ui/colors/amber-dark.css";
 @import "@fontsource-variable/geist";
 @import "./styles.css";
+@import "./auth.css";
+@import "./workspace/workspace.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", sans-serif;
+  --font-sans:
+    "Geist Variable", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+    sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -74,7 +78,14 @@
   --destructive: var(--red-11);
   --border: var(--sage-6);
   --input: var(--sage-7);
-  --ring: var(--green-8);
+  --ring: var(--green-9);
+  --hero-background: var(--green-12);
+  --hero-foreground: var(--green-1);
+  --hero-muted: var(--green-5);
+  --hero-border: var(--green-11);
+  --surface-shadow:
+    0 2px 8px color-mix(in srgb, var(--sage-12) 3%, transparent),
+    0 12px 32px color-mix(in srgb, var(--sage-12) 3%, transparent);
   --chart-1: var(--green-9);
   --chart-2: var(--green-7);
   --chart-3: var(--amber-9);
@@ -97,6 +108,11 @@
 }
 
 .radix-themes:where(.dark, .dark-theme) {
+  --hero-background: var(--green-3);
+  --hero-foreground: var(--green-12);
+  --hero-muted: var(--green-11);
+  --hero-border: var(--green-7);
+  --surface-shadow: none;
   --accent-contrast: var(--sage-1);
   --primary: var(--green-11);
   --primary-foreground: var(--sage-1);
@@ -123,11 +139,12 @@
 .radix-themes {
   min-height: 100dvh;
   color: var(--foreground);
-  font-family: "Geist Variable", sans-serif;
+  background: var(--background);
+  font-family: var(--font-sans);
 }
 
 .otter-button {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   gap: 0.5rem;
   border-radius: var(--radius-3);
   font-weight: 650;
@@ -144,8 +161,8 @@
 }
 
 .otter-button[data-icon-only] {
-  width: 2.5rem;
-  min-width: 2.5rem;
+  width: 2.75rem;
+  min-width: 2.75rem;
   padding-inline: 0;
 }
 
@@ -269,6 +286,18 @@
   }
 }
 
+@media print {
+  .radix-themes {
+    --background: white;
+    --card: white;
+    --foreground: black;
+    --muted-foreground: black;
+    --surface-shadow: none;
+    background: white;
+    color: black;
+  }
+}
+
 @keyframes radix-overlay-in {
   from {
     opacity: 0;
@@ -290,6 +319,10 @@
   .radix-dialog-overlay,
   .radix-dialog-content {
     animation: none;
+    transition: none;
+  }
+
+  .otter-button {
     transition: none;
   }
 }

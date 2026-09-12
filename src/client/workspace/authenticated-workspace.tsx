@@ -2,6 +2,7 @@ import {
   ArchiveIcon as Archive,
   ChevronDownIcon as ChevronDown,
   TokensIcon as CircleDollarSign,
+  GlobeIcon,
   DashboardIcon as LayoutDashboard,
   MixerHorizontalIcon as ListFilter,
   DotsHorizontalIcon as MoreHorizontal,
@@ -226,7 +227,7 @@ export function AuthenticatedWorkspace({
         <aside className="workspace-sidebar" aria-label="群組切換">
           <div className="sidebar-heading">
             <div>
-              <span className="sidebar-eyebrow">群組空間</span>
+              <span className="sidebar-eyebrow">YOUR GROUPS</span>
               <h2>群組</h2>
             </div>
             <span
@@ -256,6 +257,11 @@ export function AuthenticatedWorkspace({
               {switchError}
             </p>
           ) : null}
+          <div className="sidebar-note">
+            <GlobeIcon aria-hidden="true" />
+            <strong>每一趟，都算美好。</strong>
+            <p>記下共同支出，把心思留給一起出發的人。</p>
+          </div>
         </aside>
 
         <section className="min-w-0 grid gap-4">
@@ -305,8 +311,9 @@ export function AuthenticatedWorkspace({
                   onAddExpense={() => navigate({ mode: "add-expense" })}
                   onPeople={() => go("people")}
                   payload={payload}
+                  readonly={archived}
                 />
-                <SettlementHistory trip={payload.trip} />
+                <SettlementHistory trip={payload.trip} readonly={archived} />
               </div>
             ) : location.view === "expenses" ? (
               <ExpensesPage
@@ -407,7 +414,11 @@ function TripHeader({
         </Dialog>
       </div>
       <div className="trip-heading">
+        <div className="trip-cover-icon" aria-hidden="true">
+          <GlobeIcon />
+        </div>
         <div className="min-w-0">
+          <p className="trip-eyebrow">一起出發的日常</p>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
               {payload.trip.name}
@@ -512,6 +523,9 @@ function TripList({
       onClick={() => void selectTrip(trip.id)}
       variant={trip.id === selectedTripId ? "secondary" : "ghost"}
     >
+      <span className="trip-list-icon" aria-hidden="true">
+        <GlobeIcon />
+      </span>
       <span className="min-w-0">
         <strong className="block truncate">{trip.name}</strong>
         <span className="text-xs font-normal text-muted-foreground">

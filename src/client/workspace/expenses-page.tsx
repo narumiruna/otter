@@ -17,6 +17,7 @@ import {
   expenseSplitLabel,
   filterAndSortExpenses,
 } from "../client-support.js";
+import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
@@ -75,7 +76,7 @@ export function ExpensesPage({
             aria-hidden="true"
           />
           <input
-            className="form-control pl-10"
+            className="form-control expense-search-input"
             placeholder="搜尋支出描述"
             value={filters.query}
             onChange={(event) =>
@@ -349,11 +350,12 @@ function ExpenseList({
       aria-label={filtered ? "篩選後的支出" : "全部支出"}
     >
       {expenses.map((expense) => (
-        <li className="rounded-xl border bg-card p-4" key={expense.id}>
+        <li
+          className="expense-list-item rounded-xl border bg-card p-4"
+          key={expense.id}
+        >
           <div className="flex flex-wrap items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
-              <Receipt className="size-5" aria-hidden="true" />
-            </span>
+            <ExpenseCategoryIcon category={expense.category} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap justify-between gap-2">
                 <strong className="break-anywhere">
