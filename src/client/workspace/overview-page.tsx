@@ -398,7 +398,7 @@ function RecentExpenses({ trip }: { trip: Trip }) {
     )
     .slice(0, 3);
   return (
-    <ul className="recent-expenses">
+    <ul>
       {recent.map((expense) => (
         <li className="recent-expense-row" key={expense.id}>
           <ExpenseCategoryIcon category={expense.category} />

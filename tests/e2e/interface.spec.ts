@@ -1,15 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-
-async function expectNoOverflow(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    )
-    .toBe(true);
-}
+import { expectNoOverflow } from "./layout-assertions.js";
 
 async function expectAccessible(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -32,6 +23,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       page.getByRole("heading", { name: "登入", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("img", { name: /分帳示意/ })).toBeVisible();
+    await expect(
+      page.getByText("WELCOME BACK", { exact: true }),
+    ).toHaveAttribute("lang", "en");
     await expectAccessible(page);
     await page.screenshot({
       path: testInfo.outputPath("auth-desktop.png"),
@@ -49,6 +43,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     await page.getByRole("button", { name: "建立帳號" }).click();
     await expect(page.getByLabel("名稱")).toBeVisible();
+    await expect(
+      page.getByText("START A NEW JOURNEY", { exact: true }),
+    ).toHaveAttribute("lang", "en");
     await expectAccessible(page);
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "200%";
@@ -71,6 +68,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       .click();
     const summary = page.getByRole("region", { name: "群組帳目摘要" });
     await expect(summary).toBeVisible();
+    await expect(
+      page.getByText("YOUR GROUPS", { exact: true }),
+    ).toHaveAttribute("lang", "en");
     await expect(summary.getByText("$47,250")).toBeVisible();
     await expectAccessible(page);
     await page.setViewportSize({ height: 1080, width: 1440 });

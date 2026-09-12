@@ -108,7 +108,7 @@ export function AuthScreen({
       </article>
       <Card className="auth-card">
         <CardHeader>
-          <span className="auth-card-eyebrow">
+          <span className="auth-card-eyebrow" lang="en">
             {mode === "login" ? "WELCOME BACK" : "START A NEW JOURNEY"}
           </span>
           <CardTitle>

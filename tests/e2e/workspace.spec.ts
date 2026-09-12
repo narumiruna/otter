@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { expectNoOverflow } from "./layout-assertions.js";
 
 async function overflowingElements(page: Page) {
   return page.locator("body *").evaluateAll((elements) =>
@@ -319,11 +320,7 @@ test("supported viewports reflow without body overflow", async ({ page }) => {
   await login(page);
   for (const width of [320, 375, 768, 1024, 1440]) {
     await page.setViewportSize({ height: 900, width });
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.body.scrollWidth <= window.innerWidth),
-      )
-      .toBe(true);
+    await expectNoOverflow(page);
     await expect(page.getByRole("button", { name: "記一筆" })).toBeVisible();
   }
   await page.setViewportSize({ height: 844, width: 390 });
@@ -332,11 +329,7 @@ test("supported viewports reflow without body overflow", async ({ page }) => {
   });
   expect(await overflowingElements(page)).toEqual([]);
   await page.setViewportSize({ height: 390, width: 844 });
-  await expect
-    .poll(() =>
-      page.evaluate(() => document.body.scrollWidth <= window.innerWidth),
-    )
-    .toBe(true);
+  await expectNoOverflow(page);
 });
 
 test("long localized content and dense expense history remain usable", async ({

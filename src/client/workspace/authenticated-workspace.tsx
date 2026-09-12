@@ -227,7 +227,9 @@ export function AuthenticatedWorkspace({
         <aside className="workspace-sidebar" aria-label="群組切換">
           <div className="sidebar-heading">
             <div>
-              <span className="sidebar-eyebrow">YOUR GROUPS</span>
+              <span className="sidebar-eyebrow" lang="en">
+                YOUR GROUPS
+              </span>
               <h2>群組</h2>
             </div>
             <span
