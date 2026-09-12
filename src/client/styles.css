@@ -459,6 +459,10 @@ select:disabled {
 .surface.disclosure > summary {
   padding: 1rem 1.25rem;
 }
+.disclosure.compact > summary {
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
+}
 .surface.disclosure[open] > summary {
   border-bottom: 1px solid var(--border);
   border-radius: 0.8rem 0.8rem 0 0;
@@ -491,10 +495,6 @@ select:disabled {
 .surface.disclosure > :not(summary) {
   margin-inline: 1.25rem;
   margin-bottom: 1.25rem;
-}
-.disclosure.compact > summary {
-  min-height: 44px;
-  padding: 0.55rem 0.7rem;
 }
 .summary-meta {
   min-width: 0;
