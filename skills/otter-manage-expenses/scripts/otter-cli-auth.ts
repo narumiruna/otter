@@ -167,13 +167,23 @@ async function revokeToken(
   fetchImplementation: FetchImplementation,
   token: string,
 ): Promise<void> {
-  await requestJson(
-    config,
-    fetchImplementation,
-    "/api/auth/tokens/current",
-    "DELETE",
-    { Authorization: `Bearer ${token}` },
-  );
+  try {
+    await requestJson(
+      config,
+      fetchImplementation,
+      "/api/auth/tokens/current",
+      "DELETE",
+      { Authorization: `Bearer ${token}` },
+    );
+  } catch (error) {
+    if (
+      error instanceof CliError &&
+      (error.status === 401 || error.status === 404)
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export function configFromEnvironment(environment: CliEnvironment): CliConfig {

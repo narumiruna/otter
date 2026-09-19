@@ -434,16 +434,41 @@ describe("device login", () => {
       version: 1,
     });
 
-    const logoutFetch = vi
+    const dualTokenEnvironment = {
+      ...authEnvironment,
+      OTTER_TOKEN: "otter_api_ephemeral",
+    };
+    const partialLogoutFetch = vi
       .fn<typeof fetch>()
-      .mockImplementation(
-        async () => new Response(JSON.stringify({ ok: true })),
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Service unavailable" }), {
+          status: 503,
+        }),
       );
     await expect(
-      executeDeviceLogout(
-        { ...authEnvironment, OTTER_TOKEN: "otter_api_ephemeral" },
-        logoutFetch,
-      ),
+      executeDeviceLogout(dualTokenEnvironment, partialLogoutFetch),
+    ).rejects.toEqual(expect.objectContaining<CliError>({ code: "API_ERROR" }));
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_rotated",
+          expiresAt: "2099-02-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+
+    const logoutFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
+    await expect(
+      executeDeviceLogout(dualTokenEnvironment, logoutFetch),
     ).resolves.toEqual({
       authenticated: false,
       server: "http://localhost:17463",
