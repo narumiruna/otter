@@ -27,7 +27,7 @@ jobs:
       - name: Start services
         shell: bash
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
-          : "${DATABASE_URL:?set DATABASE_URL secret}"
-          docker compose --profile production up --detach --wait --wait-timeout 120 --no-build otter
+          : "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD secret}"
+          docker compose up --detach --wait --wait-timeout 120 --no-build otter

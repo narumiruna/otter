@@ -3,7 +3,7 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: otter_dev
-      POSTGRES_PASSWORD: otter_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
       POSTGRES_USER: otter
     ports:
       - "55432:5432"
@@ -15,34 +15,14 @@ services:
     volumes:
       - otter-dev-postgres:/var/lib/postgresql/data
 
-  otter-dev:
-    build:
-      context: .
-      target: deps
-    command: sh -c "npm run migrate && npm run dev:server"
+  otter:
+    build: .
+    image: ${OTTER_IMAGE:-otter:latest}
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://otter:otter_dev_password@postgres:5432/otter_dev
-      DEV_ADMIN_EMAIL: admin@otter.local
-      DEV_ADMIN_NAME: Admin
-      DEV_ADMIN_PASSWORD: admin1234
-      NODE_ENV: development
-      PORT: 17463
-    ports:
-      - "17463:17463"
-    volumes:
-      - .:/app
-      - /app/node_modules
-
-  otter:
-    profiles: [production]
-    build: .
-    image: ${OTTER_IMAGE:-otter:latest}
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-}
-      NODE_ENV: production
+      DATABASE_URL: ${OTTER_DATABASE_URL:-postgres://otter:${POSTGRES_PASSWORD:-otter_dev_password}@postgres:5432/otter_dev}
       PORT: 17463
     ports:
       - "17463:17463"
