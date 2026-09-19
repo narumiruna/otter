@@ -30,6 +30,12 @@ export async function executeDeviceLogin(
   options: DeviceLoginOptions = {},
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
+  if (environment.OTTER_TOKEN?.trim()) {
+    throw new CliError(
+      "CONFIG_ERROR",
+      "Unset OTTER_TOKEN before saving a device-authorized login",
+    );
+  }
   const fetchImplementation = options.fetchImplementation ?? fetch;
   await revokeStoredTokenBeforeLogin(environment, config, fetchImplementation);
   const response = await safeFetch(

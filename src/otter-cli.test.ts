@@ -272,6 +272,23 @@ describe("executeCliCommand", () => {
 });
 
 describe("device login", () => {
+  test("rejects login while an environment token would shadow it", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+
+    await expect(
+      executeDeviceLogin(
+        {
+          OTTER_TOKEN: "otter_api_ephemeral",
+          OTTER_URL: "http://localhost:17463",
+        },
+        { fetchImplementation: fetchMock, noOpen: true },
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   test("polls for approval, stores a private token, uses it, and revokes it", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
     const configPath = path.join(directory, "credentials.json");
