@@ -407,14 +407,7 @@ describe("device login", () => {
       noOpen: true,
       sleep: () => firstPoll,
     });
-    for (
-      let attempt = 0;
-      attempt < 20 && firstFetch.mock.calls.length === 0;
-      attempt += 1
-    ) {
-      await new Promise((resolve) => setImmediate(resolve));
-    }
-    expect(firstFetch).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(firstFetch).toHaveBeenCalledTimes(1));
 
     const secondLogin = executeDeviceLogin(environment, {
       fetchImplementation: secondFetch,

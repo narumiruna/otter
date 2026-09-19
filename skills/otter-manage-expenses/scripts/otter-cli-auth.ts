@@ -1,16 +1,8 @@
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  stat,
-  utimes,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import * as lockfile from "proper-lockfile";
 import {
   apiError,
   apiUrl,
@@ -341,17 +333,24 @@ async function storedTokenFromEnvironment(
   if (!credential) {
     return undefined;
   }
-  if (new Date(credential.expiresAt).getTime() <= Date.now()) {
-    const removeExpiredToken = () =>
-      removeStoredToken(environment, baseUrl, credential.accessToken);
-    if (lockHeld) {
-      await removeExpiredToken();
-    } else {
-      await withCredentialLock(environment, removeExpiredToken);
-    }
+  if (new Date(credential.expiresAt).getTime() > Date.now()) {
+    return credential;
+  }
+  if (lockHeld) {
+    await removeStoredToken(environment, baseUrl, credential.accessToken);
     return undefined;
   }
-  return credential;
+  return withCredentialLock(environment, async () => {
+    const current = (await readCredentialFile(environment)).servers[baseUrl];
+    if (!current) {
+      return undefined;
+    }
+    if (new Date(current.expiresAt).getTime() > Date.now()) {
+      return current;
+    }
+    await removeStoredToken(environment, baseUrl, current.accessToken);
+    return undefined;
+  });
 }
 
 async function saveStoredToken(
@@ -431,105 +430,33 @@ async function withCredentialLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const filename = credentialFilePath(environment);
-  const lockDirectory = `${filename}.lock`;
-  const ownerFile = path.join(lockDirectory, "owner");
-  const ownerId = `${process.pid}:${randomUUID()}`;
-  const waitStartedAt = Date.now();
-  const staleAfterMs = 11 * 60 * 1000;
   await mkdir(path.dirname(filename), { mode: 0o700, recursive: true });
 
-  while (true) {
-    try {
-      await mkdir(lockDirectory, { mode: 0o700 });
-      try {
-        await writeFile(ownerFile, ownerId, { mode: 0o600 });
-      } catch (error) {
-        await rm(lockDirectory, { force: true, recursive: true });
-        throw error;
-      }
-      break;
-    } catch (error) {
-      if (!isNodeError(error) || error.code !== "EEXIST") {
-        throw new CliError(
-          "CONFIG_ERROR",
-          `Could not lock the Otter credential file: ${error instanceof Error ? error.message : "unknown error"}`,
-        );
-      }
-      try {
-        const observedLease = await readLockLease(lockDirectory, ownerFile);
-        if (Date.now() - observedLease.mtimeMs > staleAfterMs) {
-          const reclaimDirectory = path.join(lockDirectory, "reclaim");
-          try {
-            await mkdir(reclaimDirectory, { mode: 0o700 });
-          } catch (reclaimError) {
-            if (isNodeError(reclaimError) && reclaimError.code === "ENOENT") {
-              continue;
-            }
-            if (!isNodeError(reclaimError) || reclaimError.code !== "EEXIST") {
-              throw reclaimError;
-            }
-            await delay(100);
-            continue;
-          }
-
-          const currentLease = await readLockLease(lockDirectory, ownerFile);
-          if (
-            currentLease.owner === observedLease.owner &&
-            Date.now() - currentLease.mtimeMs > staleAfterMs
-          ) {
-            await rm(lockDirectory, { force: true, recursive: true });
-            continue;
-          }
-          await rm(reclaimDirectory, { force: true, recursive: true });
-        }
-      } catch (statError) {
-        if (!isNodeError(statError) || statError.code !== "ENOENT") {
-          throw statError;
-        }
-        continue;
-      }
-      if (Date.now() - waitStartedAt > staleAfterMs) {
-        throw new CliError(
-          "CONFIG_ERROR",
-          "Timed out waiting for another Otter authentication command",
-        );
-      }
-      await delay(100);
-    }
+  let release: () => Promise<void>;
+  try {
+    release = await lockfile.lock(filename, {
+      realpath: false,
+      retries: {
+        factor: 1,
+        maxTimeout: 100,
+        minTimeout: 100,
+        randomize: false,
+        retries: 6_600,
+      },
+      stale: 11 * 60 * 1000,
+      update: 30_000,
+    });
+  } catch (error) {
+    throw new CliError(
+      "CONFIG_ERROR",
+      `Could not lock the Otter credential file: ${error instanceof Error ? error.message : "unknown error"}`,
+    );
   }
 
-  const heartbeat = setInterval(() => {
-    const now = new Date();
-    void utimes(ownerFile, now, now).catch(() => undefined);
-  }, 30_000);
-  heartbeat.unref();
   try {
     return await operation();
   } finally {
-    clearInterval(heartbeat);
-    if ((await readLockOwner(ownerFile)) === ownerId) {
-      await rm(lockDirectory, { force: true, recursive: true });
-    }
-  }
-}
-
-async function readLockLease(
-  lockDirectory: string,
-  ownerFile: string,
-): Promise<{ mtimeMs: number; owner: string | undefined }> {
-  const owner = await readLockOwner(ownerFile);
-  const leaseStat = await stat(owner ? ownerFile : lockDirectory);
-  return { mtimeMs: leaseStat.mtimeMs, owner };
-}
-
-async function readLockOwner(filename: string): Promise<string | undefined> {
-  try {
-    return await readFile(filename, "utf8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") {
-      return undefined;
-    }
-    throw error;
+    await release();
   }
 }
 
