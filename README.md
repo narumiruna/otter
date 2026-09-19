@@ -65,7 +65,7 @@ npm run check
 執行 DB-backed API 測試（需先啟動 dev Postgres）：
 
 ```bash
-TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
+DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
 ```
 
 重建 dev 資料庫 volume：

@@ -23,8 +23,6 @@ const credentials = {
 test("development admin credentials are enabled only in development", () => {
   assert.deepEqual(
     developmentAdminCredentials({
-      DEV_ADMIN_EMAIL: credentials.email,
-      DEV_ADMIN_NAME: credentials.name,
       DEV_ADMIN_PASSWORD: credentials.password,
       NODE_ENV: "development",
     }),
@@ -32,8 +30,6 @@ test("development admin credentials are enabled only in development", () => {
   );
   assert.equal(
     developmentAdminCredentials({
-      DEV_ADMIN_EMAIL: credentials.email,
-      DEV_ADMIN_NAME: credentials.name,
       DEV_ADMIN_PASSWORD: credentials.password,
       NODE_ENV: "production",
     }),
@@ -44,7 +40,7 @@ test("development admin credentials are enabled only in development", () => {
 test("development admin credentials reject incomplete configuration", () => {
   assert.throws(
     () => developmentAdminCredentials({ NODE_ENV: "development" }),
-    /DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD/,
+    /DEV_ADMIN_PASSWORD/,
   );
 });
 

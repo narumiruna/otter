@@ -25,7 +25,7 @@ Run commands from the repository root.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.
 - `npm run biome:ci` - run Biome formatting/lint checks.
 - `npm run typecheck` - check client/shared and server TypeScript projects.
-- [UNREVIEWED] `npm test` - run Vitest server, shared, and component test files under `src/`; DB-backed suites run when `TEST_DATABASE_URL` is set.
+- [UNREVIEWED] `npm test` - run Vitest server, shared, and component test files under `src/`; DB-backed suites run when `DATABASE_URL` is set.
 - [UNREVIEWED] `npm run test:components` - run Testing Library component tests in the Vitest JSDOM environment without PostgreSQL.
 - `npm run test:e2e` - run Playwright Chromium workflow, responsive, and accessibility tests; requires a migrated `DATABASE_URL` and installed Chromium.
 - `npm run build` - build Vite client output and compile the server.

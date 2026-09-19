@@ -15,10 +15,10 @@ import { createApp } from "./server.js";
 
 const { Pool } = pg;
 const silentLogger = { log: (..._messages: unknown[]) => {} };
-export const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+export const testDatabaseUrl = process.env.DATABASE_URL;
 
 export const postgresTestOptions = {
-  skip: testDatabaseUrl ? false : "set TEST_DATABASE_URL to run",
+  skip: testDatabaseUrl ? false : "set DATABASE_URL to run",
 };
 
 export type ApiInit = Omit<RequestInit, "headers"> & {

@@ -564,22 +564,15 @@ export function developmentAdminCredentials(
     return null;
   }
 
-  const email = normalizeEmail(env.DEV_ADMIN_EMAIL ?? "");
   const password = env.DEV_ADMIN_PASSWORD ?? "";
-  const name = env.DEV_ADMIN_NAME?.trim() || "Admin";
-  if (!email || !password) {
-    throw new Error(
-      "DEV_ADMIN_EMAIL, DEV_ADMIN_PASSWORD are required in development",
-    );
-  }
-  if (!email.includes("@")) {
-    throw new Error("DEV_ADMIN_EMAIL must be a valid email");
+  if (!password) {
+    throw new Error("DEV_ADMIN_PASSWORD is required in development");
   }
   if (password.length < 8) {
     throw new Error("DEV_ADMIN_PASSWORD must contain at least 8 characters");
   }
 
-  return { email, name, password };
+  return { email: "admin@otter.local", name: "Admin", password };
 }
 
 export async function ensureDevelopmentAdmin(
