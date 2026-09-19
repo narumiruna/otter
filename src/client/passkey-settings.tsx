@@ -61,15 +61,24 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
     beginMutation();
     setError("");
     setStatus("");
+    let added = false;
     try {
       await registerPasskey();
-      endMutation();
-      await loadPasskeys();
-      setStatus(messages.passkeyAdded);
+      added = true;
     } catch {
-      setError(messages.unableToAddPasskey);
+      // Reload below so invalidated list requests do not leave stale state.
     } finally {
       endMutation();
+    }
+
+    try {
+      await loadPasskeys();
+      if (added) {
+        setStatus(messages.passkeyAdded);
+      } else {
+        setError(messages.unableToAddPasskey);
+      }
+    } finally {
       setBusy("");
     }
   }

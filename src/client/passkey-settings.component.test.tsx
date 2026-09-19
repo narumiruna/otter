@@ -49,6 +49,32 @@ test("passkey settings clears a list error after recovery", async () => {
   view.unmount();
 });
 
+test("passkey settings reloads the list after registration fails", async () => {
+  let resolveInitialList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const initialList = new Promise<{ passkeys: (typeof passkey)[] }>(
+    (resolve) => {
+      resolveInitialList = resolve;
+    },
+  );
+  vi.mocked(api)
+    .mockReturnValueOnce(initialList)
+    .mockResolvedValueOnce({ passkeys: [passkey] });
+  vi.mocked(registerPasskey).mockRejectedValueOnce(new Error("cancelled"));
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  await user.click(view.getByRole("button", { name: "新增 Passkey" }));
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  expect(view.getByRole("alert")).toHaveTextContent(
+    "無法新增 Passkey；若已取消，請重新嘗試",
+  );
+  await act(async () => resolveInitialList({ passkeys: [] }));
+  expect(view.getByText("Passkey 1")).toBeVisible();
+  expect(api).toHaveBeenCalledTimes(2);
+  view.unmount();
+});
+
 test("passkey settings ignores a list response superseded by removal", async () => {
   let listRequests = 0;
   let resolveStaleList: (value: { passkeys: (typeof passkey)[] }) => void =
