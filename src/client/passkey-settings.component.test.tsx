@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { api } from "./client-support.js";
@@ -46,6 +46,38 @@ test("passkey settings clears a list error after recovery", async () => {
   expect(await view.findByText("Passkey 1")).toBeVisible();
   expect(view.queryByRole("alert")).toBeNull();
   expect(api).toHaveBeenCalledTimes(2);
+  view.unmount();
+});
+
+test("passkey settings ignores a list response superseded by removal", async () => {
+  let listRequests = 0;
+  let resolveStaleList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const staleList = new Promise<{ passkeys: (typeof passkey)[] }>((resolve) => {
+    resolveStaleList = resolve;
+  });
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/passkeys" && !init) {
+      listRequests += 1;
+      return listRequests === 1 ? { passkeys: [passkey] } : staleList;
+    }
+    if (url === "/api/passkeys/credential-1" && init?.method === "DELETE") {
+      return { ok: true };
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  await waitFor(() => expect(listRequests).toBe(2));
+  await user.click(view.getByRole("button", { name: "移除 Passkey 1" }));
+  expect(await view.findByText("Passkey 已移除")).toBeVisible();
+  await act(async () => resolveStaleList({ passkeys: [passkey] }));
+  expect(view.queryByText("Passkey 1")).toBeNull();
+  expect(view.getByText("尚未新增 Passkey。")).toBeVisible();
   view.unmount();
 });
 

@@ -3,7 +3,7 @@ import {
   IdCardIcon as KeyIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "./client-support.js";
 import { useI18n } from "./i18n.js";
@@ -19,14 +19,24 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const listGeneration = useRef(0);
+  const mutationActive = useRef(false);
   const supported = supportsPasskeys();
 
   const loadPasskeys = useCallback(async () => {
+    if (mutationActive.current) return;
+    const generation = ++listGeneration.current;
     try {
       const result = await api<{ passkeys: PasskeySummary[] }>("/api/passkeys");
+      if (mutationActive.current || generation !== listGeneration.current) {
+        return;
+      }
       setPasskeys(result.passkeys);
       setError("");
     } catch {
+      if (mutationActive.current || generation !== listGeneration.current) {
+        return;
+      }
       setError(messages.unableToLoadPasskeys);
     }
   }, [messages.unableToLoadPasskeys]);
@@ -36,23 +46,37 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
     void loadPasskeys();
   }, [offline, loadPasskeys]);
 
+  function beginMutation() {
+    mutationActive.current = true;
+    listGeneration.current += 1;
+  }
+
+  function endMutation() {
+    mutationActive.current = false;
+    listGeneration.current += 1;
+  }
+
   async function addPasskey() {
     setBusy("add");
+    beginMutation();
     setError("");
     setStatus("");
     try {
       await registerPasskey();
+      endMutation();
       await loadPasskeys();
       setStatus(messages.passkeyAdded);
     } catch {
       setError(messages.unableToAddPasskey);
     } finally {
+      endMutation();
       setBusy("");
     }
   }
 
   async function removePasskey(passkey: PasskeySummary) {
     setBusy(passkey.id);
+    beginMutation();
     setError("");
     setStatus("");
     try {
@@ -67,6 +91,7 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
     } catch {
       setError(messages.unableToRemovePasskey);
     } finally {
+      endMutation();
       setBusy("");
     }
   }
