@@ -124,14 +124,17 @@ export function createAuthenticationOptionsRateLimiter({
     const client =
       firstForwardedValue(req.get("x-forwarded-for")) ??
       firstForwardedValue(req.get("x-real-ip")) ??
-      "unknown";
-    const clientCount = clientCounts.get(client) ?? 0;
-    if (globalCount >= globalLimit || clientCount >= perClientLimit) {
+      (req.remoteAddress?.trim() || undefined);
+    const clientCount = client ? (clientCounts.get(client) ?? 0) : 0;
+    if (
+      globalCount >= globalLimit ||
+      (client !== undefined && clientCount >= perClientLimit)
+    ) {
       return Math.max(1, Math.ceil((resetAt - now) / 1000));
     }
 
     globalCount += 1;
-    clientCounts.set(client, clientCount + 1);
+    if (client) clientCounts.set(client, clientCount + 1);
     return undefined;
   };
 }

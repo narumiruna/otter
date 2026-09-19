@@ -87,7 +87,7 @@ test("anonymous passkey options are rate limited per client and globally", () =>
   });
   const clientRequest = (address: string): RouteRequest => ({
     ...request,
-    get: (name) => (name === "x-forwarded-for" ? address : undefined),
+    remoteAddress: address,
   });
   const firstClient = clientRequest("192.0.2.1");
 
