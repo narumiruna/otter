@@ -1,5 +1,5 @@
 import { CheckCircledIcon, DesktopIcon } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,6 +32,7 @@ export function DeviceAuthorization({ initialCode }: { initialCode: string }) {
     "idle" | "checking" | "approving" | "approved"
   >("idle");
   const [error, setError] = useState("");
+  const inspectedInitialCode = useRef("");
 
   const inspect = useCallback(
     async (value: string) => {
@@ -63,8 +64,10 @@ export function DeviceAuthorization({ initialCode }: { initialCode: string }) {
   );
 
   useEffect(() => {
-    if (initialCode) {
-      void inspect(initialCode);
+    const normalized = initialCode.trim().toUpperCase();
+    if (normalized && inspectedInitialCode.current !== normalized) {
+      inspectedInitialCode.current = normalized;
+      void inspect(normalized);
     }
   }, [initialCode, inspect]);
 
