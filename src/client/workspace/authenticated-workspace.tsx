@@ -29,7 +29,7 @@ import {
   type TripPayload,
   type TripSummary,
 } from "../client-support.js";
-import { useI18n } from "../i18n.js";
+import { useI18n, useLocaleError } from "../i18n.js";
 import {
   readWorkspaceLocation,
   type WorkspaceLocation,
@@ -67,7 +67,7 @@ export function AuthenticatedWorkspace({
   >({});
   const scrollPositions = useRef(new Map<string, number>());
   const [pendingTripId, setPendingTripId] = useState("");
-  const [switchError, setSwitchError] = useState("");
+  const [switchError, setSwitchError] = useLocaleError();
   const initialCollection = useMemo<TripCollection>(
     () => ({ archivedTrips: bootstrap.archivedTrips, trips: bootstrap.trips }),
     [bootstrap.archivedTrips, bootstrap.trips],
