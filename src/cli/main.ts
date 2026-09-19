@@ -9,7 +9,7 @@ import {
   executeDeviceLogout,
   parseCliCommand,
   parseDeviceLoginArguments,
-} from "./otter-cli.js";
+} from "./index.js";
 
 export async function main(args = process.argv.slice(2)): Promise<number> {
   if (args.length === 0 || args[0] === "--help" || args[0] === "help") {
@@ -50,4 +50,6 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
   }
 }
 
-process.exitCode = await main();
+void main().then((exitCode) => {
+  process.exitCode = exitCode;
+});

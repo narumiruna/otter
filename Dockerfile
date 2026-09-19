@@ -3,6 +3,7 @@
 FROM node:25-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
+COPY src/cli/package.json ./src/cli/package.json
 RUN npm ci
 
 FROM deps AS build

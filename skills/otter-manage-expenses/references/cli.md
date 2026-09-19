@@ -1,32 +1,32 @@
 # Otter CLI Command Reference
 
-Run commands from the Otter repository root as `npm run --silent otter -- <command>`.
-Run `npm run --silent otter -- --help` for the installed command list.
+Install the published package with `npm install --global @narumitw/otter`. From an Otter repository checkout, run `npm run build:cli` and `npm link --workspace @narumitw/otter` instead.
+Run commands with the resulting `otter` executable, and run `otter --help` for the installed command list.
 
 ## Authorization
 
 Set `OTTER_URL` to override the Otter server URL or omit it to use `https://otter.narumi.dev/`.
-Run `npm run --silent otter -- auth login` to start device authorization, open Otter, and wait for the user to approve the displayed code.
+Run `otter auth login` to start device authorization, open Otter, and wait for the user to approve the displayed code.
 If a saved token already exists for that server, login revokes it before requesting a replacement and preserves it if revocation fails.
 Add `--no-open` when the browser must be opened manually, and use `--client-name <name>` to identify the requesting agent or machine.
 The CLI stores the issued token by server URL in `~/.config/otter/credentials.json` with mode `0600`.
 Set `OTTER_CONFIG_PATH` only when a different credential file is required.
 Set `OTTER_TOKEN` from a secret manager for ephemeral agent or CI use without persistence.
-Run `npm run --silent otter -- auth status` to verify authorization.
-Run `npm run --silent otter -- auth logout` to revoke the current stored token and remove it locally.
+Run `otter auth status` to verify authorization.
+Run `otter auth logout` to revoke the current stored token and remove it locally.
 Never ask the user for their Otter password or print an access token.
 Remote HTTP is rejected unless `OTTER_ALLOW_INSECURE_HTTP=1` is explicitly set.
 
 ## Read Commands
 
 ```bash
-npm run --silent otter -- me
-npm run --silent otter -- trips list
-npm run --silent otter -- trips get --trip <trip-id>
-npm run --silent otter -- participants list --trip <trip-id>
-npm run --silent otter -- expenses list --trip <trip-id>
-npm run --silent otter -- balances get --trip <trip-id>
-npm run --silent otter -- settlements list --trip <trip-id>
+otter me
+otter trips list
+otter trips get --trip <trip-id>
+otter participants list --trip <trip-id>
+otter expenses list --trip <trip-id>
+otter balances get --trip <trip-id>
+otter settlements list --trip <trip-id>
 ```
 
 `trips get` returns the complete trip payload.
@@ -36,9 +36,9 @@ npm run --silent otter -- settlements list --trip <trip-id>
 ## Trip Commands
 
 ```bash
-npm run --silent otter -- trips create --name <name> [--currency TWD]
-npm run --silent otter -- trips update --trip <trip-id> [--name <name>] [--archived true|false]
-npm run --silent otter -- trips delete --trip <trip-id> --yes
+otter trips create --name <name> [--currency TWD]
+otter trips update --trip <trip-id> [--name <name>] [--archived true|false]
+otter trips delete --trip <trip-id> --yes
 ```
 
 Supported currencies for new trips are `TWD`, `JPY`, `USD`, and `EUR`.
@@ -48,9 +48,9 @@ Only run `trips delete` after explicit approval because it deletes the whole gro
 ## Participant Commands
 
 ```bash
-npm run --silent otter -- participants add --trip <trip-id> --name <name>
-npm run --silent otter -- participants rename --trip <trip-id> --participant <participant-id> --name <name>
-npm run --silent otter -- participants delete --trip <trip-id> --participant <participant-id> --yes
+otter participants add --trip <trip-id> --name <name>
+otter participants rename --trip <trip-id> --participant <participant-id> --name <name>
+otter participants delete --trip <trip-id> --participant <participant-id> --yes
 ```
 
 Otter rejects deletion when the participant is used by an expense or payment record.
@@ -58,7 +58,7 @@ Otter rejects deletion when the participant is used by an expense or payment rec
 ## Expense Commands
 
 ```bash
-npm run --silent otter -- expenses add \
+otter expenses add \
   --trip <trip-id> \
   --description <text> \
   --amount <major-unit-amount> \
@@ -69,7 +69,7 @@ npm run --silent otter -- expenses add \
   [--category <name>] \
   [--tags <tag,tag>]
 
-npm run --silent otter -- expenses update \
+otter expenses update \
   --trip <trip-id> \
   --expense <expense-id> \
   [--description <text>] \
@@ -81,7 +81,7 @@ npm run --silent otter -- expenses update \
   [--category <name>] \
   [--tags <tag,tag>]
 
-npm run --silent otter -- expenses delete --trip <trip-id> --expense <expense-id> --yes
+otter expenses delete --trip <trip-id> --expense <expense-id> --yes
 ```
 
 The available categories are `餐飲`, `交通`, `住宿`, `門票`, `購物`, and `其他`.
@@ -92,7 +92,7 @@ The CLI creates equal splits and does not expose custom amounts, percentages, or
 ## Settlement Commands
 
 ```bash
-npm run --silent otter -- settlements record \
+otter settlements record \
   --trip <trip-id> \
   --from <participant-id> \
   --to <participant-id> \
@@ -101,7 +101,7 @@ npm run --silent otter -- settlements record \
   [--date YYYY-MM-DD] \
   [--note <text>]
 
-npm run --silent otter -- settlements delete --trip <trip-id> --payment <payment-id> --yes
+otter settlements delete --trip <trip-id> --payment <payment-id> --yes
 ```
 
 Omitting settlement currency uses the trip base currency.

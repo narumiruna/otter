@@ -2,24 +2,21 @@ import {
   authHeaders,
   configFromEnvironment,
   credentialFromEnvironment,
-} from "./otter-cli-auth.js";
-import { isRecord, requestJson } from "./otter-cli-http.js";
+} from "./auth.js";
+import { isRecord, requestJson } from "./http.js";
 import {
   type CliCommand,
   type CliEnvironment,
   CliError,
   type FetchImplementation,
-} from "./otter-cli-types.js";
+} from "./types.js";
 
-export {
-  executeDeviceLogin,
-  executeDeviceLogout,
-} from "./otter-cli-auth.js";
+export { executeDeviceLogin, executeDeviceLogout } from "./auth.js";
 export {
   cliHelp,
   parseCliCommand,
   parseDeviceLoginArguments,
-} from "./otter-cli-command.js";
+} from "./command.js";
 export {
   type CliCommand,
   type CliEnvironment,
@@ -27,7 +24,7 @@ export {
   type DeviceAuthorization,
   type DeviceLoginOptions,
   type FetchImplementation,
-} from "./otter-cli-types.js";
+} from "./types.js";
 
 export async function executeCliCommand(
   command: CliCommand,

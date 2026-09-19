@@ -1,0 +1,55 @@
+# @narumitw/otter
+
+Non-interactive CLI for managing trips, participants, expenses, balances, and settlement records in Otter.
+
+## Install
+
+After the package is published:
+
+```bash
+npm install --global @narumitw/otter
+otter --help
+```
+
+For local development from the repository root:
+
+```bash
+npm run build:cli
+npm link --workspace @narumitw/otter
+otter --help
+```
+
+The package requires Node.js 20 or newer.
+
+## Authorization
+
+The CLI connects to `https://otter.narumi.dev/` by default. Override the server with `OTTER_URL`.
+
+```bash
+otter auth login
+otter auth status
+```
+
+Device login stores the token in `~/.config/otter/credentials.json`. For ephemeral automation, provide `OTTER_TOKEN` through a secret manager instead.
+
+## Commands
+
+```bash
+otter trips list
+otter trips get --trip <trip-id>
+otter participants list --trip <trip-id>
+otter expenses list --trip <trip-id>
+otter balances get --trip <trip-id>
+otter settlements list --trip <trip-id>
+```
+
+Run `otter --help` for all commands and options. Successful data commands print JSON to stdout; errors print JSON to stderr and exit non-zero.
+
+## Development
+
+```bash
+npm run otter -- --help
+npm run typecheck --workspace @narumitw/otter
+npm run build:cli
+npm pack --dry-run --workspace @narumitw/otter
+```

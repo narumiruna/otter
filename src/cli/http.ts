@@ -3,7 +3,7 @@ import {
   type CliConfig,
   CliError,
   type FetchImplementation,
-} from "./otter-cli-types.js";
+} from "./types.js";
 
 export async function requestJson(
   config: CliConfig,

@@ -9,7 +9,8 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test, vi } from "vitest";
-import type { CliError } from "../skills/otter-manage-expenses/scripts/otter-cli.js";
+import { withCredentialLock } from "./auth.js";
+import type { CliError } from "./index.js";
 import {
   errorPayload,
   executeCliCommand,
@@ -17,8 +18,7 @@ import {
   executeDeviceLogout,
   parseCliCommand,
   parseDeviceLoginArguments,
-} from "../skills/otter-manage-expenses/scripts/otter-cli.js";
-import { withCredentialLock } from "../skills/otter-manage-expenses/scripts/otter-cli-auth.js";
+} from "./index.js";
 
 const environment = {
   OTTER_PASSWORD: "correct horse battery staple",

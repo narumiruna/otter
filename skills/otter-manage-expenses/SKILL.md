@@ -9,12 +9,12 @@ Use Otter's non-interactive CLI instead of browser automation or direct database
 
 ## Workflow
 
-1. Locate this skill's `scripts/otter.ts`, then use the containing Otter repository root for every npm command.
-2. Read `OTTER_URL` without printing it, then run `npm run --silent otter -- auth status` to check authorization.
-3. If authorization is missing, ask the user to run `npm run --silent otter -- auth login`, open the displayed Otter page, and personally approve the device code.
+1. Use the installed `otter` executable for every CLI command.
+2. Read `OTTER_URL` without printing it, then run `otter auth status` to check authorization.
+3. If authorization is missing, ask the user to run `otter auth login`, open the displayed Otter page, and personally approve the device code.
 4. Never ask for an Otter username or password, never approve a device request on the user's behalf, and never expose a saved or environment-provided token.
 5. For ephemeral automation, accept `OTTER_TOKEN` only when the user or execution environment already provides it through a secret mechanism.
-6. Run `npm run --silent otter -- trips list` and use returned IDs instead of guessing IDs from names.
+6. Run `otter trips list` and use returned IDs instead of guessing IDs from names.
 7. Read the selected trip or its narrow resource list before a mutation so participant, expense, and payment IDs are current.
 8. Resolve a name only when exactly one returned record has that name, and ask the user when the intended record remains ambiguous.
 9. Translate user-entered amounts as major units, such as `12.50` USD, while treating response fields named `amountMinor` as minor units.
