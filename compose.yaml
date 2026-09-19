@@ -39,7 +39,7 @@ services:
   otter:
     profiles: [production]
     build: .
-    image: otter:latest
+    image: ${OTTER_IMAGE:-otter:latest}
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       NODE_ENV: production
