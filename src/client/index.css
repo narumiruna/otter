@@ -225,6 +225,11 @@
   width: 100%;
 }
 
+/* Portals retain React theme context but need a DOM scope for theme tokens. */
+.radix-dialog-theme {
+  display: contents;
+}
+
 .radix-dialog-overlay {
   position: fixed;
   z-index: 80;

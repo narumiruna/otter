@@ -1,5 +1,5 @@
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { Heading, Text } from "@radix-ui/themes";
+import { Heading, Text, Theme } from "@radix-ui/themes";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import {
   type ComponentProps,
@@ -68,25 +68,27 @@ function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="radix-dialog-overlay" />
-      <DialogPrimitive.Content
-        className={cn("radix-dialog-content", className)}
-        {...props}
-      >
-        {children}
-        {showCloseButton ? (
-          <DialogPrimitive.Close asChild>
-            <Button
-              aria-label="關閉"
-              className="radix-dialog-close"
-              size="icon"
-              variant="ghost"
-            >
-              <Cross2Icon aria-hidden="true" />
-            </Button>
-          </DialogPrimitive.Close>
-        ) : null}
-      </DialogPrimitive.Content>
+      <Theme className="radix-dialog-theme">
+        <DialogPrimitive.Overlay className="radix-dialog-overlay" />
+        <DialogPrimitive.Content
+          className={cn("radix-dialog-content", className)}
+          {...props}
+        >
+          {children}
+          {showCloseButton ? (
+            <DialogPrimitive.Close asChild>
+              <Button
+                aria-label="關閉"
+                className="radix-dialog-close"
+                size="icon"
+                variant="ghost"
+              >
+                <Cross2Icon aria-hidden="true" />
+              </Button>
+            </DialogPrimitive.Close>
+          ) : null}
+        </DialogPrimitive.Content>
+      </Theme>
     </DialogPrimitive.Portal>
   );
 }
