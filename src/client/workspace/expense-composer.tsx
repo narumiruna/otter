@@ -3,7 +3,7 @@ import {
   ReaderIcon as ReceiptText,
   GroupIcon as Users,
 } from "@radix-ui/react-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { expenseCategories } from "../../shared/expense-metadata.js";
@@ -92,14 +92,22 @@ export function ExpenseComposer({
   onSaved?: () => void;
   trip: Trip;
 }) {
-  const { formatMoney, messages } = useI18n();
+  const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [serverError, setServerError] = useState("");
   const form = useForm<ExpenseDraft>({
     defaultValues: defaults(trip, expense),
   });
+  const previousLocale = useRef(locale);
   const values = form.watch();
   const isDirty = form.formState.isDirty;
+
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    form.clearErrors();
+    setServerError("");
+  }, [form.clearErrors, locale]);
 
   useEffect(() => {
     const protectDraft = (event: BeforeUnloadEvent) => {

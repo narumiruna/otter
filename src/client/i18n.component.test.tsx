@@ -8,7 +8,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AppShell } from "./app-shell.js";
 import { api } from "./client-support.js";
 import { translations } from "./i18n/messages.js";
-import { currentLocale, I18nProvider, translate } from "./i18n.js";
+import { currentLocale, I18nProvider, translate, useI18n } from "./i18n.js";
 
 function renderApp(initialLocale?: "en" | "zh-TW") {
   const queryClient = new QueryClient({
@@ -38,6 +38,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+function CurrentLocale() {
+  const { locale } = useI18n();
+  return <span>{locale}</span>;
+}
+
+test("browser language detection honors the user's preference order", () => {
+  vi.spyOn(window.navigator, "languages", "get").mockReturnValue([
+    "en-US",
+    "zh-TW",
+  ]);
+
+  const view = render(
+    <I18nProvider>
+      <CurrentLocale />
+    </I18nProvider>,
+  );
+
+  expect(view.getByText("en")).toBeVisible();
 });
 
 test("app switches between Traditional Chinese and English and persists the choice", async () => {

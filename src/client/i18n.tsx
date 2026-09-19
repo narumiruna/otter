@@ -49,11 +49,12 @@ function detectedLocale(): Locale {
   if (typeof window === "undefined") return "zh-TW";
   const saved = storedLocale();
   if (saved) return saved;
-  return navigator.languages.some((language) =>
-    language.toLowerCase().startsWith("zh"),
-  )
-    ? "zh-TW"
-    : "en";
+  for (const language of navigator.languages) {
+    const normalized = language.toLowerCase();
+    if (normalized.startsWith("en")) return "en";
+    if (normalized.startsWith("zh")) return "zh-TW";
+  }
+  return "en";
 }
 
 function parameterizedMessage(
