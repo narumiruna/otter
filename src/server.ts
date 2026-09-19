@@ -14,6 +14,7 @@ import {
   ensureDevelopmentAdmin,
   ensureDevelopmentFixtures,
 } from "./server-dev.js";
+import { registerDeviceAuthRoutes } from "./server-device-auth.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
@@ -110,6 +111,7 @@ export function createApp(
   const mustBeSignedIn = requireUser(pool);
 
   registerBackupRoutes(app, pool, mustBeSignedIn);
+  registerDeviceAuthRoutes(app, pool, mustBeSignedIn);
 
   app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;

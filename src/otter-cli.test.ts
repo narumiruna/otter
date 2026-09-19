@@ -1,0 +1,322 @@
+import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, expect, test, vi } from "vitest";
+import type { CliError } from "../skills/otter-manage-expenses/scripts/otter-cli.js";
+import {
+  errorPayload,
+  executeCliCommand,
+  executeDeviceLogin,
+  executeDeviceLogout,
+  parseCliCommand,
+  parseDeviceLoginArguments,
+} from "../skills/otter-manage-expenses/scripts/otter-cli.js";
+
+const environment = {
+  OTTER_PASSWORD: "correct horse battery staple",
+  OTTER_URL: "http://localhost:17463",
+  OTTER_USERNAME: "agent",
+};
+
+describe("parseCliCommand", () => {
+  test("builds an equal-split expense request", () => {
+    expect(
+      parseCliCommand([
+        "expenses",
+        "add",
+        "--trip",
+        "trip/1",
+        "--description",
+        "Dinner",
+        "--amount",
+        "1200",
+        "--currency",
+        "TWD",
+        "--paid-by",
+        "participant-a",
+        "--split-with",
+        "participant-a, participant-b,participant-a",
+        "--tags",
+        "food,night",
+      ]),
+    ).toEqual({
+      body: {
+        amount: "1200",
+        currency: "TWD",
+        description: "Dinner",
+        paidById: "participant-a",
+        participantIds: ["participant-a", "participant-b"],
+        tags: ["food", "night"],
+      },
+      method: "POST",
+      path: "/api/trips/trip%2F1/expenses",
+    });
+  });
+
+  test("allows clearing expense tags", () => {
+    expect(
+      parseCliCommand([
+        "expenses",
+        "update",
+        "--trip",
+        "trip-1",
+        "--expense",
+        "expense-1",
+        "--tags",
+        "",
+      ]).body,
+    ).toEqual({ tags: [] });
+  });
+
+  test("requires explicit confirmation for deletion", () => {
+    expect(() =>
+      parseCliCommand([
+        "expenses",
+        "delete",
+        "--trip",
+        "trip-1",
+        "--expense",
+        "expense-1",
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "CONFIRMATION_REQUIRED" }));
+  });
+
+  test("parses device login options", () => {
+    expect(
+      parseDeviceLoginArguments([
+        "--client-name",
+        "Expense agent",
+        "--no-open",
+      ]),
+    ).toEqual({ clientName: "Expense agent", noOpen: true });
+  });
+
+  test("rejects unknown options", () => {
+    expect(() =>
+      parseCliCommand(["trips", "list", "--format", "table"]),
+    ).toThrowError(expect.objectContaining({ code: "USAGE" }));
+  });
+});
+
+describe("executeCliCommand", () => {
+  test("logs in, returns selected JSON, and logs out", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ user: { id: "user-1" } }), {
+          headers: { "Set-Cookie": "otter_session=session-1; HttpOnly" },
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            balances: [{ amountMinor: 500, participantId: "a" }],
+            settlements: [{ amountMinor: 500, fromId: "b", toId: "a" }],
+            trip: { settlementPayments: [] },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
+
+    await expect(
+      executeCliCommand(
+        {
+          method: "GET",
+          path: "/api/trips/trip-1",
+          select: "balances",
+        },
+        environment,
+        fetchMock,
+      ),
+    ).resolves.toEqual({
+      balances: [{ amountMinor: 500, participantId: "a" }],
+      settlements: [{ amountMinor: 500, fromId: "b", toId: "a" }],
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://localhost:17463/api/auth/login",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Cookie: "otter_session=session-1",
+        }),
+      }),
+    );
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(
+      "http://localhost:17463/api/auth/logout",
+    );
+  });
+
+  test("returns server errors without exposing credentials", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Username or password is wrong" }), {
+        status: 401,
+      }),
+    );
+
+    let caught: unknown;
+    try {
+      await executeCliCommand(
+        { method: "GET", path: "/api/me" },
+        environment,
+        fetchMock,
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(errorPayload(caught)).toEqual({
+      error: {
+        code: "API_ERROR",
+        message: "Username or password is wrong",
+        status: 401,
+      },
+    });
+    expect(JSON.stringify(errorPayload(caught))).not.toContain(
+      environment.OTTER_PASSWORD,
+    );
+  });
+
+  test("uses a Bearer token without a password login", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ user: { id: "user-1" } })),
+      );
+
+    await executeCliCommand(
+      { method: "GET", path: "/api/me" },
+      {
+        OTTER_TOKEN: "otter_api_ephemeral",
+        OTTER_URL: "http://localhost:17463",
+      },
+      fetchMock,
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer otter_api_ephemeral",
+        }),
+      }),
+    );
+  });
+
+  test("refuses credentials over remote HTTP by default", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+
+    await expect(
+      executeCliCommand(
+        { method: "GET", path: "/api/me" },
+        { ...environment, OTTER_URL: "http://otter.example.test" },
+        fetchMock,
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "INSECURE_HTTP" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("device login", () => {
+  test("polls for approval, stores a private token, uses it, and revokes it", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const deviceAuthorization = {
+      device_code: "device-secret",
+      expires_in: 600,
+      interval: 3,
+      user_code: "ABCD-2345",
+      verification_uri: "http://localhost:17463/device",
+      verification_uri_complete: "http://localhost:17463/device?code=ABCD-2345",
+    };
+    const loginFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(deviceAuthorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "authorization_pending" }), {
+          status: 400,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "otter_api_persisted",
+            expires_at: "2099-01-01T00:00:00.000Z",
+            token_type: "Bearer",
+          }),
+        ),
+      );
+    const openBrowser = vi.fn();
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const authEnvironment = {
+      OTTER_CONFIG_PATH: configPath,
+      OTTER_URL: "http://localhost:17463",
+    };
+
+    await expect(
+      executeDeviceLogin(authEnvironment, {
+        fetchImplementation: loginFetch,
+        openBrowser,
+        sleep,
+      }),
+    ).resolves.toEqual({
+      authenticated: true,
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      server: "http://localhost:17463",
+    });
+    expect(openBrowser).toHaveBeenCalledWith(
+      deviceAuthorization.verification_uri_complete,
+    );
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect((await stat(configPath)).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_persisted",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+
+    const dataFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ user: { id: "user-1" } })),
+      );
+    await executeCliCommand(
+      { method: "GET", path: "/api/me" },
+      authEnvironment,
+      dataFetch,
+    );
+    expect(dataFetch.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer otter_api_persisted",
+        }),
+      }),
+    );
+
+    const logoutFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    await expect(
+      executeDeviceLogout(authEnvironment, logoutFetch),
+    ).resolves.toEqual({
+      authenticated: false,
+      server: "http://localhost:17463",
+    });
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {},
+      version: 1,
+    });
+  });
+});

@@ -9,6 +9,8 @@
     "build": "vite build && tsc -p tsconfig.server.json && tsc -p tsconfig.scripts.json",
     "start": "node dist/scripts/migrate.js && node dist/server/server.js",
     "migrate": "tsx scripts/migrate.ts",
+    "otter": "tsx skills/otter-manage-expenses/scripts/otter.ts",
+    "otter:built": "node dist/skills/otter-manage-expenses/scripts/otter.js",
     "prepare": "husky",
     "db:reset:dev": "docker compose down -v",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.scripts.json",

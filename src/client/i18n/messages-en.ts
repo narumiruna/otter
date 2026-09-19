@@ -31,6 +31,21 @@ export const en = {
     interpolate("Sign out {name}", values),
   signingOut: "Signing out…",
   signOut: "Sign out",
+  authorizeCli: "Connect CLI",
+  authorizeCliDescription:
+    "Enter the device code shown in your terminal to approve this CLI's access to your Otter data.",
+  deviceCode: "Device code",
+  checkDeviceCode: "Continue",
+  checkingDeviceCode: "Checking…",
+  cliAccessRequest: "CLI access request",
+  cliAccessRequestedBy: "Requested by",
+  approveCliAccess: "Approve access",
+  approvingCliAccess: "Approving…",
+  cliAccessApproved: "CLI connected",
+  cliAccessApprovedDescription:
+    "You can close this page and return to your terminal.",
+  deviceCodeNotFoundOrExpired: "Device code not found or expired",
+  enterAValidDeviceCode: "Enter a valid device code",
   youAreOfflineLoadedDataIsAvailableButEditingRequiresAConnection:
     "You are offline. Loaded data is available, but editing requires a connection.",
   travelTogetherSplitWithEase: "Travel together, split with ease",

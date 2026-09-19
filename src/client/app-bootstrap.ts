@@ -51,6 +51,16 @@ export async function fetchAppBootstrap(
       user: null,
     };
   }
+  if (pathname === "/device") {
+    return {
+      archivedTrips: [],
+      devLoginCredentials: config.devLoginCredentials ?? undefined,
+      readonlyShare: false,
+      selected: null,
+      trips: [],
+      user: me.user,
+    };
+  }
 
   const collection = await api<TripCollection>("/api/trips");
   const archivedTrips = collection.archivedTrips ?? [];

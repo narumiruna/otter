@@ -7,6 +7,10 @@ import type {
 } from "pg";
 import pg from "pg";
 import {
+  bearerTokenFromRequest,
+  userFromApiToken,
+} from "./server-api-tokens.js";
+import {
   asyncHandler,
   type OtterContext,
   type OtterMiddleware,
@@ -455,6 +459,11 @@ export async function userFromRequest(
   db: Queryable,
   req: RouteRequest,
 ): Promise<User | undefined> {
+  if (req.get("authorization")) {
+    const bearerToken = bearerTokenFromRequest(req);
+    return bearerToken ? userFromApiToken(db, bearerToken) : undefined;
+  }
+
   const sessionId = getCookie(req, "otter_session");
   if (!sessionId) {
     return undefined;

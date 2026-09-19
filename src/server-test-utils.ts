@@ -43,7 +43,7 @@ type TestAppOptions = {
 
 export async function withTestApp(
   options: TestAppOptions = {},
-): Promise<{ baseUrl: string }> {
+): Promise<{ baseUrl: string; pool: PgPool }> {
   assert.ok(testDatabaseUrl);
   const schema = `otter_test_${process.pid}_${Date.now()}_${randomUUID().replaceAll("-", "")}`;
   const adminPool = new Pool({ connectionString: testDatabaseUrl });
@@ -63,7 +63,7 @@ export async function withTestApp(
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 11);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 12);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
   await options.prepare?.(pool);
 
@@ -71,7 +71,7 @@ export async function withTestApp(
   server = await listen(createAdaptorServer({ fetch: app.fetch }));
   const address = server.address();
   assert.ok(address && typeof address === "object");
-  return { baseUrl: `http://127.0.0.1:${address.port}` };
+  return { baseUrl: `http://127.0.0.1:${address.port}`, pool };
 }
 
 export async function api<T>(
