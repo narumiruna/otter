@@ -77,6 +77,11 @@ export const en = {
   developmentCredentialsHaveBeenFilledIn:
     "Development credentials have been filled in.",
   signingIn: "Signing in…",
+  or: "or",
+  signInWithAPasskey: "Sign in with a passkey",
+  signingInWithAPasskey: "Signing in with a passkey…",
+  unableToSignInWithAPasskey:
+    "Unable to sign in with a passkey. Try again or use your password.",
   needAnAccount: "Need an account?",
   usernameIsNotCaseSensitive: "Username is not case-sensitive.",
   passwordMustBeAtLeast8Characters: "Password must be at least 8 characters",
@@ -88,10 +93,41 @@ export const en = {
     "Expense participants do not need accounts to be included in a group.",
   changeNameSUsername: (values: MessageValues) =>
     interpolate("Change {name}'s username", values),
+  manageNameSAccount: (values: MessageValues) =>
+    interpolate("Manage {name}'s account", values),
   unableToUpdateUsername: "Unable to update username",
   changeUsername: "Change username",
+  accountSettings: "Account settings",
+  manageYourUsernameAndPasskeys: "Manage your username and passkeys.",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "Use the new username the next time you sign in. Your current session will continue.",
+  passkeys: "Passkeys",
+  useAPasskeyToSignInWithoutYourPassword:
+    "Use your device unlock to sign in without entering your password.",
+  unableToLoadPasskeys: "Unable to load passkeys",
+  unableToAddPasskey: "Unable to add a passkey. If you canceled, try again.",
+  unableToRemovePasskey: "Unable to remove the passkey",
+  passkeyAdded: "Passkey added",
+  passkeyRemoved: "Passkey removed",
+  passkeyNumber: (values: MessageValues) =>
+    interpolate("Passkey {number}", values),
+  addedOnDate: (values: MessageValues) => interpolate("Added {date}", values),
+  removePasskeyNumber: (values: MessageValues) =>
+    interpolate("Remove passkey {number}", values),
+  noPasskeysAdded: "No passkeys added yet.",
+  addingPasskey: "Adding passkey…",
+  addPasskey: "Add passkey",
+  thisBrowserDoesNotSupportPasskeys: "This browser does not support passkeys.",
+  passkeyRegistrationResponseIsInvalid:
+    "The passkey registration response is invalid",
+  passkeyRegistrationRequestExpired:
+    "The passkey registration request expired. Try again.",
+  unableToVerifyPasskey: "Unable to verify the passkey. Try again.",
+  passkeyAlreadyRegistered: "This passkey is already registered",
+  passkeyNotFound: "Passkey not found",
+  passkeyLoginResponseIsInvalid: "The passkey sign-in response is invalid",
+  passkeyLoginRequestExpired: "The passkey sign-in request expired. Try again.",
+  unableToUsePasskeyToSignIn: "Unable to sign in with this passkey",
   cancel: "Cancel",
   saving: "Saving…",
   save: "Save",

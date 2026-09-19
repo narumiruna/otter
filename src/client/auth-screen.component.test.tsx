@@ -59,6 +59,58 @@ test("registration only validates and submits username and password", async () =
   view.unmount();
 });
 
+test("passkey login is offered only when supported and invokes its callback", async () => {
+  const user = userEvent.setup();
+  const onPasskeyLogin = vi.fn();
+  const view = render(
+    <AuthScreen
+      onLogin={() => undefined}
+      onPasskeyLogin={onPasskeyLogin}
+      onRegister={() => undefined}
+      passkeySupported
+    />,
+  );
+
+  await user.click(view.getByRole("button", { name: "使用 Passkey 登入" }));
+  expect(onPasskeyLogin).toHaveBeenCalledOnce();
+
+  for (const busyAction of ["login", "passkey"]) {
+    view.rerender(
+      <AuthScreen
+        busyAction={busyAction}
+        onLogin={() => undefined}
+        onPasskeyLogin={onPasskeyLogin}
+        onRegister={() => undefined}
+        passkeySupported
+      />,
+    );
+    expect(
+      view.getByRole("button", {
+        name:
+          busyAction === "passkey"
+            ? "正在使用 Passkey 登入…"
+            : "使用 Passkey 登入",
+      }),
+    ).toBeDisabled();
+    expect(
+      view.getByRole("button", {
+        name: busyAction === "login" ? "登入中…" : "登入",
+      }),
+    ).toBeDisabled();
+  }
+
+  view.rerender(
+    <AuthScreen
+      onLogin={() => undefined}
+      onPasskeyLogin={onPasskeyLogin}
+      onRegister={() => undefined}
+      passkeySupported={false}
+    />,
+  );
+  expect(view.queryByRole("button", { name: "使用 Passkey 登入" })).toBeNull();
+  view.unmount();
+});
+
 test.each(["alice_123", "legacy@example.com"])(
   "login submits username %s",
   async (username) => {

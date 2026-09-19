@@ -2,6 +2,7 @@ import {
   ArrowRightIcon,
   CheckCircledIcon as CheckCircle2,
   GlobeIcon,
+  IdCardIcon as KeyIcon,
   LockClosedIcon,
 } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState } from "react";
@@ -34,7 +35,9 @@ type AuthScreenProps = {
   registerError?: string;
   busyAction?: string;
   onLogin: (credentials: LoginCredentials) => Promise<void> | void;
+  onPasskeyLogin?: () => Promise<void> | void;
   onRegister: (credentials: RegisterCredentials) => Promise<void> | void;
+  passkeySupported?: boolean;
 };
 
 export function AuthScreen({
@@ -42,7 +45,9 @@ export function AuthScreen({
   devLoginCredentials,
   loginError,
   onLogin,
+  onPasskeyLogin,
   onRegister,
+  passkeySupported = false,
   registerError,
 }: AuthScreenProps) {
   const { locale, messages } = useI18n();
@@ -188,17 +193,37 @@ export function AuthScreen({
                 ) : null}
                 <Button
                   className="min-h-11 w-full"
-                  disabled={busyAction === "login"}
+                  disabled={Boolean(busyAction)}
                   type="submit"
                 >
                   {busyAction === "login"
                     ? messages.signingIn
                     : messages.signIn}
                 </Button>
+                {passkeySupported && onPasskeyLogin ? (
+                  <>
+                    <div className="auth-divider">
+                      <span>{messages.or}</span>
+                    </div>
+                    <Button
+                      className="min-h-11 w-full"
+                      disabled={Boolean(busyAction)}
+                      onClick={() => void onPasskeyLogin()}
+                      type="button"
+                      variant="outline"
+                    >
+                      <KeyIcon aria-hidden="true" />
+                      {busyAction === "passkey"
+                        ? messages.signingInWithAPasskey
+                        : messages.signInWithAPasskey}
+                    </Button>
+                  </>
+                ) : null}
                 <p className="text-center text-sm text-muted-foreground">
                   {messages.needAnAccount}{" "}
                   <button
                     className="auth-switch"
+                    disabled={Boolean(busyAction)}
                     type="button"
                     onClick={() => setMode("register")}
                   >
@@ -272,7 +297,7 @@ export function AuthScreen({
                 </Field>
                 <Button
                   className="min-h-11 w-full"
-                  disabled={busyAction === "register"}
+                  disabled={Boolean(busyAction)}
                   type="submit"
                 >
                   {busyAction === "register"
@@ -283,6 +308,7 @@ export function AuthScreen({
                   {messages.alreadyHaveAnAccount}{" "}
                   <button
                     className="auth-switch"
+                    disabled={Boolean(busyAction)}
                     type="button"
                     onClick={() => setMode("login")}
                   >

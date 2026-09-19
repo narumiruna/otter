@@ -19,9 +19,7 @@ test("validates and submits a username change", async () => {
     />,
   );
 
-  await user.click(
-    screen.getByRole("button", { name: "修改 Alice 的 Username" }),
-  );
+  await user.click(screen.getByRole("button", { name: "管理 Alice 的帳號" }));
   const input = screen.getByLabelText("Username");
   expect(input).toHaveValue("alice");
 
@@ -48,6 +46,6 @@ test("disables username changes while offline", () => {
   );
 
   expect(
-    screen.getByRole("button", { name: "修改 Alice 的 Username" }),
+    screen.getByRole("button", { name: "管理 Alice 的帳號" }),
   ).toBeDisabled();
 });

@@ -28,7 +28,7 @@ async function login(page: Page, groupName: string | RegExp = "東京賞櫻五�
   await page.goto("/");
   await page
     .locator("#login-form")
-    .getByRole("button", { name: "登入" })
+    .getByRole("button", { name: "登入", exact: true })
     .click();
   await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
 }

@@ -4,7 +4,7 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 
 ## 功能
 
-- 使用 Username 註冊、登入、登出，不需 Email。
+- 使用 Username 與密碼註冊、登入、登出；登入後可新增 Passkey，之後用裝置解鎖快速登入。
 - 建立、選擇、重新命名、調整基準貨幣、封存/還原與刪除支出群組，並避免同帳號重複命名。
 - 可用 Username 加入既有帳號為協作者；協作者可記帳與維護成員，但不能刪除旅行或管理協作者。
 - 新增、重新命名與刪除未使用的參與者，並避免同一旅行內重複命名。
@@ -22,7 +22,9 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 
 註冊只需填寫 Username 和密碼，新帳號會以正規化後的 Username 作為預設顯示名稱。Username 為 3–32 個英文字母、數字、底線或連字號；會去除前後空白並轉成小寫，不分大小寫且不可重複。密碼至少 8 個字。為相容既有 client，註冊 API 仍接受選填的 `name`。開發環境預填帳號為 `admin`。
 
-Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、session 與群組關聯。既有使用者仍在 Username 欄位輸入原 Email 登入；協作者也可用該值查找。部署時須一起更新資料庫與 app；API 註冊、登入、協作者請求及使用者回應改用 `username`，不再提供 `email` 欄位。Cookie 設定不變。
+登入後可從右上角帳號設定新增或移除多組 Passkey。Passkey 使用 discoverable credential，可在登入頁直接選擇帳號，不必先輸入 Username；密碼登入會保留作為備援。Passkey 只能在 HTTPS secure context 或瀏覽器允許的 `localhost` 開發環境使用。
+
+Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、session 與群組關聯。Migration `012_passkeys.sql` 只新增 Passkey credential 與短效 challenge 資料表，不修改既有帳號、密碼或 session。既有使用者仍可用 Username／原 Email 與密碼登入後新增 Passkey。
 
 ## 技術
 
@@ -144,9 +146,19 @@ POSTGRES_PASSWORD=change-me docker compose up --detach --build
 
 App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。PostgreSQL 的 host port 只綁定至 `127.0.0.1:55432`。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
 
-GitHub `Deploy` workflow 需要 self-hosted runner 與 `POSTGRES_PASSWORD` repository secret。每次 push 到 `main` 都會直接部署，也可以手動觸發；部署使用 compose 內的 PostgreSQL。
+GitHub `Deploy` workflow 需要 self-hosted runner、`POSTGRES_PASSWORD` repository secret 與 `PASSKEY_ORIGIN` repository variable。每次 push 到 `main` 都會直接部署，也可以手動觸發；部署使用 compose 內的 PostgreSQL。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
+
+Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。本機 compose 預設使用 `PASSKEY_ORIGIN=http://localhost:17463`；正式環境必須明確設定公開 HTTPS origin，例如：
+
+```bash
+PASSKEY_ORIGIN=https://otter.example.com
+```
+
+`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；除 `localhost` 開發環境外必須使用 HTTPS。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
+
+Passkey options 會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 設為 repository variable；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
 
 ## 工作流程與安全狀態
 
