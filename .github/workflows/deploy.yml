@@ -1,10 +1,7 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
 
 permissions:
@@ -16,40 +13,17 @@ concurrency:
 
 jobs:
   deploy:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_repository.full_name == github.repository &&
-       github.event.workflow_run.head_sha == github.sha)
     runs-on: self-hosted
     env:
-      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      OTTER_IMAGE: otter:${{ github.event.workflow_run.head_sha || github.sha }}
+      OTTER_IMAGE: otter:${{ github.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          ref: ${{ env.DEPLOY_SHA }}
+      - uses: actions/checkout@v7
       - name: Build image
-        run: >-
-          docker build --pull
-          --label "io.otter.deployment=true"
-          --tag "${OTTER_IMAGE}" .
+        run: docker build --pull --tag "${OTTER_IMAGE}" .
       - name: Start services
         shell: bash
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           : "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD secret}"
-          docker compose --project-name otter-production up --detach --wait --wait-timeout 120 --no-build otter
-      - name: Remove superseded deployment images
-        shell: bash
-        run: |
-          current_image_id="$(docker image inspect --format '{{.Id}}' "${OTTER_IMAGE}")"
-          while IFS= read -r image_id; do
-            if [[ "${image_id}" != "${current_image_id}" ]]; then
-              docker image rm "${image_id}"
-            fi
-          done < <(docker image ls --no-trunc --filter "label=io.otter.deployment=true" --format '{{.ID}}' | sort --unique)
+          docker compose up --detach --wait --wait-timeout 120
