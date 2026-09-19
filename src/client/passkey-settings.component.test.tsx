@@ -34,6 +34,21 @@ test("passkey settings does not request data while offline", () => {
   view.unmount();
 });
 
+test("passkey settings clears a list error after recovery", async () => {
+  vi.mocked(api)
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce({ passkeys: [passkey] });
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByRole("alert")).toHaveTextContent("無法載入 Passkey");
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  expect(view.queryByRole("alert")).toBeNull();
+  expect(api).toHaveBeenCalledTimes(2);
+  view.unmount();
+});
+
 test("passkey settings enroll and remove passkeys", async () => {
   let listedPasskeys = [passkey];
   vi.mocked(api).mockImplementation(async (url, init) => {

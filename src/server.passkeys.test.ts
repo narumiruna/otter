@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { expect, test, vi } from "vitest";
 import type { RouteRequest } from "./server-http.js";
 import {
-  createAuthenticationOptionsRateLimiter,
+  createPasskeyOptionsRateLimiter,
   type PasskeyVerifiers,
   resolvePasskeyRelyingParty,
 } from "./server-passkeys.js";
@@ -79,8 +79,8 @@ const request: RouteRequest = {
   protocol: "https",
 };
 
-test("anonymous passkey options are rate limited per client and globally", () => {
-  const rateLimit = createAuthenticationOptionsRateLimiter({
+test("passkey options are rate limited per client and globally", () => {
+  const rateLimit = createPasskeyOptionsRateLimiter({
     globalLimit: 3,
     perClientLimit: 2,
     windowMs: 1_000,
@@ -213,8 +213,24 @@ test(
     expect(wrongUser.response.status).toBe(400);
     expect(verifiers.verifyRegistration).not.toHaveBeenCalled();
 
+    const replacementOptions = await api<typeof options.data>(
+      baseUrl,
+      "/api/passkeys/registration/options",
+      { headers: { cookie: accountCookie }, method: "POST" },
+    );
+    const stale = await api(baseUrl, "/api/passkeys/registration/verify", {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      headers: { cookie: accountCookie },
+      method: "POST",
+    });
+    expect(stale.response.status).toBe(400);
+    expect(verifiers.verifyRegistration).not.toHaveBeenCalled();
+
     const verificationBody = JSON.stringify({
-      challengeId: options.data.challengeId,
+      challengeId: replacementOptions.data.challengeId,
       response: fakeRegistrationResponse,
     });
     const verified = await api(baseUrl, "/api/passkeys/registration/verify", {
@@ -225,7 +241,7 @@ test(
     expect(verified.response.status).toBe(201);
     expect(verifiers.verifyRegistration).toHaveBeenCalledWith(
       expect.objectContaining({
-        expectedChallenge: options.data.options.challenge,
+        expectedChallenge: replacementOptions.data.options.challenge,
         expectedOrigin: "http://localhost",
         expectedRPID: "localhost",
         requireUserVerification: true,

@@ -105,7 +105,7 @@ type AuthenticationOptionsRateLimit = {
   windowMs?: number;
 };
 
-export function createAuthenticationOptionsRateLimiter({
+export function createPasskeyOptionsRateLimiter({
   globalLimit = authenticationOptionsGlobalLimit,
   perClientLimit = authenticationOptionsPerClientLimit,
   windowMs = authenticationOptionsRateLimitWindowMs,
@@ -191,7 +191,12 @@ async function saveChallenge(
   const id = makeId("passkey_challenge");
   await db.query(
     `INSERT INTO passkey_challenges (id, challenge, ceremony, user_id, expires_at)
-     VALUES ($1, $2, $3, $4, $5)`,
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id) WHERE ceremony = 'registration'
+     DO UPDATE SET id = EXCLUDED.id,
+                   challenge = EXCLUDED.challenge,
+                   expires_at = EXCLUDED.expires_at,
+                   created_at = now()`,
     [
       id,
       challenge,
@@ -251,7 +256,8 @@ export function registerPasskeyRoutes(
     verifyAuthentication: verifyAuthenticationResponse,
     verifyRegistration: verifyRegistrationResponse,
   };
-  const limitAuthenticationOptions = createAuthenticationOptionsRateLimiter();
+  const limitAuthenticationOptions = createPasskeyOptionsRateLimiter();
+  const limitRegistrationOptions = createPasskeyOptionsRateLimiter();
 
   app.get(
     "/api/passkeys",
@@ -273,6 +279,13 @@ export function registerPasskeyRoutes(
     "/api/passkeys/registration/options",
     mustBeSignedIn,
     asyncHandler(async (req, res) => {
+      const retryAfter = limitRegistrationOptions(req);
+      if (retryAfter !== undefined) {
+        res.setHeader("Retry-After", String(retryAfter));
+        sendError(res, 429, "Passkey 註冊要求過於頻繁，請稍後再試");
+        return;
+      }
+
       const user = currentUser(res);
       const relyingParty = resolvePasskeyRelyingParty(
         req,

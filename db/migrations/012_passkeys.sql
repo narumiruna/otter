@@ -24,3 +24,6 @@ CREATE TABLE passkey_challenges (
   )
 );
 CREATE INDEX passkey_challenges_expires_at_idx ON passkey_challenges(expires_at);
+CREATE UNIQUE INDEX passkey_registration_challenges_user_id_idx
+  ON passkey_challenges(user_id)
+  WHERE ceremony = 'registration';

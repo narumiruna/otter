@@ -25,6 +25,7 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
     try {
       const result = await api<{ passkeys: PasskeySummary[] }>("/api/passkeys");
       setPasskeys(result.passkeys);
+      setError("");
     } catch {
       setError(messages.unableToLoadPasskeys);
     }
