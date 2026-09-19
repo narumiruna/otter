@@ -15,6 +15,7 @@ import {
 } from "./auth-screen.js";
 import { api, type TripPayload, type User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
+import { authenticateWithPasskey, supportsPasskeys } from "./passkeys.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
 import { ReadonlyWorkspace } from "./workspace/readonly-workspace.js";
 
@@ -127,6 +128,21 @@ export function AppShell() {
     }
   }
 
+  async function completePasskeyLogin() {
+    setAuthAction("passkey");
+    setAuthError({});
+    try {
+      await authenticateWithPasskey();
+      queryClient.clear();
+      await bootstrap.refetch();
+      announce(messages.signedIn);
+    } catch {
+      setAuthError({ login: messages.unableToSignInWithAPasskey });
+    } finally {
+      setAuthAction("");
+    }
+  }
+
   async function updateUsername(username: string) {
     const response = await api<{ user: User }>("/api/me", {
       body: JSON.stringify({ username }),
@@ -211,9 +227,11 @@ export function AppShell() {
         devLoginCredentials={appData?.devLoginCredentials}
         loginError={authError.login}
         onLogin={(credentials) => completeAuth("/api/auth/login", credentials)}
+        onPasskeyLogin={completePasskeyLogin}
         onRegister={(credentials) =>
           completeAuth("/api/auth/register", credentials)
         }
+        passkeySupported={supportsPasskeys()}
         registerError={authError.register}
       />
     );

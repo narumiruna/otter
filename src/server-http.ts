@@ -1,3 +1,4 @@
+import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { User } from "./server-support.js";
@@ -18,6 +19,7 @@ export type RouteRequest = {
   headers: Record<string, string | undefined>;
   params: Record<string, string>;
   protocol: string;
+  remoteAddress?: string;
 };
 
 export class RouteResponse {
@@ -87,6 +89,14 @@ export function asyncHandler(handler: Handler): OtterMiddleware {
   };
 }
 
+function requestRemoteAddress(context: OtterContext): string | undefined {
+  try {
+    return getConnInfo(context).remote.address;
+  } catch {
+    return undefined;
+  }
+}
+
 async function routeRequest(context: OtterContext): Promise<RouteRequest> {
   const headers = Object.fromEntries(context.req.raw.headers.entries());
   return {
@@ -97,6 +107,7 @@ async function routeRequest(context: OtterContext): Promise<RouteRequest> {
     headers,
     params: context.req.param(),
     protocol: new URL(context.req.url).protocol.slice(0, -1),
+    remoteAddress: requestRemoteAddress(context),
   };
 }
 

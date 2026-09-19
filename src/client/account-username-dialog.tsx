@@ -19,9 +19,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { isValidUsername } from "../shared/username.js";
 import type { User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
+import { PasskeySettings } from "./passkey-settings.js";
 
 type UsernameForm = { username: string };
 
@@ -71,7 +73,7 @@ export function AccountUsernameDialog({
         disabled={offline}
         render={
           <Button
-            aria-label={messages.changeNameSUsername({ name: user.name })}
+            aria-label={messages.manageNameSAccount({ name: user.name })}
             className="user-account-button"
             variant="ghost"
           >
@@ -91,11 +93,9 @@ export function AccountUsernameDialog({
           onSubmit={(event) => void form.handleSubmit(update)(event)}
         >
           <DialogHeader>
-            <DialogTitle>{messages.changeUsername}</DialogTitle>
+            <DialogTitle>{messages.accountSettings}</DialogTitle>
             <DialogDescription>
-              {
-                messages.useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue
-              }
+              {messages.manageYourUsernameAndPasskeys}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup className="my-5">
@@ -124,6 +124,8 @@ export function AccountUsernameDialog({
               <FieldError errors={[form.formState.errors.username]} />
             </Field>
           </FieldGroup>
+          <Separator />
+          <PasskeySettings offline={offline} />
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>
               {messages.cancel}
