@@ -39,14 +39,9 @@ npm install
 npm run dev
 ```
 
-開啟 <http://localhost:17463>。`npm run dev` 會在前景啟動 dev compose；它會啟動 Postgres、執行 `npm run migrate`、建立開發用帳號，再啟動 app。登入頁會預先填入：
+開啟 <http://localhost:17463>。`npm run dev` 會在前景啟動 compose，建置 `otter` image、啟動 PostgreSQL、套用 migrations，再啟動 app。第一次使用時請在註冊頁建立帳號。
 
-- Email：`admin@otter.local`
-- 密碼：`admin1234`
-
-開發帳號只會在 `NODE_ENV=development` 時建立，且是一般帳號（系統沒有全域 admin 權限）。啟動時也會以可重複執行的方式加入 4 組範例資料：東京賞櫻、台南美食、紐約出差，以及一組已封存的歐洲跨年；內容涵蓋多幣別、分類、標籤、指定分帳與部分結清。
-
-`just dev` 會改以背景 container 啟動同一套完整開發環境。
+`just dev` 會改以背景 container 啟動同一套環境。
 
 如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`：
 
@@ -70,7 +65,7 @@ npm run check
 執行 DB-backed API 測試（需先啟動 dev Postgres）：
 
 ```bash
-TEST_DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
+DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
 ```
 
 重建 dev 資料庫 volume：
@@ -93,19 +88,21 @@ npm run check
 
 ## Docker
 
-Development container（含 Postgres）：
+App 與 PostgreSQL：
 
 ```bash
 docker compose up --build
 ```
 
-Production-like（使用外部 Postgres，必須提供 `DATABASE_URL`）：
+`compose.yaml` 只有一個 `otter` app service，預設連線到同一份 compose 啟動的 PostgreSQL。正式部署時請提供安全的資料庫密碼：
 
 ```bash
-DATABASE_URL=postgres://user:pass@db:5432/otter docker compose --profile production up --build otter
+POSTGRES_PASSWORD=change-me docker compose up --detach --build
 ```
 
-`compose.yaml` 預設啟動 development services；production app 位於 `production` profile。兩種模式都會把 app 暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。
+App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。PostgreSQL 的 host port 只綁定至 `127.0.0.1:55432`。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
+
+GitHub `Deploy` workflow 需要帶有 `self-hosted`、`linux`、`otter-production` labels 的 runner，以及 `POSTGRES_PASSWORD` repository secret。`main` push 只會在 CI 成功後部署；手動執行 workflow 則是明確略過 CI gate。部署固定使用 compose 內的 PostgreSQL，並使用獨立的 `otter-production` Compose project，避免開發用 reset command 刪除 production volume。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 

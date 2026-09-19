@@ -20,12 +20,12 @@ Run commands from the repository root.
 - `npm install` - install dependencies for local development.
 - `npm ci` - install dependencies exactly from `package-lock.json`, as CI does.
 - [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to run only the Hono/Vite server.
-- `docker compose --profile production up otter` - start the production-like app instead of the default development app and bundled PostgreSQL; provide a container-reachable `DATABASE_URL` because container loopback cannot reach a database on the host.
+- [UNREVIEWED] `docker compose up --build` - build and start the app with bundled PostgreSQL; provide `POSTGRES_PASSWORD` for a non-development deployment.
 - `npm run migrate` - apply pending PostgreSQL migrations from `db/migrations/`.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.
 - `npm run biome:ci` - run Biome formatting/lint checks.
 - `npm run typecheck` - check client/shared and server TypeScript projects.
-- [UNREVIEWED] `npm test` - run Vitest server, shared, and component test files under `src/`; DB-backed suites run when `TEST_DATABASE_URL` is set.
+- [UNREVIEWED] `npm test` - run Vitest server, shared, and component test files under `src/`; DB-backed suites run when `DATABASE_URL` is set.
 - [UNREVIEWED] `npm run test:components` - run Testing Library component tests in the Vitest JSDOM environment without PostgreSQL.
 - `npm run test:e2e` - run Playwright Chromium workflow, responsive, and accessibility tests; requires a migrated `DATABASE_URL` and installed Chromium.
 - `npm run build` - build Vite client output and compile the server.

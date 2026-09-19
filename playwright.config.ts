@@ -17,8 +17,6 @@ export default defineConfig({
     command: "npm run dev:server",
     env: {
       ...process.env,
-      DEV_ADMIN_EMAIL: "admin@otter.local",
-      DEV_ADMIN_NAME: "Admin",
       DEV_ADMIN_PASSWORD: "admin1234",
       NODE_ENV: "development",
       PORT: "17463",
