@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 30_000,
   use: {
     ...devices["Desktop Chrome"],
-    baseURL: "http://127.0.0.1:3420",
+    baseURL: "http://127.0.0.1:17463",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
@@ -21,10 +21,10 @@ export default defineConfig({
       DEV_ADMIN_NAME: "Admin",
       DEV_ADMIN_PASSWORD: "admin1234",
       NODE_ENV: "development",
-      PORT: "3420",
+      PORT: "17463",
     },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    url: "http://127.0.0.1:3420/api/config",
+    url: "http://127.0.0.1:17463/api/config",
   },
 });
