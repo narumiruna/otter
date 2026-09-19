@@ -23,6 +23,8 @@ services:
         condition: service_healthy
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
+      PASSKEY_ORIGIN: ${PASSKEY_ORIGIN:-http://localhost:17463}
+      PASSKEY_RP_ID: ${PASSKEY_RP_ID:-localhost}
       PORT: 17463
     ports:
       - "17463:17463"

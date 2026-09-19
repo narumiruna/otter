@@ -172,6 +172,55 @@ select:disabled {
   color: var(--muted-foreground);
   font-size: 0.7rem;
 }
+.passkey-settings {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.25rem 0;
+}
+.passkey-settings h3,
+.passkey-message {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.passkey-settings h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.passkey-description,
+.passkey-empty,
+.passkey-message {
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+.passkey-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.passkey-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.65rem 0.55rem 0.8rem;
+}
+.passkey-list span,
+.passkey-list small {
+  display: block;
+}
+.passkey-list small {
+  margin-top: 0.15rem;
+  color: var(--muted-foreground);
+}
+.passkey-message.error-text {
+  color: var(--red-11);
+}
 .status-toast {
   position: fixed;
   z-index: 70;

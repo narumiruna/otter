@@ -17,6 +17,10 @@ import {
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
+import {
+  type PasskeyRouteOptions,
+  registerPasskeyRoutes,
+} from "./server-passkeys.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import { registerShareRoutes } from "./server-sharing.js";
@@ -100,6 +104,7 @@ const __dirname = path.dirname(__filename);
 
 export type CreateAppOptions = {
   devLoginCredentials?: DevelopmentAdminCredentials | null;
+  passkeys?: PasskeyRouteOptions;
 };
 
 export function createApp(
@@ -109,6 +114,7 @@ export function createApp(
   const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUser(pool);
 
+  registerPasskeyRoutes(app, pool, mustBeSignedIn, options.passkeys);
   registerBackupRoutes(app, pool, mustBeSignedIn);
 
   app.get("/api/config", (context) => {
