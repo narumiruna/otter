@@ -3,7 +3,7 @@ import {
   IdCardIcon as KeyIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "./client-support.js";
 import { useI18n } from "./i18n.js";
@@ -19,33 +19,85 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const listAbortController = useRef<AbortController | undefined>(undefined);
+  const listGeneration = useRef(0);
+  const mutationActive = useRef(false);
   const supported = supportsPasskeys();
 
   const loadPasskeys = useCallback(async () => {
+    if (mutationActive.current) return;
+    listAbortController.current?.abort();
+    const controller = new AbortController();
+    listAbortController.current = controller;
+    const generation = ++listGeneration.current;
     try {
-      const result = await api<{ passkeys: PasskeySummary[] }>("/api/passkeys");
+      const result = await api<{ passkeys: PasskeySummary[] }>(
+        "/api/passkeys",
+        { signal: controller.signal },
+      );
+      if (
+        controller.signal.aborted ||
+        mutationActive.current ||
+        generation !== listGeneration.current
+      ) {
+        return;
+      }
       setPasskeys(result.passkeys);
       setError("");
     } catch {
+      if (
+        controller.signal.aborted ||
+        mutationActive.current ||
+        generation !== listGeneration.current
+      ) {
+        return;
+      }
       setError(messages.unableToLoadPasskeys);
+    } finally {
+      if (listAbortController.current === controller) {
+        listAbortController.current = undefined;
+      }
     }
   }, [messages.unableToLoadPasskeys]);
 
   useEffect(() => {
-    if (offline) return;
-    void loadPasskeys();
+    if (!offline) void loadPasskeys();
+    return () => listAbortController.current?.abort();
   }, [offline, loadPasskeys]);
+
+  function beginMutation() {
+    listAbortController.current?.abort();
+    mutationActive.current = true;
+    listGeneration.current += 1;
+  }
+
+  function endMutation() {
+    mutationActive.current = false;
+    listGeneration.current += 1;
+  }
 
   async function addPasskey() {
     setBusy("add");
+    beginMutation();
     setError("");
     setStatus("");
+    let added = false;
     try {
       await registerPasskey();
-      await loadPasskeys();
-      setStatus(messages.passkeyAdded);
+      added = true;
     } catch {
-      setError(messages.unableToAddPasskey);
+      // Reload below so invalidated list requests do not leave stale state.
+    } finally {
+      endMutation();
+    }
+
+    try {
+      await loadPasskeys();
+      if (added) {
+        setStatus(messages.passkeyAdded);
+      } else {
+        setError(messages.unableToAddPasskey);
+      }
     } finally {
       setBusy("");
     }
@@ -53,19 +105,31 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
 
   async function removePasskey(passkey: PasskeySummary) {
     setBusy(passkey.id);
+    beginMutation();
     setError("");
     setStatus("");
+    let removed = false;
     try {
       await api<{ ok: true }>(
         `/api/passkeys/${encodeURIComponent(passkey.id)}`,
         { method: "DELETE" },
       );
+      removed = true;
       setPasskeys((current) =>
         current.filter((candidate) => candidate.id !== passkey.id),
       );
       setStatus(messages.passkeyRemoved);
     } catch {
-      setError(messages.unableToRemovePasskey);
+      // Reload below so invalidated list requests do not leave stale state.
+    } finally {
+      endMutation();
+    }
+
+    try {
+      if (!removed) {
+        await loadPasskeys();
+        setError(messages.unableToRemovePasskey);
+      }
     } finally {
       setBusy("");
     }

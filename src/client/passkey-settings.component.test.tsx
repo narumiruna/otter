@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { api } from "./client-support.js";
@@ -49,10 +49,138 @@ test("passkey settings clears a list error after recovery", async () => {
   view.unmount();
 });
 
+test("passkey settings reloads the list after registration fails", async () => {
+  let resolveInitialList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const initialList = new Promise<{ passkeys: (typeof passkey)[] }>(
+    (resolve) => {
+      resolveInitialList = resolve;
+    },
+  );
+  vi.mocked(api)
+    .mockReturnValueOnce(initialList)
+    .mockResolvedValueOnce({ passkeys: [passkey] });
+  vi.mocked(registerPasskey).mockRejectedValueOnce(new Error("cancelled"));
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  await user.click(view.getByRole("button", { name: "新增 Passkey" }));
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  expect(view.getByRole("alert")).toHaveTextContent(
+    "無法新增 Passkey；若已取消，請重新嘗試",
+  );
+  await act(async () => resolveInitialList({ passkeys: [] }));
+  expect(view.getByText("Passkey 1")).toBeVisible();
+  expect(api).toHaveBeenCalledTimes(2);
+  view.unmount();
+});
+
+test("superseding a post-registration refresh releases the mutation", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/passkeys" && init?.method === undefined) {
+      listRequests += 1;
+      if (listRequests !== 2) return { passkeys: [passkey] };
+      return new Promise((_, reject) => {
+        init?.signal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  vi.mocked(registerPasskey).mockResolvedValueOnce(undefined);
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  await user.click(view.getByRole("button", { name: "新增 Passkey" }));
+  await waitFor(() => expect(listRequests).toBe(2));
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  expect(await view.findByText("Passkey 已新增")).toBeVisible();
+  expect(view.getByRole("button", { name: "新增 Passkey" })).toBeEnabled();
+  expect(listRequests).toBe(3);
+  view.unmount();
+});
+
+test("passkey settings reloads the list after removal fails", async () => {
+  const secondPasskey = { ...passkey, id: "credential-2" };
+  let listRequests = 0;
+  let resolvePendingList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const pendingList = new Promise<{ passkeys: (typeof passkey)[] }>(
+    (resolve) => {
+      resolvePendingList = resolve;
+    },
+  );
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/passkeys" && init?.method === undefined) {
+      listRequests += 1;
+      if (listRequests === 1) return { passkeys: [passkey] };
+      if (listRequests === 2) return pendingList;
+      return { passkeys: [passkey, secondPasskey] };
+    }
+    if (url === "/api/passkeys/credential-1" && init?.method === "DELETE") {
+      throw new Error("delete failed");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  await waitFor(() => expect(listRequests).toBe(2));
+  await user.click(view.getByRole("button", { name: "移除 Passkey 1" }));
+  expect(await view.findByText("Passkey 2")).toBeVisible();
+  expect(view.getByRole("alert")).toHaveTextContent("無法移除 Passkey");
+  await act(async () => resolvePendingList({ passkeys: [] }));
+  expect(view.getByText("Passkey 1")).toBeVisible();
+  expect(view.getByText("Passkey 2")).toBeVisible();
+  expect(listRequests).toBe(3);
+  view.unmount();
+});
+
+test("passkey settings ignores a list response superseded by removal", async () => {
+  let listRequests = 0;
+  let resolveStaleList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const staleList = new Promise<{ passkeys: (typeof passkey)[] }>((resolve) => {
+    resolveStaleList = resolve;
+  });
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/passkeys" && init?.method === undefined) {
+      listRequests += 1;
+      return listRequests === 1 ? { passkeys: [passkey] } : staleList;
+    }
+    if (url === "/api/passkeys/credential-1" && init?.method === "DELETE") {
+      return { ok: true };
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  await waitFor(() => expect(listRequests).toBe(2));
+  await user.click(view.getByRole("button", { name: "移除 Passkey 1" }));
+  expect(await view.findByText("Passkey 已移除")).toBeVisible();
+  await act(async () => resolveStaleList({ passkeys: [passkey] }));
+  expect(view.queryByText("Passkey 1")).toBeNull();
+  expect(view.getByText("尚未新增 Passkey。")).toBeVisible();
+  view.unmount();
+});
+
 test("passkey settings enroll and remove passkeys", async () => {
   let listedPasskeys = [passkey];
   vi.mocked(api).mockImplementation(async (url, init) => {
-    if (url === "/api/passkeys" && !init) {
+    if (url === "/api/passkeys" && init?.method === undefined) {
       return { passkeys: listedPasskeys };
     }
     if (url === "/api/passkeys/credential-1" && init?.method === "DELETE") {
