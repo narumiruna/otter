@@ -95,7 +95,16 @@ export async function executeDeviceLogin(
       throw apiError(tokenResponse.status, tokenData);
     }
     const token = accessTokenFromResponse(tokenData);
-    await saveStoredToken(environment, config.baseUrl, token);
+    try {
+      await saveStoredToken(environment, config.baseUrl, token);
+    } catch (error) {
+      try {
+        await revokeToken(config, fetchImplementation, token.accessToken);
+      } catch {
+        // Preserve the credential persistence failure for the caller.
+      }
+      throw error;
+    }
     if (previousToken && previousToken.accessToken !== token.accessToken) {
       try {
         await revokeToken(

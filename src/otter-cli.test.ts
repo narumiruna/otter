@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test, vi } from "vitest";
@@ -287,6 +287,59 @@ describe("device login", () => {
       expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("revokes a new token when credential persistence fails", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const authorization = {
+      device_code: "device-secret",
+      expires_in: 600,
+      interval: 3,
+      user_code: "ABCD-2345",
+      verification_uri: "http://localhost:17463/device",
+      verification_uri_complete: "http://localhost:17463/device?code=ABCD-2345",
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "otter_api_unpersisted",
+            expires_at: "2099-01-01T00:00:00.000Z",
+            token_type: "Bearer",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
+
+    await expect(
+      executeDeviceLogin(
+        {
+          OTTER_CONFIG_PATH: configPath,
+          OTTER_URL: "http://localhost:17463",
+        },
+        {
+          fetchImplementation: fetchMock,
+          noOpen: true,
+          sleep: async () => {
+            await mkdir(configPath);
+          },
+        },
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(
+      "http://localhost:17463/api/auth/tokens/current",
+    );
+    expect(
+      new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get("Authorization"),
+    ).toBe("Bearer otter_api_unpersisted");
   });
 
   test("polls for approval, stores a private token, uses it, and revokes it", async () => {
