@@ -135,24 +135,45 @@ export async function executeDeviceLogout(
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
-  const token = await tokenFromEnvironment(config, environment);
-  if (!token) {
+  const environmentToken = environment.OTTER_TOKEN?.trim() || undefined;
+  const credentials = await readCredentialFile(environment);
+  let storedToken: CredentialFile["servers"][string] | undefined =
+    credentials.servers[config.baseUrl];
+  if (storedToken && new Date(storedToken.expiresAt).getTime() <= Date.now()) {
+    await removeStoredToken(environment, config.baseUrl);
+    storedToken = undefined;
+  }
+  if (!environmentToken && !storedToken) {
     throw new CliError(
       "CONFIG_ERROR",
       "No API token is configured for this Otter server",
     );
   }
+
+  if (environmentToken) {
+    await revokeToken(config, fetchImplementation, environmentToken);
+  }
+  if (storedToken && storedToken.accessToken !== environmentToken) {
+    await revokeToken(config, fetchImplementation, storedToken.accessToken);
+  }
+  if (storedToken) {
+    await removeStoredToken(environment, config.baseUrl);
+  }
+  return { authenticated: false, server: config.baseUrl };
+}
+
+async function revokeToken(
+  config: CliConfig,
+  fetchImplementation: FetchImplementation,
+  token: string,
+): Promise<void> {
   await requestJson(
     config,
     fetchImplementation,
     "/api/auth/tokens/current",
     "DELETE",
-    { Authorization: `Bearer ${token.value}` },
+    { Authorization: `Bearer ${token}` },
   );
-  if (token.source === "stored") {
-    await removeStoredToken(environment, config.baseUrl);
-  }
-  return { authenticated: false, server: config.baseUrl };
 }
 
 export function configFromEnvironment(environment: CliEnvironment): CliConfig {

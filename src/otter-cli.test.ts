@@ -436,13 +436,24 @@ describe("device login", () => {
 
     const logoutFetch = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ ok: true })),
+      );
     await expect(
-      executeDeviceLogout(authEnvironment, logoutFetch),
+      executeDeviceLogout(
+        { ...authEnvironment, OTTER_TOKEN: "otter_api_ephemeral" },
+        logoutFetch,
+      ),
     ).resolves.toEqual({
       authenticated: false,
       server: "http://localhost:17463",
     });
+    expect(logoutFetch).toHaveBeenCalledTimes(2);
+    expect(
+      logoutFetch.mock.calls.map(([, options]) =>
+        new Headers(options?.headers).get("Authorization"),
+      ),
+    ).toEqual(["Bearer otter_api_ephemeral", "Bearer otter_api_rotated"]);
     expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
       servers: {},
       version: 1,
