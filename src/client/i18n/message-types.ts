@@ -12,3 +12,11 @@ export function interpolate(message: string, values: MessageValues): string {
     key in values ? String(values[key]) : match,
   );
 }
+
+export function pluralize(
+  value: MessageValues[string],
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return Number(value) === 1 ? singular : plural;
+}

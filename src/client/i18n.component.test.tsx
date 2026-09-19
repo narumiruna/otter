@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AppShell } from "./app-shell.js";
 import { api } from "./client-support.js";
+import { translations } from "./i18n/messages.js";
 import { currentLocale, I18nProvider, translate } from "./i18n.js";
 
 function renderApp(initialLocale?: "en" | "zh-TW") {
@@ -165,6 +166,34 @@ test("active locale survives unavailable browser storage", async () => {
     new Headers(missingCall[1]?.headers).get("Accept-Language"),
     "en",
   );
+});
+
+test("English count messages use singular nouns for one item", () => {
+  const messages = translations.en;
+
+  assert.equal(messages.countActiveGroups({ count: 1 }), "1 active group");
+  assert.equal(
+    messages.participantsPeopleExpensesExpensesCurrency({
+      participants: 1,
+      expenses: 1,
+      currency: "TWD",
+    }),
+    "1 person · 1 expense · TWD",
+  );
+  assert.equal(
+    messages.rowsRowsCanBeImportedErrorsErrors({ rows: 1, errors: 1 }),
+    "1 row can be imported; 1 error.",
+  );
+  assert.equal(
+    messages.peoplePeopleExpensesExpensesPaymentsPaymentsBaseCurrency({
+      people: 1,
+      expenses: 1,
+      payments: 1,
+      currency: "TWD",
+    }),
+    "1 person · 1 expense · 1 payment · base TWD",
+  );
+  assert.equal(messages.countActiveGroups({ count: 2 }), "2 active groups");
 });
 
 test("message translation interpolates values and preserves Traditional Chinese", () => {

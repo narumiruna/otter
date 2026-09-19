@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { type Currency, currencyInfo, toMajor } from "../shared/money.js";
@@ -162,4 +163,18 @@ export function I18nProvider({
 
 export function useI18n(): I18nContextValue {
   return useContext(I18nContext);
+}
+
+export function useLocaleError() {
+  const { locale } = useI18n();
+  const [error, setError] = useState("");
+  const previousLocale = useRef(locale);
+
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    setError("");
+  }, [locale]);
+
+  return [error, setError] as const;
 }

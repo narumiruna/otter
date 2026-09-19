@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Participant, Trip } from "../../shared/settlement.js";
 import { participantDeleteBlockReason } from "../client-support.js";
-import { useI18n } from "../i18n.js";
+import { useI18n, useLocaleError } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -37,7 +37,7 @@ export function PeoplePage({
 }) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
-  const [error, setError] = useState("");
+  const [error, setError] = useLocaleError();
   const form = useForm<{ name: string }>({ defaultValues: { name: "" } });
   const submit = form.handleSubmit(async ({ name }) => {
     setError("");
@@ -196,7 +196,7 @@ function RenameParticipant({
   const { requestPayload } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(person.name);
-  const [error, setError] = useState("");
+  const [error, setError] = useLocaleError();
   const [busy, setBusy] = useState(false);
   async function save() {
     setBusy(true);
@@ -265,7 +265,7 @@ function MergeParticipants({ trip }: { trip: Trip }) {
   const { offline, requestPayload } = useWorkspace();
   const [sourceId, setSourceId] = useState(trip.participants[0]?.id ?? "");
   const [targetId, setTargetId] = useState(trip.participants[1]?.id ?? "");
-  const [error, setError] = useState("");
+  const [error, setError] = useLocaleError();
   const source = trip.participants.find((person) => person.id === sourceId);
   const target = trip.participants.find((person) => person.id === targetId);
   const counts = useMemo(

@@ -379,7 +379,7 @@ export function LifecycleSettings({
                   body: JSON.stringify({ archived: !archived }),
                   method: "PATCH",
                 },
-                archived ? messages.groupRestored : messages.archivedGroups,
+                archived ? messages.groupRestored : messages.groupArchived,
                 true,
               )
             }

@@ -2,6 +2,7 @@ import {
   type CatalogShape,
   interpolate,
   type MessageValues,
+  pluralize,
 } from "./message-types.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
@@ -116,7 +117,7 @@ export const en = {
   groupSwitcher: "Group switcher",
   groups: "Groups",
   countActiveGroups: (values: MessageValues) =>
-    interpolate("{count} active groups", values),
+    interpolate(`{count} active ${pluralize(values.count, "group")}`, values),
   everyTripAddsUpToSomethingWonderful:
     "Every trip adds up to something wonderful.",
   recordSharedExpensesAndFocusOnThePeopleBesideYou:
@@ -132,7 +133,7 @@ export const en = {
     "You will leave the current group only after the new one loads.",
   participantsPeopleExpensesExpensesCurrency: (values: MessageValues) =>
     interpolate(
-      "{participants} people · {expenses} expenses · {currency}",
+      `{participants} ${pluralize(values.participants, "person", "people")} · {expenses} ${pluralize(values.expenses, "expense")} · {currency}`,
       values,
     ),
   archived: "Archived",
@@ -167,18 +168,27 @@ export const en = {
   convertedToBaseCurrency: "Converted to base currency",
   outstanding: "Outstanding",
   countSuggestedPaymentsToSettleUp: (values: MessageValues) =>
-    interpolate("{count} suggested payments to settle up", values),
+    interpolate(
+      `{count} suggested ${pluralize(values.count, "payment")} to settle up`,
+      values,
+    ),
   nothingIsCurrentlyOutstanding: "Nothing is currently outstanding",
   settlementSuggestionsAppearAfterExpensesAreAdded:
     "Settlement suggestions appear after expenses are added",
   expenseRecords: "Expense records",
   sharedAmongCountPeople: (values: MessageValues) =>
-    interpolate("Shared among {count} people", values),
+    interpolate(
+      `Shared among {count} ${pluralize(values.count, "person", "people")}`,
+      values,
+    ),
   calculatedFromCurrentExpensesAndRecordedPayments:
     "Calculated from current expenses and recorded payments.",
   settleUp: "Settle up",
   countEntries: (values: MessageValues) =>
-    interpolate("{count} entries", values),
+    interpolate(
+      `{count} ${pluralize(values.count, "entry", "entries")}`,
+      values,
+    ),
   entries: "entries",
   seePaymentsAndSharesAtAGlance: "See payments and shares at a glance.",
   balances: "Balances",
@@ -232,7 +242,10 @@ export const en = {
   totalAmount: (values: MessageValues) => interpolate("Total {amount}", values),
   noDataYet: "No data yet.",
   showingShownOfTotalExpenses: (values: MessageValues) =>
-    interpolate("Showing {shown} of {total} expenses", values),
+    interpolate(
+      `Showing {shown} of {total} ${pluralize(values.total, "expense")}`,
+      values,
+    ),
   searchDescriptions: "Search descriptions",
   searchExpenseDescriptions: "Search expense descriptions",
   sort: "Sort",
@@ -380,7 +393,7 @@ export const en = {
   expensesRelatedExpensesAndPaymentsPaymentsForSourceWillMoveToTargetThenTheSourcePersonWillBeDeleted:
     (values: MessageValues) =>
       interpolate(
-        "{expenses} related expenses and {payments} payments for {source} will move to {target}, then the source person will be deleted.",
+        `{expenses} related ${pluralize(values.expenses, "expense")} and {payments} ${pluralize(values.payments, "payment")} for {source} will move to {target}, then the source person will be deleted.`,
         values,
       ),
   mergePeople: "Merge people",
@@ -402,7 +415,10 @@ export const en = {
     "You are a collaborator and can use data tools. Only the owner can manage access and group settings.",
   sharingAndAccess: "Sharing and access",
   linksActiveLinksCollaboratorsCollaborators: (values: MessageValues) =>
-    interpolate("{links} active links · {collaborators} collaborators", values),
+    interpolate(
+      `{links} active ${pluralize(values.links, "link")} · {collaborators} ${pluralize(values.collaborators, "collaborator")}`,
+      values,
+    ),
   readOnlyShareLinkCreated: "Read-only share link created",
   readOnlyShareLinkCreatedAndCopied: "Read-only share link created and copied",
   shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually:
@@ -462,16 +478,19 @@ export const en = {
   chooseCsv: "Choose CSV",
   importPreview: "Import preview",
   rowsRowsCanBeImportedErrorsErrors: (values: MessageValues) =>
-    interpolate("{rows} rows can be imported; {errors} errors.", values),
+    interpolate(
+      `{rows} ${pluralize(values.rows, "row")} can be imported; {errors} ${pluralize(values.errors, "error")}.`,
+      values,
+    ),
   rowRowMessage: (values: MessageValues) =>
     interpolate("Row {row}: {message}", values),
   importCountExpenses: (values: MessageValues) =>
-    interpolate("Import {count} expenses", values),
+    interpolate(`Import {count} ${pluralize(values.count, "expense")}`, values),
   thisWillAddCountExpensesAtOnceAndRecalculateBalances: (
     values: MessageValues,
   ) =>
     interpolate(
-      "This will add {count} expenses at once and recalculate balances.",
+      `This will add {count} ${pluralize(values.count, "expense")} at once and recalculate balances.`,
       values,
     ),
   applyCsvImport: "Apply CSV import?",
@@ -489,7 +508,7 @@ export const en = {
     values: MessageValues,
   ) =>
     interpolate(
-      "{people} people · {expenses} expenses · {payments} payments · base {currency}",
+      `{people} ${pluralize(values.people, "person", "people")} · {expenses} ${pluralize(values.expenses, "expense")} · {payments} ${pluralize(values.payments, "payment")} · base {currency}`,
       values,
     ),
   createNewGroup: "Create new group",
@@ -517,7 +536,7 @@ export const en = {
     values: MessageValues,
   ) =>
     interpolate(
-      "Expect {count} settlement suggestions; custom rates will reset to built-in values.",
+      `Expect {count} settlement ${pluralize(values.count, "suggestion")}; custom rates will reset to built-in values.`,
       values,
     ),
   cancelChanges: "Cancel changes",
@@ -539,7 +558,7 @@ export const en = {
   unableToSaveExchangeRates: "Unable to save exchange rates",
   currencyConversion: "Currency conversion",
   countCustomRates: (values: MessageValues) =>
-    interpolate("{count} custom rates", values),
+    interpolate(`{count} custom ${pluralize(values.count, "rate")}`, values),
   setHowMuch1UnitOfEachCurrencyEqualsInCurrencyLeaveBlankToUseTheBuiltInFixedRate:
     (values: MessageValues) =>
       interpolate(
@@ -550,7 +569,7 @@ export const en = {
   conversionPreview: "Conversion preview",
   totalSpendingAmountCountSettlementSuggestions: (values: MessageValues) =>
     interpolate(
-      "Total spending: {amount} · {count} settlement suggestions.",
+      `Total spending: {amount} · {count} settlement ${pluralize(values.count, "suggestion")}.`,
       values,
     ),
   resetToBuiltInRates: "Reset to built-in rates",
@@ -572,6 +591,7 @@ export const en = {
   expensesPeopleAndPaymentRecordsArePreservedAndCannotBeChangedWhileArchived:
     "Expenses, people, and payment records are preserved and cannot be changed while archived.",
   groupRestored: "Group restored",
+  groupArchived: "Group archived",
   restoreThisGroup: "Restore this group?",
   archiveThisGroup: "Archive this group?",
   thisPermanentlyDeletesAllPeopleExpensesReceiptsAndSettlementRecordsAndCannotBeUndone:

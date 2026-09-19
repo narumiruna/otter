@@ -621,8 +621,14 @@ select:disabled {
   }
   .app-header {
     top: 0.25rem;
+    flex-wrap: wrap;
     border-radius: 1rem;
     padding: 0.65rem 0.75rem;
+  }
+  .user-menu {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .brand-tagline,
   .header-note,

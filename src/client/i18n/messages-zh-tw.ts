@@ -528,6 +528,7 @@ export const zhTW = {
   expensesPeopleAndPaymentRecordsArePreservedAndCannotBeChangedWhileArchived:
     "支出、成員與付款紀錄都會保留；封存期間不能修改。",
   groupRestored: "已還原群組",
+  groupArchived: "已封存群組",
   restoreThisGroup: "還原這個群組？",
   archiveThisGroup: "封存這個群組？",
   thisPermanentlyDeletesAllPeopleExpensesReceiptsAndSettlementRecordsAndCannotBeUndone:
