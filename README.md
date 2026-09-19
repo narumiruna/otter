@@ -158,7 +158,7 @@ PASSKEY_ORIGIN=https://otter.example.com
 
 `PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；除 `localhost` 開發環境外必須使用 HTTPS。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
 
-Passkey options 會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 設為 repository variable；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
+Passkey options 與 device authorization 建立要求會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 與 `DEVICE_AUTH_TRUST_PROXY=true` 設為 repository variables；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
 
 ## 工作流程與安全狀態
 

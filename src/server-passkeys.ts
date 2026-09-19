@@ -264,7 +264,7 @@ function publicPasskey(row: PublicPasskeyRow) {
 export function registerPasskeyRoutes(
   app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: OtterMiddleware,
+  mustHaveBrowserSession: OtterMiddleware,
   routeOptions: PasskeyRouteOptions = {},
 ) {
   const verifiers = routeOptions.verifiers ?? {
@@ -281,7 +281,7 @@ export function registerPasskeyRoutes(
 
   app.get(
     "/api/passkeys",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (_req, res) => {
       const user = currentUser(res);
       const result = await pool.query<PublicPasskeyRow>(
@@ -297,7 +297,7 @@ export function registerPasskeyRoutes(
 
   app.post(
     "/api/passkeys/registration/options",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const retryAfter = limitRegistrationOptions(req);
       if (retryAfter !== undefined) {
@@ -344,7 +344,7 @@ export function registerPasskeyRoutes(
 
   app.post(
     "/api/passkeys/registration/verify",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const submitted = responseFromBody<RegistrationResponseJSON>(req.body);
@@ -415,7 +415,7 @@ export function registerPasskeyRoutes(
 
   app.delete(
     "/api/passkeys/:credentialId",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const result = await pool.query(

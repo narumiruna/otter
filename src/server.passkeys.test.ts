@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { expect, test, vi } from "vitest";
+import { hashApiSecret } from "./server-api-tokens.js";
 import type { RouteRequest } from "./server-http.js";
 import {
   createPasskeyOptionsRateLimiter,
@@ -173,7 +174,7 @@ test(
   postgresTestOptions,
   async () => {
     const verifiers = mockedVerifiers();
-    const { baseUrl } = await withTestApp({
+    const { baseUrl, pool } = await withTestApp({
       appOptions: {
         passkeys: {
           relyingParty: {
@@ -200,9 +201,43 @@ test(
       .get("set-cookie")
       ?.split(";", 1)[0];
     assert.ok(accountCookie);
+    assert.ok(registration.data.user);
 
     const unauthorized = await api(baseUrl, "/api/passkeys");
     expect(unauthorized.response.status).toBe(401);
+
+    const bearerToken = "otter_api_passkey_admin_test";
+    await pool.query(
+      `INSERT INTO api_tokens
+         (id, user_id, token_hash, name, created_at, expires_at)
+       VALUES ($1, $2, $3, $4, now(), now() + interval '1 day')`,
+      [
+        "token_passkey_admin_test",
+        registration.data.user.id,
+        hashApiSecret(bearerToken),
+        "Passkey administration test",
+      ],
+    );
+    const bearerHeaders = { authorization: `Bearer ${bearerToken}` };
+    const bearerAdministrationAttempts = await Promise.all([
+      api(baseUrl, "/api/passkeys", { headers: bearerHeaders }),
+      api(baseUrl, "/api/passkeys/registration/options", {
+        headers: bearerHeaders,
+        method: "POST",
+      }),
+      api(baseUrl, "/api/passkeys/registration/verify", {
+        body: JSON.stringify({}),
+        headers: bearerHeaders,
+        method: "POST",
+      }),
+      api(baseUrl, "/api/passkeys/not-a-credential", {
+        headers: bearerHeaders,
+        method: "DELETE",
+      }),
+    ]);
+    expect(
+      bearerAdministrationAttempts.map(({ response }) => response.status),
+    ).toEqual([401, 401, 401, 401]);
 
     const initial = await api<{ passkeys: unknown[] }>(
       baseUrl,

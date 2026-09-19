@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { expect, test } from "vitest";
+import { createDeviceAuthorizationRateLimiter } from "./server-device-auth.js";
+import type { RouteRequest } from "./server-http.js";
 import {
   api,
   postgresTestOptions,
@@ -28,6 +30,64 @@ type TokenResponse = {
   expires_at: string;
   token_type: "Bearer";
 };
+
+const request: RouteRequest = {
+  body: {},
+  get: () => undefined,
+  headers: {},
+  params: {},
+  protocol: "https",
+};
+
+test("device authorization requests are rate limited per client and globally", () => {
+  const rateLimit = createDeviceAuthorizationRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 2,
+    windowMs: 1_000,
+  });
+  const clientRequest = (address: string): RouteRequest => ({
+    ...request,
+    remoteAddress: address,
+  });
+  const firstClient = clientRequest("192.0.2.1");
+
+  expect(rateLimit(firstClient, 1_000)).toBeUndefined();
+  expect(rateLimit(firstClient, 1_000)).toBeUndefined();
+  expect(rateLimit(firstClient, 1_000)).toBe(1);
+  expect(rateLimit(clientRequest("192.0.2.2"), 1_000)).toBeUndefined();
+  expect(rateLimit(clientRequest("192.0.2.3"), 1_000)).toBe(1);
+  expect(rateLimit(firstClient, 2_000)).toBeUndefined();
+});
+
+test("device authorization rate limits trust proxies only when configured", () => {
+  const directRateLimit = createDeviceAuthorizationRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 1,
+    windowMs: 1_000,
+  });
+  const trustedProxyRateLimit = createDeviceAuthorizationRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 1,
+    trustProxy: true,
+    windowMs: 1_000,
+  });
+  const forwardedRequest = (address: string): RouteRequest => ({
+    ...request,
+    get: (name) => (name === "x-forwarded-for" ? address : undefined),
+    remoteAddress: "192.0.2.1",
+  });
+
+  expect(
+    directRateLimit(forwardedRequest("198.51.100.1"), 1_000),
+  ).toBeUndefined();
+  expect(directRateLimit(forwardedRequest("198.51.100.2"), 1_000)).toBe(1);
+  expect(
+    trustedProxyRateLimit(forwardedRequest("198.51.100.1"), 1_000),
+  ).toBeUndefined();
+  expect(
+    trustedProxyRateLimit(forwardedRequest("198.51.100.2"), 1_000),
+  ).toBeUndefined();
+});
 
 test(
   "device authorization issues, authenticates, and revokes a hashed Bearer token",

@@ -117,7 +117,7 @@ export function createApp(
   const mustBeSignedIn = requireUser(pool);
   const mustHaveBrowserSession = requireSessionUser(pool);
 
-  registerPasskeyRoutes(app, pool, mustBeSignedIn, options.passkeys);
+  registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
   registerBackupRoutes(app, pool, mustBeSignedIn);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
 

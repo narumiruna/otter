@@ -5,7 +5,7 @@ import {
   generateAccessToken,
   hashApiSecret,
 } from "./server-api-tokens.js";
-import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import type { OtterApp, OtterMiddleware, RouteRequest } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
@@ -22,6 +22,9 @@ const deviceLifetimeSeconds = 10 * 60;
 const tokenLifetimeSeconds = 90 * 24 * 60 * 60;
 const pollingIntervalSeconds = 3;
 const userCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const authorizationRateLimitWindowMs = 60 * 1000;
+const authorizationPerClientLimit = 10;
+const authorizationGlobalLimit = 120;
 
 type DeviceAuthorizationRow = {
   id: string;
@@ -41,15 +44,73 @@ type TokenExchangeResult =
   | { error: "authorization_pending" | "expired_token" | "invalid_grant" }
   | { accessToken: string; expiresAt: string };
 
+type DeviceAuthorizationRateLimit = {
+  globalLimit?: number;
+  perClientLimit?: number;
+  trustProxy?: boolean;
+  windowMs?: number;
+};
+
+function firstForwardedValue(value: string | undefined): string | undefined {
+  return value?.split(",", 1)[0]?.trim() || undefined;
+}
+
+export function createDeviceAuthorizationRateLimiter({
+  globalLimit = authorizationGlobalLimit,
+  perClientLimit = authorizationPerClientLimit,
+  trustProxy = false,
+  windowMs = authorizationRateLimitWindowMs,
+}: DeviceAuthorizationRateLimit = {}) {
+  let globalCount = 0;
+  let resetAt = 0;
+  const clientCounts = new Map<string, number>();
+
+  return (req: RouteRequest, now = Date.now()): number | undefined => {
+    if (now >= resetAt) {
+      globalCount = 0;
+      resetAt = now + windowMs;
+      clientCounts.clear();
+    }
+
+    const forwardedClient = trustProxy
+      ? (firstForwardedValue(req.get("x-forwarded-for")) ??
+        firstForwardedValue(req.get("x-real-ip")))
+      : undefined;
+    const client = forwardedClient ?? (req.remoteAddress?.trim() || undefined);
+    const clientCount = client ? (clientCounts.get(client) ?? 0) : 0;
+    if (
+      globalCount >= globalLimit ||
+      (client !== undefined && clientCount >= perClientLimit)
+    ) {
+      return Math.max(1, Math.ceil((resetAt - now) / 1000));
+    }
+
+    globalCount += 1;
+    if (client) clientCounts.set(client, clientCount + 1);
+    return undefined;
+  };
+}
+
 export function registerDeviceAuthRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   mustHaveBrowserSession: OtterMiddleware,
 ) {
+  const limitAuthorizationRequests = createDeviceAuthorizationRateLimiter({
+    trustProxy: process.env.DEVICE_AUTH_TRUST_PROXY === "true",
+  });
+
   app.post(
     "/api/auth/device",
     asyncHandler(async (req, res) => {
+      const retryAfter = limitAuthorizationRequests(req);
+      if (retryAfter !== undefined) {
+        res.setHeader("Retry-After", String(retryAfter));
+        sendError(res, 429, "Too many device authorization requests");
+        return;
+      }
+
       const clientName =
         stringField(requestBody(req), "clientName") ?? "Otter CLI";
       if (!clientName || clientName.length > 80) {
