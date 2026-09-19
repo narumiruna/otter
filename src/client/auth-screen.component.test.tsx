@@ -18,7 +18,7 @@ test("auth screen progressively discloses registration and returns to login", as
   assert.equal(view.getByText("WELCOME BACK").getAttribute("lang"), "en");
   await user.click(view.getByRole("button", { name: "建立帳號" }));
   assert.ok(view.getByRole("heading", { name: "建立帳號" }));
-  assert.ok(view.getByLabelText("名稱"));
+  assert.equal(view.queryByLabelText("名稱"), null);
   assert.equal(
     view.getByText("START A NEW JOURNEY").getAttribute("lang"),
     "en",
@@ -29,7 +29,7 @@ test("auth screen progressively discloses registration and returns to login", as
   view.unmount();
 });
 
-test("registration validates and submits username instead of email", async () => {
+test("registration only validates and submits username and password", async () => {
   const user = userEvent.setup();
   const onRegister = vi.fn();
   const view = render(
@@ -40,7 +40,7 @@ test("registration validates and submits username instead of email", async () =>
   expect(username).toHaveAttribute("type", "text");
   expect(username).toHaveAttribute("autocomplete", "username");
   expect(view.queryByLabelText(/email/i)).toBeNull();
-  await user.type(view.getByLabelText("名稱"), "Alice");
+  expect(view.queryByLabelText("名稱")).toBeNull();
   await user.type(view.getByLabelText("密碼"), "password123");
   await user.type(username, "alice@example.com");
   await user.click(view.getByRole("button", { name: "建立帳號" }));
@@ -54,7 +54,6 @@ test("registration validates and submits username instead of email", async () =>
   await waitFor(() => expect(onRegister).toHaveBeenCalled());
   expect(onRegister.mock.calls[0]?.[0]).toEqual({
     username: "Alice_123",
-    name: "Alice",
     password: "password123",
   });
   view.unmount();

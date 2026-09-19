@@ -28,7 +28,7 @@ import {
 } from "../shared/username.js";
 
 export type LoginCredentials = { username: string; password: string };
-export type RegisterCredentials = LoginCredentials & { name: string };
+export type RegisterCredentials = LoginCredentials;
 
 type AuthScreenProps = {
   devLoginCredentials?: LoginCredentials;
@@ -52,7 +52,7 @@ export function AuthScreen({
     defaultValues: devLoginCredentials ?? { username: "", password: "" },
   });
   const register = useForm<RegisterCredentials>({
-    defaultValues: { username: "", name: "", password: "" },
+    defaultValues: { username: "", password: "" },
   });
   return (
     <section className="auth-layout">
@@ -197,16 +197,6 @@ export function AuthScreen({
                 {registerError ? (
                   <FieldError>{registerError}</FieldError>
                 ) : null}
-                <Field data-invalid={Boolean(register.formState.errors.name)}>
-                  <FieldLabel htmlFor="register-name">名稱</FieldLabel>
-                  <Input
-                    id="register-name"
-                    autoComplete="name"
-                    maxLength={80}
-                    {...register.register("name", { required: "請輸入名稱" })}
-                  />
-                  <FieldError errors={[register.formState.errors.name]} />
-                </Field>
                 <Field
                   data-invalid={Boolean(register.formState.errors.username)}
                 >

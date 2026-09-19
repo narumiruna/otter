@@ -169,14 +169,9 @@ export function createApp(
     "/api/auth/register",
     asyncHandler(async (req, res) => {
       const body = requestBody(req);
-      const name = stringField(body, "name");
       const username = stringField(body, "username");
       const password = stringField(body, "password");
 
-      if (!name || name.length > 80) {
-        sendError(res, 400, "請輸入 1-80 字的名稱");
-        return;
-      }
       if (!username || !isValidUsername(username)) {
         sendError(res, 400, usernameValidationMessage);
         return;
@@ -187,6 +182,11 @@ export function createApp(
       }
 
       const normalizedUsername = normalizeUsername(username);
+      const legacyName = stringField(body, "name");
+      if (legacyName && legacyName.length > 80) {
+        sendError(res, 400, "名稱最多 80 字");
+        return;
+      }
       if (await findUserByUsername(pool, normalizedUsername)) {
         sendError(res, 409, "這個 Username 已經註冊");
         return;
@@ -196,7 +196,7 @@ export function createApp(
         createdAt: nowIso(),
         username: normalizedUsername,
         id: makeId("user"),
-        name,
+        name: legacyName || normalizedUsername,
         passwordHash: hashPassword(password),
       };
 

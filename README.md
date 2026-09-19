@@ -20,7 +20,7 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 
 ## 帳號
 
-註冊需填寫名稱、Username 和密碼。Username 為 3–32 個英文字母、數字、底線或連字號；會去除前後空白並轉成小寫，不分大小寫且不可重複。密碼至少 8 個字。開發環境預填帳號為 `admin`。
+註冊只需填寫 Username 和密碼，新帳號會以正規化後的 Username 作為預設顯示名稱。Username 為 3–32 個英文字母、數字、底線或連字號；會去除前後空白並轉成小寫，不分大小寫且不可重複。密碼至少 8 個字。為相容既有 client，註冊 API 仍接受選填的 `name`。開發環境預填帳號為 `admin`。
 
 Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、session 與群組關聯。既有使用者仍在 Username 欄位輸入原 Email 登入；協作者也可用該值查找。部署時須一起更新資料庫與 app；API 註冊、登入、協作者請求及使用者回應改用 `username`，不再提供 `email` 欄位。Cookie 設定不變。
 

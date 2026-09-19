@@ -32,7 +32,6 @@ test("registration rejects missing, email-only, and invalid usernames before que
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: "Alice",
           username,
           email: "alice@example.com",
           password: "password123",
@@ -55,7 +54,6 @@ test(
     const { baseUrl } = await withTestApp();
     const credentials = {
       username: "  Alice_123-Test  ",
-      name: "Alice",
       password: "password123",
     };
     const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
@@ -65,7 +63,7 @@ test(
     expect(register.response.status).toBe(201);
     expect(register.data.user).toEqual({
       id: expect.any(String),
-      name: "Alice",
+      name: "alice_123-test",
       username: "alice_123-test",
     });
     const duplicate = await api(baseUrl, "/api/auth/register", {
