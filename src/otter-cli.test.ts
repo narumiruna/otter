@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, readFile, stat } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test, vi } from "vitest";
@@ -11,6 +18,7 @@ import {
   parseCliCommand,
   parseDeviceLoginArguments,
 } from "../skills/otter-manage-expenses/scripts/otter-cli.js";
+import { withCredentialLock } from "../skills/otter-manage-expenses/scripts/otter-cli-auth.js";
 
 const environment = {
   OTTER_PASSWORD: "correct horse battery staple",
@@ -287,6 +295,44 @@ describe("executeCliCommand", () => {
         }),
       }),
     );
+  });
+});
+
+describe("credential locking", () => {
+  test("does not remove a replacement owner's lock", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const lockDirectory = `${configPath}.lock`;
+    const replacementOwner = "replacement-owner";
+
+    await expect(
+      withCredentialLock({ OTTER_CONFIG_PATH: configPath }, async () => {
+        await rm(lockDirectory, { recursive: true });
+        await mkdir(lockDirectory);
+        await writeFile(path.join(lockDirectory, "owner"), replacementOwner);
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
+    );
+    expect(await readFile(path.join(lockDirectory, "owner"), "utf8")).toBe(
+      replacementOwner,
+    );
+  });
+
+  test("does not mask an operation failure with a release failure", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const lockDirectory = `${configPath}.lock`;
+    const operationError = new Error("operation failed");
+
+    await expect(
+      withCredentialLock({ OTTER_CONFIG_PATH: configPath }, async () => {
+        await rm(lockDirectory, { recursive: true });
+        await mkdir(lockDirectory);
+        await writeFile(path.join(lockDirectory, "owner"), "replacement-owner");
+        throw operationError;
+      }),
+    ).rejects.toBe(operationError);
   });
 });
 

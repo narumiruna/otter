@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import * as fs from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -425,16 +427,19 @@ async function writeCredentialFile(
   }
 }
 
-async function withCredentialLock<T>(
+export async function withCredentialLock<T>(
   environment: CliEnvironment,
   operation: () => Promise<T>,
 ): Promise<T> {
   const filename = credentialFilePath(environment);
   await mkdir(path.dirname(filename), { mode: 0o700, recursive: true });
+  const lock = credentialLockFileSystem(`${filename}.lock`);
 
   let release: () => Promise<void>;
   try {
     release = await lockfile.lock(filename, {
+      fs: lock.fileSystem,
+      onCompromised: lock.markCompromised,
       realpath: false,
       retries: {
         factor: 1,
@@ -446,18 +451,152 @@ async function withCredentialLock<T>(
       stale: 11 * 60 * 1000,
       update: 30_000,
     });
+    lock.markAcquired();
   } catch (error) {
-    throw new CliError(
-      "CONFIG_ERROR",
-      `Could not lock the Otter credential file: ${error instanceof Error ? error.message : "unknown error"}`,
-    );
+    if (isNodeError(error) && error.code === "ELOCKED") {
+      throw new CliError(
+        "CONFIG_ERROR",
+        "Timed out waiting for another Otter authentication command",
+      );
+    }
+    throw credentialLockError("acquire", error);
+  }
+
+  let operationFailed = false;
+  let operationError: unknown;
+  let result!: T;
+  try {
+    result = await operation();
+  } catch (error) {
+    operationFailed = true;
+    operationError = error;
   }
 
   try {
-    return await operation();
-  } finally {
     await release();
+  } catch (error) {
+    if (!operationFailed) {
+      throw credentialLockError("release", lock.compromisedError() ?? error);
+    }
   }
+
+  if (operationFailed) {
+    throw operationError;
+  }
+  return result;
+}
+
+function credentialLockFileSystem(lockDirectory: string) {
+  const ownerToken = randomUUID();
+  const ownerFile = path.join(lockDirectory, "owner");
+  let acquired = false;
+  let compromised: Error | undefined;
+
+  const removeLockDirectory = (requireOwnership: boolean): void => {
+    if (requireOwnership) {
+      let currentOwner: string;
+      try {
+        currentOwner = fs.readFileSync(ownerFile, "utf8");
+      } catch {
+        throw lockCompromisedError();
+      }
+      if (currentOwner !== ownerToken) {
+        throw lockCompromisedError();
+      }
+    }
+
+    try {
+      fs.unlinkSync(ownerFile);
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+    fs.rmdirSync(lockDirectory);
+  };
+
+  return {
+    compromisedError: () => compromised,
+    fileSystem: {
+      ...fs,
+      mkdir(
+        target: string,
+        callback: (error: NodeJS.ErrnoException | null) => void,
+      ) {
+        fs.mkdir(target, (error) => {
+          if (error) {
+            callback(error);
+            return;
+          }
+          try {
+            fs.writeFileSync(path.join(target, "owner"), ownerToken, {
+              flag: "wx",
+              mode: 0o600,
+            });
+            callback(null);
+          } catch (writeError) {
+            try {
+              fs.rmdirSync(target);
+            } catch {
+              // The acquisition error below is the useful failure.
+            }
+            callback(
+              writeError instanceof Error
+                ? writeError
+                : new Error("Could not record credential lock ownership"),
+            );
+          }
+        });
+      },
+      rmdir(
+        target: string,
+        callback: (error: NodeJS.ErrnoException | null) => void,
+      ) {
+        if (path.resolve(target) !== path.resolve(lockDirectory)) {
+          fs.rmdir(target, callback);
+          return;
+        }
+        try {
+          removeLockDirectory(acquired);
+          callback(null);
+        } catch (error) {
+          callback(
+            error instanceof Error
+              ? error
+              : new Error("Could not remove the credential lock"),
+          );
+        }
+      },
+      rmdirSync(target: string) {
+        if (path.resolve(target) !== path.resolve(lockDirectory)) {
+          fs.rmdirSync(target);
+          return;
+        }
+        removeLockDirectory(acquired);
+      },
+    },
+    markAcquired: () => {
+      acquired = true;
+    },
+    markCompromised: (error: Error) => {
+      compromised = error;
+    },
+  };
+}
+
+function lockCompromisedError(): NodeJS.ErrnoException {
+  const error: NodeJS.ErrnoException = new Error(
+    "The credential lock is no longer owned by this process",
+  );
+  error.code = "ECOMPROMISED";
+  return error;
+}
+
+function credentialLockError(action: "acquire" | "release", error: unknown) {
+  return new CliError(
+    "CONFIG_ERROR",
+    `Could not ${action} the Otter credential file lock: ${error instanceof Error ? error.message : "unknown error"}`,
+  );
 }
 
 function credentialFilePath(environment: CliEnvironment): string {
