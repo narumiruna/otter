@@ -36,7 +36,7 @@ Resources and actions:
   settlements delete --trip <id> --payment <id> --yes
 
 Environment:
-  OTTER_URL         Server URL (default: http://localhost:17463)
+  OTTER_URL         Server URL (default: https://otter.narumi.dev/)
   OTTER_TOKEN       Optional non-persisted Bearer token for agents or CI
   OTTER_CONFIG_PATH Optional credential file path
   OTTER_ALLOW_INSECURE_HTTP=1 permits credentials over non-local HTTP
