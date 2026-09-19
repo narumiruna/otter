@@ -20,6 +20,7 @@ Run commands from the repository root.
 - `npm install` - install dependencies for local development.
 - `npm ci` - install dependencies exactly from `package-lock.json`, as CI does.
 - [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to run only the Hono/Vite server.
+- `docker compose --profile production up otter` - start the production-like app instead of the default development app and bundled PostgreSQL; provide a container-reachable `DATABASE_URL` because container loopback cannot reach a database on the host.
 - `npm run migrate` - apply pending PostgreSQL migrations from `db/migrations/`.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.
 - `npm run biome:ci` - run Biome formatting/lint checks.
