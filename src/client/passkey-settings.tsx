@@ -88,19 +88,29 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
     beginMutation();
     setError("");
     setStatus("");
+    let removed = false;
     try {
       await api<{ ok: true }>(
         `/api/passkeys/${encodeURIComponent(passkey.id)}`,
         { method: "DELETE" },
       );
+      removed = true;
       setPasskeys((current) =>
         current.filter((candidate) => candidate.id !== passkey.id),
       );
       setStatus(messages.passkeyRemoved);
     } catch {
-      setError(messages.unableToRemovePasskey);
+      // Reload below so invalidated list requests do not leave stale state.
     } finally {
       endMutation();
+    }
+
+    try {
+      if (!removed) {
+        await loadPasskeys();
+        setError(messages.unableToRemovePasskey);
+      }
+    } finally {
       setBusy("");
     }
   }

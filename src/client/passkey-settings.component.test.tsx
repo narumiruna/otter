@@ -75,6 +75,45 @@ test("passkey settings reloads the list after registration fails", async () => {
   view.unmount();
 });
 
+test("passkey settings reloads the list after removal fails", async () => {
+  const secondPasskey = { ...passkey, id: "credential-2" };
+  let listRequests = 0;
+  let resolvePendingList: (value: { passkeys: (typeof passkey)[] }) => void =
+    () => undefined;
+  const pendingList = new Promise<{ passkeys: (typeof passkey)[] }>(
+    (resolve) => {
+      resolvePendingList = resolve;
+    },
+  );
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/passkeys" && !init) {
+      listRequests += 1;
+      if (listRequests === 1) return { passkeys: [passkey] };
+      if (listRequests === 2) return pendingList;
+      return { passkeys: [passkey, secondPasskey] };
+    }
+    if (url === "/api/passkeys/credential-1" && init?.method === "DELETE") {
+      throw new Error("delete failed");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<PasskeySettings offline={false} />);
+
+  expect(await view.findByText("Passkey 1")).toBeVisible();
+  view.rerender(<PasskeySettings offline />);
+  view.rerender(<PasskeySettings offline={false} />);
+  await waitFor(() => expect(listRequests).toBe(2));
+  await user.click(view.getByRole("button", { name: "移除 Passkey 1" }));
+  expect(await view.findByText("Passkey 2")).toBeVisible();
+  expect(view.getByRole("alert")).toHaveTextContent("無法移除 Passkey");
+  await act(async () => resolvePendingList({ passkeys: [] }));
+  expect(view.getByText("Passkey 1")).toBeVisible();
+  expect(view.getByText("Passkey 2")).toBeVisible();
+  expect(listRequests).toBe(3);
+  view.unmount();
+});
+
 test("passkey settings ignores a list response superseded by removal", async () => {
   let listRequests = 0;
   let resolveStaleList: (value: { passkeys: (typeof passkey)[] }) => void =
