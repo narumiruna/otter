@@ -487,32 +487,124 @@ export async function withCredentialLock<T>(
 }
 
 function credentialLockFileSystem(lockDirectory: string) {
+  // Unique marker names ensure a stale process can never release a successor's
+  // lock. PIDs keep a delayed but live owner from being reclaimed.
   const ownerToken = randomUUID();
-  const ownerFile = path.join(lockDirectory, "owner");
+  const identity = `${process.pid}:${ownerToken}`;
+  const ownerName = `owner-${ownerToken}`;
+  const ownerFile = path.join(lockDirectory, ownerName);
+  const pendingFile = `${lockDirectory}.pending-${ownerToken}`;
+  const reclaimName = `reclaim-${ownerToken}`;
+  const reclaimFile = path.join(lockDirectory, reclaimName);
   let acquired = false;
   let compromised: Error | undefined;
 
-  const removeLockDirectory = (requireOwnership: boolean): void => {
-    if (requireOwnership) {
-      let currentOwner: string;
-      try {
-        currentOwner = fs.readFileSync(ownerFile, "utf8");
-      } catch {
-        throw lockCompromisedError();
-      }
-      if (currentOwner !== ownerToken) {
-        throw lockCompromisedError();
+  const removeOwnedLock = (): void => {
+    try {
+      fs.unlinkSync(ownerFile);
+    } catch {
+      throw lockCompromisedError();
+    }
+    try {
+      fs.rmdirSync(lockDirectory);
+    } catch {
+      throw lockCompromisedError();
+    }
+  };
+
+  const removeReclaimedLock = (): void => {
+    const entries = fs.readdirSync(lockDirectory);
+    if (entries.includes(ownerName)) {
+      removeOwnedLock();
+      return;
+    }
+
+    const reclaimMarker = entries.find((entry) => entry.startsWith("reclaim-"));
+    if (reclaimMarker) {
+      takeMarker(reclaimMarker);
+    } else {
+      const ownerMarker = entries.find((entry) => entry.startsWith("owner-"));
+      if (ownerMarker) {
+        takeMarker(ownerMarker);
+      } else if (entries.includes("owner")) {
+        takeLegacyOwnerMarker();
+      } else {
+        takeOwnerlessLock();
       }
     }
 
+    // Renaming removes the shared path before cleanup, so a new owner can
+    // acquire without being touched by deletion of the quarantined directory.
+    const quarantine = `${lockDirectory}.reclaimed-${ownerToken}`;
+    fs.renameSync(lockDirectory, quarantine);
+    fs.rmSync(quarantine, { force: true, recursive: true });
+  };
+
+  const takeMarker = (marker: string): void => {
+    if (marker === reclaimName) {
+      return;
+    }
+    const markerFile = path.join(lockDirectory, marker);
+    const markerIdentity = readLockMarker(markerFile);
+    if (lockMarkerProcessIsAlive(markerIdentity)) {
+      throw lockHeldError();
+    }
+    fs.renameSync(markerFile, reclaimFile);
+  };
+
+  const takeLegacyOwnerMarker = (): void => {
+    const legacyOwnerFile = path.join(lockDirectory, "owner");
+    const observedIdentity = readLockMarker(legacyOwnerFile);
+    if (lockMarkerProcessIsAlive(observedIdentity)) {
+      throw lockHeldError();
+    }
+    fs.renameSync(legacyOwnerFile, reclaimFile);
+    if (readLockMarker(reclaimFile) !== observedIdentity) {
+      fs.renameSync(reclaimFile, legacyOwnerFile);
+      throw lockHeldError();
+    }
+  };
+
+  const takeOwnerlessLock = (): void => {
+    const parent = path.dirname(lockDirectory);
+    const pendingPrefix = `${path.basename(lockDirectory)}.pending-`;
+    for (const entry of fs.readdirSync(parent)) {
+      if (!entry.startsWith(pendingPrefix)) {
+        continue;
+      }
+      const markerFile = path.join(parent, entry);
+      const markerIdentity = readLockMarker(markerFile);
+      if (lockMarkerProcessIsAlive(markerIdentity)) {
+        throw lockHeldError();
+      }
+      fs.rmSync(markerFile, { force: true });
+    }
+
+    const claimFile = path.join(lockDirectory, "ownerless-claim");
+    const claimSource = `${lockDirectory}.claim-${ownerToken}`;
+    fs.writeFileSync(claimSource, identity, { flag: "wx", mode: 0o600 });
     try {
-      fs.unlinkSync(ownerFile);
+      fs.linkSync(claimSource, claimFile);
     } catch (error) {
-      if (!isNodeError(error) || error.code !== "ENOENT") {
+      if (!isNodeError(error) || error.code !== "EEXIST") {
         throw error;
       }
+    } finally {
+      fs.rmSync(claimSource, { force: true });
     }
-    fs.rmdirSync(lockDirectory);
+
+    const claimIdentity = readLockMarker(claimFile);
+    if (claimIdentity === identity) {
+      fs.renameSync(claimFile, reclaimFile);
+      return;
+    }
+    if (lockMarkerProcessIsAlive(claimIdentity)) {
+      throw lockHeldError();
+    }
+    fs.renameSync(claimFile, reclaimFile);
+    if (readLockMarker(reclaimFile) !== claimIdentity) {
+      throw lockHeldError();
+    }
   };
 
   return {
@@ -523,18 +615,29 @@ function credentialLockFileSystem(lockDirectory: string) {
         target: string,
         callback: (error: NodeJS.ErrnoException | null) => void,
       ) {
+        try {
+          // The sibling marker identifies the process during the otherwise
+          // ownerless gap between mkdir and publishing the owner marker.
+          fs.writeFileSync(pendingFile, identity, { flag: "wx", mode: 0o600 });
+        } catch (error) {
+          callback(
+            error instanceof Error
+              ? error
+              : new Error("Could not prepare credential lock ownership"),
+          );
+          return;
+        }
         fs.mkdir(target, (error) => {
           if (error) {
+            fs.rmSync(pendingFile, { force: true });
             callback(error);
             return;
           }
           try {
-            fs.writeFileSync(path.join(target, "owner"), ownerToken, {
-              flag: "wx",
-              mode: 0o600,
-            });
+            fs.renameSync(pendingFile, path.join(target, ownerName));
             callback(null);
           } catch (writeError) {
+            fs.rmSync(pendingFile, { force: true });
             try {
               fs.rmdirSync(target);
             } catch {
@@ -557,7 +660,11 @@ function credentialLockFileSystem(lockDirectory: string) {
           return;
         }
         try {
-          removeLockDirectory(acquired);
+          if (acquired) {
+            removeOwnedLock();
+          } else {
+            removeReclaimedLock();
+          }
           callback(null);
         } catch (error) {
           callback(
@@ -572,7 +679,11 @@ function credentialLockFileSystem(lockDirectory: string) {
           fs.rmdirSync(target);
           return;
         }
-        removeLockDirectory(acquired);
+        if (acquired) {
+          removeOwnedLock();
+        } else {
+          removeReclaimedLock();
+        }
       },
     },
     markAcquired: () => {
@@ -582,6 +693,39 @@ function credentialLockFileSystem(lockDirectory: string) {
       compromised = error;
     },
   };
+}
+
+function readLockMarker(filename: string): string {
+  try {
+    return fs.readFileSync(filename, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      throw lockHeldError();
+    }
+    throw error;
+  }
+}
+
+function lockMarkerProcessIsAlive(identity: string): boolean {
+  const separator = identity.indexOf(":");
+  const pid = Number(identity.slice(0, separator));
+  if (separator <= 0 || !Number.isSafeInteger(pid) || pid <= 0) {
+    return true;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return !isNodeError(error) || error.code !== "ESRCH";
+  }
+}
+
+function lockHeldError(): NodeJS.ErrnoException {
+  const error: NodeJS.ErrnoException = new Error(
+    "The credential lock is still held by another process",
+  );
+  error.code = "ELOCKED";
+  return error;
 }
 
 function lockCompromisedError(): NodeJS.ErrnoException {
