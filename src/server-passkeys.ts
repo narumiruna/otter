@@ -114,12 +114,11 @@ export function resolvePasskeyRelyingParty(
     throw new Error("PASSKEY_ORIGIN must be an origin without a path");
   }
 
-  const rpID = process.env.PASSKEY_RP_ID?.trim() || parsedOrigin.hostname;
-  if (!rpID || new URL(`https://${rpID}`).hostname !== rpID) {
-    throw new Error("PASSKEY_RP_ID must be a valid hostname");
+  if (!parsedOrigin.hostname) {
+    throw new Error("PASSKEY_ORIGIN must include a hostname");
   }
 
-  return { origin, rpID, rpName: "otter" };
+  return { origin, rpID: parsedOrigin.hostname, rpName: "otter" };
 }
 
 async function saveChallenge(

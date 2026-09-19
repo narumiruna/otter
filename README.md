@@ -114,14 +114,13 @@ GitHub `Deploy` workflow 需要 self-hosted runner 與 `POSTGRES_PASSWORD` repos
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 
-Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。本機 compose 預設使用 `PASSKEY_ORIGIN=http://localhost:17463` 與 `PASSKEY_RP_ID=localhost`。正式環境必須明確設定公開 HTTPS origin 與 hostname，例如：
+Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。本機 compose 預設使用 `PASSKEY_ORIGIN=http://localhost:17463`；正式環境必須明確設定公開 HTTPS origin，例如：
 
 ```bash
 PASSKEY_ORIGIN=https://otter.example.com
-PASSKEY_RP_ID=otter.example.com
 ```
 
-`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；`PASSKEY_RP_ID` 只能是 hostname。兩者一旦用來註冊 Passkey，變更網域後既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
+`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
 
 ## 工作流程與安全狀態
 
