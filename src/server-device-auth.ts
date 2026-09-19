@@ -45,6 +45,7 @@ export function registerDeviceAuthRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  mustHaveBrowserSession: OtterMiddleware,
 ) {
   app.post(
     "/api/auth/device",
@@ -83,7 +84,7 @@ export function registerDeviceAuthRoutes(
 
   app.get(
     "/api/auth/device/:userCode",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const userCode = normalizeUserCode(req.params.userCode);
       if (!userCode) {
@@ -114,7 +115,7 @@ export function registerDeviceAuthRoutes(
 
   app.post(
     "/api/auth/device/approve",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const userCode = normalizeUserCode(
         stringField(requestBody(req), "userCode") ?? "",

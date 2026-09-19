@@ -455,15 +455,10 @@ export async function createSession(
   return session;
 }
 
-export async function userFromRequest(
+export async function userFromSessionRequest(
   db: Queryable,
   req: RouteRequest,
 ): Promise<User | undefined> {
-  if (req.get("authorization")) {
-    const bearerToken = bearerTokenFromRequest(req);
-    return bearerToken ? userFromApiToken(db, bearerToken) : undefined;
-  }
-
   const sessionId = getCookie(req, "otter_session");
   if (!sessionId) {
     return undefined;
@@ -483,7 +478,24 @@ export async function userFromRequest(
   return row ? rowToUser(row) : undefined;
 }
 
-export function requireUser(db: Queryable): OtterMiddleware {
+export async function userFromRequest(
+  db: Queryable,
+  req: RouteRequest,
+): Promise<User | undefined> {
+  if (req.get("authorization")) {
+    const bearerToken = bearerTokenFromRequest(req);
+    return bearerToken ? userFromApiToken(db, bearerToken) : undefined;
+  }
+  return userFromSessionRequest(db, req);
+}
+
+function requireAuthenticatedUser(
+  db: Queryable,
+  authenticate: (
+    db: Queryable,
+    request: RouteRequest,
+  ) => Promise<User | undefined>,
+): OtterMiddleware {
   return async (context: OtterContext, next) => {
     const request: RouteRequest = {
       body: {},
@@ -492,7 +504,7 @@ export function requireUser(db: Queryable): OtterMiddleware {
       params: context.req.param(),
       protocol: new URL(context.req.url).protocol.slice(0, -1),
     };
-    const user = await userFromRequest(db, request);
+    const user = await authenticate(db, request);
     if (!user) {
       return context.json({ error: "請先登入" }, 401);
     }
@@ -500,6 +512,14 @@ export function requireUser(db: Queryable): OtterMiddleware {
     context.set("user", user);
     await next();
   };
+}
+
+export function requireUser(db: Queryable): OtterMiddleware {
+  return requireAuthenticatedUser(db, userFromRequest);
+}
+
+export function requireSessionUser(db: Queryable): OtterMiddleware {
+  return requireAuthenticatedUser(db, userFromSessionRequest);
 }
 
 export async function loadTripForUser(

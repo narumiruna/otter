@@ -128,6 +128,40 @@ test(
     });
     assert.equal(trips.response.status, 200);
 
+    const renewal = await api<DeviceAuthorization>(
+      baseUrl,
+      "/api/auth/device",
+      {
+        body: JSON.stringify({ clientName: "Token renewal attempt" }),
+        method: "POST",
+      },
+    );
+    const tokenOnlyInspection = await api<{ error: string }>(
+      baseUrl,
+      `/api/auth/device/${renewal.data.user_code}`,
+      { headers: { authorization } },
+    );
+    assert.equal(tokenOnlyInspection.response.status, 401);
+    const tokenOnlyApproval = await api<{ error: string }>(
+      baseUrl,
+      "/api/auth/device/approve",
+      {
+        body: JSON.stringify({ userCode: renewal.data.user_code }),
+        headers: { authorization },
+        method: "POST",
+      },
+    );
+    assert.equal(tokenOnlyApproval.response.status, 401);
+    const renewalStillPending = await api<{ error: string }>(
+      baseUrl,
+      "/api/auth/device/token",
+      {
+        body: JSON.stringify({ device_code: renewal.data.device_code }),
+        method: "POST",
+      },
+    );
+    assert.equal(renewalStillPending.data.error, "authorization_pending");
+
     const reused = await api<{ error: string }>(
       baseUrl,
       "/api/auth/device/token",

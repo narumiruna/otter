@@ -43,6 +43,7 @@ import {
   publicUser,
   rejectArchivedTrip,
   requestBody,
+  requireSessionUser,
   requireUser,
   type Session,
   sendError,
@@ -109,9 +110,10 @@ export function createApp(
 ): OtterApp {
   const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUser(pool);
+  const mustHaveBrowserSession = requireSessionUser(pool);
 
   registerBackupRoutes(app, pool, mustBeSignedIn);
-  registerDeviceAuthRoutes(app, pool, mustBeSignedIn);
+  registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
 
   app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;

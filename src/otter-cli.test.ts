@@ -53,6 +53,24 @@ describe("parseCliCommand", () => {
     });
   });
 
+  test("sets equal split mode when updating split participants", () => {
+    expect(
+      parseCliCommand([
+        "expenses",
+        "update",
+        "--trip",
+        "trip-1",
+        "--expense",
+        "expense-1",
+        "--split-with",
+        "participant-a,participant-b",
+      ]).body,
+    ).toEqual({
+      participantIds: ["participant-a", "participant-b"],
+      splitMode: "equal",
+    });
+  });
+
   test("allows clearing expense tags", () => {
     expect(
       parseCliCommand([

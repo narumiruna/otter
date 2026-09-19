@@ -30,7 +30,7 @@ export function bearerTokenFromRequest(req: RouteRequest): string | undefined {
   if (!authorization) {
     return undefined;
   }
-  const match = /^Bearer ([^\s]+)$/.exec(authorization);
+  const match = /^\s*Bearer\s+([A-Za-z0-9._~+/-]+=*)\s*$/i.exec(authorization);
   return match?.[1];
 }
 
