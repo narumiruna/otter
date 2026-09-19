@@ -102,7 +102,7 @@ POSTGRES_PASSWORD=change-me docker compose up --detach --build
 
 App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。PostgreSQL 的 host port 只綁定至 `127.0.0.1:55432`。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
 
-GitHub `Deploy` workflow 需要 self-hosted runner 與 `POSTGRES_PASSWORD` repository secret。每次 push 到 `main` 都會直接部署，並使用 compose 內的 PostgreSQL。
+GitHub `Deploy` workflow 需要 self-hosted runner 與 `POSTGRES_PASSWORD` repository secret。每次 push 到 `main` 都會直接部署，也可以手動觸發；部署使用 compose 內的 PostgreSQL。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 
