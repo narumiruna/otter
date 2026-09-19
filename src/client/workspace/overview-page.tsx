@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { currencyInfo, formatMinor, toMajor } from "../../shared/money.js";
+import { currencyInfo, toMajor } from "../../shared/money.js";
 import type { Settlement, Trip } from "../../shared/settlement.js";
 import {
   expenseSplitLabel,
@@ -26,6 +26,7 @@ import {
   type TripPayload,
   todayDate,
 } from "../client-support.js";
+import { localizeMessage, useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { OverviewSummary } from "./overview-summary.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
@@ -48,6 +49,7 @@ export function OverviewPage({
   payload: TripPayload;
   readonly?: boolean;
 }) {
+  const { messages } = useI18n();
   const { trip } = payload;
   return (
     <div className="overview-grid">
@@ -64,9 +66,15 @@ export function OverviewPage({
         className="surface overview-settlements grid gap-4"
         aria-labelledby="settlement-heading"
       >
-        <SectionHeading description="依目前支出與已記錄付款計算。">
-          <span id="settlement-heading">待結清</span>
-          <span className="count-pill">{payload.settlements.length} 筆</span>
+        <SectionHeading
+          description={
+            messages.calculatedFromCurrentExpensesAndRecordedPayments
+          }
+        >
+          <span id="settlement-heading">{messages.settleUp}</span>
+          <span className="count-pill">
+            {messages.countEntries({ count: payload.settlements.length })}
+          </span>
         </SectionHeading>
         <SettlementList payload={payload} readonly={readonly} />
       </section>
@@ -74,8 +82,8 @@ export function OverviewPage({
         className="surface overview-balances grid gap-4"
         aria-labelledby="balances-heading"
       >
-        <SectionHeading description="代墊與分攤，一眼看清楚。">
-          <span id="balances-heading">每人餘額</span>
+        <SectionHeading description={messages.seePaymentsAndSharesAtAGlance}>
+          <span id="balances-heading">{messages.balances}</span>
         </SectionHeading>
         <BalanceList balances={payload.balances} />
       </section>
@@ -84,7 +92,7 @@ export function OverviewPage({
         aria-labelledby="recent-heading"
       >
         <SectionHeading>
-          <span id="recent-heading">最近支出</span>
+          <span id="recent-heading">{messages.recentExpenses}</span>
         </SectionHeading>
         <RecentExpenses trip={trip} />
       </section>
@@ -104,32 +112,37 @@ function EmptyOverview({
   readonly: boolean;
   trip: Trip;
 }) {
+  const { messages } = useI18n();
   if (readonly)
     return (
       <section className="surface empty-state">
-        <h3>還沒有支出</h3>
-        <p>這個群組尚未記錄共同支出。</p>
+        <h3>{messages.noExpensesYet}</h3>
+        <p>{messages.thisGroupHasNotRecordedAnySharedExpenses}</p>
       </section>
     );
   const needsPeople = trip.participants.length < 2;
   return (
     <section className="surface empty-state overview-empty">
       <HandCoins className="empty-state-icon" aria-hidden="true" />
-      <h3>{needsPeople ? "先新增同行成員" : "記錄第一筆共同支出"}</h3>
+      <h3>
+        {needsPeople
+          ? messages.addTravelCompanionsFirst
+          : messages.recordTheFirstSharedExpense}
+      </h3>
       <p>
         {needsPeople
-          ? "加入要一起分帳的人，才能清楚算出每人餘額。"
-          : "開始記帳後，總覽會自動顯示餘額與結清建議。"}
+          ? messages.addThePeopleSplittingExpensesToCalculateEachBalance
+          : messages.balancesAndSettlementSuggestionsWillAppearHereAfterYouAddExpenses}
       </p>
       <div className="flex flex-wrap gap-2">
         {needsPeople ? (
-          <Button onClick={onPeople}>新增成員</Button>
+          <Button onClick={onPeople}>{messages.addPerson}</Button>
         ) : (
-          <Button onClick={onAddExpense}>記一筆</Button>
+          <Button onClick={onAddExpense}>{messages.addExpense}</Button>
         )}
         {!needsPeople ? (
           <Button onClick={onPeople} variant="outline">
-            管理成員
+            {messages.managePeople}
           </Button>
         ) : null}
       </div>
@@ -144,14 +157,15 @@ function SettlementList({
   payload: TripPayload;
   readonly: boolean;
 }) {
+  const { formatMoney, messages } = useI18n();
   if (payload.settlements.length === 0) {
     return (
       <div className="settled-state">
         <CheckCircle2 className="text-primary" aria-hidden="true" />
         <div>
-          <strong>目前已經打平</strong>
+          <strong>{messages.everythingIsSettled}</strong>
           <p className="text-sm text-muted-foreground">
-            沒有尚待完成的結清款項。
+            {messages.thereAreNoOutstandingPayments}
           </p>
         </div>
       </div>
@@ -172,7 +186,7 @@ function SettlementList({
             />
             <strong>{settlement.toName}</strong>
             <span className="ml-auto font-semibold tabular-nums">
-              {formatMinor(settlement.amountMinor, settlement.currency)}
+              {formatMoney(settlement.amountMinor, settlement.currency)}
             </span>
           </div>
           {!readonly ? (
@@ -191,6 +205,7 @@ function PaymentDialog({
   settlement: Settlement;
   tripId: string;
 }) {
+  const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
@@ -220,11 +235,15 @@ function PaymentDialog({
           }),
           method: "POST",
         },
-        "已記錄付款",
+        messages.paymentRecorded,
       );
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法記錄付款");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : messages.unableToRecordPayment,
+      );
     }
   });
   return (
@@ -235,25 +254,32 @@ function PaymentDialog({
         render={<Button disabled={offline} size="sm" variant="outline" />}
       >
         <HandCoins aria-hidden="true" />
-        記錄付款
+        {messages.recordPayment}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>記錄結清付款</DialogTitle>
+          <DialogTitle>{messages.recordSettlementPayment}</DialogTitle>
           <DialogDescription>
-            {settlement.fromName} 付給 {settlement.toName}；預設為完整建議金額。
+            {messages.fromPaysToTheFullSuggestedAmountIsPrefilled({
+              from: settlement.fromName,
+              to: settlement.toName,
+            })}
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>
           <ActionError message={error} />
-          <FormField label={`付款金額（${settlement.currency}）`}>
+          <FormField
+            label={messages.paymentAmountCurrency({
+              currency: settlement.currency,
+            })}
+          >
             <input
               className="form-control"
               inputMode="decimal"
               max={toMajor(settlement.amountMinor, settlement.currency)}
               min={1 / 10 ** currencyInfo[settlement.currency].minorUnits}
               {...form.register("amount", {
-                required: "請輸入付款金額",
+                required: messages.enterAPaymentAmount,
                 validate: (value) => {
                   const minor = Math.round(
                     Number(value) *
@@ -263,7 +289,7 @@ function PaymentDialog({
                     (Number.isFinite(minor) &&
                       minor > 0 &&
                       minor <= settlement.amountMinor) ||
-                    "付款金額必須大於 0，且不能超過建議金額"
+                    messages.thePaymentMustBeGreaterThan0AndNoMoreThanTheSuggestedAmount
                   );
                 },
               })}
@@ -275,17 +301,17 @@ function PaymentDialog({
             ) : null}
           </FormField>
           <p className="rounded-lg bg-muted p-3 text-sm" aria-live="polite">
-            套用後預計剩餘：
-            <strong>{formatMinor(remaining, settlement.currency)}</strong>
+            {messages.expectedRemainder}
+            <strong>{formatMoney(remaining, settlement.currency)}</strong>
           </p>
-          <FormField label="付款日期">
+          <FormField label={messages.paymentDate}>
             <input
               className="form-control"
               type="date"
               {...form.register("paidAt", { required: true })}
             />
           </FormField>
-          <FormField label="備註（選填）">
+          <FormField label={messages.noteOptional}>
             <input
               className="form-control"
               maxLength={160}
@@ -294,14 +320,14 @@ function PaymentDialog({
           </FormField>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>
-              取消
+              {messages.cancel}
             </DialogClose>
             <BusyButton
               busy={form.formState.isSubmitting}
               disabled={offline}
               type="submit"
             >
-              確認記錄付款
+              {messages.recordPayment2}
             </BusyButton>
           </DialogFooter>
         </form>
@@ -317,6 +343,7 @@ export function SettlementHistory({
   trip: Trip;
   readonly?: boolean;
 }) {
+  const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const participantById = useMemo(
@@ -327,9 +354,9 @@ export function SettlementHistory({
   return (
     <details className="disclosure">
       <summary>
-        付款紀錄{" "}
+        {messages.paymentHistory}{" "}
         <span className="summary-meta">
-          {trip.settlementPayments.length} 筆
+          {messages.countEntries({ count: trip.settlementPayments.length })}
         </span>
       </summary>
       <ActionError message={error} />
@@ -340,19 +367,24 @@ export function SettlementHistory({
             key={payment.id}
           >
             <span>
-              {payment.paidAt} · {participantById.get(payment.fromId)} 付給{" "}
-              {participantById.get(payment.toId)}
+              {messages.dateFromPaidTo({
+                date: payment.paidAt,
+                from: participantById.get(payment.fromId) ?? "",
+                to: participantById.get(payment.toId) ?? "",
+              })}
             </span>
             <strong>
-              {formatMinor(payment.amountMinor, payment.currency)}
+              {formatMoney(payment.amountMinor, payment.currency)}
             </strong>
             {payment.note ? (
               <span className="text-muted-foreground">{payment.note}</span>
             ) : null}
             {!readonly ? (
               <ConfirmDialog
-                confirmLabel="刪除付款紀錄"
-                description="刪除後會重新計算剩餘結清建議。"
+                confirmLabel={messages.deletePayment}
+                description={
+                  messages.remainingSettlementSuggestionsWillBeRecalculated
+                }
                 destructive
                 disabled={offline}
                 onConfirm={async () => {
@@ -361,19 +393,21 @@ export function SettlementHistory({
                     await requestPayload(
                       `/api/trips/${trip.id}/settlement-payments/${payment.id}`,
                       { method: "DELETE" },
-                      "已刪除付款紀錄",
+                      messages.paymentDeleted,
                     );
                   } catch (caught) {
                     setError(
-                      caught instanceof Error ? caught.message : "刪除失敗",
+                      caught instanceof Error
+                        ? caught.message
+                        : messages.deleteFailed,
                     );
                   }
                 }}
-                title="刪除這筆付款紀錄？"
+                title={messages.deleteThisPayment}
                 trigger={
                   <Button className="ml-auto" size="sm" variant="ghost">
                     <Trash2 aria-hidden="true" />
-                    刪除
+                    {messages.delete}
                   </Button>
                 }
               />
@@ -386,7 +420,9 @@ export function SettlementHistory({
 }
 
 function RecentExpenses({ trip }: { trip: Trip }) {
-  if (!trip.expenses.length) return <p className="empty-copy">還沒有支出。</p>;
+  const { formatMoney, messages } = useI18n();
+  if (!trip.expenses.length)
+    return <p className="empty-copy">{messages.noExpensesYet}</p>;
   const names = new Map(
     trip.participants.map((person) => [person.id, person.name]),
   );
@@ -405,12 +441,15 @@ function RecentExpenses({ trip }: { trip: Trip }) {
           <div className="recent-expense-info">
             <strong>{expense.description}</strong>
             <span>
-              {expense.expenseDate} · {names.get(expense.paidById)} 付款 · 分給{" "}
-              {expenseSplitLabel(trip, expense.participantIds)}
+              {messages.datePaidByNameSplitWithSplit({
+                date: expense.expenseDate,
+                name: names.get(expense.paidById) ?? messages.unknown,
+                split: expenseSplitLabel(trip, expense.participantIds),
+              })}
             </span>
           </div>
           <strong className="recent-expense-amount">
-            {formatMinor(expense.amountMinor, expense.currency)}
+            {formatMoney(expense.amountMinor, expense.currency)}
           </strong>
         </li>
       ))}
@@ -419,26 +458,27 @@ function RecentExpenses({ trip }: { trip: Trip }) {
 }
 
 function SpendingAnalysis({ trip }: { trip: Trip }) {
+  const { formatMoney, messages } = useI18n();
   const summary = spendingSummary(trip);
   const charts = [
     {
-      title: "每日花費",
+      title: messages.dailySpending,
       rows: summary.dailyTotals.map((row) => ({
         label: row.date,
         value: row.amountMinor,
       })),
     },
     {
-      title: "每人實付",
+      title: messages.paidByPerson,
       rows: summary.payerTotals.map((row) => ({
         label: row.name,
         value: row.amountMinor,
       })),
     },
     {
-      title: "分類占比",
+      title: messages.byCategory,
       rows: summary.categoryTotals.map((row) => ({
-        label: row.category,
+        label: localizeMessage(row.category),
         value: row.amountMinor,
       })),
     },
@@ -447,9 +487,11 @@ function SpendingAnalysis({ trip }: { trip: Trip }) {
     <details className="surface disclosure">
       <summary className="text-lg">
         <ChevronDown aria-hidden="true" />
-        花費分析{" "}
+        {messages.spendingAnalysis}{" "}
         <span className="summary-meta">
-          總支出 {formatMinor(summary.totalMinor, trip.baseCurrency)}
+          {messages.totalAmount({
+            amount: formatMoney(summary.totalMinor, trip.baseCurrency),
+          })}
         </span>
       </summary>
       <div className="grid gap-4 pt-4 lg:grid-cols-3">
@@ -463,7 +505,7 @@ function SpendingAnalysis({ trip }: { trip: Trip }) {
                     <div className="flex justify-between gap-2">
                       <span>{row.label}</span>
                       <span className="tabular-nums">
-                        {formatMinor(row.value, trip.baseCurrency)}
+                        {formatMoney(row.value, trip.baseCurrency)}
                       </span>
                     </div>
                     <span className="h-2 overflow-hidden rounded-full bg-muted">
@@ -478,7 +520,7 @@ function SpendingAnalysis({ trip }: { trip: Trip }) {
                 ))}
               </ul>
             ) : (
-              <p className="empty-copy">尚無資料。</p>
+              <p className="empty-copy">{messages.noDataYet}</p>
             )}
           </div>
         ))}

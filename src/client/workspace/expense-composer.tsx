@@ -3,7 +3,7 @@ import {
   ReaderIcon as ReceiptText,
   GroupIcon as Users,
 } from "@radix-ui/react-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { expenseCategories } from "../../shared/expense-metadata.js";
@@ -16,12 +16,12 @@ import {
   type Currency,
   currencies,
   currencyInfo,
-  formatMinor,
   isCurrency,
   parseAmountToMinor,
 } from "../../shared/money.js";
 import type { Expense, Trip } from "../../shared/settlement.js";
 import { todayDate } from "../client-support.js";
+import { localizeMessage, useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -92,13 +92,22 @@ export function ExpenseComposer({
   onSaved?: () => void;
   trip: Trip;
 }) {
+  const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [serverError, setServerError] = useState("");
   const form = useForm<ExpenseDraft>({
     defaultValues: defaults(trip, expense),
   });
+  const previousLocale = useRef(locale);
   const values = form.watch();
   const isDirty = form.formState.isDirty;
+
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    form.clearErrors();
+    setServerError("");
+  }, [form.clearErrors, locale]);
 
   useEffect(() => {
     const protectDraft = (event: BeforeUnloadEvent) => {
@@ -130,11 +139,15 @@ export function ExpenseComposer({
     } catch (error) {
       return {
         amountMinor: 0,
-        error: error instanceof Error ? error.message : "分帳格式錯誤",
+        error:
+          error instanceof Error
+            ? localizeMessage(error.message)
+            : messages.invalidSplitFormat,
         shares: [],
       };
     }
   }, [
+    messages.invalidSplitFormat,
     values.amount,
     values.currency,
     values.participantIds,
@@ -145,7 +158,9 @@ export function ExpenseComposer({
   const submit = form.handleSubmit(async (draft) => {
     setServerError("");
     if (!draft.participantIds.length) {
-      form.setError("participantIds", { message: "請至少選擇一位分帳成員" });
+      form.setError("participantIds", {
+        message: messages.selectAtLeastOnePersonToSplitWith,
+      });
       return;
     }
     if (preview?.error) {
@@ -161,13 +176,15 @@ export function ExpenseComposer({
           body: JSON.stringify(draft),
           method: expense ? "PATCH" : "POST",
         },
-        expense ? "已儲存支出變更" : "已記錄支出",
+        expense ? messages.expenseChangesSaved : messages.expenseRecorded,
         true,
       );
       form.reset(defaults(trip));
       onSaved?.();
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : "無法儲存支出");
+      setServerError(
+        error instanceof Error ? error.message : messages.unableToSaveExpense,
+      );
     }
   });
 
@@ -178,7 +195,7 @@ export function ExpenseComposer({
       onClick={isDirty ? undefined : onCancel}
     >
       <ChevronLeft aria-hidden="true" />
-      取消
+      {messages.cancel}
     </Button>
   );
 
@@ -191,21 +208,23 @@ export function ExpenseComposer({
         <SectionHeading
           description={
             expense
-              ? "確認分帳預覽後再儲存變更。"
-              : "先填必要資料；不平均分帳與標籤可稍後展開。"
+              ? messages.reviewTheSplitPreviewBeforeSavingChanges
+              : messages.enterTheRequiredDetailsFirstCustomSplitsAndTagsAreAvailableBelow
           }
         >
           <span id="expense-composer-heading">
-            {expense ? "編輯支出" : "新增支出"}
+            {expense ? messages.editExpense : messages.addExpense2}
           </span>
         </SectionHeading>
         {isDirty ? (
           <ConfirmDialog
-            confirmLabel="捨棄草稿"
-            description="尚未儲存的內容會消失，既有資料不會改變。"
+            confirmLabel={messages.discardDraft}
+            description={
+              messages.unsavedChangesWillBeLostExistingDataWillNotChange
+            }
             destructive
             onConfirm={onCancel}
-            title="要捨棄這份草稿嗎？"
+            title={messages.discardThisDraft}
             trigger={cancelButton}
           />
         ) : (
@@ -216,12 +235,14 @@ export function ExpenseComposer({
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="描述">
+          <FormField label={messages.description}>
             <input
               className="form-control"
               maxLength={120}
-              placeholder="晚餐、飯店、車票"
-              {...form.register("description", { required: "請輸入支出描述" })}
+              placeholder={messages.dinnerHotelTrainTickets}
+              {...form.register("description", {
+                required: messages.enterAnExpenseDescription,
+              })}
             />
             {form.formState.errors.description ? (
               <span className="field-error">
@@ -229,12 +250,14 @@ export function ExpenseComposer({
               </span>
             ) : null}
           </FormField>
-          <FormField label="金額">
+          <FormField label={messages.amount}>
             <input
               className="form-control"
               inputMode="decimal"
               placeholder="1000"
-              {...form.register("amount", { required: "請輸入支出金額" })}
+              {...form.register("amount", {
+                required: messages.enterAnExpenseAmount,
+              })}
             />
             {form.formState.errors.amount ? (
               <span className="field-error">
@@ -242,14 +265,14 @@ export function ExpenseComposer({
               </span>
             ) : null}
           </FormField>
-          <FormField label="日期">
+          <FormField label={messages.date}>
             <input
               className="form-control"
               type="date"
               {...form.register("expenseDate", { required: true })}
             />
           </FormField>
-          <FormField label="付款人">
+          <FormField label={messages.paidBy}>
             <select
               className="form-control"
               {...form.register("paidById", { required: true })}
@@ -261,11 +284,11 @@ export function ExpenseComposer({
               ))}
             </select>
           </FormField>
-          <FormField label="貨幣">
+          <FormField label={messages.currency2}>
             <select className="form-control" {...form.register("currency")}>
               {currencies.map((currency) => (
                 <option key={currency} value={currency}>
-                  {currency} · {currencyInfo[currency].label}
+                  {currency} · {localizeMessage(currencyInfo[currency].label)}
                 </option>
               ))}
             </select>
@@ -275,24 +298,24 @@ export function ExpenseComposer({
         <div className="rounded-xl border bg-muted/50 p-4" aria-live="polite">
           <div className="mb-3 flex items-center gap-2 font-semibold">
             <ReceiptText aria-hidden="true" />
-            分帳預覽
+            {messages.splitPreview}
           </div>
           {!preview ? (
             <p className="text-sm text-muted-foreground">
-              輸入金額後會顯示每位成員的分帳金額。
+              {messages.enterAnAmountToPreviewEachPersonsShare}
             </p>
           ) : preview.error ? (
             <p className="field-error">{preview.error}</p>
           ) : (
             <>
               <p className="mb-3 text-sm">
-                {trip.participants.find(
-                  (person) => person.id === values.paidById,
-                )?.name ?? "付款人"}{" "}
-                支付{" "}
-                <strong>
-                  {formatMinor(preview.amountMinor, values.currency)}
-                </strong>
+                {messages.namePaidAmount({
+                  name:
+                    trip.participants.find(
+                      (person) => person.id === values.paidById,
+                    )?.name ?? messages.paidBy,
+                  amount: formatMoney(preview.amountMinor, values.currency),
+                })}
               </p>
               <ul className="grid gap-2 sm:grid-cols-2">
                 {preview.shares.map((share) => (
@@ -308,7 +331,7 @@ export function ExpenseComposer({
                       }
                     </span>
                     <strong className="tabular-nums">
-                      {formatMinor(share.shareMinor, values.currency)}
+                      {formatMoney(share.shareMinor, values.currency)}
                     </strong>
                   </li>
                 ))}
@@ -320,9 +343,12 @@ export function ExpenseComposer({
         <details className="disclosure">
           <summary>
             <Users aria-hidden="true" />
-            修改分帳成員與方式{" "}
+            {messages.changePeopleAndSplitMethod}{" "}
             <span className="summary-meta">
-              已選 {values.participantIds.length} / {trip.participants.length}
+              {messages.selectedSelectedOfTotal({
+                selected: values.participantIds.length,
+                total: trip.participants.length,
+              })}
             </span>
           </summary>
           <div className="grid gap-4 pt-4">
@@ -339,7 +365,7 @@ export function ExpenseComposer({
                   )
                 }
               >
-                全選
+                {messages.selectAll}
               </Button>
               <Button
                 size="sm"
@@ -349,11 +375,11 @@ export function ExpenseComposer({
                   form.setValue("participantIds", [], { shouldDirty: true })
                 }
               >
-                清除
+                {messages.clear}
               </Button>
             </div>
             <fieldset className="choice-grid">
-              <legend className="sr-only">分帳成員</legend>
+              <legend className="sr-only">{messages.splitWith}</legend>
               {trip.participants.map((person) => (
                 <label className="choice" key={person.id}>
                   <input
@@ -365,12 +391,12 @@ export function ExpenseComposer({
                 </label>
               ))}
             </fieldset>
-            <FormField label="分帳方式">
+            <FormField label={messages.splitMethod}>
               <select className="form-control" {...form.register("splitMode")}>
-                <option value="equal">平均分帳</option>
-                <option value="amount">指定金額</option>
-                <option value="ratio">比例</option>
-                <option value="shares">份數</option>
+                <option value="equal">{messages.splitEqually}</option>
+                <option value="amount">{messages.exactAmounts}</option>
+                <option value="ratio">{messages.percentages}</option>
+                <option value="shares">{messages.shares}</option>
               </select>
             </FormField>
             {values.splitMode !== "equal" ? (
@@ -380,7 +406,15 @@ export function ExpenseComposer({
                   .map((person) => (
                     <FormField
                       key={person.id}
-                      label={`${person.name}的${values.splitMode === "amount" ? "金額" : values.splitMode === "ratio" ? "比例" : "份數"}`}
+                      label={messages.nameSKind({
+                        name: person.name,
+                        kind:
+                          values.splitMode === "amount"
+                            ? messages.amount
+                            : values.splitMode === "ratio"
+                              ? messages.percentages
+                              : messages.shares,
+                      })}
                     >
                       <input
                         className="form-control"
@@ -396,17 +430,23 @@ export function ExpenseComposer({
 
         <details className="disclosure">
           <summary>
-            更多資料 <span className="summary-meta">分類、標籤</span>
+            {messages.moreDetails}{" "}
+            <span className="summary-meta">{messages.categoryAndTags}</span>
           </summary>
           <div className="grid gap-4 pt-4 sm:grid-cols-2">
-            <FormField label="分類">
+            <FormField label={messages.category}>
               <select className="form-control" {...form.register("category")}>
                 {expenseCategories.map((category) => (
-                  <option key={category}>{category}</option>
+                  <option key={category} value={category}>
+                    {localizeMessage(category)}
+                  </option>
                 ))}
               </select>
             </FormField>
-            <FormField label="標籤" hint="以逗號分隔，例如 早餐, 交通">
+            <FormField
+              label={messages.tag}
+              hint={messages.separateWithCommasForExampleBreakfastTransport}
+            >
               <input
                 className="form-control"
                 maxLength={249}
@@ -419,11 +459,11 @@ export function ExpenseComposer({
         <div className="sticky-submit flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {isDirty ? (
             <ConfirmDialog
-              confirmLabel="捨棄草稿"
-              description="尚未儲存的內容會消失。"
+              confirmLabel={messages.discardDraft}
+              description={messages.unsavedChangesWillBeLost}
               destructive
               onConfirm={onCancel}
-              title="要取消嗎？"
+              title={messages.cancelEditing}
               trigger={cancelButton}
             />
           ) : (
@@ -431,11 +471,11 @@ export function ExpenseComposer({
           )}
           <BusyButton
             busy={form.formState.isSubmitting}
-            busyLabel="儲存中…"
+            busyLabel={messages.saving}
             disabled={offline || !!preview?.error}
             type="submit"
           >
-            {expense ? "儲存變更" : "記錄支出"}
+            {expense ? messages.saveChanges : messages.recordExpense}
           </BusyButton>
         </div>
       </form>

@@ -125,6 +125,16 @@ select:disabled {
   align-items: center;
   gap: 0.65rem;
 }
+.language-picker select {
+  min-height: 2.5rem;
+  max-width: 9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--color-panel-solid);
+  padding: 0 2rem 0 0.65rem;
+  color: inherit;
+  font: inherit;
+}
 .otter-button.user-account-button {
   min-width: 0;
   min-height: 0;
@@ -611,8 +621,14 @@ select:disabled {
   }
   .app-header {
     top: 0.25rem;
+    flex-wrap: wrap;
     border-radius: 1rem;
     padding: 0.65rem 0.75rem;
+  }
+  .user-menu {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .brand-tagline,
   .header-note,

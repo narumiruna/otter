@@ -1,5 +1,6 @@
 import { type Currency, convertMinorWithRates } from "../shared/money.js";
 import type { Balance, Settlement, Trip } from "../shared/settlement.js";
+import { currentLocale, localizeMessage } from "./i18n.js";
 
 export type User = {
   id: string;
@@ -80,11 +81,15 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(url, {
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        "Accept-Language": currentLocale(),
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
       ...init,
     });
   } catch {
-    throw new Error("連線失敗，請稍後再試");
+    throw new Error(localizeMessage("連線失敗，請稍後再試"));
   }
   let data: unknown;
   let parsedJson = false;
@@ -103,11 +108,11 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
       typeof data.error === "string"
         ? data.error
         : "Request failed";
-    throw new Error(error);
+    throw new Error(localizeMessage(error));
   }
 
   if (!parsedJson) {
-    throw new Error("伺服器回應格式錯誤");
+    throw new Error(localizeMessage("伺服器回應格式錯誤"));
   }
 
   return data as T;
@@ -162,7 +167,7 @@ export function spendingSummary(trip: Trip): SpendingSummary {
     payerTotals: [...payerTotals.entries()]
       .map(([participantId, amountMinor]) => ({
         amountMinor,
-        name: participantById.get(participantId) ?? "未知",
+        name: participantById.get(participantId) ?? localizeMessage("未知"),
         participantId,
       }))
       .sort((left, right) => right.amountMinor - left.amountMinor),
@@ -274,10 +279,13 @@ export function expenseSplitLabel(
     trip.participants.every((participant) => splitIds.has(participant.id)) &&
     participantIds.every((participantId) => participantById.has(participantId))
   ) {
-    return "所有人";
+    return localizeMessage("所有人");
   }
   return participantIds
-    .map((participantId) => participantById.get(participantId) ?? "未知")
+    .map(
+      (participantId) =>
+        participantById.get(participantId) ?? localizeMessage("未知"),
+    )
     .join("、");
 }
 
@@ -286,7 +294,7 @@ export function participantDeleteBlockReason(
   participantId: string,
 ): string | null {
   if (trip.participants.length <= 1) {
-    return "至少需要一位參與者";
+    return localizeMessage("至少需要一位參與者");
   }
   if (
     trip.expenses.some(
@@ -295,7 +303,7 @@ export function participantDeleteBlockReason(
         expense.participantIds.includes(participantId),
     )
   ) {
-    return "已有支出";
+    return localizeMessage("已有支出");
   }
   return null;
 }

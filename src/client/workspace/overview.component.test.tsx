@@ -9,6 +9,7 @@ import {
   type Trip,
 } from "../../shared/settlement.js";
 import type { TripPayload } from "../client-support.js";
+import { I18nProvider } from "../i18n.js";
 import { OverviewPage } from "./overview-page.js";
 import { OverviewSummary } from "./overview-summary.js";
 import { BalanceList } from "./workspace-ui.js";
@@ -88,6 +89,19 @@ test("empty overview shows zero summaries and a working first-expense action", a
   expect(screen.getByText("記帳後自動計算結清建議")).toBeVisible();
   await userEvent.setup().click(screen.getByRole("button", { name: "記一筆" }));
   expect(onAddExpense).toHaveBeenCalledOnce();
+});
+
+test("overview localizes the spending analysis heading", async () => {
+  render(
+    <I18nProvider initialLocale="en">
+      <OverviewPage payload={payloadFor(trip)} readonly />
+    </I18nProvider>,
+  );
+  const heading = screen.getByText("Spending analysis");
+  expect(heading).toBeVisible();
+  await userEvent.setup().click(heading);
+  expect(screen.getByText("Other")).toBeVisible();
+  expect(screen.queryByText("花費分析")).not.toBeInTheDocument();
 });
 
 test("read-only overview keeps results but omits payment controls", () => {

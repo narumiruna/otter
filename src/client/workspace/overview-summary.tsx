@@ -3,10 +3,11 @@ import {
   FileTextIcon,
   TokensIcon,
 } from "@radix-ui/react-icons";
-import { formatMinor } from "../../shared/money.js";
 import { spendingSummary, type TripPayload } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 
 export function OverviewSummary({ payload }: { payload: TripPayload }) {
+  const { formatMoney, messages } = useI18n();
   const { trip, settlements } = payload;
   const { totalMinor } = spendingSummary(trip);
   const outstandingMinor = settlements.reduce(
@@ -14,46 +15,51 @@ export function OverviewSummary({ payload }: { payload: TripPayload }) {
     0,
   );
   return (
-    <section className="overview-summary" aria-label="群組帳目摘要">
+    <section
+      className="overview-summary"
+      aria-label={messages.groupExpenseSummary}
+    >
       <div className="summary-card summary-card-primary">
         <div className="summary-card-label">
-          <span>共同支出總額</span>
+          <span>{messages.totalSharedExpenses}</span>
           <TokensIcon aria-hidden="true" />
         </div>
         <strong className="summary-card-value">
-          {formatMinor(totalMinor, trip.baseCurrency)}
+          {formatMoney(totalMinor, trip.baseCurrency)}
         </strong>
         <span className="summary-card-hint">
-          {trip.baseCurrency} · 已換算為基準貨幣
+          {trip.baseCurrency} · {messages.convertedToBaseCurrency}
         </span>
       </div>
       <div className="summary-card">
         <div className="summary-card-label">
-          <span>尚待結清</span>
+          <span>{messages.outstanding}</span>
           <ArrowTopRightIcon aria-hidden="true" />
         </div>
         <strong className="summary-card-value">
-          {formatMinor(outstandingMinor, trip.baseCurrency)}
+          {formatMoney(outstandingMinor, trip.baseCurrency)}
         </strong>
         <span className="summary-card-hint">
           {settlements.length
-            ? `${settlements.length} 筆建議付款，讓帳目歸零`
+            ? messages.countSuggestedPaymentsToSettleUp({
+                count: settlements.length,
+              })
             : trip.expenses.length
-              ? "目前沒有待結清款項"
-              : "記帳後自動計算結清建議"}
+              ? messages.nothingIsCurrentlyOutstanding
+              : messages.settlementSuggestionsAppearAfterExpensesAreAdded}
         </span>
       </div>
       <div className="summary-card">
         <div className="summary-card-label">
-          <span>支出紀錄</span>
+          <span>{messages.expenseRecords}</span>
           <FileTextIcon aria-hidden="true" />
         </div>
         <strong className="summary-card-value">
           {trip.expenses.length}
-          <small> 筆</small>
+          <small> {messages.entries}</small>
         </strong>
         <span className="summary-card-hint">
-          {trip.participants.length} 位成員一起分帳
+          {messages.sharedAmongCountPeople({ count: trip.participants.length })}
         </span>
       </div>
     </section>

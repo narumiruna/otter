@@ -21,6 +21,7 @@ import {
   safeFilename,
   type TripPayload,
 } from "../client-support.js";
+import { localizeMessage, useI18n } from "../i18n.js";
 import {
   ActionError,
   useOptionalWorkspace,
@@ -35,19 +36,24 @@ export function DataSettings({
   onRestored: (payload: TripPayload) => void;
   payload: TripPayload;
 }) {
+  const { messages } = useI18n();
   const { announce } = useWorkspace();
   const { trip } = payload;
   return (
     <details className="surface disclosure" name="trip-settings">
       <summary>
         <Download aria-hidden="true" />
-        <span>資料與匯出</span>
-        <span className="summary-meta">CSV、列印、備份與還原</span>
+        <span>{messages.dataAndExport}</span>
+        <span className="summary-meta">
+          {messages.csvPrintBackupAndRestore}
+        </span>
       </summary>
       <div className="grid gap-6 pt-5">
         <section className="grid gap-3">
-          <SectionHeading description="匯出不會修改群組資料。">
-            匯出與列印
+          <SectionHeading
+            description={messages.exportingDoesNotChangeGroupData}
+          >
+            {messages.exportAndPrint}
           </SectionHeading>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -57,10 +63,10 @@ export function DataSettings({
                   `${safeFilename(trip.name)}-expenses.csv`,
                   tripExpensesCsv(trip),
                 );
-                announce("已匯出支出 CSV");
+                announce(messages.expenseCsvExported);
               }}
             >
-              匯出支出 CSV
+              {messages.exportExpenseCsv}
             </Button>
             <Button
               variant="outline"
@@ -74,14 +80,14 @@ export function DataSettings({
                     trip.participants,
                   ),
                 );
-                announce("已匯出結算 CSV");
+                announce(messages.settlementCsvExported);
               }}
             >
-              匯出結算 CSV
+              {messages.exportSettlementCsv}
             </Button>
             <Button variant="outline" onClick={() => window.print()}>
               <Printer aria-hidden="true" />
-              列印
+              {messages.print}
             </Button>
             <BackupDownload tripId={trip.id} name={trip.name} />
           </div>
@@ -94,6 +100,7 @@ export function DataSettings({
 }
 
 function BackupDownload({ name, tripId }: { name: string; tripId: string }) {
+  const { messages } = useI18n();
   const { announce, offline } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -107,9 +114,11 @@ function BackupDownload({ name, tripId }: { name: string; tripId: string }) {
         JSON.stringify(backup, null, 2),
         "application/json;charset=utf-8",
       );
-      announce("已下載完整備份");
+      announce(messages.completeBackupDownloaded);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "下載失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.downloadFailed,
+      );
     } finally {
       setBusy(false);
     }
@@ -123,7 +132,7 @@ function BackupDownload({ name, tripId }: { name: string; tripId: string }) {
         variant="outline"
       >
         <Download aria-hidden="true" />
-        下載完整備份
+        {messages.downloadCompleteBackup}
       </BusyButton>
       <ActionError message={error} />
     </>
@@ -131,6 +140,7 @@ function BackupDownload({ name, tripId }: { name: string; tripId: string }) {
 }
 
 function CsvImport({ payload }: { payload: TripPayload }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [text, setText] = useState("");
   const [filename, setFilename] = useState("");
@@ -149,25 +159,31 @@ function CsvImport({ payload }: { payload: TripPayload }) {
       await requestPayload(
         `/api/trips/${payload.trip.id}/expenses/import`,
         { body: JSON.stringify({ csv: text }), method: "POST" },
-        "已匯入支出 CSV",
+        messages.expenseCsvImported,
         true,
       );
       setText("");
       setFilename("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "匯入失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.importFailed,
+      );
     } finally {
       setBusy(false);
     }
   }
   return (
     <section className="grid gap-3 border-t pt-5">
-      <SectionHeading description="先檢查所有列；有任何錯誤時不會寫入資料。">
-        匯入支出 CSV
+      <SectionHeading
+        description={
+          messages.allRowsAreCheckedFirstNoDataIsWrittenIfAnyRowHasAnError
+        }
+      >
+        {messages.importExpenseCsv}
       </SectionHeading>
       <label className="button-outline w-fit">
         <FileUp aria-hidden="true" />
-        選擇 CSV
+        {messages.chooseCsv}
         <input
           className="sr-only"
           type="file"
@@ -188,15 +204,21 @@ function CsvImport({ payload }: { payload: TripPayload }) {
           className="rounded-xl border bg-muted/40 p-4 text-sm"
           aria-live="polite"
         >
-          <strong>匯入預覽</strong>
+          <strong>{messages.importPreview}</strong>
           <p className="mt-1">
-            可匯入 {preview.rows.length} 列；{preview.errors.length} 個錯誤。
+            {messages.rowsRowsCanBeImportedErrorsErrors({
+              rows: preview.rows.length,
+              errors: preview.errors.length,
+            })}
           </p>
           {preview.errors.length ? (
             <ul className="mt-2 list-disc pl-5 text-destructive">
               {preview.errors.map((item) => (
                 <li key={`${item.row}:${item.message}`}>
-                  第 {item.row} 列：{item.message}
+                  {messages.rowRowMessage({
+                    row: item.row,
+                    message: localizeMessage(item.message),
+                  })}
                 </li>
               ))}
             </ul>
@@ -205,12 +227,18 @@ function CsvImport({ payload }: { payload: TripPayload }) {
       ) : null}
       {preview && !preview.errors.length && preview.rows.length ? (
         <ConfirmDialog
-          confirmLabel={`匯入 ${preview.rows.length} 筆支出`}
+          confirmLabel={messages.importCountExpenses({
+            count: preview.rows.length,
+          })}
           disabled={offline}
-          description={`確認後會一次新增 ${preview.rows.length} 筆支出並重新計算餘額。`}
+          description={messages.thisWillAddCountExpensesAtOnceAndRecalculateBalances(
+            {
+              count: preview.rows.length,
+            },
+          )}
           onConfirm={apply}
-          title="套用 CSV 匯入？"
-          trigger={<BusyButton busy={busy}>預覽完成，套用匯入</BusyButton>}
+          title={messages.applyCsvImport}
+          trigger={<BusyButton busy={busy}>{messages.applyImport}</BusyButton>}
         />
       ) : null}
     </section>
@@ -222,6 +250,7 @@ export function RestoreBackup({
 }: {
   onRestored: (payload: TripPayload) => void;
 }) {
+  const { messages } = useI18n();
   const workspace = useOptionalWorkspace();
   const offline = workspace?.offline ?? !navigator.onLine;
   const [backup, setBackup] = useState<TripBackupV1 | null>(null);
@@ -236,7 +265,11 @@ export function RestoreBackup({
     try {
       setBackup(validateTripBackupV1(JSON.parse(await file.text())));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "備份格式錯誤");
+      setError(
+        caught instanceof Error
+          ? localizeMessage(caught.message)
+          : messages.invalidBackupFormat,
+      );
     }
   }
   async function restore() {
@@ -250,24 +283,30 @@ export function RestoreBackup({
       });
       workspace?.replacePayload(restored);
       await workspace?.refreshCollection();
-      workspace?.announce("已還原備份為新群組");
+      workspace?.announce(messages.backupRestoredAsANewGroup);
       onRestored(restored);
       setBackup(null);
       setFilename("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "還原失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.restoreFailed,
+      );
     } finally {
       setBusy(false);
     }
   }
   return (
     <section className="grid gap-3 border-t pt-5">
-      <SectionHeading description="還原會建立新群組，不會覆蓋目前資料。">
-        還原 JSON 備份
+      <SectionHeading
+        description={
+          messages.restoringCreatesANewGroupAndDoesNotOverwriteCurrentData
+        }
+      >
+        {messages.restoreJsonBackup}
       </SectionHeading>
       <label className="button-outline w-fit">
         <FileInput aria-hidden="true" />
-        選擇 JSON 備份
+        {messages.chooseJsonBackup}
         <input
           className="sr-only"
           type="file"
@@ -280,23 +319,33 @@ export function RestoreBackup({
       <ActionError message={error} />
       {backup ? (
         <div className="rounded-xl border bg-muted/40 p-4 text-sm">
-          <strong>還原預覽：{backup.trip.name}</strong>
+          <strong>
+            {messages.restorePreviewName({ name: backup.trip.name })}
+          </strong>
           <p className="mt-1">
-            {backup.trip.participants.length} 位成員 ·{" "}
-            {backup.trip.expenses.length} 筆支出 ·{" "}
-            {backup.trip.settlementPayments?.length ?? 0} 筆付款紀錄 · 基準{" "}
-            {backup.trip.baseCurrency}
+            {messages.peoplePeopleExpensesExpensesPaymentsPaymentsBaseCurrency({
+              people: backup.trip.participants.length,
+              expenses: backup.trip.expenses.length,
+              payments: backup.trip.settlementPayments?.length ?? 0,
+              currency: backup.trip.baseCurrency,
+            })}
           </p>
         </div>
       ) : null}
       {backup ? (
         <ConfirmDialog
-          confirmLabel="建立新群組"
+          confirmLabel={messages.createNewGroup}
           disabled={offline}
-          description={`將從備份建立「${backup.trip.name}」，不會更動任何現有群組。`}
+          description={messages.aNewGroupNamedNameWillBeCreatedWithoutChangingExistingGroups(
+            {
+              name: backup.trip.name,
+            },
+          )}
           onConfirm={restore}
-          title="套用備份還原？"
-          trigger={<BusyButton busy={busy}>預覽完成，建立新群組</BusyButton>}
+          title={messages.restoreThisBackup}
+          trigger={
+            <BusyButton busy={busy}>{messages.createNewGroup2}</BusyButton>
+          }
         />
       ) : null}
     </section>

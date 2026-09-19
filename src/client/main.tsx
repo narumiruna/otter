@@ -3,6 +3,7 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { AppShell } from "./app-shell.js";
+import { I18nProvider } from "./i18n.js";
 import { RadixTheme } from "./radix-theme.js";
 
 const rootElement = document.querySelector<HTMLDivElement>("#app");
@@ -19,9 +20,11 @@ const queryClient = new QueryClient({
 });
 
 createRoot(rootElement).render(
-  <RadixTheme>
-    <QueryClientProvider client={queryClient}>
-      <AppShell />
-    </QueryClientProvider>
-  </RadixTheme>,
+  <I18nProvider>
+    <RadixTheme>
+      <QueryClientProvider client={queryClient}>
+        <AppShell />
+      </QueryClientProvider>
+    </RadixTheme>
+  </I18nProvider>,
 );

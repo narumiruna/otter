@@ -19,11 +19,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  isValidUsername,
-  usernameValidationMessage,
-} from "../shared/username.js";
+import { isValidUsername } from "../shared/username.js";
 import type { User } from "./client-support.js";
+import { useI18n } from "./i18n.js";
 
 type UsernameForm = { username: string };
 
@@ -36,6 +34,7 @@ export function AccountUsernameDialog({
   onUpdate: (username: string) => Promise<void>;
   user: User;
 }) {
+  const { messages } = useI18n();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const form = useForm<UsernameForm>({
@@ -48,7 +47,11 @@ export function AccountUsernameDialog({
       await onUpdate(username);
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法更新 Username");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : messages.unableToUpdateUsername,
+      );
     }
   }
 
@@ -68,7 +71,7 @@ export function AccountUsernameDialog({
         disabled={offline}
         render={
           <Button
-            aria-label={`修改 ${user.name} 的 Username`}
+            aria-label={messages.changeNameSUsername({ name: user.name })}
             className="user-account-button"
             variant="ghost"
           >
@@ -88,9 +91,11 @@ export function AccountUsernameDialog({
           onSubmit={(event) => void form.handleSubmit(update)(event)}
         >
           <DialogHeader>
-            <DialogTitle>修改 Username</DialogTitle>
+            <DialogTitle>{messages.changeUsername}</DialogTitle>
             <DialogDescription>
-              更新後請使用新的 Username 登入；目前的登入狀態不會中斷。
+              {
+                messages.useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue
+              }
             </DialogDescription>
           </DialogHeader>
           <FieldGroup className="my-5">
@@ -106,26 +111,28 @@ export function AccountUsernameDialog({
                 aria-describedby="account-username-help"
                 aria-invalid={Boolean(form.formState.errors.username)}
                 {...form.register("username", {
-                  required: "請輸入 Username",
+                  required: messages.enterAUsername,
                   validate: (value) =>
-                    isValidUsername(value) || usernameValidationMessage,
+                    isValidUsername(value) ||
+                    messages.usernameMustBe332LettersNumbersUnderscoresOrHyphens,
                 })}
               />
               <FieldDescription id="account-username-help">
-                {usernameValidationMessage}，不分大小寫。
+                {messages.usernameMustBe332LettersNumbersUnderscoresOrHyphens}{" "}
+                {messages.usernameIsNotCaseSensitive}
               </FieldDescription>
               <FieldError errors={[form.formState.errors.username]} />
             </Field>
           </FieldGroup>
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" />}>
-              取消
+              {messages.cancel}
             </DialogClose>
             <Button
               disabled={offline || form.formState.isSubmitting}
               type="submit"
             >
-              {form.formState.isSubmitting ? "儲存中…" : "儲存"}
+              {form.formState.isSubmitting ? messages.saving : messages.save}
             </Button>
           </DialogFooter>
         </form>

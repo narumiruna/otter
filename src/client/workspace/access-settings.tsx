@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import type { TripPayload } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -18,6 +19,7 @@ import {
 } from "./workspace-ui.js";
 
 export function AccessSettings({ payload }: { payload: TripPayload }) {
+  const { messages } = useI18n();
   const activeLinks = (payload.shareLinks ?? []).filter(
     (link) => !link.revokedAt,
   ).length;
@@ -25,10 +27,12 @@ export function AccessSettings({ payload }: { payload: TripPayload }) {
     <details className="surface disclosure" name="trip-settings">
       <summary>
         <ShieldCheck aria-hidden="true" />
-        <span>分享與權限</span>
+        <span>{messages.sharingAndAccess}</span>
         <span className="summary-meta">
-          {activeLinks} 個有效連結 · {payload.collaborators?.length ?? 0}{" "}
-          位協作者
+          {messages.linksActiveLinksCollaboratorsCollaborators({
+            links: activeLinks,
+            collaborators: payload.collaborators?.length ?? 0,
+          })}
         </span>
       </summary>
       <div className="settings-grid pt-2">
@@ -40,6 +44,7 @@ export function AccessSettings({ payload }: { payload: TripPayload }) {
 }
 
 function ShareLinks({ payload }: { payload: TripPayload }) {
+  const { messages } = useI18n();
   const { announce, offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,19 +55,23 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
       const next = await requestPayload(
         `/api/trips/${payload.trip.id}/share-links`,
         { method: "POST" },
-        "已建立唯讀分享連結",
+        messages.readOnlyShareLinkCreated,
       );
       const url = next.shareLinks?.find((item) => item.url)?.url;
       if (url) {
         try {
           await navigator.clipboard.writeText(url);
-          announce("已建立並複製唯讀分享連結");
+          announce(messages.readOnlyShareLinkCreatedAndCopied);
         } catch {
-          announce("已建立分享連結；瀏覽器未允許自動複製，請手動複製");
+          announce(
+            messages.shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually,
+          );
         }
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "建立連結失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.unableToCreateLink,
+      );
     } finally {
       setBusy(false);
     }
@@ -70,28 +79,36 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
   async function copy(url: string) {
     try {
       await navigator.clipboard.writeText(url);
-      announce("已複製分享連結");
+      announce(messages.shareLinkCopied);
       setError("");
     } catch {
-      setError("瀏覽器未允許複製，請開啟連結後從網址列複製");
+      setError(
+        messages.yourBrowserBlockedCopyingOpenTheLinkAndCopyItFromTheAddressBar,
+      );
     }
   }
   return (
     <section className="settings-panel grid gap-4">
-      <SectionHeading description="知道連結的人不需登入即可查看支出、餘額與結清；不能修改資料。">
-        唯讀分享連結
+      <SectionHeading
+        description={
+          messages.anyoneWithTheLinkCanViewExpensesBalancesAndSettlementsWithoutSigningInButCannotEdit
+        }
+      >
+        {messages.readOnlyShareLinks}
       </SectionHeading>
       <ActionError message={error} />
       <ConfirmDialog
-        confirmLabel="建立唯讀連結"
+        confirmLabel={messages.createReadOnlyLink}
         disabled={offline}
-        description="任何取得連結的人都能查看這個群組的支出、餘額與結清建議，但不能新增或修改資料。"
+        description={
+          messages.anyoneWithTheLinkCanViewThisGroupsExpensesBalancesAndSettlementSuggestionsButCannotAddOrChangeData
+        }
         onConfirm={create}
-        title="建立分享連結？"
+        title={messages.createAShareLink}
         trigger={
           <BusyButton busy={busy} variant="outline">
             <Link aria-hidden="true" />
-            建立分享連結
+            {messages.createShareLink}
           </BusyButton>
         }
       />
@@ -104,7 +121,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
             >
               <span>
                 {link.createdAt.slice(0, 10)} ·{" "}
-                {link.revokedAt ? "已撤銷" : "可使用"}
+                {link.revokedAt ? messages.revoked : messages.active}
               </span>
               {link.url ? (
                 <>
@@ -114,7 +131,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    開啟連結
+                    {messages.openLink}
                   </a>
                   <Button
                     size="sm"
@@ -122,28 +139,30 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
                     onClick={() => void copy(link.url ?? "")}
                   >
                     <Copy aria-hidden="true" />
-                    複製
+                    {messages.copy}
                   </Button>
                 </>
               ) : null}
               {!link.revokedAt ? (
                 <ConfirmDialog
-                  confirmLabel="撤銷連結"
+                  confirmLabel={messages.revokeLink}
                   disabled={offline}
-                  description="撤銷後，知道舊連結的人將立即無法查看這個群組。"
+                  description={
+                    messages.afterRevocationTheOldLinkWillImmediatelyStopWorking
+                  }
                   destructive
                   onConfirm={() =>
                     requestPayload(
                       `/api/trips/${payload.trip.id}/share-links/${link.id}`,
                       { method: "DELETE" },
-                      "已撤銷分享連結",
+                      messages.shareLinkRevoked,
                     )
                   }
-                  title="撤銷分享連結？"
+                  title={messages.revokeThisShareLink}
                   trigger={
                     <Button className="ml-auto" size="sm" variant="ghost">
                       <Trash2 aria-hidden="true" />
-                      撤銷
+                      {messages.revoke}
                     </Button>
                   }
                 />
@@ -151,7 +170,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
             </li>
           ))
         ) : (
-          <li className="empty-copy">尚未建立分享連結。</li>
+          <li className="empty-copy">{messages.noShareLinksYet}</li>
         )}
       </ul>
     </section>
@@ -159,6 +178,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
 }
 
 function Collaborators({ payload }: { payload: TripPayload }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const form = useForm<{ username: string }>({
@@ -170,24 +190,32 @@ function Collaborators({ payload }: { payload: TripPayload }) {
       await requestPayload(
         `/api/trips/${payload.trip.id}/members`,
         { body: JSON.stringify({ username }), method: "POST" },
-        "已加入協作者",
+        messages.collaboratorAdded,
         true,
       );
       form.reset();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "加入失敗");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : messages.unableToAddCollaborator,
+      );
     }
   }
   return (
     <section className="settings-panel grid gap-4">
-      <SectionHeading description="協作者必須是既有使用者，可維護支出與分帳成員，但不能管理擁有者設定。">
-        協作者
+      <SectionHeading
+        description={
+          messages.collaboratorsMustBeExistingUsersTheyCanManageExpensesAndParticipantsButNotOwnerSettings
+        }
+      >
+        {messages.collaborator}
       </SectionHeading>
       <form
         className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
         onSubmit={form.handleSubmit(add)}
       >
-        <FormField label="既有使用者 Username">
+        <FormField label={messages.existingUsersUsername}>
           <input
             className="form-control"
             type="text"
@@ -203,7 +231,7 @@ function Collaborators({ payload }: { payload: TripPayload }) {
           type="submit"
         >
           <UserRoundPlus aria-hidden="true" />
-          加入協作者
+          {messages.addCollaborator}
         </BusyButton>
       </form>
       <ActionError message={error} />
@@ -215,27 +243,29 @@ function Collaborators({ payload }: { payload: TripPayload }) {
           >
             <span className="min-w-0 flex-1 break-anywhere">
               <strong>{member.name}</strong> · {member.username} ·{" "}
-              {member.role === "owner" ? "擁有者" : "協作者"}
+              {member.role === "owner" ? messages.owner : messages.collaborator}
             </span>
             {member.role === "editor" ? (
               <ConfirmDialog
-                confirmLabel={`移除 ${member.name}`}
+                confirmLabel={messages.removeName({ name: member.name })}
                 disabled={offline}
-                description="移除後這個帳號將無法再維護群組；既有支出資料不會被刪除。"
+                description={
+                  messages.thisAccountWillNoLongerBeAbleToManageTheGroupExistingExpenseDataWillRemain
+                }
                 destructive
                 onConfirm={() =>
                   requestPayload(
                     `/api/trips/${payload.trip.id}/members/${member.userId}`,
                     { method: "DELETE" },
-                    "已移除協作者",
+                    messages.collaboratorRemoved,
                     true,
                   )
                 }
-                title="移除協作者？"
+                title={messages.removeCollaborator}
                 trigger={
                   <Button size="sm" variant="ghost">
                     <Trash2 aria-hidden="true" />
-                    移除
+                    {messages.remove}
                   </Button>
                 }
               />

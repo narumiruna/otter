@@ -29,6 +29,7 @@ import {
   type TripPayload,
   type TripSummary,
 } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 import {
   readWorkspaceLocation,
   type WorkspaceLocation,
@@ -56,6 +57,7 @@ export function AuthenticatedWorkspace({
   offline: boolean;
 }) {
   const queryClient = useQueryClient();
+  const { messages } = useI18n();
   const [location, setLocation] = useState(() =>
     readWorkspaceLocation(new URL(window.location.href)),
   );
@@ -117,7 +119,7 @@ export function AuthenticatedWorkspace({
     const pop = () => {
       if (
         draftDirty &&
-        !window.confirm("尚未儲存的內容會消失。要捨棄草稿嗎？")
+        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
       ) {
         window.history.forward();
         return;
@@ -128,7 +130,7 @@ export function AuthenticatedWorkspace({
     };
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
-  }, [draftDirty, pageKey]);
+  }, [draftDirty, messages, pageKey]);
 
   useEffect(() => {
     if (selectedTripId !== location.tripId) {
@@ -168,7 +170,9 @@ export function AuthenticatedWorkspace({
       });
       navigate({ mode: null, tripId, view: "overview" });
     } catch (error) {
-      setSwitchError(error instanceof Error ? error.message : "無法切換群組");
+      setSwitchError(
+        error instanceof Error ? error.message : messages.unableToSwitchGroups,
+      );
     } finally {
       setPendingTripId("");
     }
@@ -182,21 +186,23 @@ export function AuthenticatedWorkspace({
   if (selectedTripId && selectedQuery.isPending) {
     return (
       <section className="surface empty-state" aria-busy="true">
-        <h2>正在載入群組</h2>
-        <p>目前選擇會在資料成功載入後顯示。</p>
+        <h2>{messages.loadingGroup}</h2>
+        <p>{messages.yourSelectionWillAppearAfterItsDataLoads}</p>
       </section>
     );
   }
   if (selectedTripId && selectedQuery.isError) {
     return (
       <section className="surface empty-state">
-        <h2>無法載入群組</h2>
+        <h2>{messages.unableToLoadGroup}</h2>
         <p>
           {selectedQuery.error instanceof Error
             ? selectedQuery.error.message
-            : "載入失敗"}
+            : messages.loadingFailed}
         </p>
-        <Button onClick={() => void selectedQuery.refetch()}>重新載入</Button>
+        <Button onClick={() => void selectedQuery.refetch()}>
+          {messages.reload}
+        </Button>
       </section>
     );
   }
@@ -224,17 +230,22 @@ export function AuthenticatedWorkspace({
       refreshCollection={refreshCollection}
     >
       <div className="workspace-layout">
-        <aside className="workspace-sidebar" aria-label="群組切換">
+        <aside
+          className="workspace-sidebar"
+          aria-label={messages.groupSwitcher}
+        >
           <div className="sidebar-heading">
             <div>
               <span className="sidebar-eyebrow" lang="en">
                 YOUR GROUPS
               </span>
-              <h2>群組</h2>
+              <h2>{messages.groups}</h2>
             </div>
             <span
               className="count-pill"
-              title={`${collectionQuery.data.trips.length} 個使用中群組`}
+              title={messages.countActiveGroups({
+                count: collectionQuery.data.trips.length,
+              })}
             >
               {collectionQuery.data.trips.length}
             </span>
@@ -261,8 +272,8 @@ export function AuthenticatedWorkspace({
           ) : null}
           <div className="sidebar-note">
             <GlobeIcon aria-hidden="true" />
-            <strong>每一趟，都算美好。</strong>
-            <p>記下共同支出，把心思留給一起出發的人。</p>
+            <strong>{messages.everyTripAddsUpToSomethingWonderful}</strong>
+            <p>{messages.recordSharedExpensesAndFocusOnThePeopleBesideYou}</p>
           </div>
         </aside>
 
@@ -277,7 +288,9 @@ export function AuthenticatedWorkspace({
           {archived ? (
             <div className="status-strip" role="status">
               <Archive aria-hidden="true" />
-              已封存・唯讀。資料會保留；擁有者可到「更多」還原。
+              {
+                messages.archivedAndReadOnlyDataIsPreservedTheOwnerCanRestoreItUnderMore
+              }
             </div>
           ) : null}
           {location.mode || draftDirty ? null : (
@@ -293,11 +306,15 @@ export function AuthenticatedWorkspace({
               payload.trip.participants.length < 2 &&
               payload.trip.expenses.length === 0 ? (
                 <section className="surface empty-state">
-                  <h2>先新增同行成員</h2>
+                  <h2>{messages.addTravelCompanionsFirst}</h2>
                   <p>
-                    目前只有一位成員。加入要一起分帳的人，再記錄第一筆共同支出。
+                    {
+                      messages.thereIsOnlyOneParticipantAddSomeoneToSplitWithBeforeRecordingTheFirstExpense
+                    }
                   </p>
-                  <Button onClick={() => go("people")}>新增分帳成員</Button>
+                  <Button onClick={() => go("people")}>
+                    {messages.addExpenseParticipant}
+                  </Button>
                 </section>
               ) : (
                 <ExpenseComposer
@@ -368,6 +385,7 @@ function TripHeader({
   pendingTripId: string;
   selectTrip: (id: string) => Promise<void>;
 }) {
+  const { messages } = useI18n();
   return (
     <header className="surface trip-header">
       <div className="mobile-group-switch">
@@ -382,9 +400,9 @@ function TripHeader({
           </DialogTrigger>
           <DialogContent className="top-auto bottom-0 max-h-[85dvh] w-full max-w-none translate-y-0 rounded-b-none sm:top-1/2 sm:bottom-auto sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl">
             <DialogHeader>
-              <DialogTitle>切換群組</DialogTitle>
+              <DialogTitle>{messages.switchGroups}</DialogTitle>
               <DialogDescription>
-                先載入成功才會離開目前群組。
+                {messages.youWillLeaveTheCurrentGroupOnlyAfterTheNewOneLoads}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
@@ -404,9 +422,12 @@ function TripHeader({
                   <span>
                     <strong className="block">{trip.name}</strong>
                     <span className="text-xs text-muted-foreground">
-                      {trip.participantCount} 人 · {trip.expenseCount} 筆 ·{" "}
-                      {trip.baseCurrency}
-                      {trip.archivedAt ? " · 已封存" : ""}
+                      {messages.participantsPeopleExpensesExpensesCurrency({
+                        participants: trip.participantCount,
+                        expenses: trip.expenseCount,
+                        currency: trip.baseCurrency,
+                      })}
+                      {trip.archivedAt ? ` · ${messages.archived}` : ""}
                     </span>
                   </span>
                 </DialogClose>
@@ -420,29 +441,39 @@ function TripHeader({
           <GlobeIcon />
         </div>
         <div className="min-w-0">
-          <p className="trip-eyebrow">一起出發的日常</p>
+          <p className="trip-eyebrow">{messages.everydayMomentsTogether}</p>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
               {payload.trip.name}
             </h2>
-            {archived ? <span className="status-badge">已封存</span> : null}
+            {archived ? (
+              <span className="status-badge">{messages.archived}</span>
+            ) : null}
             <span className="status-badge">
-              {payload.currentUserRole === "editor" ? "協作者" : "擁有者"}
+              {payload.currentUserRole === "editor"
+                ? messages.collaborator
+                : messages.owner}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            基準貨幣 {payload.trip.baseCurrency} ·{" "}
+            {messages.baseCurrencyCurrency({
+              currency: payload.trip.baseCurrency,
+            })}{" "}
+            ·{" "}
             {Object.keys(payload.trip.exchangeRates ?? {}).length
-              ? "使用自訂匯率"
-              : "使用內建固定匯率"}
-            {pendingTripId ? " · 正在載入群組…" : ""}
+              ? messages.usingCustomExchangeRates
+              : messages.usingBuiltInFixedRates}
+            {pendingTripId ? ` · ${messages.loadingGroup2}` : ""}
           </p>
         </div>
       </div>
       <dl className="trip-stats">
-        <Stat label="成員" value={payload.trip.participants.length} />
-        <Stat label="支出" value={payload.trip.expenses.length} />
-        <Stat label="基準" value={payload.trip.baseCurrency} />
+        <Stat
+          label={messages.people}
+          value={payload.trip.participants.length}
+        />
+        <Stat label={messages.expenses} value={payload.trip.expenses.length} />
+        <Stat label={messages.base} value={payload.trip.baseCurrency} />
       </dl>
     </header>
   );
@@ -467,14 +498,15 @@ function WorkspaceNavigation({
   onAdd: () => void;
   onNavigate: (view: WorkspaceView) => void;
 }) {
+  const { messages } = useI18n();
   const items = [
-    { icon: LayoutDashboard, label: "總覽", view: "overview" },
-    { icon: ListFilter, label: "支出", view: "expenses" },
-    { icon: Users, label: "成員", view: "people" },
-    { icon: MoreHorizontal, label: "更多", view: "more" },
+    { icon: LayoutDashboard, label: messages.overview, view: "overview" },
+    { icon: ListFilter, label: messages.expenses, view: "expenses" },
+    { icon: Users, label: messages.people, view: "people" },
+    { icon: MoreHorizontal, label: messages.more, view: "more" },
   ] as const;
   return (
-    <nav className="workspace-nav" aria-label="群組工作區">
+    <nav className="workspace-nav" aria-label={messages.groupWorkspace}>
       {items.map(({ icon: Icon, label, view }) => (
         <Button
           aria-current={
@@ -494,7 +526,7 @@ function WorkspaceNavigation({
       {!archived ? (
         <Button className="record-expense-button" onClick={onAdd}>
           <Plus aria-hidden="true" />
-          記一筆
+          {messages.addExpense}
         </Button>
       ) : null}
     </nav>
@@ -514,11 +546,12 @@ function TripList({
   selectTrip: (id: string) => Promise<void>;
   trips: TripSummary[];
 }) {
+  const { messages } = useI18n();
   const row = (trip: TripSummary) => (
     <BusyButton
       aria-current={trip.id === selectedTripId ? "true" : undefined}
       busy={pendingTripId === trip.id}
-      busyLabel="載入中…"
+      busyLabel={messages.loading}
       className="trip-switcher-item h-auto w-full justify-start px-3 py-3 text-left"
       data-active={trip.id === selectedTripId || undefined}
       key={trip.id}
@@ -531,8 +564,11 @@ function TripList({
       <span className="min-w-0">
         <strong className="block truncate">{trip.name}</strong>
         <span className="text-xs font-normal text-muted-foreground">
-          {trip.participantCount} 人 · {trip.expenseCount} 筆 ·{" "}
-          {trip.baseCurrency}
+          {messages.participantsPeopleExpensesExpensesCurrency({
+            participants: trip.participantCount,
+            expenses: trip.expenseCount,
+            currency: trip.baseCurrency,
+          })}
         </span>
       </span>
     </BusyButton>
@@ -543,7 +579,8 @@ function TripList({
       {archivedTrips.length ? (
         <details className="disclosure compact">
           <summary>
-            已封存 <span className="summary-meta">{archivedTrips.length}</span>
+            {messages.archivedGroups}{" "}
+            <span className="summary-meta">{archivedTrips.length}</span>
           </summary>
           <div className="grid gap-1 pt-2">{archivedTrips.map(row)}</div>
         </details>
@@ -559,6 +596,7 @@ function CreateTrip({
   onCreated: (payload: TripPayload) => void | Promise<void>;
   offline: boolean;
 }) {
+  const { messages } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [baseCurrency, setBaseCurrency] = useState("TWD");
@@ -576,7 +614,9 @@ function CreateTrip({
       setOpen(false);
       setName("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "建立群組失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.unableToCreateGroup,
+      );
     } finally {
       setBusy(false);
     }
@@ -590,25 +630,27 @@ function CreateTrip({
         }
       >
         <Plus aria-hidden="true" />
-        建立群組
+        {messages.createGroup}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>建立群組</DialogTitle>
+          <DialogTitle>{messages.createGroup}</DialogTitle>
           <DialogDescription>
-            建立後先加入同行成員，再記錄共同支出。
+            {
+              messages.addCompanionsAfterCreatingTheGroupThenRecordSharedExpenses
+            }
           </DialogDescription>
         </DialogHeader>
-        <FormField label="群組名稱">
+        <FormField label={messages.groupName}>
           <input
             className="form-control"
             maxLength={100}
-            placeholder="東京五日遊"
+            placeholder={messages.fiveDaysInTokyo}
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
         </FormField>
-        <FormField label="基準貨幣">
+        <FormField label={messages.baseCurrency}>
           <select
             className="form-control"
             value={baseCurrency}
@@ -630,7 +672,7 @@ function CreateTrip({
           disabled={offline || !name.trim()}
           onClick={() => void create()}
         >
-          建立群組
+          {messages.createGroup}
         </BusyButton>
       </DialogContent>
     </Dialog>
@@ -644,14 +686,15 @@ function NoGroups({
   onCreated: (payload: TripPayload) => void | Promise<void>;
   offline: boolean;
 }) {
+  const { messages } = useI18n();
   return (
     <section className="surface empty-state mx-auto max-w-2xl">
       <CircleDollarSign
         className="mx-auto size-10 text-primary"
         aria-hidden="true"
       />
-      <h2>建立第一個群組</h2>
-      <p>新增旅行或聚會群組，或從既有 JSON 備份建立新群組。</p>
+      <h2>{messages.createYourFirstGroup}</h2>
+      <p>{messages.addATripOrEventGroupOrCreateOneFromAnExistingJsonBackup}</p>
       <div className="flex flex-wrap justify-center gap-2">
         <CreateTrip onCreated={onCreated} offline={offline} />
       </div>
