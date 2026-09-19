@@ -20,8 +20,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { currencies, currencyInfo, formatMinor } from "../../shared/money.js";
+import { currencies, currencyInfo } from "../../shared/money.js";
 import type { Balance } from "../../shared/settlement.js";
+import { localizeMessage, useI18n } from "../i18n.js";
 import { ActionError } from "./workspace-context.js";
 
 export function CurrencySelect({
@@ -45,7 +46,7 @@ export function CurrencySelect({
     >
       {currencies.map((currency) => (
         <option key={currency} value={currency}>
-          {currency} · {currencyInfo[currency].label}
+          {currency} · {localizeMessage(currencyInfo[currency].label)}
         </option>
       ))}
     </select>
@@ -75,25 +76,26 @@ export function FormField({
 
 export function BusyButton({
   busy,
-  busyLabel = "處理中…",
+  busyLabel,
   children,
   ...props
 }: React.ComponentProps<typeof Button> & {
   busy?: boolean;
   busyLabel?: string;
 }) {
+  const { messages } = useI18n();
   return (
     <Button {...props} disabled={busy || props.disabled}>
       {busy ? (
         <LoaderCircle className="animate-spin" aria-hidden="true" />
       ) : null}
-      {busy ? busyLabel : children}
+      {busy ? (busyLabel ?? messages.working) : children}
     </Button>
   );
 }
 
 export function ConfirmDialog({
-  cancelLabel = "取消",
+  cancelLabel,
   confirmLabel,
   description,
   destructive = false,
@@ -111,6 +113,7 @@ export function ConfirmDialog({
   title: string;
   trigger: ReactElement<{ disabled?: boolean }>;
 }) {
+  const { messages } = useI18n();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -121,7 +124,11 @@ export function ConfirmDialog({
       await onConfirm();
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法套用變更");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : messages.unableToApplyChanges,
+      );
     } finally {
       setBusy(false);
     }
@@ -153,11 +160,11 @@ export function ConfirmDialog({
         <ActionError message={error} />
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>
-            {cancelLabel}
+            {cancelLabel ?? messages.cancel}
           </DialogClose>
           <BusyButton
             busy={busy}
-            busyLabel="套用中…"
+            busyLabel={messages.applying}
             onClick={() => void confirm()}
             variant={destructive ? "destructive" : "default"}
           >
@@ -170,7 +177,9 @@ export function ConfirmDialog({
 }
 
 export function BalanceList({ balances }: { balances: Balance[] }) {
-  if (balances.length === 0) return <p className="empty-copy">還沒有餘額。</p>;
+  const { formatMoney, messages } = useI18n();
+  if (balances.length === 0)
+    return <p className="empty-copy">{messages.noBalancesYet}</p>;
   return (
     <ul className="balance-list">
       {balances.map((balance) => {
@@ -194,9 +203,15 @@ export function BalanceList({ balances }: { balances: Balance[] }) {
                     : "text-destructive",
               )}
             >
-              <span>{settled ? "已打平" : positive ? "應收" : "應付"}</span>
+              <span>
+                {settled
+                  ? messages.settled
+                  : positive
+                    ? messages.getsBack
+                    : messages.owes}
+              </span>
               <strong>
-                {formatMinor(Math.abs(balance.amountMinor), balance.currency)}
+                {formatMoney(Math.abs(balance.amountMinor), balance.currency)}
               </strong>
             </span>
           </li>

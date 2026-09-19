@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Participant, Trip } from "../../shared/settlement.js";
 import { participantDeleteBlockReason } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -34,6 +35,7 @@ export function PeoplePage({
   readonly?: boolean;
   trip: Trip;
 }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const form = useForm<{ name: string }>({ defaultValues: { name: "" } });
@@ -43,30 +45,36 @@ export function PeoplePage({
       await requestPayload(
         `/api/trips/${trip.id}/participants`,
         { body: JSON.stringify({ name }), method: "POST" },
-        "已新增分帳成員",
+        messages.expenseParticipantAdded,
         true,
       );
       form.reset();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法新增成員");
+      setError(
+        caught instanceof Error ? caught.message : messages.unableToAddPerson,
+      );
     }
   });
   return (
     <section className="surface grid gap-5" aria-labelledby="people-heading">
-      <SectionHeading description="分帳成員不需要登入；有登入權限的帳號請到「更多 → 分享與權限」管理。">
-        <span id="people-heading">分帳成員</span>
+      <SectionHeading
+        description={
+          messages.expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess
+        }
+      >
+        <span id="people-heading">{messages.expenseParticipants}</span>
       </SectionHeading>
       {!readonly ? (
         <form
           className="grid gap-3 rounded-xl border bg-muted/40 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
           onSubmit={submit}
         >
-          <FormField label="成員名稱">
+          <FormField label={messages.personsName}>
             <input
               className="form-control"
               maxLength={80}
-              placeholder="朋友名字"
-              {...form.register("name", { required: "請輸入名稱" })}
+              placeholder={messages.friendsName}
+              {...form.register("name", { required: messages.enterAName })}
             />
           </FormField>
           <BusyButton
@@ -75,7 +83,7 @@ export function PeoplePage({
             type="submit"
           >
             <UserPlus aria-hidden="true" />
-            新增成員
+            {messages.addPerson}
           </BusyButton>
           <div className="sm:col-span-2">
             <ActionError
@@ -85,7 +93,9 @@ export function PeoplePage({
         </form>
       ) : (
         <p className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
-          已封存群組為唯讀；還原後才能修改分帳成員。
+          {
+            messages.archivedGroupsAreReadOnlyRestoreThisGroupToChangeParticipants
+          }
         </p>
       )}
       <ul className="divide-y rounded-xl border bg-card">
@@ -114,13 +124,14 @@ function ParticipantRow({
   readonly: boolean;
   trip: Trip;
 }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const blocked =
     participantDeleteBlockReason(trip, person.id) ||
     ((trip.settlementPayments ?? []).some(
       (payment) => payment.fromId === person.id || payment.toId === person.id,
     )
-      ? "已有付款紀錄"
+      ? messages.usedByAPayment
       : null);
   return (
     <li className="flex flex-wrap items-center gap-3 p-3">
@@ -137,27 +148,33 @@ function ParticipantRow({
       {!readonly &&
         (blocked ? (
           <span className="text-xs text-muted-foreground">
-            無法刪除：{blocked}。請先修改相關支出，或使用下方合併工具。
+            {messages.cannotDeleteReasonUpdateRelatedExpensesFirstOrUseTheMergeToolBelow(
+              {
+                reason: blocked,
+              },
+            )}
           </span>
         ) : (
           <ConfirmDialog
-            confirmLabel={`刪除 ${person.name}`}
-            description="這位成員尚未用於任何支出或付款；刪除後無法復原。"
+            confirmLabel={messages.deleteName2({ name: person.name })}
+            description={
+              messages.thisPersonHasNoExpensesOrPaymentsDeletionCannotBeUndone
+            }
             destructive
             disabled={offline}
             onConfirm={() =>
               requestPayload(
                 `/api/trips/${trip.id}/participants/${person.id}`,
                 { method: "DELETE" },
-                "已刪除分帳成員",
+                messages.expenseParticipantDeleted,
                 true,
               )
             }
-            title="刪除分帳成員？"
+            title={messages.deleteThisExpenseParticipant}
             trigger={
               <Button size="sm" variant="ghost">
                 <Trash2 aria-hidden="true" />
-                刪除
+                {messages.delete}
               </Button>
             }
           />
@@ -175,6 +192,7 @@ function RenameParticipant({
   person: Participant;
   trip: Trip;
 }) {
+  const { messages } = useI18n();
   const { requestPayload } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(person.name);
@@ -187,11 +205,13 @@ function RenameParticipant({
       await requestPayload(
         `/api/trips/${trip.id}/participants/${person.id}`,
         { body: JSON.stringify({ name }), method: "PATCH" },
-        "已更新成員名稱",
+        messages.nameUpdated,
       );
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法更新名稱");
+      setError(
+        caught instanceof Error ? caught.message : messages.unableToUpdateName,
+      );
     } finally {
       setBusy(false);
     }
@@ -203,16 +223,18 @@ function RenameParticipant({
         render={<Button disabled={offline} size="sm" variant="outline" />}
       >
         <Pencil aria-hidden="true" />
-        重新命名
+        {messages.rename}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>重新命名 {person.name}</DialogTitle>
+          <DialogTitle>
+            {messages.renameName({ name: person.name })}
+          </DialogTitle>
           <DialogDescription>
-            既有支出和付款紀錄會繼續連結到這位成員。
+            {messages.existingExpensesAndPaymentsWillRemainLinkedToThisPerson}
           </DialogDescription>
         </DialogHeader>
-        <FormField label="新名稱">
+        <FormField label={messages.newName}>
           <input
             className="form-control"
             maxLength={80}
@@ -222,13 +244,15 @@ function RenameParticipant({
         </FormField>
         <ActionError message={error} />
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>取消</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>
+            {messages.cancel}
+          </DialogClose>
           <BusyButton
             busy={busy}
             disabled={offline}
             onClick={() => void save()}
           >
-            儲存名稱
+            {messages.saveName}
           </BusyButton>
         </DialogFooter>
       </DialogContent>
@@ -237,6 +261,7 @@ function RenameParticipant({
 }
 
 function MergeParticipants({ trip }: { trip: Trip }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [sourceId, setSourceId] = useState(trip.participants[0]?.id ?? "");
   const [targetId, setTargetId] = useState(trip.participants[1]?.id ?? "");
@@ -260,11 +285,12 @@ function MergeParticipants({ trip }: { trip: Trip }) {
     <details className="disclosure">
       <summary>
         <Merge aria-hidden="true" />
-        進階成員工具 <span className="summary-meta">合併重複成員</span>
+        {messages.advancedPeopleTools}{" "}
+        <span className="summary-meta">{messages.mergeDuplicatePeople}</span>
       </summary>
       <div className="grid gap-4 pt-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="來源成員">
+          <FormField label={messages.sourcePerson}>
             <select
               className="form-control"
               value={sourceId}
@@ -277,7 +303,7 @@ function MergeParticipants({ trip }: { trip: Trip }) {
               ))}
             </select>
           </FormField>
-          <FormField label="合併到">
+          <FormField label={messages.mergeInto}>
             <select
               className="form-control"
               value={targetId}
@@ -292,18 +318,28 @@ function MergeParticipants({ trip }: { trip: Trip }) {
           </FormField>
         </div>
         <div className="rounded-xl border bg-muted/50 p-4 text-sm">
-          <strong>變更預覽</strong>
+          <strong>{messages.changePreview}</strong>
           <p className="mt-1">
-            {source?.name ?? "來源成員"} 的 {counts.expenses} 筆相關支出與{" "}
-            {counts.payments} 筆付款紀錄將移到 {target?.name ?? "目標成員"}
-            ，之後來源成員會被刪除。
+            {messages.expensesRelatedExpensesAndPaymentsPaymentsForSourceWillMoveToTargetThenTheSourcePersonWillBeDeleted(
+              {
+                source: source?.name ?? messages.sourcePerson,
+                expenses: counts.expenses,
+                payments: counts.payments,
+                target: target?.name ?? messages.targetPerson,
+              },
+            )}
           </p>
         </div>
         <ActionError message={error} />
         <ConfirmDialog
-          confirmLabel="確認合併成員"
+          confirmLabel={messages.mergePeople}
           disabled={offline || !source || !target || sourceId === targetId}
-          description={`${source?.name ?? "來源成員"} 會被刪除；相關資料會原子性移轉到 ${target?.name ?? "目標成員"}。`}
+          description={messages.sourceWillBeDeletedAndRelatedDataWillBeTransferredToTargetAtomically(
+            {
+              source: source?.name ?? messages.sourcePerson,
+              target: target?.name ?? messages.targetPerson,
+            },
+          )}
           destructive
           onConfirm={async () => {
             try {
@@ -314,15 +350,19 @@ function MergeParticipants({ trip }: { trip: Trip }) {
                   body: JSON.stringify({ targetParticipantId: targetId }),
                   method: "POST",
                 },
-                "已合併分帳成員",
+                messages.expenseParticipantsMerged,
                 true,
               );
             } catch (caught) {
-              setError(caught instanceof Error ? caught.message : "合併失敗");
+              setError(
+                caught instanceof Error ? caught.message : messages.mergeFailed,
+              );
             }
           }}
-          title="套用合併？"
-          trigger={<Button variant="outline">預覽並合併</Button>}
+          title={messages.applyMerge}
+          trigger={
+            <Button variant="outline">{messages.previewAndMerge}</Button>
+          }
         />
       </div>
     </details>

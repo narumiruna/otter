@@ -14,6 +14,7 @@ import {
   type RegisterCredentials,
 } from "./auth-screen.js";
 import { api, type TripPayload, type User } from "./client-support.js";
+import { useI18n } from "./i18n.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
 import { ReadonlyWorkspace } from "./workspace/readonly-workspace.js";
 
@@ -33,10 +34,11 @@ function updateCollaboratorUsername(
 }
 
 function LoadingScreen() {
+  const { messages } = useI18n();
   return (
     <section
       className="grid gap-4 lg:grid-cols-[18rem_1fr]"
-      aria-label="載入中"
+      aria-label={messages.loading}
     >
       <Skeleton className="h-72 rounded-2xl" />
       <div className="space-y-4">
@@ -49,6 +51,7 @@ function LoadingScreen() {
 
 export function AppShell() {
   const queryClient = useQueryClient();
+  const { locale, setLocale, messages } = useI18n();
   const [offline, setOffline] = useState(!navigator.onLine);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -109,10 +112,15 @@ export function AppShell() {
       });
       queryClient.clear();
       await bootstrap.refetch();
-      announce(target === "login" ? "登入成功" : "帳號建立成功");
+      announce(
+        target === "login" ? messages.signedIn : messages.accountCreated,
+      );
     } catch (error) {
       setAuthError({
-        [target]: error instanceof Error ? error.message : "無法完成驗證",
+        [target]:
+          error instanceof Error
+            ? error.message
+            : messages.unableToAuthenticate,
       });
     } finally {
       setAuthAction("");
@@ -144,7 +152,7 @@ export function AppShell() {
       (current) =>
         updateCollaboratorUsername(current ?? null, response.user) ?? undefined,
     );
-    announce("Username 已更新");
+    announce(messages.usernameUpdated);
   }
 
   async function logout() {
@@ -154,10 +162,15 @@ export function AppShell() {
       queryClient.clear();
       window.history.replaceState({}, "", "/");
       await bootstrap.refetch();
-      announce("已登出");
+      announce(messages.signedOut);
     } catch (error) {
       announce(
-        `登出失敗：${error instanceof Error ? error.message : "請稍後再試"}`,
+        messages.signOutFailedMessage({
+          message:
+            error instanceof Error
+              ? error.message
+              : messages.pleaseTryAgainLater,
+        }),
       );
     } finally {
       setAuthAction("");
@@ -170,13 +183,15 @@ export function AppShell() {
   else if (bootstrap.isError && !appData) {
     body = (
       <section className="surface empty-state">
-        <h2>目前無法載入 otter</h2>
+        <h2>{messages.unableToLoadOtter}</h2>
         <p>
           {bootstrap.error instanceof Error
             ? bootstrap.error.message
-            : "載入失敗"}
+            : messages.loadingFailed}
         </p>
-        <Button onClick={() => void bootstrap.refetch()}>重新載入</Button>
+        <Button onClick={() => void bootstrap.refetch()}>
+          {messages.reload}
+        </Button>
       </section>
     );
   } else if (appData?.readonlyShare && appData.selected) {
@@ -207,14 +222,14 @@ export function AppShell() {
   return (
     <>
       <a className="skip-link" href="#main-content">
-        跳到主要內容
+        {messages.skipToMainContent}
       </a>
       <div className="app-shell">
         <header className="app-header">
           <a
             className="brand-row no-underline"
             href="/"
-            aria-label="otter 首頁"
+            aria-label={messages.otterHome}
           >
             <img
               className="brand-mark"
@@ -225,36 +240,60 @@ export function AppShell() {
             />
             <span>
               <h1 className="brand-name">otter</h1>
-              <span className="brand-tagline">一起旅行，輕鬆分帳</span>
+              <span className="brand-tagline">
+                {messages.travelTogetherSplitExpensesEasily}
+              </span>
             </span>
           </a>
-          {appData?.user ? (
-            <div className="user-menu">
-              <AccountUsernameDialog
-                offline={offline}
-                onUpdate={updateUsername}
-                user={appData.user}
-              />
-              <Button
-                aria-label={`登出 ${appData.user.name}`}
-                disabled={offline || authAction === "logout"}
-                onClick={() => void logout()}
-                variant="outline"
+          <div className="user-menu">
+            <label className="language-picker">
+              <span className="sr-only">{messages.language}</span>
+              <select
+                aria-label={messages.language}
+                value={locale}
+                onChange={(event) => {
+                  setAuthError({});
+                  setLocale(event.target.value as "en" | "zh-TW");
+                }}
               >
-                <LogOut aria-hidden="true" />
-                <span className="desktop-only">
-                  {authAction === "logout" ? "登出中…" : "登出"}
-                </span>
-              </Button>
-            </div>
-          ) : (
-            <span className="header-note">好朋友，好好分帳。</span>
-          )}
+                <option value="en">{messages.english}</option>
+                <option value="zh-TW">{messages.traditionalChinese}</option>
+              </select>
+            </label>
+            {appData?.user ? (
+              <>
+                <AccountUsernameDialog
+                  offline={offline}
+                  onUpdate={updateUsername}
+                  user={appData.user}
+                />
+                <Button
+                  aria-label={messages.signOutName({ name: appData.user.name })}
+                  disabled={offline || authAction === "logout"}
+                  onClick={() => void logout()}
+                  variant="outline"
+                >
+                  <LogOut aria-hidden="true" />
+                  <span className="desktop-only">
+                    {authAction === "logout"
+                      ? messages.signingOut
+                      : messages.signOut}
+                  </span>
+                </Button>
+              </>
+            ) : (
+              <span className="header-note">
+                {messages.goodFriendsSplitExpensesWell}
+              </span>
+            )}
+          </div>
         </header>
         {offline ? (
           <div className="offline-banner" role="status">
             <WifiOff aria-hidden="true" />
-            目前離線；可以查看已載入資料，修改功能需恢復連線。
+            {
+              messages.youAreOfflineLoadedDataIsAvailableButEditingRequiresAConnection
+            }
           </div>
         ) : null}
         {announcement ? (

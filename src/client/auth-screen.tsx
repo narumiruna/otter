@@ -4,7 +4,7 @@ import {
   GlobeIcon,
   LockClosedIcon,
 } from "@radix-ui/react-icons";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +22,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  isValidUsername,
-  usernameValidationMessage,
-} from "../shared/username.js";
+import { isValidUsername } from "../shared/username.js";
+import { useI18n } from "./i18n.js";
 
 export type LoginCredentials = { username: string; password: string };
 export type RegisterCredentials = LoginCredentials;
@@ -47,6 +45,7 @@ export function AuthScreen({
   onRegister,
   registerError,
 }: AuthScreenProps) {
+  const { locale, messages } = useI18n();
   const [mode, setMode] = useState<"login" | "register">("login");
   const login = useForm<LoginCredentials>({
     defaultValues: devLoginCredentials ?? { username: "", password: "" },
@@ -54,54 +53,69 @@ export function AuthScreen({
   const register = useForm<RegisterCredentials>({
     defaultValues: { username: "", password: "" },
   });
+  const previousLocale = useRef(locale);
+
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    login.clearErrors();
+    register.clearErrors();
+  }, [locale, login.clearErrors, register.clearErrors]);
+
   return (
     <section className="auth-layout">
       <article className="auth-promise">
         <p className="eyebrow">
-          <GlobeIcon aria-hidden="true" /> 一起出發，輕鬆分帳
+          <GlobeIcon aria-hidden="true" />{" "}
+          {messages.travelTogetherSplitWithEase}
         </p>
         <h2>
-          把時間留給旅途，
+          {messages.spendYourTimeOnTheJourney}
           <br />
-          <span>把分帳交給 otter。</span>
+          <span>{messages.andLeaveTheSplittingToOtter}</span>
         </h2>
         <p className="auth-description">
-          從一頓晚餐到一趟旅行，記下每筆共同支出，讓朋友之間的帳目簡單、清楚。
+          {
+            messages.fromDinnerToAFullTripRecordEverySharedExpenseAndKeepGroupFinancesSimpleAndClear
+          }
         </p>
         <div
           className="auth-example"
           role="img"
-          aria-label="分帳示意：週末小旅行，三人晚餐共 TWD 1,800，每人分攤 TWD 600。"
+          aria-label={
+            messages.splitExampleAWeekendTripDinnerCostsTwd1800ForThreePeopleOrTwd600Each
+          }
         >
           <div className="auth-example-heading">
             <span>
-              <GlobeIcon aria-hidden="true" /> 週末小旅行
+              <GlobeIcon aria-hidden="true" /> {messages.weekendTrip}
             </span>
-            <span className="auth-example-label">分帳示意</span>
+            <span className="auth-example-label">{messages.splitExample}</span>
           </div>
           <div className="auth-example-total">
-            <span>一起吃的晚餐</span>
+            <span>{messages.dinnerTogether}</span>
             <strong>
               <small>TWD</small> 1,800
             </strong>
           </div>
           <div className="auth-example-split">
             <div className="example-avatars" aria-hidden="true">
-              <span>你</span>
-              <span>安</span>
-              <span>宇</span>
+              <span>{messages.you}</span>
+              <span>{messages.a}</span>
+              <span>{messages.y}</span>
             </div>
             <span>
-              3 人均分 <ArrowRightIcon aria-hidden="true" /> 每人{" "}
+              {messages.splitEquallyAmong3}{" "}
+              <ArrowRightIcon aria-hidden="true" /> {messages.each}{" "}
               <strong>$600</strong>
             </span>
           </div>
         </div>
         <ul>
           {[
-            "快速記錄共同支出",
-            "即時看懂誰應收、誰應付",
-            "用具體建議完成結清",
+            messages.quicklyRecordSharedExpenses,
+            messages.seeWhoOwesAndWhoIsOwedAtAGlance,
+            messages.settleUpWithClearSuggestions,
           ].map((item) => (
             <li key={item}>
               <CheckCircle2 aria-hidden="true" />
@@ -116,12 +130,14 @@ export function AuthScreen({
             {mode === "login" ? "WELCOME BACK" : "START A NEW JOURNEY"}
           </span>
           <CardTitle>
-            <h2>{mode === "login" ? "登入" : "建立帳號"}</h2>
+            <h2>
+              {mode === "login" ? messages.signIn : messages.createAccount}
+            </h2>
           </CardTitle>
           <CardDescription>
             {mode === "login"
-              ? "歡迎回來，繼續你們的旅程。"
-              : "從第一個群組，開始輕鬆分帳。"}
+              ? messages.welcomeBackContinueYourJourney
+              : messages.createYourFirstGroupAndStartSplittingWithEase}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -144,26 +160,30 @@ export function AuthScreen({
                     aria-invalid={Boolean(login.formState.errors.username)}
                     defaultValue={devLoginCredentials?.username}
                     {...login.register("username", {
-                      required: "請輸入 Username",
+                      required: messages.enterAUsername,
                     })}
                   />
                   <FieldError errors={[login.formState.errors.username]} />
                 </Field>
                 <Field data-invalid={Boolean(login.formState.errors.password)}>
-                  <FieldLabel htmlFor="login-password">密碼</FieldLabel>
+                  <FieldLabel htmlFor="login-password">
+                    {messages.password}
+                  </FieldLabel>
                   <Input
                     id="login-password"
                     type="password"
                     autoComplete="current-password"
                     aria-invalid={Boolean(login.formState.errors.password)}
                     defaultValue={devLoginCredentials?.password}
-                    {...login.register("password", { required: "請輸入密碼" })}
+                    {...login.register("password", {
+                      required: messages.enterAPassword,
+                    })}
                   />
                   <FieldError errors={[login.formState.errors.password]} />
                 </Field>
                 {devLoginCredentials ? (
                   <FieldDescription>
-                    開發環境測試帳號已預先填入。
+                    {messages.developmentCredentialsHaveBeenFilledIn}
                   </FieldDescription>
                 ) : null}
                 <Button
@@ -171,16 +191,18 @@ export function AuthScreen({
                   disabled={busyAction === "login"}
                   type="submit"
                 >
-                  {busyAction === "login" ? "登入中…" : "登入"}
+                  {busyAction === "login"
+                    ? messages.signingIn
+                    : messages.signIn}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
-                  還沒有帳號？{" "}
+                  {messages.needAnAccount}{" "}
                   <button
                     className="auth-switch"
                     type="button"
                     onClick={() => setMode("register")}
                   >
-                    建立帳號
+                    {messages.createAccount}
                   </button>
                 </p>
               </FieldGroup>
@@ -210,32 +232,41 @@ export function AuthScreen({
                     aria-invalid={Boolean(register.formState.errors.username)}
                     aria-describedby="register-username-help"
                     {...register.register("username", {
-                      required: "請輸入 Username",
+                      required: messages.enterAUsername,
                       validate: (value) =>
-                        isValidUsername(value) || usernameValidationMessage,
+                        isValidUsername(value) ||
+                        messages.usernameMustBe332LettersNumbersUnderscoresOrHyphens,
                     })}
                   />
                   <FieldDescription id="register-username-help">
-                    {usernameValidationMessage}，不分大小寫。
+                    {
+                      messages.usernameMustBe332LettersNumbersUnderscoresOrHyphens
+                    }{" "}
+                    {messages.usernameIsNotCaseSensitive}
                   </FieldDescription>
                   <FieldError errors={[register.formState.errors.username]} />
                 </Field>
                 <Field
                   data-invalid={Boolean(register.formState.errors.password)}
                 >
-                  <FieldLabel htmlFor="register-password">密碼</FieldLabel>
+                  <FieldLabel htmlFor="register-password">
+                    {messages.password}
+                  </FieldLabel>
                   <Input
                     id="register-password"
                     type="password"
                     autoComplete="new-password"
                     aria-describedby="register-password-help"
                     {...register.register("password", {
-                      minLength: { message: "密碼至少 8 個字", value: 8 },
-                      required: "請輸入密碼",
+                      minLength: {
+                        message: messages.passwordMustBeAtLeast8Characters,
+                        value: 8,
+                      },
+                      required: messages.enterAPassword,
                     })}
                   />
                   <FieldDescription id="register-password-help">
-                    密碼至少 8 個字。
+                    {messages.passwordMustBeAtLeast8Characters2}
                   </FieldDescription>
                   <FieldError errors={[register.formState.errors.password]} />
                 </Field>
@@ -244,16 +275,18 @@ export function AuthScreen({
                   disabled={busyAction === "register"}
                   type="submit"
                 >
-                  {busyAction === "register" ? "建立中…" : "建立帳號"}
+                  {busyAction === "register"
+                    ? messages.creating
+                    : messages.createAccount}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
-                  已有帳號？{" "}
+                  {messages.alreadyHaveAnAccount}{" "}
                   <button
                     className="auth-switch"
                     type="button"
                     onClick={() => setMode("login")}
                   >
-                    返回登入
+                    {messages.backToSignIn}
                   </button>
                 </p>
               </FieldGroup>
@@ -261,7 +294,7 @@ export function AuthScreen({
           )}
           <p className="auth-note">
             <LockClosedIcon aria-hidden="true" />{" "}
-            分帳成員不需帳號，也能一起記在群組裡。
+            {messages.expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup}
           </p>
         </CardContent>
       </Card>

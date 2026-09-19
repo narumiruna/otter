@@ -11,13 +11,13 @@ import {
   type Currency,
   currencies,
   type ExchangeRates,
-  formatMinor,
 } from "../../shared/money.js";
 import {
   calculateBalances,
   calculateSettlements,
 } from "../../shared/settlement.js";
 import { spendingSummary, type TripPayload } from "../client-support.js";
+import { localizeMessage, useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BalanceList,
@@ -28,6 +28,7 @@ import {
 } from "./workspace-ui.js";
 
 export function TripPreferences({ payload }: { payload: TripPayload }) {
+  const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const form = useForm<{ baseCurrency: Currency; name: string }>({
@@ -61,36 +62,40 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
           }),
           method: "PATCH",
         },
-        "已套用群組偏好",
+        messages.groupPreferencesApplied,
         true,
       );
       form.reset(draft);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "儲存失敗");
+      setError(caught instanceof Error ? caught.message : messages.saveFailed);
     }
   }
   return (
     <details className="surface disclosure" name="trip-settings">
       <summary>
         <Settings2 aria-hidden="true" />
-        <span>群組偏好</span>
+        <span>{messages.groupPreferences}</span>
         <span className="summary-meta">
           {payload.trip.name} · {payload.trip.baseCurrency}
         </span>
       </summary>
       <div className="grid gap-5 pt-5">
-        <SectionHeading description="變更基準貨幣會重算顯示金額，並清除目前自訂匯率。">
-          名稱與基準貨幣
+        <SectionHeading
+          description={
+            messages.changingTheBaseCurrencyRecalculatesDisplayedAmountsAndClearsCustomExchangeRates
+          }
+        >
+          {messages.nameAndBaseCurrency}
         </SectionHeading>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="群組名稱">
+          <FormField label={messages.groupName}>
             <input
               className="form-control"
               maxLength={100}
               {...form.register("name", { required: true })}
             />
           </FormField>
-          <FormField label="基準貨幣">
+          <FormField label={messages.baseCurrency}>
             <select className="form-control" {...form.register("baseCurrency")}>
               {currencies.map((currency) => (
                 <option key={currency}>{currency}</option>
@@ -101,19 +106,24 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
         <ActionError message={error} />
         {changedCurrency ? (
           <div className="grid gap-3 rounded-xl border bg-muted/40 p-4">
-            <strong>變更預覽</strong>
+            <strong>{messages.changePreview}</strong>
             <p className="text-sm">
-              總支出將顯示為{" "}
-              {formatMinor(
-                spendingSummary(previewTrip).totalMinor,
-                draft.baseCurrency,
+              {messages.totalSpendingWillDisplayAsAmountBalancesAndSettlementsBelowWillBeConverted(
+                {
+                  amount: formatMoney(
+                    spendingSummary(previewTrip).totalMinor,
+                    draft.baseCurrency,
+                  ),
+                },
               )}
-              ；以下餘額與結清會重新換算。
             </p>
             <BalanceList balances={calculateBalances(previewTrip)} />
             <p className="text-sm text-muted-foreground">
-              預計 {calculateSettlements(previewTrip).length}{" "}
-              筆結清建議；自訂匯率將重設為內建固定值。
+              {messages.expectCountSettlementSuggestionsCustomRatesWillResetToBuiltInValues(
+                {
+                  count: calculateSettlements(previewTrip).length,
+                },
+              )}
             </p>
           </div>
         ) : null}
@@ -128,19 +138,21 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
               })
             }
           >
-            取消變更
+            {messages.cancelChanges}
           </Button>
           <ConfirmDialog
-            confirmLabel="套用群組偏好"
+            confirmLabel={messages.applyGroupPreferences}
             disabled={!form.formState.isDirty || !draft.name.trim() || offline}
             description={
               changedCurrency
-                ? `將基準貨幣改為 ${draft.baseCurrency}，重新計算全部結果並清除自訂匯率。`
-                : `將群組名稱改為「${draft.name}」。`
+                ? messages.changeTheBaseCurrencyToCurrencyRecalculateAllResultsAndClearCustomRates(
+                    { currency: draft.baseCurrency },
+                  )
+                : messages.renameTheGroupToName({ name: draft.name })
             }
             onConfirm={save}
-            title="套用這些變更？"
-            trigger={<Button>預覽完成，套用變更</Button>}
+            title={messages.applyTheseChanges}
+            trigger={<Button>{messages.applyChanges}</Button>}
           />
         </div>
       </div>
@@ -149,6 +161,7 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
 }
 
 export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
+  const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const original = Object.fromEntries(
     currencies.map((currency) => [
@@ -182,10 +195,14 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
       await requestPayload(
         `/api/trips/${payload.trip.id}`,
         { body: JSON.stringify({ exchangeRates: values }), method: "PATCH" },
-        "已套用自訂匯率",
+        messages.customExchangeRatesApplied,
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "匯率儲存失敗");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : messages.unableToSaveExchangeRates,
+      );
     } finally {
       setBusy(false);
     }
@@ -194,18 +211,22 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
     <details className="surface disclosure" name="trip-settings">
       <summary>
         <Calculator aria-hidden="true" />
-        <span>換算方式</span>
+        <span>{messages.currencyConversion}</span>
         <span className="summary-meta">
           {Object.keys(payload.trip.exchangeRates ?? {}).length
-            ? `${Object.keys(payload.trip.exchangeRates ?? {}).length} 個自訂匯率`
-            : "使用內建固定匯率"}
+            ? messages.countCustomRates({
+                count: Object.keys(payload.trip.exchangeRates ?? {}).length,
+              })
+            : messages.usingBuiltInFixedRates}
         </span>
       </summary>
       <div className="grid gap-5 pt-5">
         <SectionHeading
-          description={`設定 1 單位外幣等於多少 ${payload.trip.baseCurrency}；留空會使用內建固定匯率。`}
+          description={messages.setHowMuch1UnitOfEachCurrencyEqualsInCurrencyLeaveBlankToUseTheBuiltInFixedRate(
+            { currency: payload.trip.baseCurrency },
+          )}
         >
-          自訂匯率
+          {messages.customExchangeRates}
         </SectionHeading>
         <div className="grid gap-3 sm:grid-cols-2">
           {currencies.map((currency) => (
@@ -218,7 +239,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
                 inputMode="decimal"
                 readOnly={currency === payload.trip.baseCurrency}
                 value={values[currency]}
-                placeholder="使用內建固定匯率"
+                placeholder={messages.usingBuiltInFixedRates}
                 onChange={(event) =>
                   setValues((current) => ({
                     ...current,
@@ -232,14 +253,15 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
         <ActionError message={error} />
         {changed ? (
           <div className="rounded-xl border bg-muted/40 p-4 text-sm">
-            <strong>換算預覽</strong>
+            <strong>{messages.conversionPreview}</strong>
             <p className="mt-1">
-              總支出：
-              {formatMinor(
-                spendingSummary(previewTrip).totalMinor,
-                payload.trip.baseCurrency,
-              )}{" "}
-              · {calculateSettlements(previewTrip).length} 筆結清建議。
+              {messages.totalSpendingAmountCountSettlementSuggestions({
+                amount: formatMoney(
+                  spendingSummary(previewTrip).totalMinor,
+                  payload.trip.baseCurrency,
+                ),
+                count: calculateSettlements(previewTrip).length,
+              })}
             </p>
           </div>
         ) : null}
@@ -249,7 +271,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
             disabled={!changed}
             onClick={() => setValues(original)}
           >
-            取消變更
+            {messages.cancelChanges}
           </Button>
           <Button
             variant="outline"
@@ -265,15 +287,19 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
               )
             }
           >
-            重設為內建匯率
+            {messages.resetToBuiltInRates}
           </Button>
           <ConfirmDialog
-            confirmLabel="套用匯率"
+            confirmLabel={messages.applyRates}
             disabled={!changed || offline}
-            description="所有總額、餘額與結清建議會使用這組匯率重新計算。"
+            description={
+              messages.allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates
+            }
             onConfirm={apply}
-            title="套用自訂匯率？"
-            trigger={<BusyButton busy={busy}>預覽完成，套用變更</BusyButton>}
+            title={messages.applyCustomExchangeRates}
+            trigger={
+              <BusyButton busy={busy}>{messages.applyChanges}</BusyButton>
+            }
           />
         </div>
       </div>
@@ -288,6 +314,7 @@ export function LifecycleSettings({
   onDeleted: () => void;
   payload: TripPayload;
 }) {
+  const { messages } = useI18n();
   const { announce, offline, refreshCollection, requestPayload } =
     useWorkspace();
   const [typedName, setTypedName] = useState("");
@@ -301,21 +328,27 @@ export function LifecycleSettings({
         method: "DELETE",
       });
       const data = (await response.json()) as { error?: string; ok?: boolean };
-      if (!response.ok) throw new Error(data.error ?? "刪除失敗");
+      if (!response.ok) {
+        throw new Error(
+          data.error ? localizeMessage(data.error) : messages.deleteFailed,
+        );
+      }
       await refreshCollection();
-      announce("已刪除群組");
+      announce(messages.groupDeleted);
       onDeleted();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "刪除失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.deleteFailed,
+      );
     }
   }
   return (
     <details className="surface disclosure danger-surface" name="trip-settings">
       <summary>
         <Archive aria-hidden="true" />
-        <span>群組生命週期</span>
+        <span>{messages.groupLifecycle}</span>
         <span className="summary-meta">
-          {archived ? "已封存・唯讀" : "使用中"}
+          {archived ? messages.archivedReadOnly : messages.active2}
         </span>
       </summary>
       <div className="grid gap-6 pt-5">
@@ -323,19 +356,21 @@ export function LifecycleSettings({
           <SectionHeading
             description={
               archived
-                ? "還原後可以繼續新增與修改資料。"
-                : "封存會保留所有資料，但群組將變為唯讀。"
+                ? messages.afterRestoringDataCanBeAddedAndChangedAgain
+                : messages.archivingPreservesAllDataButMakesTheGroupReadOnly
             }
           >
-            {archived ? "還原群組" : "封存群組"}
+            {archived ? messages.restoreGroup : messages.archiveGroup}
           </SectionHeading>
           <ConfirmDialog
-            confirmLabel={archived ? "還原群組" : "封存群組"}
+            confirmLabel={
+              archived ? messages.restoreGroup : messages.archiveGroup
+            }
             disabled={offline}
             description={
               archived
-                ? "還原後擁有者與協作者可繼續修改資料。"
-                : "支出、成員與付款紀錄都會保留；封存期間不能修改。"
+                ? messages.afterRestoringTheOwnerAndCollaboratorsCanEditDataAgain
+                : messages.expensesPeopleAndPaymentRecordsArePreservedAndCannotBeChangedWhileArchived
             }
             onConfirm={() =>
               requestPayload(
@@ -344,23 +379,31 @@ export function LifecycleSettings({
                   body: JSON.stringify({ archived: !archived }),
                   method: "PATCH",
                 },
-                archived ? "已還原群組" : "已封存群組",
+                archived ? messages.groupRestored : messages.archivedGroups,
                 true,
               )
             }
-            title={archived ? "還原這個群組？" : "封存這個群組？"}
+            title={
+              archived ? messages.restoreThisGroup : messages.archiveThisGroup
+            }
             trigger={
               <Button variant="outline">
-                {archived ? "還原群組" : "封存群組"}
+                {archived ? messages.restoreGroup : messages.archiveGroup}
               </Button>
             }
           />
         </section>
         <section className="grid gap-3 border-t border-destructive/20 pt-5">
-          <SectionHeading description="這會永久刪除所有成員、支出、收據與結清紀錄，且無法復原。">
-            刪除群組
+          <SectionHeading
+            description={
+              messages.thisPermanentlyDeletesAllPeopleExpensesReceiptsAndSettlementRecordsAndCannotBeUndone
+            }
+          >
+            {messages.deleteGroup}
           </SectionHeading>
-          <FormField label={`輸入「${payload.trip.name}」確認`}>
+          <FormField
+            label={messages.enterNameToConfirm({ name: payload.trip.name })}
+          >
             <input
               className="form-control"
               value={typedName}
@@ -369,19 +412,21 @@ export function LifecycleSettings({
           </FormField>
           <ActionError message={error} />
           <ConfirmDialog
-            confirmLabel={`永久刪除「${payload.trip.name}」`}
+            confirmLabel={messages.permanentlyDeleteName({
+              name: payload.trip.name,
+            })}
             disabled={offline || typedName !== payload.trip.name}
-            description="此動作無法復原。取消不會產生任何變更。"
+            description={messages.thisCannotBeUndoneCancelingMakesNoChanges}
             destructive
             onConfirm={remove}
-            title="永久刪除群組？"
+            title={messages.permanentlyDeleteThisGroup}
             trigger={
               <Button
                 disabled={offline || typedName !== payload.trip.name}
                 variant="destructive"
               >
                 <Trash2 aria-hidden="true" />
-                永久刪除群組
+                {messages.permanentlyDeleteGroup}
               </Button>
             }
           />

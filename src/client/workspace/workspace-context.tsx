@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { api, type TripPayload } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 
 export type WorkspaceContextValue = {
   announce: (message: string) => void;
@@ -32,6 +33,7 @@ export function WorkspaceProvider({
   refreshCollection: () => Promise<void>;
 }) {
   const queryClient = useQueryClient();
+  const { messages } = useI18n();
   const value = useMemo<WorkspaceContextValue>(() => {
     const replacePayload = (next: TripPayload) => {
       queryClient.setQueryData(["trip", next.trip.id], next);
@@ -43,7 +45,8 @@ export function WorkspaceProvider({
       refreshCollection,
       replacePayload,
       requestPayload: async (url, init, successMessage, refresh = false) => {
-        if (offline) throw new Error("目前離線，請恢復連線後再試");
+        if (offline)
+          throw new Error(messages.youAreOfflineReconnectAndTryAgain);
         const next = await api<TripPayload>(url, init);
         replacePayload(next);
         if (refresh) await refreshCollection();
@@ -51,7 +54,7 @@ export function WorkspaceProvider({
         return next;
       },
     };
-  }, [announce, offline, payload, queryClient, refreshCollection]);
+  }, [announce, messages, offline, payload, queryClient, refreshCollection]);
   return (
     <WorkspaceContext.Provider value={value}>
       {children}

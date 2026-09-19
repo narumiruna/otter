@@ -9,7 +9,7 @@ import {
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { expenseCategories } from "../../shared/expense-metadata.js";
-import { currencies, formatMinor } from "../../shared/money.js";
+import { currencies } from "../../shared/money.js";
 import type { Expense, Trip } from "../../shared/settlement.js";
 import {
   defaultExpenseFilters,
@@ -17,6 +17,7 @@ import {
   expenseSplitLabel,
   filterAndSortExpenses,
 } from "../client-support.js";
+import { localizeMessage, type Messages, useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
@@ -37,6 +38,7 @@ export function ExpensesPage({
   readonly?: boolean;
   trip: Trip;
 }) {
+  const { messages } = useI18n();
   const setFilters = (
     update: ExpenseFilters | ((filters: ExpenseFilters) => ExpenseFilters),
   ) => {
@@ -47,7 +49,7 @@ export function ExpensesPage({
     () => filterAndSortExpenses(trip, filters),
     [filters, trip],
   );
-  const activeFilters = activeFilterEntries(filters);
+  const activeFilters = activeFilterEntries(filters, messages);
   if (editing)
     return (
       <ExpenseComposer
@@ -62,22 +64,27 @@ export function ExpensesPage({
     <section className="surface grid gap-5" aria-labelledby="expenses-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <SectionHeading
-          description={`顯示 ${expenses.length} / ${trip.expenses.length} 筆支出`}
+          description={messages.showingShownOfTotalExpenses({
+            shown: expenses.length,
+            total: trip.expenses.length,
+          })}
         >
-          <span id="expenses-heading">支出</span>
+          <span id="expenses-heading">{messages.expenses}</span>
         </SectionHeading>
-        {!readonly ? <Button onClick={onAddExpense}>記一筆</Button> : null}
+        {!readonly ? (
+          <Button onClick={onAddExpense}>{messages.addExpense}</Button>
+        ) : null}
       </div>
       <div className="grid gap-3 md:grid-cols-[1fr_13rem]">
         <label className="relative">
-          <span className="sr-only">搜尋描述</span>
+          <span className="sr-only">{messages.searchDescriptions}</span>
           <Search
             className="pointer-events-none absolute top-3 left-3 size-5 text-muted-foreground"
             aria-hidden="true"
           />
           <input
             className="form-control expense-search-input"
-            placeholder="搜尋支出描述"
+            placeholder={messages.searchExpenseDescriptions}
             value={filters.query}
             onChange={(event) =>
               setFilters((value) => ({ ...value, query: event.target.value }))
@@ -85,7 +92,7 @@ export function ExpensesPage({
           />
         </label>
         <label>
-          <span className="sr-only">排序</span>
+          <span className="sr-only">{messages.sort}</span>
           <select
             className="form-control"
             value={filters.sort}
@@ -96,24 +103,24 @@ export function ExpensesPage({
               }))
             }
           >
-            <option value="date-desc">日期新到舊</option>
-            <option value="date-asc">日期舊到新</option>
-            <option value="amount-desc">金額大到小</option>
-            <option value="amount-asc">金額小到大</option>
+            <option value="date-desc">{messages.dateNewestFirst}</option>
+            <option value="date-asc">{messages.dateOldestFirst}</option>
+            <option value="amount-desc">{messages.amountHighToLow}</option>
+            <option value="amount-asc">{messages.amountLowToHigh}</option>
           </select>
         </label>
       </div>
       <details className="disclosure">
         <summary>
-          更多篩選{" "}
+          {messages.moreFilters}{" "}
           <span className="summary-meta">
             {activeFilters.length
-              ? `${activeFilters.length} 個已套用`
-              : "日期、成員、幣別、分類、標籤"}
+              ? messages.countApplied({ count: activeFilters.length })
+              : messages.datePersonCurrencyCategoryAndTag}
           </span>
         </summary>
         <div className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Filter label="起日">
+          <Filter label={messages.from}>
             <input
               className="form-control"
               type="date"
@@ -126,7 +133,7 @@ export function ExpensesPage({
               }
             />
           </Filter>
-          <Filter label="迄日">
+          <Filter label={messages.to}>
             <input
               className="form-control"
               type="date"
@@ -139,7 +146,7 @@ export function ExpensesPage({
               }
             />
           </Filter>
-          <Filter label="付款人">
+          <Filter label={messages.paidBy}>
             <ParticipantFilter
               trip={trip}
               value={filters.paidById}
@@ -148,7 +155,7 @@ export function ExpensesPage({
               }
             />
           </Filter>
-          <Filter label="分帳成員">
+          <Filter label={messages.splitWith}>
             <ParticipantFilter
               trip={trip}
               value={filters.participantId}
@@ -157,7 +164,7 @@ export function ExpensesPage({
               }
             />
           </Filter>
-          <Filter label="幣別">
+          <Filter label={messages.currency}>
             <select
               className="form-control"
               value={filters.currency}
@@ -168,13 +175,13 @@ export function ExpensesPage({
                 }))
               }
             >
-              <option value="">全部幣別</option>
+              <option value="">{messages.allCurrencies}</option>
               {currencies.map((currency) => (
                 <option key={currency}>{currency}</option>
               ))}
             </select>
           </Filter>
-          <Filter label="分類">
+          <Filter label={messages.category}>
             <select
               className="form-control"
               value={filters.category}
@@ -185,16 +192,18 @@ export function ExpensesPage({
                 }))
               }
             >
-              <option value="">全部分類</option>
+              <option value="">{messages.allCategories}</option>
               {expenseCategories.map((category) => (
-                <option key={category}>{category}</option>
+                <option key={category} value={category}>
+                  {localizeMessage(category)}
+                </option>
               ))}
             </select>
           </Filter>
-          <Filter label="標籤">
+          <Filter label={messages.tag}>
             <input
               className="form-control"
-              placeholder="標籤完全符合"
+              placeholder={messages.exactTag}
               value={filters.tag}
               onChange={(event) =>
                 setFilters((value) => ({ ...value, tag: event.target.value }))
@@ -205,7 +214,9 @@ export function ExpensesPage({
       </details>
       {activeFilters.length ? (
         <fieldset className="flex flex-wrap items-center gap-2">
-          <legend className="text-sm text-muted-foreground">已套用：</legend>
+          <legend className="text-sm text-muted-foreground">
+            {messages.applied}
+          </legend>
           {activeFilters.map(([key, label]) => (
             <Button
               key={key}
@@ -226,7 +237,7 @@ export function ExpensesPage({
             variant="ghost"
             onClick={() => setFilters({ ...defaultExpenseFilters })}
           >
-            清除全部
+            {messages.clearAll}
           </Button>
         </fieldset>
       ) : null}
@@ -267,13 +278,14 @@ function ParticipantFilter({
   trip: Trip;
   value: string;
 }) {
+  const { messages } = useI18n();
   return (
     <select
       className="form-control"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
-      <option value="">全部成員</option>
+      <option value="">{messages.allPeople}</option>
       {trip.participants.map((person) => (
         <option key={person.id} value={person.id}>
           {person.name}
@@ -285,18 +297,21 @@ function ParticipantFilter({
 
 function activeFilterEntries(
   filters: ExpenseFilters,
+  messages: Messages,
 ): [Exclude<keyof ExpenseFilters, "query" | "sort">, string][] {
   const labels: Record<
     Exclude<keyof ExpenseFilters, "query" | "sort">,
     string
   > = {
-    category: `分類：${filters.category}`,
-    currency: `幣別：${filters.currency}`,
-    dateFrom: `起日：${filters.dateFrom}`,
-    dateTo: `迄日：${filters.dateTo}`,
-    paidById: "付款人",
-    participantId: "分帳成員",
-    tag: `標籤：${filters.tag}`,
+    category: messages.categoryValue({
+      value: localizeMessage(filters.category),
+    }),
+    currency: messages.currencyValue({ value: filters.currency }),
+    dateFrom: messages.fromValue({ value: filters.dateFrom }),
+    dateTo: messages.toValue({ value: filters.dateTo }),
+    paidById: messages.paidBy,
+    participantId: messages.splitWith,
+    tag: messages.tagValue({ value: filters.tag }),
   };
   return (Object.keys(labels) as (keyof typeof labels)[])
     .filter((key) => !!filters[key])
@@ -320,24 +335,27 @@ function ExpenseList({
   readonly: boolean;
   trip: Trip;
 }) {
+  const { formatMoney, messages } = useI18n();
   if (!trip.expenses.length)
     return (
       <div className="empty-state">
         <Receipt className="mx-auto" aria-hidden="true" />
-        <h3>還沒有支出</h3>
-        <p>記錄第一筆共同支出後，這裡會保留完整明細。</p>
+        <h3>{messages.noExpensesYet}</h3>
+        <p>
+          {messages.aCompleteHistoryWillAppearHereAfterTheFirstSharedExpense}
+        </p>
         {!readonly ? (
-          <Button onClick={onAddExpense}>記錄第一筆支出</Button>
+          <Button onClick={onAddExpense}>{messages.recordFirstExpense}</Button>
         ) : null}
       </div>
     );
   if (!expenses.length)
     return (
       <div className="empty-state">
-        <h3>沒有符合條件的支出</h3>
-        <p>調整條件，或清除篩選查看全部資料。</p>
+        <h3>{messages.noMatchingExpenses}</h3>
+        <p>{messages.adjustOrClearTheFiltersToSeeAllExpenses}</p>
         <Button onClick={clear} variant="outline">
-          清除篩選
+          {messages.clearFilters}
         </Button>
       </div>
     );
@@ -347,7 +365,7 @@ function ExpenseList({
   return (
     <ul
       className="grid gap-3"
-      aria-label={filtered ? "篩選後的支出" : "全部支出"}
+      aria-label={filtered ? messages.filteredExpenses : messages.allExpenses}
     >
       {expenses.map((expense) => (
         <li
@@ -362,17 +380,21 @@ function ExpenseList({
                   {expense.description}
                 </strong>
                 <strong className="tabular-nums">
-                  {formatMinor(expense.amountMinor, expense.currency)}
+                  {formatMoney(expense.amountMinor, expense.currency)}
                 </strong>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {expense.expenseDate} · {names.get(expense.paidById) ?? "未知"}{" "}
-                付款
+                {messages.datePaidByName({
+                  date: expense.expenseDate,
+                  name: names.get(expense.paidById) ?? messages.unknown,
+                })}
               </p>
               <p className="text-sm text-muted-foreground">
-                {expense.category ?? "其他"}
-                {expense.tags?.length ? ` · ${expense.tags.join("、")}` : ""} ·
-                分給 {expenseSplitLabel(trip, expense.participantIds)}
+                {localizeMessage(expense.category ?? "其他")}
+                {expense.tags?.length ? ` · ${expense.tags.join(", ")}` : ""} ·{" "}
+                {messages.splitWithSplit({
+                  split: expenseSplitLabel(trip, expense.participantIds),
+                })}
               </p>
             </div>
           </div>
@@ -384,7 +406,7 @@ function ExpenseList({
                 onClick={() => onEdit(expense)}
               >
                 <Pencil aria-hidden="true" />
-                編輯
+                {messages.edit}
               </Button>
               <ReceiptControls expense={expense} trip={trip} />
               <DeleteExpense expense={expense} trip={trip} />
@@ -397,6 +419,7 @@ function ExpenseList({
 }
 
 function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
+  const { messages } = useI18n();
   const { announce, offline, replacePayload } = useWorkspace();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -417,12 +440,19 @@ function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
       const data = (await response.json()) as
         | import("../client-support.js").TripPayload
         | { error?: string };
-      if (!response.ok)
-        throw new Error("error" in data ? data.error : "收據上傳失敗");
+      if (!response.ok) {
+        const message =
+          "error" in data && data.error
+            ? localizeMessage(data.error)
+            : messages.receiptUploadFailed;
+        throw new Error(message);
+      }
       replacePayload(data as import("../client-support.js").TripPayload);
-      announce("已上傳收據");
+      announce(messages.receiptUploaded);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "收據上傳失敗");
+      setError(
+        caught instanceof Error ? caught.message : messages.receiptUploadFailed,
+      );
     } finally {
       setBusy(false);
     }
@@ -431,7 +461,7 @@ function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
     <>
       <label className="button-outline button-sm">
         <Upload aria-hidden="true" />
-        <span>{busy ? "上傳中…" : "上傳收據"}</span>
+        <span>{busy ? messages.uploading : messages.uploadReceipt}</span>
         <input
           className="sr-only"
           type="file"
@@ -448,11 +478,11 @@ function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
           rel="noreferrer"
         >
           <FileImage aria-hidden="true" />
-          查看收據
+          {messages.viewReceipt}
         </a>
       ) : (
         <span className="self-center text-xs text-muted-foreground">
-          沒有收據
+          {messages.noReceipt}
         </span>
       )}
       <ActionError message={error} />
@@ -463,50 +493,56 @@ function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
   );
 }
 function DeleteReceipt({ expense, trip }: { expense: Expense; trip: Trip }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   return (
     <ConfirmDialog
-      confirmLabel="刪除收據"
-      description="刪除後仍可重新上傳；支出本身不會被刪除。"
+      confirmLabel={messages.deleteReceipt}
+      description={
+        messages.youCanUploadAnotherReceiptLaterTheExpenseWillNotBeDeleted
+      }
       destructive
       disabled={offline}
       onConfirm={() =>
         requestPayload(
           `/api/trips/${trip.id}/expenses/${expense.id}/receipt`,
           { method: "DELETE" },
-          "已刪除收據",
+          messages.receiptDeleted,
         )
       }
-      title="刪除這張收據？"
+      title={messages.deleteThisReceipt}
       trigger={
         <Button size="sm" variant="ghost">
-          刪除收據
+          {messages.deleteReceipt}
         </Button>
       }
     />
   );
 }
 function DeleteExpense({ expense, trip }: { expense: Expense; trip: Trip }) {
+  const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   return (
     <ConfirmDialog
-      confirmLabel={`刪除「${expense.description}」`}
-      description="刪除後無法復原，且所有成員餘額與結清建議都會重新計算。"
+      confirmLabel={messages.deleteName({ name: expense.description })}
+      description={
+        messages.thisCannotBeUndoneAllBalancesAndSettlementSuggestionsWillBeRecalculated
+      }
       destructive
       disabled={offline}
       onConfirm={() =>
         requestPayload(
           `/api/trips/${trip.id}/expenses/${expense.id}`,
           { method: "DELETE" },
-          "已刪除支出",
+          messages.expenseDeleted,
           true,
         )
       }
-      title="刪除這筆支出？"
+      title={messages.deleteThisExpense}
       trigger={
         <Button className="ml-auto" size="sm" variant="ghost">
           <Trash2 aria-hidden="true" />
-          刪除
+          {messages.delete}
         </Button>
       }
     />
