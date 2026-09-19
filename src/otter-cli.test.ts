@@ -138,6 +138,25 @@ describe("parseCliCommand", () => {
 });
 
 describe("executeCliCommand", () => {
+  test("uses the hosted Otter server when OTTER_URL is unset", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ user: { id: "user-1" } })),
+      );
+
+    await executeCliCommand(
+      { method: "GET", path: "/api/me" },
+      { OTTER_TOKEN: "otter_api_ephemeral" },
+      fetchMock,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://otter.narumi.dev/api/me",
+      expect.any(Object),
+    );
+  });
+
   test("does not fall back to password authentication", async () => {
     const fetchMock = vi.fn<typeof fetch>();
 

@@ -188,7 +188,7 @@ async function revokeToken(
 }
 
 export function configFromEnvironment(environment: CliEnvironment): CliConfig {
-  const rawUrl = environment.OTTER_URL?.trim() || "http://localhost:17463";
+  const rawUrl = environment.OTTER_URL?.trim() || "https://otter.narumi.dev/";
   let url: URL;
   try {
     url = new URL(rawUrl);

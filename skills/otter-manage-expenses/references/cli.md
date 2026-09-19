@@ -5,7 +5,7 @@ Run `npm run --silent otter -- --help` for the installed command list.
 
 ## Authorization
 
-Set `OTTER_URL` to the Otter server URL or omit it for `http://localhost:17463`.
+Set `OTTER_URL` to override the Otter server URL or omit it to use `https://otter.narumi.dev/`.
 Run `npm run --silent otter -- auth login` to start device authorization, open Otter, and wait for the user to approve the displayed code.
 If a saved token already exists for that server, login revokes it before requesting a replacement and preserves it if revocation fails.
 Add `--no-open` when the browser must be opened manually, and use `--client-name <name>` to identify the requesting agent or machine.
