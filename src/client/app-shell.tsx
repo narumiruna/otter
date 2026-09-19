@@ -14,6 +14,7 @@ import {
   type RegisterCredentials,
 } from "./auth-screen.js";
 import { api, type TripPayload, type User } from "./client-support.js";
+import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
 import { authenticateWithPasskey, supportsPasskeys } from "./passkeys.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
@@ -212,6 +213,14 @@ export function AppShell() {
     );
   } else if (appData?.readonlyShare && appData.selected) {
     body = <ReadonlyWorkspace payload={appData.selected} />;
+  } else if (appData?.user && window.location.pathname === "/device") {
+    body = (
+      <DeviceAuthorization
+        initialCode={
+          new URLSearchParams(window.location.search).get("code") ?? ""
+        }
+      />
+    );
   } else if (appData?.user) {
     body = (
       <AuthenticatedWorkspace

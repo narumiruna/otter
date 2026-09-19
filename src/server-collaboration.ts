@@ -17,11 +17,11 @@ import {
 export function registerCollaborationRoutes(
   app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: OtterMiddleware,
+  mustHaveBrowserSession: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/members",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
@@ -75,7 +75,7 @@ export function registerCollaborationRoutes(
 
   app.delete(
     "/api/trips/:tripId/members/:userId",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);

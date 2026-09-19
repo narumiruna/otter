@@ -85,6 +85,42 @@ npm run db:reset:dev
 `npm run check` 會執行 Biome CI、TypeScript typecheck、Vitest 與 production build，且維持不依賴資料庫。
 `npm run test:e2e` 會用 Playwright Chromium 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility；先執行 `npx playwright install chromium`，並提供已遷移的 `DATABASE_URL`。
 
+## Agent CLI
+
+非互動式 CLI 透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄，資料結果固定輸出 JSON，適合 script 或 AI agent 使用。CLI 不需要接收帳號密碼；第一次使用時啟動 device authorization：
+
+```bash
+export OTTER_URL=http://localhost:17463
+npm run --silent otter -- auth login
+```
+
+CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。帳號、Passkey、協作者、分享連結與 device approval 管理仍要求瀏覽器 session，Bearer token 不可執行。
+
+若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可改由 secret manager 提供 `OTTER_TOKEN`，而不寫入 credential file。
+
+```bash
+npm run --silent otter -- auth status
+npm run --silent otter -- trips list
+```
+
+常見流程：
+
+```bash
+npm run --silent otter -- participants list --trip trip-id
+npm run --silent otter -- expenses add \
+  --trip trip-id \
+  --description Dinner \
+  --amount 1200 \
+  --currency TWD \
+  --paid-by participant-id \
+  --split-with participant-id,other-participant-id
+npm run --silent otter -- balances get --trip trip-id
+```
+
+金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `npm run --silent otter -- auth logout` 可撤銷目前 token 並移除本機保存內容。
+
+使用 `npm run --silent otter -- --help` 查看完整命令。`--silent` 會避免 npm 將 lifecycle 訊息混入 stdout JSON。Production build 後也可執行 `npm run --silent otter:built -- --help`。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
+
 ## Pre-commit / Husky
 
 `npm install` 或 `npm ci` 會透過 `prepare` 安裝 `.husky/pre-commit`。
@@ -122,7 +158,7 @@ PASSKEY_ORIGIN=https://otter.example.com
 
 `PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；除 `localhost` 開發環境外必須使用 HTTPS。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
 
-Passkey options 會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 設為 repository variable；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
+Passkey options 與 device authorization 建立要求會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 與 `DEVICE_AUTH_TRUST_PROXY=true` 設為 repository variables；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
 
 ## 工作流程與安全狀態
 

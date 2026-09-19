@@ -21,6 +21,8 @@ export const sourceMessageKeys = {
   "登出 {name}": "signOutName",
   "登出中…": "signingOut",
   登出: "signOut",
+  "Device code not found or expired": "deviceCodeNotFoundOrExpired",
+  "Enter a valid device code": "enterAValidDeviceCode",
   "目前離線；可以查看已載入資料，修改功能需恢復連線。":
     "youAreOfflineLoadedDataIsAvailableButEditingRequiresAConnection",
   "一起出發，輕鬆分帳": "travelTogetherSplitWithEase",

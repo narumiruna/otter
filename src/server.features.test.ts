@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { hashApiSecret } from "./server-api-tokens.js";
 import {
   api,
   postgresTestOptions,
@@ -12,7 +13,7 @@ test(
   "backup, sharing, receipts, CSV import, and collaboration APIs",
   postgresTestOptions,
   async () => {
-    const { baseUrl } = await withTestApp();
+    const { baseUrl, pool } = await withTestApp();
     const suffix = `${Date.now()}`;
     const owner = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
@@ -24,6 +25,27 @@ test(
     });
     const ownerCookie = owner.response.headers.get("set-cookie")?.split(";")[0];
     assert.ok(ownerCookie);
+    assert.ok(owner.data.user);
+
+    const bearerToken = "otter_api_owner_administration_test";
+    await pool.query(
+      `INSERT INTO api_tokens
+         (id, user_id, token_hash, name, created_at, expires_at)
+       VALUES ($1, $2, $3, $4, now(), now() + interval '1 day')`,
+      [
+        "token_owner_administration_test",
+        owner.data.user.id,
+        hashApiSecret(bearerToken),
+        "Owner administration test",
+      ],
+    );
+    const bearerHeaders = { authorization: `Bearer ${bearerToken}` };
+    const bearerRename = await api(baseUrl, "/api/me", {
+      body: JSON.stringify({ username: `renamed-${suffix}` }),
+      headers: bearerHeaders,
+      method: "PATCH",
+    });
+    assert.equal(bearerRename.response.status, 401);
 
     const editor = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
@@ -127,6 +149,17 @@ test(
     assert.equal(receiptDelete.response.status, 200);
     assert.equal(receiptDelete.data.trip.expenses[0]?.receiptId, undefined);
 
+    const bearerAddEditor = await api(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/members`,
+      {
+        body: JSON.stringify({ username: editor.data.user.username }),
+        headers: bearerHeaders,
+        method: "POST",
+      },
+    );
+    assert.equal(bearerAddEditor.response.status, 401);
+
     const addEditor = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
@@ -147,6 +180,13 @@ test(
       ),
       true,
     );
+    const bearerRemoveEditor = await api(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/members/${editor.data.user.id}`,
+      { headers: bearerHeaders, method: "DELETE" },
+    );
+    assert.equal(bearerRemoveEditor.response.status, 401);
+
     const duplicateEditor = await api<{ error: string }>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
@@ -330,6 +370,13 @@ test(
     );
     assert.equal(payment.response.status, 201);
 
+    const bearerShare = await api(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/share-links`,
+      { headers: bearerHeaders, method: "POST" },
+    );
+    assert.equal(bearerShare.response.status, 401);
+
     const share = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/share-links`,
@@ -353,6 +400,13 @@ test(
       JSON.stringify(publicShare.data).includes("private note"),
       false,
     );
+    const bearerRevokeShare = await api(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/share-links/${shareLink.id}`,
+      { headers: bearerHeaders, method: "DELETE" },
+    );
+    assert.equal(bearerRevokeShare.response.status, 401);
+
     const revoked = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/share-links/${shareLink.id}`,

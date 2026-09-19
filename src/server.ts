@@ -14,6 +14,7 @@ import {
   ensureDevelopmentAdmin,
   ensureDevelopmentFixtures,
 } from "./server-dev.js";
+import { registerDeviceAuthRoutes } from "./server-device-auth.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
@@ -46,6 +47,7 @@ import {
   publicUser,
   rejectArchivedTrip,
   requestBody,
+  requireSessionUser,
   requireUser,
   type Session,
   sendError,
@@ -113,9 +115,11 @@ export function createApp(
 ): OtterApp {
   const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUser(pool);
+  const mustHaveBrowserSession = requireSessionUser(pool);
 
-  registerPasskeyRoutes(app, pool, mustBeSignedIn, options.passkeys);
+  registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
   registerBackupRoutes(app, pool, mustBeSignedIn);
+  registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
 
   app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;
@@ -136,7 +140,7 @@ export function createApp(
 
   app.patch(
     "/api/me",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const username = stringField(requestBody(req), "username");
@@ -681,12 +685,12 @@ export function createApp(
     }),
   );
 
-  registerCollaborationRoutes(app, pool, mustBeSignedIn);
+  registerCollaborationRoutes(app, pool, mustHaveBrowserSession);
   registerCsvImportRoutes(app, pool, mustBeSignedIn);
   registerExpenseRoutes(app, pool, mustBeSignedIn);
   registerReceiptRoutes(app, pool, mustBeSignedIn);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn);
-  registerShareRoutes(app, pool, mustBeSignedIn);
+  registerShareRoutes(app, pool, mustHaveBrowserSession);
 
   app.all("/api", (context) => context.json({ error: "找不到 API" }, 404));
   app.all("/api/*", (context) => context.json({ error: "找不到 API" }, 404));
