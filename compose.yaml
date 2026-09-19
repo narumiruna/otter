@@ -24,6 +24,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
       PASSKEY_ORIGIN: ${PASSKEY_ORIGIN:-http://localhost:17463}
+      PASSKEY_TRUST_PROXY: ${PASSKEY_TRUST_PROXY:-false}
       PORT: 17463
     ports:
       - "17463:17463"

@@ -99,17 +99,19 @@ function firstForwardedValue(value: string | undefined): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
 }
 
-type AuthenticationOptionsRateLimit = {
+type PasskeyOptionsRateLimit = {
   globalLimit?: number;
   perClientLimit?: number;
+  trustProxy?: boolean;
   windowMs?: number;
 };
 
 export function createPasskeyOptionsRateLimiter({
   globalLimit = authenticationOptionsGlobalLimit,
   perClientLimit = authenticationOptionsPerClientLimit,
+  trustProxy = false,
   windowMs = authenticationOptionsRateLimitWindowMs,
-}: AuthenticationOptionsRateLimit = {}) {
+}: PasskeyOptionsRateLimit = {}) {
   let globalCount = 0;
   let resetAt = 0;
   const clientCounts = new Map<string, number>();
@@ -121,10 +123,11 @@ export function createPasskeyOptionsRateLimiter({
       clientCounts.clear();
     }
 
-    const client =
-      firstForwardedValue(req.get("x-forwarded-for")) ??
-      firstForwardedValue(req.get("x-real-ip")) ??
-      (req.remoteAddress?.trim() || undefined);
+    const forwardedClient = trustProxy
+      ? (firstForwardedValue(req.get("x-forwarded-for")) ??
+        firstForwardedValue(req.get("x-real-ip")))
+      : undefined;
+    const client = forwardedClient ?? (req.remoteAddress?.trim() || undefined);
     const clientCount = client ? (clientCounts.get(client) ?? 0) : 0;
     if (
       globalCount >= globalLimit ||
@@ -256,8 +259,13 @@ export function registerPasskeyRoutes(
     verifyAuthentication: verifyAuthenticationResponse,
     verifyRegistration: verifyRegistrationResponse,
   };
-  const limitAuthenticationOptions = createPasskeyOptionsRateLimiter();
-  const limitRegistrationOptions = createPasskeyOptionsRateLimiter();
+  const rateLimitOptions = {
+    trustProxy: process.env.PASSKEY_TRUST_PROXY === "true",
+  };
+  const limitAuthenticationOptions =
+    createPasskeyOptionsRateLimiter(rateLimitOptions);
+  const limitRegistrationOptions =
+    createPasskeyOptionsRateLimiter(rateLimitOptions);
 
   app.get(
     "/api/passkeys",

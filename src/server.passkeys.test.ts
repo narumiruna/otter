@@ -99,6 +99,36 @@ test("passkey options are rate limited per client and globally", () => {
   expect(rateLimit(firstClient, 2_000)).toBeUndefined();
 });
 
+test("passkey rate limits trust forwarded addresses only when configured", () => {
+  const directRateLimit = createPasskeyOptionsRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 1,
+    windowMs: 1_000,
+  });
+  const trustedProxyRateLimit = createPasskeyOptionsRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 1,
+    trustProxy: true,
+    windowMs: 1_000,
+  });
+  const forwardedRequest = (address: string): RouteRequest => ({
+    ...request,
+    get: (name) => (name === "x-forwarded-for" ? address : undefined),
+    remoteAddress: "192.0.2.1",
+  });
+
+  expect(
+    directRateLimit(forwardedRequest("198.51.100.1"), 1_000),
+  ).toBeUndefined();
+  expect(directRateLimit(forwardedRequest("198.51.100.2"), 1_000)).toBe(1);
+  expect(
+    trustedProxyRateLimit(forwardedRequest("198.51.100.1"), 1_000),
+  ).toBeUndefined();
+  expect(
+    trustedProxyRateLimit(forwardedRequest("198.51.100.2"), 1_000),
+  ).toBeUndefined();
+});
+
 test("passkey origins require HTTPS except on localhost", () => {
   expect(() =>
     resolvePasskeyRelyingParty(request, {
