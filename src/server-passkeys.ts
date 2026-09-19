@@ -22,6 +22,9 @@ import {
 } from "./server-support.js";
 
 const challengeLifetimeMs = 5 * 60 * 1000;
+const authenticationOptionsRateLimitWindowMs = 60 * 1000;
+const authenticationOptionsPerClientLimit = 10;
+const authenticationOptionsGlobalLimit = 120;
 
 export type PasskeyRelyingParty = {
   origin: string;
@@ -94,6 +97,43 @@ function responseFromBody<
 
 function firstForwardedValue(value: string | undefined): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
+}
+
+type AuthenticationOptionsRateLimit = {
+  globalLimit?: number;
+  perClientLimit?: number;
+  windowMs?: number;
+};
+
+export function createAuthenticationOptionsRateLimiter({
+  globalLimit = authenticationOptionsGlobalLimit,
+  perClientLimit = authenticationOptionsPerClientLimit,
+  windowMs = authenticationOptionsRateLimitWindowMs,
+}: AuthenticationOptionsRateLimit = {}) {
+  let globalCount = 0;
+  let resetAt = 0;
+  const clientCounts = new Map<string, number>();
+
+  return (req: RouteRequest, now = Date.now()): number | undefined => {
+    if (now >= resetAt) {
+      globalCount = 0;
+      resetAt = now + windowMs;
+      clientCounts.clear();
+    }
+
+    const client =
+      firstForwardedValue(req.get("x-forwarded-for")) ??
+      firstForwardedValue(req.get("x-real-ip")) ??
+      "unknown";
+    const clientCount = clientCounts.get(client) ?? 0;
+    if (globalCount >= globalLimit || clientCount >= perClientLimit) {
+      return Math.max(1, Math.ceil((resetAt - now) / 1000));
+    }
+
+    globalCount += 1;
+    clientCounts.set(client, clientCount + 1);
+    return undefined;
+  };
 }
 
 function parsePasskeyOrigin(origin: string): URL {
@@ -208,6 +248,7 @@ export function registerPasskeyRoutes(
     verifyAuthentication: verifyAuthenticationResponse,
     verifyRegistration: verifyRegistrationResponse,
   };
+  const limitAuthenticationOptions = createAuthenticationOptionsRateLimiter();
 
   app.get(
     "/api/passkeys",
@@ -356,6 +397,13 @@ export function registerPasskeyRoutes(
   app.post(
     "/api/auth/passkey/options",
     asyncHandler(async (req, res) => {
+      const retryAfter = limitAuthenticationOptions(req);
+      if (retryAfter !== undefined) {
+        res.setHeader("Retry-After", String(retryAfter));
+        sendError(res, 429, "Passkey 登入要求過於頻繁，請稍後再試");
+        return;
+      }
+
       const relyingParty = resolvePasskeyRelyingParty(
         req,
         routeOptions.relyingParty,

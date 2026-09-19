@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { expect, test, vi } from "vitest";
 import type { RouteRequest } from "./server-http.js";
 import {
+  createAuthenticationOptionsRateLimiter,
   type PasskeyVerifiers,
   resolvePasskeyRelyingParty,
 } from "./server-passkeys.js";
@@ -77,6 +78,26 @@ const request: RouteRequest = {
   params: {},
   protocol: "https",
 };
+
+test("anonymous passkey options are rate limited per client and globally", () => {
+  const rateLimit = createAuthenticationOptionsRateLimiter({
+    globalLimit: 3,
+    perClientLimit: 2,
+    windowMs: 1_000,
+  });
+  const clientRequest = (address: string): RouteRequest => ({
+    ...request,
+    get: (name) => (name === "x-forwarded-for" ? address : undefined),
+  });
+  const firstClient = clientRequest("192.0.2.1");
+
+  expect(rateLimit(firstClient, 1_000)).toBeUndefined();
+  expect(rateLimit(firstClient, 1_000)).toBeUndefined();
+  expect(rateLimit(firstClient, 1_000)).toBe(1);
+  expect(rateLimit(clientRequest("192.0.2.2"), 1_000)).toBeUndefined();
+  expect(rateLimit(clientRequest("192.0.2.3"), 1_000)).toBe(1);
+  expect(rateLimit(firstClient, 2_000)).toBeUndefined();
+});
 
 test("passkey origins require HTTPS except on localhost", () => {
   expect(() =>
@@ -254,6 +275,20 @@ test(
     const secondAuthenticationOptions = await api<
       typeof authenticationOptions.data
     >(baseUrl, "/api/auth/passkey/options", { method: "POST" });
+    for (let index = 0; index < 8; index += 1) {
+      const allowed = await api(baseUrl, "/api/auth/passkey/options", {
+        method: "POST",
+      });
+      expect(allowed.response.status).toBe(200);
+    }
+    const rateLimited = await api<{ error: string }>(
+      baseUrl,
+      "/api/auth/passkey/options",
+      { method: "POST" },
+    );
+    expect(rateLimited.response.status).toBe(429);
+    expect(rateLimited.response.headers.get("retry-after")).toBeTruthy();
+
     const authenticationBody = JSON.stringify({
       challengeId: authenticationOptions.data.challengeId,
       response: fakeAuthenticationResponse,
