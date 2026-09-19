@@ -13,6 +13,12 @@ produp:
 dev:
     docker compose up -d --build
 
+up:
+    docker compose up -d --build --remove-orphans
+
+down:
+    docker compose down --remove-orphans
+
 build:
     npm run build
 
