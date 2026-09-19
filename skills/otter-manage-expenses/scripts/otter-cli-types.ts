@@ -12,9 +12,7 @@ export type CliConfig = {
   baseUrl: string;
 };
 
-export type AuthCredential =
-  | { cookie: string; kind: "session" }
-  | { kind: "token"; token: string };
+export type AuthCredential = { kind: "token"; token: string };
 
 export type DeviceAuthorization = {
   device_code: string;

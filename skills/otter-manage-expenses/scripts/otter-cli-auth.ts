@@ -190,25 +190,10 @@ export function configFromEnvironment(environment: CliEnvironment): CliConfig {
 export async function credentialFromEnvironment(
   config: CliConfig,
   environment: CliEnvironment,
-  fetchImplementation: FetchImplementation,
 ): Promise<AuthCredential> {
   const token = await tokenFromEnvironment(config, environment);
   if (token) {
     return { kind: "token", token: token.value };
-  }
-
-  const username = environment.OTTER_USERNAME?.trim();
-  const password = environment.OTTER_PASSWORD;
-  if (username && password) {
-    return {
-      cookie: await loginSession(
-        config,
-        fetchImplementation,
-        username,
-        password,
-      ),
-      kind: "session",
-    };
   }
   throw new CliError(
     "CONFIG_ERROR",
@@ -216,58 +201,10 @@ export async function credentialFromEnvironment(
   );
 }
 
-async function loginSession(
-  config: CliConfig,
-  fetchImplementation: FetchImplementation,
-  username: string,
-  password: string,
-): Promise<string> {
-  const response = await safeFetch(
-    fetchImplementation,
-    apiUrl(config, "/api/auth/login"),
-    {
-      body: JSON.stringify({ password, username }),
-      headers: jsonHeaders(),
-      method: "POST",
-    },
-  );
-  const data = await responseData(response);
-  if (!response.ok) {
-    throw apiError(response.status, data);
-  }
-  const setCookie = response.headers.get("set-cookie");
-  const cookie = setCookie?.split(";", 1)[0];
-  if (!cookie) {
-    throw new CliError(
-      "AUTH_ERROR",
-      "Login succeeded without a session cookie",
-      response.status,
-    );
-  }
-  return cookie;
-}
-
-export async function logoutSession(
-  config: CliConfig,
-  fetchImplementation: FetchImplementation,
-  cookie: string,
-): Promise<void> {
-  try {
-    await fetchImplementation(apiUrl(config, "/api/auth/logout"), {
-      headers: { ...jsonHeaders(), Cookie: cookie },
-      method: "POST",
-    });
-  } catch {
-    // The operation is complete, so session cleanup must not replace its result.
-  }
-}
-
 export function authHeaders(
   credential: AuthCredential,
 ): Record<string, string> {
-  return credential.kind === "token"
-    ? { Authorization: `Bearer ${credential.token}` }
-    : { Cookie: credential.cookie };
+  return { Authorization: `Bearer ${credential.token}` };
 }
 
 function deviceAuthorizationFromResponse(data: unknown): DeviceAuthorization {

@@ -2,7 +2,6 @@ import {
   authHeaders,
   configFromEnvironment,
   credentialFromEnvironment,
-  logoutSession,
 } from "./otter-cli-auth.js";
 import { isRecord, requestJson } from "./otter-cli-http.js";
 import {
@@ -36,35 +35,25 @@ export async function executeCliCommand(
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
-  const credential = await credentialFromEnvironment(
+  const credential = await credentialFromEnvironment(config, environment);
+  const data = await requestJson(
     config,
-    environment,
     fetchImplementation,
+    command.path,
+    command.method,
+    authHeaders(credential),
+    command.body,
   );
-  try {
-    const data = await requestJson(
-      config,
-      fetchImplementation,
-      command.path,
-      command.method,
-      authHeaders(credential),
-      command.body,
+  if (
+    command.authenticatedUserRequired &&
+    (!isRecord(data) || !isRecord(data.user))
+  ) {
+    throw new CliError(
+      "AUTH_ERROR",
+      "Otter authorization is missing or expired",
     );
-    if (
-      command.authenticatedUserRequired &&
-      (!isRecord(data) || !isRecord(data.user))
-    ) {
-      throw new CliError(
-        "AUTH_ERROR",
-        "Otter authorization is missing or expired",
-      );
-    }
-    return selectOutput(data, command.select);
-  } finally {
-    if (credential.kind === "session") {
-      await logoutSession(config, fetchImplementation, credential.cookie);
-    }
   }
+  return selectOutput(data, command.select);
 }
 
 function selectOutput(data: unknown, select: CliCommand["select"]): unknown {

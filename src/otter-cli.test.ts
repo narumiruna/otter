@@ -138,26 +138,8 @@ describe("parseCliCommand", () => {
 });
 
 describe("executeCliCommand", () => {
-  test("logs in, returns selected JSON, and logs out", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ user: { id: "user-1" } }), {
-          headers: { "Set-Cookie": "otter_session=session-1; HttpOnly" },
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            balances: [{ amountMinor: 500, participantId: "a" }],
-            settlements: [{ amountMinor: 500, fromId: "b", toId: "a" }],
-            trip: { settlementPayments: [] },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
+  test("does not fall back to password authentication", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
 
     await expect(
       executeCliCommand(
@@ -169,39 +151,25 @@ describe("executeCliCommand", () => {
         environment,
         fetchMock,
       ),
-    ).resolves.toEqual({
-      balances: [{ amountMinor: 500, participantId: "a" }],
-      settlements: [{ amountMinor: 500, fromId: "b", toId: "a" }],
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "http://localhost:17463/api/auth/login",
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
     );
-    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Cookie: "otter_session=session-1",
-        }),
-      }),
-    );
-    expect(fetchMock.mock.calls[2]?.[0]).toBe(
-      "http://localhost:17463/api/auth/logout",
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("returns server errors without exposing credentials", async () => {
+  test("returns server errors without exposing tokens", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ error: "Username or password is wrong" }), {
+      new Response(JSON.stringify({ error: "API token is invalid" }), {
         status: 401,
       }),
     );
+    const token = "otter_api_do_not_expose";
 
     let caught: unknown;
     try {
       await executeCliCommand(
         { method: "GET", path: "/api/me" },
-        environment,
+        { OTTER_TOKEN: token, OTTER_URL: environment.OTTER_URL },
         fetchMock,
       );
     } catch (error) {
@@ -211,13 +179,11 @@ describe("executeCliCommand", () => {
     expect(errorPayload(caught)).toEqual({
       error: {
         code: "API_ERROR",
-        message: "Username or password is wrong",
+        message: "API token is invalid",
         status: 401,
       },
     });
-    expect(JSON.stringify(errorPayload(caught))).not.toContain(
-      environment.OTTER_PASSWORD,
-    );
+    expect(JSON.stringify(errorPayload(caught))).not.toContain(token);
   });
 
   test("uses a Bearer token without a password login", async () => {
