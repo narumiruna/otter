@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import {
@@ -36,10 +36,21 @@ export async function executeDeviceLogin(
       "Unset OTTER_TOKEN before saving a device-authorized login",
     );
   }
+  return withCredentialLock(environment, () =>
+    executeDeviceLoginLocked(environment, options, config),
+  );
+}
+
+async function executeDeviceLoginLocked(
+  environment: CliEnvironment,
+  options: DeviceLoginOptions,
+  config: CliConfig,
+): Promise<unknown> {
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const previousToken = await storedTokenFromEnvironment(
     environment,
     config.baseUrl,
+    true,
   );
   const response = await safeFetch(
     fetchImplementation,
@@ -139,10 +150,21 @@ export async function executeDeviceLogout(
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
+  return withCredentialLock(environment, () =>
+    executeDeviceLogoutLocked(environment, fetchImplementation, config),
+  );
+}
+
+async function executeDeviceLogoutLocked(
+  environment: CliEnvironment,
+  fetchImplementation: FetchImplementation,
+  config: CliConfig,
+): Promise<unknown> {
   const environmentToken = environment.OTTER_TOKEN?.trim() || undefined;
   const storedToken = await storedTokenFromEnvironment(
     environment,
     config.baseUrl,
+    true,
   );
   if (!environmentToken && !storedToken) {
     throw new CliError(
@@ -158,7 +180,11 @@ export async function executeDeviceLogout(
     await revokeToken(config, fetchImplementation, storedToken.accessToken);
   }
   if (storedToken) {
-    await removeStoredToken(environment, config.baseUrl);
+    await removeStoredToken(
+      environment,
+      config.baseUrl,
+      storedToken.accessToken,
+    );
   }
   return { authenticated: false, server: config.baseUrl };
 }
@@ -299,6 +325,7 @@ async function tokenFromEnvironment(
 async function storedTokenFromEnvironment(
   environment: CliEnvironment,
   baseUrl: string,
+  lockHeld = false,
 ): Promise<CredentialFile["servers"][string] | undefined> {
   const stored = await readCredentialFile(environment);
   const credential = stored.servers[baseUrl];
@@ -306,7 +333,13 @@ async function storedTokenFromEnvironment(
     return undefined;
   }
   if (new Date(credential.expiresAt).getTime() <= Date.now()) {
-    await removeStoredToken(environment, baseUrl);
+    const removeExpiredToken = () =>
+      removeStoredToken(environment, baseUrl, credential.accessToken);
+    if (lockHeld) {
+      await removeExpiredToken();
+    } else {
+      await withCredentialLock(environment, removeExpiredToken);
+    }
     return undefined;
   }
   return credential;
@@ -325,9 +358,10 @@ async function saveStoredToken(
 async function removeStoredToken(
   environment: CliEnvironment,
   baseUrl: string,
+  expectedAccessToken: string,
 ): Promise<void> {
   const credentials = await readCredentialFile(environment);
-  if (!credentials.servers[baseUrl]) {
+  if (credentials.servers[baseUrl]?.accessToken !== expectedAccessToken) {
     return;
   }
   delete credentials.servers[baseUrl];
@@ -380,6 +414,56 @@ async function writeCredentialFile(
       "CONFIG_ERROR",
       `Could not save the Otter credential file: ${error instanceof Error ? error.message : "unknown error"}`,
     );
+  }
+}
+
+async function withCredentialLock<T>(
+  environment: CliEnvironment,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const filename = credentialFilePath(environment);
+  const lockDirectory = `${filename}.lock`;
+  const waitStartedAt = Date.now();
+  const staleAfterMs = 11 * 60 * 1000;
+  await mkdir(path.dirname(filename), { mode: 0o700, recursive: true });
+
+  while (true) {
+    try {
+      await mkdir(lockDirectory, { mode: 0o700 });
+      break;
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "EEXIST") {
+        throw new CliError(
+          "CONFIG_ERROR",
+          `Could not lock the Otter credential file: ${error instanceof Error ? error.message : "unknown error"}`,
+        );
+      }
+      try {
+        const lockStat = await stat(lockDirectory);
+        if (Date.now() - lockStat.mtimeMs > staleAfterMs) {
+          await rm(lockDirectory, { force: true, recursive: true });
+          continue;
+        }
+      } catch (statError) {
+        if (!isNodeError(statError) || statError.code !== "ENOENT") {
+          throw statError;
+        }
+        continue;
+      }
+      if (Date.now() - waitStartedAt > staleAfterMs) {
+        throw new CliError(
+          "CONFIG_ERROR",
+          "Timed out waiting for another Otter authentication command",
+        );
+      }
+      await delay(100);
+    }
+  }
+
+  try {
+    return await operation();
+  } finally {
+    await rm(lockDirectory, { force: true, recursive: true });
   }
 }
 

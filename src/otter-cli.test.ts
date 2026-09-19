@@ -342,6 +342,86 @@ describe("device login", () => {
     ).toBe("Bearer otter_api_unpersisted");
   });
 
+  test("serializes concurrent logins for one credential file", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const environment = {
+      OTTER_CONFIG_PATH: configPath,
+      OTTER_URL: "http://localhost:17463",
+    };
+    const authorization = {
+      device_code: "device-secret",
+      expires_in: 600,
+      interval: 3,
+      user_code: "ABCD-2345",
+      verification_uri: "http://localhost:17463/device",
+      verification_uri_complete: "http://localhost:17463/device?code=ABCD-2345",
+    };
+    const tokenResponse = (accessToken: string) =>
+      new Response(
+        JSON.stringify({
+          access_token: accessToken,
+          expires_at: "2099-01-01T00:00:00.000Z",
+          token_type: "Bearer",
+        }),
+      );
+    const firstFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(tokenResponse("otter_api_first"));
+    const secondFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(tokenResponse("otter_api_second"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
+    let releaseFirstPoll: (() => void) | undefined;
+    const firstPoll = new Promise<void>((resolve) => {
+      releaseFirstPoll = resolve;
+    });
+
+    const firstLogin = executeDeviceLogin(environment, {
+      fetchImplementation: firstFetch,
+      noOpen: true,
+      sleep: () => firstPoll,
+    });
+    for (
+      let attempt = 0;
+      attempt < 20 && firstFetch.mock.calls.length === 0;
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(firstFetch).toHaveBeenCalledTimes(1);
+
+    const secondLogin = executeDeviceLogin(environment, {
+      fetchImplementation: secondFetch,
+      noOpen: true,
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(secondFetch).not.toHaveBeenCalled();
+
+    releaseFirstPoll?.();
+    await Promise.all([firstLogin, secondLogin]);
+    expect(secondFetch).toHaveBeenCalledTimes(3);
+    expect(
+      new Headers(secondFetch.mock.calls[2]?.[1]?.headers).get("Authorization"),
+    ).toBe("Bearer otter_api_first");
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_second",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+  });
+
   test("polls for approval, stores a private token, uses it, and revokes it", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
     const configPath = path.join(directory, "credentials.json");
