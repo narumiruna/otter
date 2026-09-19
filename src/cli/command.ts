@@ -1,8 +1,4 @@
-import {
-  type CliCommand,
-  CliError,
-  type DeviceLoginOptions,
-} from "./otter-cli-types.js";
+import { type CliCommand, CliError, type DeviceLoginOptions } from "./types.js";
 
 type ParsedOptions = Map<string, string | true>;
 const helpText = `Usage: otter <resource> <action> [options]

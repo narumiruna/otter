@@ -1,0 +1,40 @@
+{
+  "name": "@narumitw/otter",
+  "version": "0.1.0",
+  "description": "Non-interactive CLI for managing Otter travel and shared expenses",
+  "type": "module",
+  "bin": {
+    "otter": "dist/otter.cjs"
+  },
+  "files": [
+    "dist/otter.cjs"
+  ],
+  "scripts": {
+    "build": "esbuild main.ts --bundle --format=cjs --log-level=warning --outfile=dist/otter.cjs --platform=node --target=node20",
+    "dev": "tsx main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "npm run typecheck && npm run build",
+    "prepack": "npm run check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/narumiruna/otter.git",
+    "directory": "src/cli"
+  },
+  "homepage": "https://github.com/narumiruna/otter#readme",
+  "bugs": "https://github.com/narumiruna/otter/issues",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/proper-lockfile": "^4.1.4",
+    "proper-lockfile": "^4.1.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

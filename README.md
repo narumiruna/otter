@@ -87,12 +87,19 @@ npm run db:reset:dev
 
 ## Agent CLI
 
-非互動式 CLI 透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄，資料結果固定輸出 JSON，適合 script 或 AI agent 使用。CLI 不需要接收帳號密碼；第一次使用時啟動 device authorization：
-
-未設定 `OTTER_URL` 時，CLI 預設連線至 `https://otter.narumi.dev/`：
+`src/cli/` 內的 `@narumitw/otter` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
 
 ```bash
-npm run --silent otter -- auth login
+npm install --global @narumitw/otter # package 發佈後
+# 或在 repository root：
+npm run build:cli
+npm link --workspace @narumitw/otter
+```
+
+兩種方式都會提供 `$ otter`。CLI 不需要接收帳號密碼；第一次使用時啟動 device authorization。未設定 `OTTER_URL` 時，預設連線至 `https://otter.narumi.dev/`：
+
+```bash
+otter auth login
 ```
 
 若要連線至其他 Otter server（例如本機開發環境），再以 `OTTER_URL` 覆寫。CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。帳號、Passkey、協作者、分享連結與 device approval 管理仍要求瀏覽器 session，Bearer token 不可執行。
@@ -100,27 +107,27 @@ npm run --silent otter -- auth login
 若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可改由 secret manager 提供 `OTTER_TOKEN`，而不寫入 credential file。
 
 ```bash
-npm run --silent otter -- auth status
-npm run --silent otter -- trips list
+otter auth status
+otter trips list
 ```
 
 常見流程：
 
 ```bash
-npm run --silent otter -- participants list --trip trip-id
-npm run --silent otter -- expenses add \
+otter participants list --trip trip-id
+otter expenses add \
   --trip trip-id \
   --description Dinner \
   --amount 1200 \
   --currency TWD \
   --paid-by participant-id \
   --split-with participant-id,other-participant-id
-npm run --silent otter -- balances get --trip trip-id
+otter balances get --trip trip-id
 ```
 
-金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `npm run --silent otter -- auth logout` 可撤銷目前 token 並移除本機保存內容。
+金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `otter auth logout` 可撤銷目前 token 並移除本機保存內容。
 
-使用 `npm run --silent otter -- --help` 查看完整命令。`--silent` 會避免 npm 將 lifecycle 訊息混入 stdout JSON。Production build 後也可執行 `npm run --silent otter:built -- --help`。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
+使用 `otter --help` 查看完整命令。開發時仍可執行 `npm run --silent otter -- --help`；production bundle 可執行 `npm run --silent otter:built -- --help`。發佈前以 `npm pack --dry-run --workspace @narumitw/otter` 檢查 package 內容。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
 
 ## Pre-commit / Husky
 

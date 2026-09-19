@@ -13,7 +13,7 @@ import {
   requestJson,
   responseData,
   safeFetch,
-} from "./otter-cli-http.js";
+} from "./http.js";
 import {
   type AuthCredential,
   type CliConfig,
@@ -22,7 +22,7 @@ import {
   type DeviceAuthorization,
   type DeviceLoginOptions,
   type FetchImplementation,
-} from "./otter-cli-types.js";
+} from "./types.js";
 
 type CredentialFile = {
   servers: Record<string, { accessToken: string; expiresAt: string }>;
