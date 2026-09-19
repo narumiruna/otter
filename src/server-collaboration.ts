@@ -3,10 +3,10 @@ import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
-  findUserByEmail,
+  findUserByUsername,
   loadTripForUser,
   makeId,
-  normalizeEmail,
+  normalizeUsername,
   nowIso,
   requestBody,
   sendError,
@@ -34,12 +34,15 @@ export function registerCollaborationRoutes(
         return;
       }
 
-      const email = stringField(requestBody(req), "email");
-      if (!email?.includes("@")) {
-        sendError(res, 400, "請輸入有效 email");
+      const username = stringField(requestBody(req), "username");
+      if (!username) {
+        sendError(res, 400, "請輸入 Username");
         return;
       }
-      const collaborator = await findUserByEmail(pool, normalizeEmail(email));
+      const collaborator = await findUserByUsername(
+        pool,
+        normalizeUsername(username),
+      );
       if (!collaborator) {
         sendError(res, 404, "找不到這個使用者");
         return;

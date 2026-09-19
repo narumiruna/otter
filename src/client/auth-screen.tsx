@@ -22,8 +22,12 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  isValidUsername,
+  usernameValidationMessage,
+} from "../shared/username.js";
 
-export type LoginCredentials = { email: string; password: string };
+export type LoginCredentials = { username: string; password: string };
 export type RegisterCredentials = LoginCredentials & { name: string };
 
 type AuthScreenProps = {
@@ -45,10 +49,10 @@ export function AuthScreen({
 }: AuthScreenProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const login = useForm<LoginCredentials>({
-    defaultValues: devLoginCredentials ?? { email: "", password: "" },
+    defaultValues: devLoginCredentials ?? { username: "", password: "" },
   });
   const register = useForm<RegisterCredentials>({
-    defaultValues: { email: "", name: "", password: "" },
+    defaultValues: { username: "", name: "", password: "" },
   });
   return (
     <section className="auth-layout">
@@ -129,17 +133,21 @@ export function AuthScreen({
             >
               <FieldGroup>
                 {loginError ? <FieldError>{loginError}</FieldError> : null}
-                <Field data-invalid={Boolean(login.formState.errors.email)}>
-                  <FieldLabel htmlFor="login-email">Email</FieldLabel>
+                <Field data-invalid={Boolean(login.formState.errors.username)}>
+                  <FieldLabel htmlFor="login-username">Username</FieldLabel>
                   <Input
-                    id="login-email"
-                    type="email"
-                    autoComplete="email"
-                    aria-invalid={Boolean(login.formState.errors.email)}
-                    defaultValue={devLoginCredentials?.email}
-                    {...login.register("email", { required: "請輸入 Email" })}
+                    id="login-username"
+                    type="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={Boolean(login.formState.errors.username)}
+                    defaultValue={devLoginCredentials?.username}
+                    {...login.register("username", {
+                      required: "請輸入 Username",
+                    })}
                   />
-                  <FieldError errors={[login.formState.errors.email]} />
+                  <FieldError errors={[login.formState.errors.username]} />
                 </Field>
                 <Field data-invalid={Boolean(login.formState.errors.password)}>
                   <FieldLabel htmlFor="login-password">密碼</FieldLabel>
@@ -199,17 +207,28 @@ export function AuthScreen({
                   />
                   <FieldError errors={[register.formState.errors.name]} />
                 </Field>
-                <Field data-invalid={Boolean(register.formState.errors.email)}>
-                  <FieldLabel htmlFor="register-email">Email</FieldLabel>
+                <Field
+                  data-invalid={Boolean(register.formState.errors.username)}
+                >
+                  <FieldLabel htmlFor="register-username">Username</FieldLabel>
                   <Input
-                    id="register-email"
-                    type="email"
-                    autoComplete="email"
-                    {...register.register("email", {
-                      required: "請輸入 Email",
+                    id="register-username"
+                    type="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={Boolean(register.formState.errors.username)}
+                    aria-describedby="register-username-help"
+                    {...register.register("username", {
+                      required: "請輸入 Username",
+                      validate: (value) =>
+                        isValidUsername(value) || usernameValidationMessage,
                     })}
                   />
-                  <FieldError errors={[register.formState.errors.email]} />
+                  <FieldDescription id="register-username-help">
+                    {usernameValidationMessage}，不分大小寫。
+                  </FieldDescription>
+                  <FieldError errors={[register.formState.errors.username]} />
                 </Field>
                 <Field
                   data-invalid={Boolean(register.formState.errors.password)}

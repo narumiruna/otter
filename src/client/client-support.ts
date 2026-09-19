@@ -4,7 +4,7 @@ import type { Balance, Settlement, Trip } from "../shared/settlement.js";
 export type User = {
   id: string;
   name: string;
-  email: string;
+  username: string;
 };
 
 export type TripSummary = {
@@ -21,7 +21,7 @@ export type TripRole = "owner" | "editor";
 export type TripCollaborator = {
   userId: string;
   name: string;
-  email: string;
+  username: string;
   role: TripRole;
   createdAt: string;
 };

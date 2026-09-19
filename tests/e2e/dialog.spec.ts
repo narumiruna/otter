@@ -12,7 +12,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.route("**/api/me", (route) =>
       route.fulfill({
         json: {
-          user: { id: "dialog-user", name: "Test", email: "test@example.com" },
+          user: { id: "dialog-user", name: "Test", username: "test" },
         },
       }),
     );

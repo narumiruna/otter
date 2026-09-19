@@ -15,7 +15,7 @@ test(
     const { baseUrl } = await withTestApp();
     const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
-        email: `split-${Date.now()}@example.com`,
+        username: `split-${Date.now()}`,
         name: "Alice",
         password: "password123",
       }),
