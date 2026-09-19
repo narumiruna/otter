@@ -42,7 +42,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       fullPage: true,
     });
     await page.getByRole("button", { name: "建立帳號" }).click();
-    await expect(page.getByLabel("名稱")).toBeVisible();
+    const registration = page.locator("#register-form");
+    await expect(registration.getByLabel("Username")).toBeVisible();
+    await expect(registration.getByLabel("密碼")).toBeVisible();
+    await expect(registration.getByLabel("名稱")).toHaveCount(0);
     await expect(
       page.getByText("START A NEW JOURNEY", { exact: true }),
     ).toHaveAttribute("lang", "en");
