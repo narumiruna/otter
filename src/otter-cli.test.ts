@@ -370,18 +370,44 @@ describe("device login", () => {
       }),
     );
 
-    const failedRotationFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ error: "Service unavailable" }), {
-        status: 503,
-      }),
-    );
+    const failedRotationFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(deviceAuthorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "otter_api_unsaved_rotation",
+            expires_at: "2099-02-01T00:00:00.000Z",
+            token_type: "Bearer",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Service unavailable" }), {
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
     await expect(
       executeDeviceLogin(authEnvironment, {
         fetchImplementation: failedRotationFetch,
         noOpen: true,
+        sleep: vi.fn().mockResolvedValue(undefined),
       }),
     ).rejects.toEqual(expect.objectContaining<CliError>({ code: "API_ERROR" }));
-    expect(failedRotationFetch).toHaveBeenCalledTimes(1);
+    expect(failedRotationFetch).toHaveBeenCalledTimes(4);
+    expect(
+      failedRotationFetch.mock.calls
+        .slice(2)
+        .map(([, options]) =>
+          new Headers(options?.headers).get("Authorization"),
+        ),
+    ).toEqual([
+      "Bearer otter_api_persisted",
+      "Bearer otter_api_unsaved_rotation",
+    ]);
     expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
       servers: {
         "http://localhost:17463": {
@@ -394,7 +420,6 @@ describe("device login", () => {
 
     const rotationFetch = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })))
       .mockResolvedValueOnce(
         new Response(JSON.stringify(deviceAuthorization), { status: 201 }),
       )
@@ -406,16 +431,17 @@ describe("device login", () => {
             token_type: "Bearer",
           }),
         ),
-      );
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })));
     await executeDeviceLogin(authEnvironment, {
       fetchImplementation: rotationFetch,
       noOpen: true,
       sleep: vi.fn().mockResolvedValue(undefined),
     });
-    expect(rotationFetch.mock.calls[0]?.[0]).toBe(
+    expect(rotationFetch.mock.calls[2]?.[0]).toBe(
       "http://localhost:17463/api/auth/tokens/current",
     );
-    expect(rotationFetch.mock.calls[0]?.[1]).toEqual(
+    expect(rotationFetch.mock.calls[2]?.[1]).toEqual(
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer otter_api_persisted",

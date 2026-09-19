@@ -37,7 +37,10 @@ export async function executeDeviceLogin(
     );
   }
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  await revokeStoredTokenBeforeLogin(environment, config, fetchImplementation);
+  const previousToken = await storedTokenFromEnvironment(
+    environment,
+    config.baseUrl,
+  );
   const response = await safeFetch(
     fetchImplementation,
     apiUrl(config, "/api/auth/device"),
@@ -93,6 +96,23 @@ export async function executeDeviceLogin(
     }
     const token = accessTokenFromResponse(tokenData);
     await saveStoredToken(environment, config.baseUrl, token);
+    if (previousToken && previousToken.accessToken !== token.accessToken) {
+      try {
+        await revokeToken(
+          config,
+          fetchImplementation,
+          previousToken.accessToken,
+        );
+      } catch (error) {
+        try {
+          await revokeToken(config, fetchImplementation, token.accessToken);
+        } catch {
+          // Preserve the original rotation failure for the caller.
+        }
+        await saveStoredToken(environment, config.baseUrl, previousToken);
+        throw error;
+      }
+    }
     return {
       authenticated: true,
       expiresAt: token.expiresAt,
@@ -105,50 +125,16 @@ export async function executeDeviceLogin(
   );
 }
 
-async function revokeStoredTokenBeforeLogin(
-  environment: CliEnvironment,
-  config: CliConfig,
-  fetchImplementation: FetchImplementation,
-): Promise<void> {
-  const credentials = await readCredentialFile(environment);
-  const credential = credentials.servers[config.baseUrl];
-  if (!credential) {
-    return;
-  }
-  if (new Date(credential.expiresAt).getTime() > Date.now()) {
-    try {
-      await requestJson(
-        config,
-        fetchImplementation,
-        "/api/auth/tokens/current",
-        "DELETE",
-        { Authorization: `Bearer ${credential.accessToken}` },
-      );
-    } catch (error) {
-      if (
-        !(error instanceof CliError) ||
-        (error.status !== 401 && error.status !== 404)
-      ) {
-        throw error;
-      }
-    }
-  }
-  await removeStoredToken(environment, config.baseUrl);
-}
-
 export async function executeDeviceLogout(
   environment: CliEnvironment,
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
   const environmentToken = environment.OTTER_TOKEN?.trim() || undefined;
-  const credentials = await readCredentialFile(environment);
-  let storedToken: CredentialFile["servers"][string] | undefined =
-    credentials.servers[config.baseUrl];
-  if (storedToken && new Date(storedToken.expiresAt).getTime() <= Date.now()) {
-    await removeStoredToken(environment, config.baseUrl);
-    storedToken = undefined;
-  }
+  const storedToken = await storedTokenFromEnvironment(
+    environment,
+    config.baseUrl,
+  );
   if (!environmentToken && !storedToken) {
     throw new CliError(
       "CONFIG_ERROR",
@@ -292,16 +278,29 @@ async function tokenFromEnvironment(
   if (environmentToken) {
     return { source: "environment", value: environmentToken };
   }
+  const credential = await storedTokenFromEnvironment(
+    environment,
+    config.baseUrl,
+  );
+  return credential
+    ? { source: "stored", value: credential.accessToken }
+    : undefined;
+}
+
+async function storedTokenFromEnvironment(
+  environment: CliEnvironment,
+  baseUrl: string,
+): Promise<CredentialFile["servers"][string] | undefined> {
   const stored = await readCredentialFile(environment);
-  const credential = stored.servers[config.baseUrl];
+  const credential = stored.servers[baseUrl];
   if (!credential) {
     return undefined;
   }
   if (new Date(credential.expiresAt).getTime() <= Date.now()) {
-    await removeStoredToken(environment, config.baseUrl);
+    await removeStoredToken(environment, baseUrl);
     return undefined;
   }
-  return { source: "stored", value: credential.accessToken };
+  return credential;
 }
 
 async function saveStoredToken(
