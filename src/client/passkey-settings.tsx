@@ -19,34 +19,54 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const listAbortController = useRef<AbortController | undefined>(undefined);
   const listGeneration = useRef(0);
   const mutationActive = useRef(false);
   const supported = supportsPasskeys();
 
   const loadPasskeys = useCallback(async () => {
     if (mutationActive.current) return;
+    listAbortController.current?.abort();
+    const controller = new AbortController();
+    listAbortController.current = controller;
     const generation = ++listGeneration.current;
     try {
-      const result = await api<{ passkeys: PasskeySummary[] }>("/api/passkeys");
-      if (mutationActive.current || generation !== listGeneration.current) {
+      const result = await api<{ passkeys: PasskeySummary[] }>(
+        "/api/passkeys",
+        { signal: controller.signal },
+      );
+      if (
+        controller.signal.aborted ||
+        mutationActive.current ||
+        generation !== listGeneration.current
+      ) {
         return;
       }
       setPasskeys(result.passkeys);
       setError("");
     } catch {
-      if (mutationActive.current || generation !== listGeneration.current) {
+      if (
+        controller.signal.aborted ||
+        mutationActive.current ||
+        generation !== listGeneration.current
+      ) {
         return;
       }
       setError(messages.unableToLoadPasskeys);
+    } finally {
+      if (listAbortController.current === controller) {
+        listAbortController.current = undefined;
+      }
     }
   }, [messages.unableToLoadPasskeys]);
 
   useEffect(() => {
-    if (offline) return;
-    void loadPasskeys();
+    if (!offline) void loadPasskeys();
+    return () => listAbortController.current?.abort();
   }, [offline, loadPasskeys]);
 
   function beginMutation() {
+    listAbortController.current?.abort();
     mutationActive.current = true;
     listGeneration.current += 1;
   }
