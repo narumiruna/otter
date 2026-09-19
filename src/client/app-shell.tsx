@@ -6,15 +6,31 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccountUsernameDialog } from "./account-username-dialog.js";
 import { type AppBootstrap, fetchAppBootstrap } from "./app-bootstrap.js";
 import {
   AuthScreen,
   type LoginCredentials,
   type RegisterCredentials,
 } from "./auth-screen.js";
-import { api, type User } from "./client-support.js";
+import { api, type TripPayload, type User } from "./client-support.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
 import { ReadonlyWorkspace } from "./workspace/readonly-workspace.js";
+
+function updateCollaboratorUsername(
+  payload: TripPayload | null,
+  user: User,
+): TripPayload | null {
+  if (!payload?.collaborators) return payload;
+  return {
+    ...payload,
+    collaborators: payload.collaborators.map((collaborator) =>
+      collaborator.userId === user.id
+        ? { ...collaborator, username: user.username }
+        : collaborator,
+    ),
+  };
+}
 
 function LoadingScreen() {
   return (
@@ -41,14 +57,15 @@ export function AppShell() {
     login?: string;
     register?: string;
   }>({});
+  const bootstrapQueryKey = [
+    "app-bootstrap",
+    window.location.pathname,
+    window.location.search,
+  ] as const;
   const bootstrap = useQuery({
     queryFn: () =>
       fetchAppBootstrap(window.location.pathname, window.location.search),
-    queryKey: [
-      "app-bootstrap",
-      window.location.pathname,
-      window.location.search,
-    ],
+    queryKey: bootstrapQueryKey,
     refetchOnWindowFocus: false,
     retry: false,
   });
@@ -100,6 +117,34 @@ export function AppShell() {
     } finally {
       setAuthAction("");
     }
+  }
+
+  async function updateUsername(username: string) {
+    const response = await api<{ user: User }>("/api/me", {
+      body: JSON.stringify({ username }),
+      method: "PATCH",
+    });
+    const updateBootstrap = (current: AppBootstrap | undefined) =>
+      current
+        ? {
+            ...current,
+            selected: updateCollaboratorUsername(
+              current.selected,
+              response.user,
+            ),
+            user: response.user,
+          }
+        : current;
+    queryClient.setQueryData<AppBootstrap>(bootstrapQueryKey, updateBootstrap);
+    setLastBootstrap(
+      (current) => updateBootstrap(current ?? undefined) ?? null,
+    );
+    queryClient.setQueriesData<TripPayload>(
+      { queryKey: ["trip"] },
+      (current) =>
+        updateCollaboratorUsername(current ?? null, response.user) ?? undefined,
+    );
+    announce("Username 已更新");
   }
 
   async function logout() {
@@ -192,6 +237,11 @@ export function AppShell() {
                 <strong>{appData.user.name}</strong>
                 <small>{appData.user.username}</small>
               </span>
+              <AccountUsernameDialog
+                offline={offline}
+                onUpdate={updateUsername}
+                user={appData.user}
+              />
               <Button
                 aria-label={`登出 ${appData.user.name}`}
                 disabled={offline || authAction === "logout"}

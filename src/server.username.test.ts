@@ -118,6 +118,87 @@ test(
 );
 
 test(
+  "signed-in users can change to an available valid username",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl } = await withTestApp();
+    const alice = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "alice",
+        name: "Alice",
+        password: "password123",
+      }),
+    });
+    const aliceCookie = alice.response.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(aliceCookie);
+    const bob = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "bob",
+        name: "Bob",
+        password: "password123",
+      }),
+    });
+    expect(bob.response.status).toBe(201);
+
+    const unauthenticated = await api(baseUrl, "/api/me", {
+      method: "PATCH",
+      body: JSON.stringify({ username: "guest" }),
+    });
+    expect(unauthenticated.response.status).toBe(401);
+
+    const invalid = await api<{ error: string }>(baseUrl, "/api/me", {
+      method: "PATCH",
+      headers: { cookie: aliceCookie },
+      body: JSON.stringify({ username: "alice@example.com" }),
+    });
+    expect(invalid.response.status).toBe(400);
+    expect(invalid.data.error).toBe(usernameValidationMessage);
+
+    const duplicate = await api<{ error: string }>(baseUrl, "/api/me", {
+      method: "PATCH",
+      headers: { cookie: aliceCookie },
+      body: JSON.stringify({ username: " BOB " }),
+    });
+    expect(duplicate.response.status).toBe(409);
+    expect(duplicate.data.error).toBe("這個 Username 已經註冊");
+
+    const updated = await api<UserResponse>(baseUrl, "/api/me", {
+      method: "PATCH",
+      headers: { cookie: aliceCookie },
+      body: JSON.stringify({ username: " New_Alice " }),
+    });
+    expect(updated.response.status).toBe(200);
+    expect(updated.data.user).toEqual({
+      id: alice.data.user?.id,
+      name: "Alice",
+      username: "new_alice",
+    });
+
+    const me = await api<UserResponse>(baseUrl, "/api/me", {
+      headers: { cookie: aliceCookie },
+    });
+    expect(me.data.user).toEqual(updated.data.user);
+
+    const oldLogin = await api(baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username: "alice", password: "password123" }),
+    });
+    expect(oldLogin.response.status).toBe(401);
+    const newLogin = await api<UserResponse>(baseUrl, "/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "NEW_ALICE",
+        password: "password123",
+      }),
+    });
+    expect(newLogin.response.status).toBe(200);
+    expect(newLogin.data.user).toEqual(updated.data.user);
+  },
+);
+
+test(
   "username migration preserves legacy accounts, sessions, and memberships",
   postgresTestOptions,
   async () => {

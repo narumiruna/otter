@@ -128,6 +128,35 @@ export function createApp(
     }),
   );
 
+  app.patch(
+    "/api/me",
+    mustBeSignedIn,
+    asyncHandler(async (req, res) => {
+      const user = currentUser(res);
+      const username = stringField(requestBody(req), "username");
+      if (!username || !isValidUsername(username)) {
+        sendError(res, 400, usernameValidationMessage);
+        return;
+      }
+
+      const normalizedUsername = normalizeUsername(username);
+      try {
+        await pool.query("UPDATE users SET username = $1 WHERE id = $2", [
+          normalizedUsername,
+          user.id,
+        ]);
+      } catch (error) {
+        if (isPgCode(error, "23505")) {
+          sendError(res, 409, "這個 Username 已經註冊");
+          return;
+        }
+        throw error;
+      }
+
+      res.json({ user: publicUser({ ...user, username: normalizedUsername }) });
+    }),
+  );
+
   app.post(
     "/api/auth/register",
     asyncHandler(async (req, res) => {
