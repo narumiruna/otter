@@ -73,6 +73,32 @@ test("passkey login is offered only when supported and invokes its callback", as
 
   await user.click(view.getByRole("button", { name: "使用 Passkey 登入" }));
   expect(onPasskeyLogin).toHaveBeenCalledOnce();
+
+  for (const busyAction of ["login", "passkey"]) {
+    view.rerender(
+      <AuthScreen
+        busyAction={busyAction}
+        onLogin={() => undefined}
+        onPasskeyLogin={onPasskeyLogin}
+        onRegister={() => undefined}
+        passkeySupported
+      />,
+    );
+    expect(
+      view.getByRole("button", {
+        name:
+          busyAction === "passkey"
+            ? "正在使用 Passkey 登入…"
+            : "使用 Passkey 登入",
+      }),
+    ).toBeDisabled();
+    expect(
+      view.getByRole("button", {
+        name: busyAction === "login" ? "登入中…" : "登入",
+      }),
+    ).toBeDisabled();
+  }
+
   view.rerender(
     <AuthScreen
       onLogin={() => undefined}

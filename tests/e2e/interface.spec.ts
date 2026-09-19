@@ -67,7 +67,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.goto("/");
     await page
       .locator("#login-form")
-      .getByRole("button", { name: "登入" })
+      .getByRole("button", { name: "登入", exact: true })
       .click();
     const summary = page.getByRole("region", { name: "群組帳目摘要" });
     await expect(summary).toBeVisible();

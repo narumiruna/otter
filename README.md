@@ -120,7 +120,7 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。本機 compose �
 PASSKEY_ORIGIN=https://otter.example.com
 ```
 
-`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
+`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；除 `localhost` 開發環境外必須使用 HTTPS。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
 
 ## 工作流程與安全狀態
 

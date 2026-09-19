@@ -58,6 +58,11 @@ type PasskeyRow = {
   user_id: string;
 };
 
+type PublicPasskeyRow = Pick<
+  PasskeyRow,
+  "backed_up" | "created_at" | "credential_id" | "device_type" | "last_used_at"
+>;
+
 type ChallengeRow = {
   ceremony: "authentication" | "registration";
   challenge: string;
@@ -91,11 +96,31 @@ function firstForwardedValue(value: string | undefined): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
 }
 
+function parsePasskeyOrigin(origin: string): URL {
+  const parsedOrigin = new URL(origin);
+  if (parsedOrigin.origin !== origin) {
+    throw new Error("PASSKEY_ORIGIN must be an origin without a path");
+  }
+  if (!parsedOrigin.hostname) {
+    throw new Error("PASSKEY_ORIGIN must include a hostname");
+  }
+  if (
+    parsedOrigin.protocol !== "https:" &&
+    parsedOrigin.hostname !== "localhost"
+  ) {
+    throw new Error("PASSKEY_ORIGIN must use HTTPS except on localhost");
+  }
+  return parsedOrigin;
+}
+
 export function resolvePasskeyRelyingParty(
   req: RouteRequest,
   configured?: PasskeyRelyingParty,
 ): PasskeyRelyingParty {
-  if (configured) return configured;
+  if (configured) {
+    parsePasskeyOrigin(configured.origin);
+    return configured;
+  }
 
   const forwardedProtocol = firstForwardedValue(req.get("x-forwarded-proto"));
   const forwardedHost = firstForwardedValue(req.get("x-forwarded-host"));
@@ -109,15 +134,7 @@ export function resolvePasskeyRelyingParty(
 
   const origin =
     configuredOrigin ?? `${forwardedProtocol ?? req.protocol}://${requestHost}`;
-  const parsedOrigin = new URL(origin);
-  if (parsedOrigin.origin !== origin) {
-    throw new Error("PASSKEY_ORIGIN must be an origin without a path");
-  }
-
-  if (!parsedOrigin.hostname) {
-    throw new Error("PASSKEY_ORIGIN must include a hostname");
-  }
-
+  const parsedOrigin = parsePasskeyOrigin(origin);
   return { origin, rpID: parsedOrigin.hostname, rpName: "otter" };
 }
 
@@ -149,22 +166,16 @@ async function consumeChallenge(
   ceremony: ChallengeRow["ceremony"],
   userId: string | null,
 ): Promise<string | undefined> {
-  const result = await db.query<ChallengeRow>(
+  const result = await db.query<Pick<ChallengeRow, "challenge">>(
     `DELETE FROM passkey_challenges
      WHERE id = $1
-     RETURNING challenge, ceremony, user_id, expires_at`,
-    [id],
+       AND ceremony = $2
+       AND user_id IS NOT DISTINCT FROM $3
+       AND expires_at > now()
+     RETURNING challenge`,
+    [id, ceremony, userId],
   );
-  const row = result.rows[0];
-  if (
-    !row ||
-    row.ceremony !== ceremony ||
-    row.user_id !== userId ||
-    new Date(row.expires_at).getTime() <= Date.now()
-  ) {
-    return undefined;
-  }
-  return row.challenge;
+  return result.rows[0]?.challenge;
 }
 
 function numericCounter(value: string | number): number {
@@ -175,7 +186,7 @@ function numericCounter(value: string | number): number {
   return counter;
 }
 
-function publicPasskey(row: PasskeyRow) {
+function publicPasskey(row: PublicPasskeyRow) {
   return {
     backedUp: row.backed_up,
     createdAt: new Date(row.created_at).toISOString(),
@@ -203,9 +214,8 @@ export function registerPasskeyRoutes(
     mustBeSignedIn,
     asyncHandler(async (_req, res) => {
       const user = currentUser(res);
-      const result = await pool.query<PasskeyRow>(
-        `SELECT credential_id, user_id, public_key, counter, transports,
-                device_type, backed_up, created_at, last_used_at
+      const result = await pool.query<PublicPasskeyRow>(
+        `SELECT credential_id, device_type, backed_up, created_at, last_used_at
          FROM passkeys
          WHERE user_id = $1
          ORDER BY created_at, credential_id`,
@@ -383,50 +393,44 @@ export function registerPasskeyRoutes(
         return;
       }
 
-      const credentialResult = await pool.query<PasskeyRow>(
-        `SELECT credential_id, user_id, public_key, counter, transports,
-                device_type, backed_up, created_at, last_used_at
-         FROM passkeys
-         WHERE credential_id = $1`,
-        [submitted.response.id],
-      );
-      const credential = credentialResult.rows[0];
-      if (!credential) {
-        sendError(res, 401, "無法使用這組 Passkey 登入");
-        return;
-      }
-
       const relyingParty = resolvePasskeyRelyingParty(
         req,
         routeOptions.relyingParty,
       );
-      let verification: Awaited<
-        ReturnType<typeof verifyAuthenticationResponse>
-      >;
-      try {
-        verification = await verifiers.verifyAuthentication({
-          credential: {
-            counter: numericCounter(credential.counter),
-            id: credential.credential_id,
-            publicKey: new Uint8Array(credential.public_key),
-            transports: credential.transports,
-          },
-          expectedChallenge: challenge,
-          expectedOrigin: relyingParty.origin,
-          expectedRPID: relyingParty.rpID,
-          requireUserVerification: true,
-          response: submitted.response,
-        });
-      } catch {
-        sendError(res, 401, "無法使用這組 Passkey 登入");
-        return;
-      }
-      if (!verification.verified) {
-        sendError(res, 401, "無法使用這組 Passkey 登入");
-        return;
-      }
-
       const session = await withTransaction(pool, async (client) => {
+        const credentialResult = await client.query<PasskeyRow>(
+          `SELECT credential_id, user_id, public_key, counter, transports,
+                  device_type, backed_up, created_at, last_used_at
+           FROM passkeys
+           WHERE credential_id = $1
+           FOR UPDATE`,
+          [submitted.response.id],
+        );
+        const credential = credentialResult.rows[0];
+        if (!credential) return undefined;
+
+        let verification: Awaited<
+          ReturnType<typeof verifyAuthenticationResponse>
+        >;
+        try {
+          verification = await verifiers.verifyAuthentication({
+            credential: {
+              counter: numericCounter(credential.counter),
+              id: credential.credential_id,
+              publicKey: new Uint8Array(credential.public_key),
+              transports: credential.transports,
+            },
+            expectedChallenge: challenge,
+            expectedOrigin: relyingParty.origin,
+            expectedRPID: relyingParty.rpID,
+            requireUserVerification: true,
+            response: submitted.response,
+          });
+        } catch {
+          return undefined;
+        }
+        if (!verification.verified) return undefined;
+
         await client.query(
           `UPDATE passkeys
            SET counter = $1,
@@ -443,6 +447,10 @@ export function registerPasskeyRoutes(
         );
         return createSession(client, credential.user_id);
       });
+      if (!session) {
+        sendError(res, 401, "無法使用這組 Passkey 登入");
+        return;
+      }
       setSessionCookie(res, session.id);
       res.json({ ok: true });
     }),

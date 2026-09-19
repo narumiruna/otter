@@ -193,7 +193,7 @@ export function AuthScreen({
                 ) : null}
                 <Button
                   className="min-h-11 w-full"
-                  disabled={busyAction === "login"}
+                  disabled={Boolean(busyAction)}
                   type="submit"
                 >
                   {busyAction === "login"
@@ -207,7 +207,7 @@ export function AuthScreen({
                     </div>
                     <Button
                       className="min-h-11 w-full"
-                      disabled={busyAction === "passkey"}
+                      disabled={Boolean(busyAction)}
                       onClick={() => void onPasskeyLogin()}
                       type="button"
                       variant="outline"
@@ -223,6 +223,7 @@ export function AuthScreen({
                   {messages.needAnAccount}{" "}
                   <button
                     className="auth-switch"
+                    disabled={Boolean(busyAction)}
                     type="button"
                     onClick={() => setMode("register")}
                   >
@@ -296,7 +297,7 @@ export function AuthScreen({
                 </Field>
                 <Button
                   className="min-h-11 w-full"
-                  disabled={busyAction === "register"}
+                  disabled={Boolean(busyAction)}
                   type="submit"
                 >
                   {busyAction === "register"
@@ -307,6 +308,7 @@ export function AuthScreen({
                   {messages.alreadyHaveAnAccount}{" "}
                   <button
                     className="auth-switch"
+                    disabled={Boolean(busyAction)}
                     type="button"
                     onClick={() => setMode("login")}
                   >

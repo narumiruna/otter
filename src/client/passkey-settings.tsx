@@ -31,8 +31,9 @@ export function PasskeySettings({ offline }: { offline: boolean }) {
   }, [messages.unableToLoadPasskeys]);
 
   useEffect(() => {
+    if (offline) return;
     void loadPasskeys();
-  }, [loadPasskeys]);
+  }, [offline, loadPasskeys]);
 
   async function addPasskey() {
     setBusy("add");

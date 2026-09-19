@@ -26,6 +26,14 @@ beforeEach(() => {
   vi.mocked(registerPasskey).mockReset();
 });
 
+test("passkey settings does not request data while offline", () => {
+  const view = render(<PasskeySettings offline />);
+
+  expect(api).not.toHaveBeenCalled();
+  expect(view.queryByRole("alert")).toBeNull();
+  view.unmount();
+});
+
 test("passkey settings enroll and remove passkeys", async () => {
   let listedPasskeys = [passkey];
   vi.mocked(api).mockImplementation(async (url, init) => {

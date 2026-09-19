@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { expect, test, vi } from "vitest";
-import type { PasskeyVerifiers } from "./server-passkeys.js";
+import type { RouteRequest } from "./server-http.js";
+import {
+  type PasskeyVerifiers,
+  resolvePasskeyRelyingParty,
+} from "./server-passkeys.js";
 import {
   api,
   postgresTestOptions,
@@ -34,17 +38,17 @@ function mockedVerifiers() {
     }),
   );
   const verifyAuthentication = vi.fn<PasskeyVerifiers["verifyAuthentication"]>(
-    async () => ({
+    async ({ credential }) => ({
       authenticationInfo: {
         credentialBackedUp: true,
         credentialDeviceType: "multiDevice",
         credentialID: credentialId,
-        newCounter: 1,
+        newCounter: credential.counter + 1,
         origin: "http://localhost",
         rpID: "localhost",
         userVerified: true,
       },
-      verified: true,
+      verified: credential.counter === 0,
     }),
   );
   return { verifyAuthentication, verifyRegistration };
@@ -65,6 +69,35 @@ const fakeAuthenticationResponse = {
   response: {},
   type: "public-key",
 };
+
+const request: RouteRequest = {
+  body: {},
+  get: () => undefined,
+  headers: {},
+  params: {},
+  protocol: "https",
+};
+
+test("passkey origins require HTTPS except on localhost", () => {
+  expect(() =>
+    resolvePasskeyRelyingParty(request, {
+      origin: "http://otter.example.com",
+      rpID: "otter.example.com",
+      rpName: "otter",
+    }),
+  ).toThrow("PASSKEY_ORIGIN must use HTTPS except on localhost");
+  expect(
+    resolvePasskeyRelyingParty(request, {
+      origin: "http://localhost:17463",
+      rpID: "localhost",
+      rpName: "otter",
+    }),
+  ).toEqual({
+    origin: "http://localhost:17463",
+    rpID: "localhost",
+    rpName: "otter",
+  });
+});
 
 test(
   "users can enroll, use, list, and remove a passkey with one-time challenges",
@@ -159,13 +192,8 @@ test(
     expect(wrongUser.response.status).toBe(400);
     expect(verifiers.verifyRegistration).not.toHaveBeenCalled();
 
-    const freshOptions = await api<typeof options.data>(
-      baseUrl,
-      "/api/passkeys/registration/options",
-      { headers: { cookie: accountCookie }, method: "POST" },
-    );
     const verificationBody = JSON.stringify({
-      challengeId: freshOptions.data.challengeId,
+      challengeId: options.data.challengeId,
       response: fakeRegistrationResponse,
     });
     const verified = await api(baseUrl, "/api/passkeys/registration/verify", {
@@ -176,7 +204,7 @@ test(
     expect(verified.response.status).toBe(201);
     expect(verifiers.verifyRegistration).toHaveBeenCalledWith(
       expect.objectContaining({
-        expectedChallenge: freshOptions.data.options.challenge,
+        expectedChallenge: options.data.options.challenge,
         expectedOrigin: "http://localhost",
         expectedRPID: "localhost",
         requireUserVerification: true,
@@ -223,27 +251,71 @@ test(
     });
     expect(authenticationOptions.data.options.allowCredentials).toBeUndefined();
 
+    const secondAuthenticationOptions = await api<
+      typeof authenticationOptions.data
+    >(baseUrl, "/api/auth/passkey/options", { method: "POST" });
     const authenticationBody = JSON.stringify({
       challengeId: authenticationOptions.data.challengeId,
       response: fakeAuthenticationResponse,
     });
-    const authenticated = await api(baseUrl, "/api/auth/passkey/verify", {
-      body: authenticationBody,
-      method: "POST",
+    const secondAuthenticationBody = JSON.stringify({
+      challengeId: secondAuthenticationOptions.data.challengeId,
+      response: fakeAuthenticationResponse,
     });
-    expect(authenticated.response.status).toBe(200);
+    const authenticationAttempts = await Promise.all([
+      api(baseUrl, "/api/auth/passkey/verify", {
+        body: authenticationBody,
+        method: "POST",
+      }),
+      api(baseUrl, "/api/auth/passkey/verify", {
+        body: secondAuthenticationBody,
+        method: "POST",
+      }),
+    ]);
+    expect(
+      authenticationAttempts.map(({ response }) => response.status).sort(),
+    ).toEqual([200, 401]);
+    const authenticated = authenticationAttempts.find(
+      ({ response }) => response.status === 200,
+    );
+    assert.ok(authenticated);
     const passkeyCookie = authenticated.response.headers
       .get("set-cookie")
       ?.split(";", 1)[0];
     assert.ok(passkeyCookie);
-    expect(verifiers.verifyAuthentication).toHaveBeenCalledWith(
-      expect.objectContaining({
-        expectedChallenge: authenticationOptions.data.options.challenge,
+    expect(
+      verifiers.verifyAuthentication.mock.calls.map(
+        ([options]) => options.expectedChallenge,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        authenticationOptions.data.options.challenge,
+        secondAuthenticationOptions.data.options.challenge,
+      ]),
+    );
+    expect(
+      verifiers.verifyAuthentication.mock.calls.map(
+        ([{ credential, ...options }]) => ({
+          counter: credential.counter,
+          expectedOrigin: options.expectedOrigin,
+          expectedRPID: options.expectedRPID,
+          requireUserVerification: options.requireUserVerification,
+        }),
+      ),
+    ).toEqual([
+      {
+        counter: 0,
         expectedOrigin: "http://localhost",
         expectedRPID: "localhost",
         requireUserVerification: true,
-      }),
-    );
+      },
+      {
+        counter: 1,
+        expectedOrigin: "http://localhost",
+        expectedRPID: "localhost",
+        requireUserVerification: true,
+      },
+    ]);
     const me = await api<UserResponse>(baseUrl, "/api/me", {
       headers: { cookie: passkeyCookie },
     });
@@ -254,7 +326,7 @@ test(
       { body: authenticationBody, method: "POST" },
     );
     expect(authenticationReplay.response.status).toBe(400);
-    expect(verifiers.verifyAuthentication).toHaveBeenCalledTimes(1);
+    expect(verifiers.verifyAuthentication).toHaveBeenCalledTimes(2);
 
     const afterUse = await api<{
       passkeys: Array<{ lastUsedAt: string | null }>;
