@@ -662,7 +662,7 @@ async function start() {
   }
   const app = createApp(pool, { devLoginCredentials: credentials });
 
-  const port = Number(process.env.PORT ?? 3420);
+  const port = Number(process.env.PORT ?? 17463);
   if (isProduction) {
     const clientDir = path.resolve(__dirname, "../client");
     app.use("*", serveStatic({ root: clientDir }));

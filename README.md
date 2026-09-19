@@ -39,7 +39,7 @@ npm install
 npm run dev
 ```
 
-開啟 <http://localhost:3420>。`npm run dev` 會在前景啟動 dev compose；它會啟動 Postgres、執行 `npm run migrate`、建立開發用帳號，再啟動 app。登入頁會預先填入：
+開啟 <http://localhost:17463>。`npm run dev` 會在前景啟動 dev compose；它會啟動 Postgres、執行 `npm run migrate`、建立開發用帳號，再啟動 app。登入頁會預先填入：
 
 - Email：`admin@otter.local`
 - 密碼：`admin1234`
@@ -105,7 +105,7 @@ Production-like（使用外部 Postgres，必須提供 `DATABASE_URL`）：
 DATABASE_URL=postgres://user:pass@db:5432/otter docker compose --profile production up --build otter
 ```
 
-`compose.yaml` 預設啟動 development services；production app 位於 `production` profile。兩種模式都會把 app 暴露在 <http://localhost:3420>，且 container 啟動時會先套用 migrations。
+`compose.yaml` 預設啟動 development services；production app 位於 `production` profile。兩種模式都會把 app 暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 

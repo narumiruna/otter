@@ -29,9 +29,9 @@ services:
       DEV_ADMIN_NAME: Admin
       DEV_ADMIN_PASSWORD: admin1234
       NODE_ENV: development
-      PORT: 3420
+      PORT: 17463
     ports:
-      - "3420:3420"
+      - "17463:17463"
     volumes:
       - .:/app
       - /app/node_modules
@@ -43,9 +43,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-}
       NODE_ENV: production
-      PORT: 3420
+      PORT: 17463
     ports:
-      - "3420:3420"
+      - "17463:17463"
 
 volumes:
   otter-dev-postgres:
