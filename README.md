@@ -100,7 +100,9 @@ docker compose up --build
 POSTGRES_PASSWORD=change-me docker compose up --detach --build
 ```
 
-App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
+App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。PostgreSQL 的 host port 只綁定至 `127.0.0.1:55432`。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
+
+GitHub `Deploy` workflow 需要帶有 `self-hosted`、`linux`、`otter-production` labels 的 runner，以及 `POSTGRES_PASSWORD` repository secret。`main` push 只會在 CI 成功後部署；手動執行 workflow 則是明確略過 CI gate。若既有 production 使用外部資料庫，可保留 `DATABASE_URL` repository secret；未設定時預設使用 compose 內的 PostgreSQL。部署使用獨立的 `otter-production` Compose project，避免開發用 reset command 刪除 production volume。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 

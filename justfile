@@ -8,7 +8,7 @@ ci:
     npm ci
 
 produp:
-    docker compose up -d --build otter
+    docker compose --project-name otter-production up -d --build otter
 
 dev:
     docker compose up -d --build

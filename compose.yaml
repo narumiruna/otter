@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
       POSTGRES_USER: otter
     ports:
-      - "55432:5432"
+      - "127.0.0.1:55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U otter -d otter_dev"]
       interval: 5s
@@ -22,10 +22,23 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${OTTER_DATABASE_URL:-postgres://otter:${POSTGRES_PASSWORD:-otter_dev_password}@postgres:5432/otter_dev}
+      DATABASE_URL: ${OTTER_DATABASE_URL:-}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
       PORT: 17463
     ports:
       - "17463:17463"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:17463/api/config').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
 volumes:
   otter-dev-postgres:
