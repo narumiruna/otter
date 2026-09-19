@@ -14,10 +14,10 @@ test(
   postgresTestOptions,
   async () => {
     const { baseUrl } = await withTestApp();
-    const email = `alice-${Date.now()}@example.com`;
+    const username = `alice-${Date.now()}`;
     const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
-        email,
+        username,
         name: "Alice",
         password: "password123",
       }),
@@ -179,7 +179,7 @@ test(
       "/api/auth/register",
       {
         body: JSON.stringify({
-          email: `bob-${Date.now()}@example.com`,
+          username: `bob-${Date.now()}`,
           name: "Bob Owner",
           password: "password123",
         }),

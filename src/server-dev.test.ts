@@ -15,7 +15,7 @@ import {
 } from "./server-test-utils.js";
 
 const credentials = {
-  email: "admin@otter.local",
+  username: "admin",
   name: "Admin",
   password: "admin1234",
 };
@@ -58,17 +58,17 @@ test(
     });
 
     const config = await api<{
-      devLoginCredentials: { email: string; password: string } | null;
+      devLoginCredentials: { username: string; password: string } | null;
     }>(baseUrl, "/api/config");
     assert.equal(config.response.status, 200);
     assert.deepEqual(config.data.devLoginCredentials, {
-      email: credentials.email,
+      username: credentials.username,
       password: credentials.password,
     });
 
     const login = await api<UserResponse>(baseUrl, "/api/auth/login", {
       body: JSON.stringify({
-        email: credentials.email,
+        username: credentials.username,
         password: credentials.password,
       }),
       method: "POST",

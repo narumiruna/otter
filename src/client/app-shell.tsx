@@ -190,7 +190,7 @@ export function AppShell() {
               </span>
               <span className="user-identity">
                 <strong>{appData.user.name}</strong>
-                <small>{appData.user.email}</small>
+                <small>{appData.user.username}</small>
               </span>
               <Button
                 aria-label={`登出 ${appData.user.name}`}

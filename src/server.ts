@@ -27,7 +27,7 @@ import {
   createSession,
   currencyFromDb,
   currentUser,
-  findUserByEmail,
+  findUserByUsername,
   getCookie,
   hashPassword,
   iso,
@@ -35,7 +35,7 @@ import {
   isProduction,
   loadTripForUser,
   makeId,
-  normalizeEmail,
+  normalizeUsername,
   nowIso,
   participantExists,
   participantNameExists,
@@ -56,6 +56,10 @@ import {
 } from "./server-support.js";
 import { type Currency, isCurrency } from "./shared/money.js";
 import type { Participant, Trip } from "./shared/settlement.js";
+import {
+  isValidUsername,
+  usernameValidationMessage,
+} from "./shared/username.js";
 
 type TripSummaryRow = {
   id: string;
@@ -111,7 +115,7 @@ export function createApp(
     const credentials = options.devLoginCredentials;
     return context.json({
       devLoginCredentials: credentials
-        ? { email: credentials.email, password: credentials.password }
+        ? { username: credentials.username, password: credentials.password }
         : null,
     });
   });
@@ -129,15 +133,15 @@ export function createApp(
     asyncHandler(async (req, res) => {
       const body = requestBody(req);
       const name = stringField(body, "name");
-      const email = stringField(body, "email");
+      const username = stringField(body, "username");
       const password = stringField(body, "password");
 
       if (!name || name.length > 80) {
         sendError(res, 400, "請輸入 1-80 字的名稱");
         return;
       }
-      if (!email?.includes("@")) {
-        sendError(res, 400, "請輸入有效 email");
+      if (!username || !isValidUsername(username)) {
+        sendError(res, 400, usernameValidationMessage);
         return;
       }
       if (!password || password.length < 8) {
@@ -145,15 +149,15 @@ export function createApp(
         return;
       }
 
-      const normalizedEmail = normalizeEmail(email);
-      if (await findUserByEmail(pool, normalizedEmail)) {
-        sendError(res, 409, "這個 email 已經註冊");
+      const normalizedUsername = normalizeUsername(username);
+      if (await findUserByUsername(pool, normalizedUsername)) {
+        sendError(res, 409, "這個 Username 已經註冊");
         return;
       }
 
       const user: User = {
         createdAt: nowIso(),
-        email: normalizedEmail,
+        username: normalizedUsername,
         id: makeId("user"),
         name,
         passwordHash: hashPassword(password),
@@ -163,15 +167,21 @@ export function createApp(
       try {
         session = await withTransaction(pool, async (client) => {
           await client.query(
-            `INSERT INTO users (id, name, email, password_hash, created_at)
+            `INSERT INTO users (id, name, username, password_hash, created_at)
              VALUES ($1, $2, $3, $4, $5)`,
-            [user.id, user.name, user.email, user.passwordHash, user.createdAt],
+            [
+              user.id,
+              user.name,
+              user.username,
+              user.passwordHash,
+              user.createdAt,
+            ],
           );
           return createSession(client, user.id);
         });
       } catch (error) {
         if (isPgCode(error, "23505")) {
-          sendError(res, 409, "這個 email 已經註冊");
+          sendError(res, 409, "這個 Username 已經註冊");
           return;
         }
         throw error;
@@ -186,17 +196,17 @@ export function createApp(
     "/api/auth/login",
     asyncHandler(async (req, res) => {
       const body = requestBody(req);
-      const email = stringField(body, "email");
+      const username = stringField(body, "username");
       const password = stringField(body, "password");
 
-      if (!email || !password) {
-        sendError(res, 400, "請輸入 email 和密碼");
+      if (!username || !password) {
+        sendError(res, 400, "請輸入 Username 和密碼");
         return;
       }
 
-      const user = await findUserByEmail(pool, normalizeEmail(email));
+      const user = await findUserByUsername(pool, normalizeUsername(username));
       if (!user || !verifyPassword(password, user.passwordHash)) {
-        sendError(res, 401, "email 或密碼錯誤");
+        sendError(res, 401, "Username 或密碼錯誤");
         return;
       }
 
@@ -658,7 +668,7 @@ async function start() {
   if (credentials) {
     const userId = await ensureDevelopmentAdmin(pool, credentials);
     await ensureDevelopmentFixtures(pool, userId);
-    console.log(`Development fixtures ready for: ${credentials.email}`);
+    console.log(`Development fixtures ready for: ${credentials.username}`);
   }
   const app = createApp(pool, { devLoginCredentials: credentials });
 

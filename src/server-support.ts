@@ -26,7 +26,7 @@ const { Pool } = pg;
 export type User = {
   id: string;
   name: string;
-  email: string;
+  username: string;
   passwordHash: string;
   createdAt: string;
 };
@@ -42,7 +42,7 @@ export type TripRole = "owner" | "editor";
 export type TripCollaborator = {
   userId: string;
   name: string;
-  email: string;
+  username: string;
   role: TripRole;
   createdAt: string;
 };
@@ -71,7 +71,7 @@ type Queryable = {
 type UserRow = {
   id: string;
   name: string;
-  email: string;
+  username: string;
   password_hash: string;
   created_at: Date | string;
 };
@@ -133,7 +133,7 @@ type ReceiptAttachmentRow = {
 type TripMemberRow = {
   user_id: string;
   name: string;
-  email: string;
+  username: string;
   role: TripRole;
   created_at: Date | string;
 };
@@ -154,7 +154,7 @@ const passwordIterations = 210_000;
 
 export function publicUser(user: User) {
   return {
-    email: user.email,
+    username: user.username,
     id: user.id,
     name: user.name,
   };
@@ -168,9 +168,7 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
+export { normalizeUsername } from "./shared/username.js";
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -355,7 +353,7 @@ export function currencyFromDb(value: string): Currency {
 function rowToUser(row: UserRow): User {
   return {
     createdAt: iso(row.created_at),
-    email: row.email,
+    username: row.username,
     id: row.id,
     name: row.name,
     passwordHash: row.password_hash,
@@ -422,15 +420,15 @@ export async function withTransaction<T>(
   }
 }
 
-export async function findUserByEmail(
+export async function findUserByUsername(
   db: Queryable,
-  email: string,
+  username: string,
 ): Promise<User | undefined> {
   const result = await db.query<UserRow>(
-    `SELECT id, name, email, password_hash, created_at
+    `SELECT id, name, username, password_hash, created_at
      FROM users
-     WHERE email = $1`,
-    [email],
+     WHERE username = $1`,
+    [username],
   );
   const row = result.rows[0];
   return row ? rowToUser(row) : undefined;
@@ -466,7 +464,7 @@ export async function userFromRequest(
     sessionId,
   ]);
   const result = await db.query<UserRow>(
-    `SELECT users.id, users.name, users.email, users.password_hash, users.created_at
+    `SELECT users.id, users.name, users.username, users.password_hash, users.created_at
      FROM sessions
      JOIN users ON users.id = sessions.user_id
      WHERE sessions.id = $1 AND sessions.expires_at > now()`,
@@ -587,7 +585,7 @@ async function loadTrip(
     ),
     userId
       ? db.query<TripMemberRow>(
-          `SELECT users.id AS user_id, users.name, users.email, trip_members.role, trip_members.created_at
+          `SELECT users.id AS user_id, users.name, users.username, trip_members.role, trip_members.created_at
            FROM trip_members
            JOIN users ON users.id = trip_members.user_id
            WHERE trip_members.trip_id = $1
@@ -645,7 +643,7 @@ async function loadTrip(
     ...(exchangeRatesResult.rows.length > 0 ? { exchangeRates } : {}),
     collaborators: tripMembersResult.rows.map((row) => ({
       createdAt: iso(row.created_at),
-      email: row.email,
+      username: row.username,
       name: row.name,
       role: row.role,
       userId: row.user_id,

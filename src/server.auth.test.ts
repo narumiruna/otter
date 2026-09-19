@@ -11,7 +11,7 @@ import {
 
 test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
   const { baseUrl } = await withTestApp();
-  const email = `alice-${Date.now()}@example.com`;
+  const username = `alice-${Date.now()}`;
 
   const missingApi = await api<{ error: string }>(baseUrl, "/api/not-found");
   assert.equal(missingApi.response.status, 404);
@@ -26,7 +26,7 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
   assert.deepEqual(await malformedJson.json(), { error: "JSON 格式錯誤" });
 
   const oversizedJson = await fetch(`${baseUrl}/api/auth/login`, {
-    body: JSON.stringify({ email: "a".repeat(1024 * 1024), password: "x" }),
+    body: JSON.stringify({ username: "a".repeat(1024 * 1024), password: "x" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -41,14 +41,14 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
 
   const register = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
-      email,
+      username,
       name: "Alice",
       password: "password123",
     }),
     method: "POST",
   });
   assert.equal(register.response.status, 201);
-  assert.equal(register.data.user?.email, email);
+  assert.equal(register.data.user?.username, username);
   const cookie = register.response.headers.get("set-cookie")?.split(";")[0];
   assert.ok(cookie);
 
@@ -296,7 +296,7 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
 
   const otherRegister = await api<UserResponse>(baseUrl, "/api/auth/register", {
     body: JSON.stringify({
-      email: `bob-${Date.now()}@example.com`,
+      username: `bob-${Date.now()}`,
       name: "Bob Owner",
       password: "password123",
     }),

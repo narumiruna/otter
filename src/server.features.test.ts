@@ -13,10 +13,10 @@ test(
   postgresTestOptions,
   async () => {
     const { baseUrl } = await withTestApp();
-    const suffix = `${Date.now()}-${Math.random()}`;
+    const suffix = `${Date.now()}`;
     const owner = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
-        email: `owner-${suffix}@example.com`,
+        username: `owner-${suffix}`,
         name: "Alice",
         password: "password123",
       }),
@@ -27,7 +27,7 @@ test(
 
     const editor = await api<UserResponse>(baseUrl, "/api/auth/register", {
       body: JSON.stringify({
-        email: `editor-${suffix}@example.com`,
+        username: `editor-${suffix}`,
         name: "Editor",
         password: "password123",
       }),
@@ -131,7 +131,9 @@ test(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
       {
-        body: JSON.stringify({ email: editor.data.user.email }),
+        body: JSON.stringify({
+          username: ` ${editor.data.user.username.toUpperCase()} `,
+        }),
         headers: { cookie: ownerCookie },
         method: "POST",
       },
@@ -139,7 +141,9 @@ test(
     assert.equal(
       addEditor.data.collaborators?.some(
         (member) =>
-          member.userId === editor.data.user?.id && member.role === "editor",
+          member.userId === editor.data.user?.id &&
+          member.username === editor.data.user?.username &&
+          member.role === "editor",
       ),
       true,
     );
@@ -147,7 +151,7 @@ test(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
       {
-        body: JSON.stringify({ email: editor.data.user.email }),
+        body: JSON.stringify({ username: editor.data.user.username }),
         headers: { cookie: ownerCookie },
         method: "POST",
       },
@@ -157,7 +161,7 @@ test(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
       {
-        body: JSON.stringify({ email: `missing-${suffix}@example.com` }),
+        body: JSON.stringify({ username: `missing-${suffix}` }),
         headers: { cookie: ownerCookie },
         method: "POST",
       },
@@ -195,7 +199,7 @@ test(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/members`,
       {
-        body: JSON.stringify({ email: "nobody@example.com" }),
+        body: JSON.stringify({ username: "nobody" }),
         headers: { cookie: editorCookie },
         method: "POST",
       },

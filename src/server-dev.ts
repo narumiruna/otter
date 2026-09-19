@@ -2,14 +2,14 @@ import type { Pool as PgPool, PoolClient } from "pg";
 import {
   hashPassword,
   makeId,
-  normalizeEmail,
+  normalizeUsername,
   nowIso,
 } from "./server-support.js";
 import type { ExpenseCategory } from "./shared/expense-metadata.js";
 import type { Currency } from "./shared/money.js";
 
 export type DevelopmentAdminCredentials = {
-  email: string;
+  username: string;
   name: string;
   password: string;
 };
@@ -572,7 +572,7 @@ export function developmentAdminCredentials(
     throw new Error("DEV_ADMIN_PASSWORD must contain at least 8 characters");
   }
 
-  return { email: "admin@otter.local", name: "Admin", password };
+  return { username: "admin", name: "Admin", password };
 }
 
 export async function ensureDevelopmentAdmin(
@@ -580,16 +580,16 @@ export async function ensureDevelopmentAdmin(
   credentials: DevelopmentAdminCredentials,
 ): Promise<string> {
   const result = await pool.query<{ id: string }>(
-    `INSERT INTO users (id, name, email, password_hash, created_at)
+    `INSERT INTO users (id, name, username, password_hash, created_at)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (email) DO UPDATE
+     ON CONFLICT (username) DO UPDATE
      SET name = EXCLUDED.name,
          password_hash = EXCLUDED.password_hash
      RETURNING id`,
     [
       makeId("user"),
       credentials.name,
-      normalizeEmail(credentials.email),
+      normalizeUsername(credentials.username),
       hashPassword(credentials.password),
       nowIso(),
     ],

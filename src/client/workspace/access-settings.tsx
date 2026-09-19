@@ -161,13 +161,15 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
 function Collaborators({ payload }: { payload: TripPayload }) {
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
-  const form = useForm<{ email: string }>({ defaultValues: { email: "" } });
-  async function add({ email }: { email: string }) {
+  const form = useForm<{ username: string }>({
+    defaultValues: { username: "" },
+  });
+  async function add({ username }: { username: string }) {
     setError("");
     try {
       await requestPayload(
         `/api/trips/${payload.trip.id}/members`,
-        { body: JSON.stringify({ email }), method: "POST" },
+        { body: JSON.stringify({ username }), method: "POST" },
         "已加入協作者",
         true,
       );
@@ -185,12 +187,14 @@ function Collaborators({ payload }: { payload: TripPayload }) {
         className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
         onSubmit={form.handleSubmit(add)}
       >
-        <FormField label="既有使用者 Email">
+        <FormField label="既有使用者 Username">
           <input
             className="form-control"
-            type="email"
-            placeholder="friend@example.com"
-            {...form.register("email", { required: true })}
+            type="text"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="friend"
+            {...form.register("username", { required: true })}
           />
         </FormField>
         <BusyButton
@@ -210,7 +214,7 @@ function Collaborators({ payload }: { payload: TripPayload }) {
             key={member.userId}
           >
             <span className="min-w-0 flex-1 break-anywhere">
-              <strong>{member.name}</strong> · {member.email} ·{" "}
+              <strong>{member.name}</strong> · {member.username} ·{" "}
               {member.role === "owner" ? "擁有者" : "協作者"}
             </span>
             {member.role === "editor" ? (
