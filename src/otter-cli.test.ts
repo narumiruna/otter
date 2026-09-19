@@ -347,6 +347,24 @@ describe("device login", () => {
       }),
     );
 
+    const failedLogoutFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Service unavailable" }), {
+        status: 503,
+      }),
+    );
+    await expect(
+      executeDeviceLogout(authEnvironment, failedLogoutFetch),
+    ).rejects.toEqual(expect.objectContaining<CliError>({ code: "API_ERROR" }));
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_persisted",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+
     const logoutFetch = vi
       .fn<typeof fetch>()
       .mockResolvedValue(new Response(JSON.stringify({ ok: true })));

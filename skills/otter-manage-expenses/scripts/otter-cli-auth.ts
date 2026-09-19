@@ -110,18 +110,15 @@ export async function executeDeviceLogout(
       "No API token is configured for this Otter server",
     );
   }
-  try {
-    await requestJson(
-      config,
-      fetchImplementation,
-      "/api/auth/tokens/current",
-      "DELETE",
-      { Authorization: `Bearer ${token.value}` },
-    );
-  } finally {
-    if (token.source === "stored") {
-      await removeStoredToken(environment, config.baseUrl);
-    }
+  await requestJson(
+    config,
+    fetchImplementation,
+    "/api/auth/tokens/current",
+    "DELETE",
+    { Authorization: `Bearer ${token.value}` },
+  );
+  if (token.source === "stored") {
+    await removeStoredToken(environment, config.baseUrl);
   }
   return { authenticated: false, server: config.baseUrl };
 }
