@@ -15,7 +15,7 @@ Resources and actions:
   trips list
   trips get       --trip <id>
   trips create    --name <name> [--currency TWD|JPY|USD|EUR]
-  trips update    --trip <id> [--name <name>] [--currency <code>] [--archived true|false]
+  trips update    --trip <id> [--name <name>] [--archived true|false]
   trips delete    --trip <id> --yes
   participants list   --trip <id>
   participants add    --trip <id> --name <name>
@@ -64,7 +64,11 @@ export function parseCliCommand(args: string[]): CliCommand {
     if (optionArgs.length > 0) {
       throw new CliError("USAGE", "auth status does not accept options");
     }
-    return { method: "GET", path: "/api/me" };
+    return {
+      authenticatedUserRequired: true,
+      method: "GET",
+      path: "/api/me",
+    };
   }
   if (!action) {
     throw new CliError("USAGE", `Missing action for ${resource}`);
@@ -92,11 +96,10 @@ export function parseCliCommand(args: string[]): CliCommand {
       };
     }
     case "trips:update": {
-      assertAllowed(options, ["trip", "name", "currency", "archived"]);
+      assertAllowed(options, ["trip", "name", "archived"]);
       const tripId = required(options, "trip");
       const body = compact({
         archived: optionalBoolean(options, "archived"),
-        baseCurrency: optional(options, "currency"),
         name: optional(options, "name"),
       });
       requireChanges(body);

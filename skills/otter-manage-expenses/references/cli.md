@@ -7,6 +7,7 @@ Run `npm run --silent otter -- --help` for the installed command list.
 
 Set `OTTER_URL` to the Otter server URL or omit it for `http://localhost:17463`.
 Run `npm run --silent otter -- auth login` to start device authorization, open Otter, and wait for the user to approve the displayed code.
+If a saved token already exists for that server, login revokes it before requesting a replacement and preserves it if revocation fails.
 Add `--no-open` when the browser must be opened manually, and use `--client-name <name>` to identify the requesting agent or machine.
 The CLI stores the issued token by server URL in `~/.config/otter/credentials.json` with mode `0600`.
 Set `OTTER_CONFIG_PATH` only when a different credential file is required.
@@ -36,11 +37,12 @@ npm run --silent otter -- settlements list --trip <trip-id>
 
 ```bash
 npm run --silent otter -- trips create --name <name> [--currency TWD]
-npm run --silent otter -- trips update --trip <trip-id> [--name <name>] [--currency USD] [--archived true|false]
+npm run --silent otter -- trips update --trip <trip-id> [--name <name>] [--archived true|false]
 npm run --silent otter -- trips delete --trip <trip-id> --yes
 ```
 
-Supported currencies are `TWD`, `JPY`, `USD`, and `EUR`.
+Supported currencies for new trips are `TWD`, `JPY`, `USD`, and `EUR`.
+Changing a trip's base currency and exchange rates is not exposed because it can invalidate existing rate configuration; use the browser settings flow.
 Only run `trips delete` after explicit approval because it deletes the whole group and its records.
 
 ## Participant Commands

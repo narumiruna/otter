@@ -109,6 +109,27 @@ describe("parseCliCommand", () => {
     ).toEqual({ clientName: "Expense agent", noOpen: true });
   });
 
+  test("requires an authenticated user for auth status", () => {
+    expect(parseCliCommand(["auth", "status"])).toEqual({
+      authenticatedUserRequired: true,
+      method: "GET",
+      path: "/api/me",
+    });
+  });
+
+  test("does not expose destructive base-currency updates", () => {
+    expect(() =>
+      parseCliCommand([
+        "trips",
+        "update",
+        "--trip",
+        "trip-1",
+        "--currency",
+        "USD",
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "USAGE" }));
+  });
+
   test("rejects unknown options", () => {
     expect(() =>
       parseCliCommand(["trips", "list", "--format", "table"]),
@@ -222,6 +243,25 @@ describe("executeCliCommand", () => {
           Authorization: "Bearer otter_api_ephemeral",
         }),
       }),
+    );
+  });
+
+  test("reports a null auth-status user as an authentication error", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ user: null })));
+
+    await expect(
+      executeCliCommand(
+        parseCliCommand(["auth", "status"]),
+        {
+          OTTER_TOKEN: "otter_api_expired",
+          OTTER_URL: "http://localhost:17463",
+        },
+        fetchMock,
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining<CliError>({ code: "AUTH_ERROR" }),
     );
   });
 
@@ -347,6 +387,69 @@ describe("device login", () => {
       }),
     );
 
+    const failedRotationFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Service unavailable" }), {
+        status: 503,
+      }),
+    );
+    await expect(
+      executeDeviceLogin(authEnvironment, {
+        fetchImplementation: failedRotationFetch,
+        noOpen: true,
+      }),
+    ).rejects.toEqual(expect.objectContaining<CliError>({ code: "API_ERROR" }));
+    expect(failedRotationFetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_persisted",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+
+    const rotationFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true })))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(deviceAuthorization), { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "otter_api_rotated",
+            expires_at: "2099-02-01T00:00:00.000Z",
+            token_type: "Bearer",
+          }),
+        ),
+      );
+    await executeDeviceLogin(authEnvironment, {
+      fetchImplementation: rotationFetch,
+      noOpen: true,
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+    expect(rotationFetch.mock.calls[0]?.[0]).toBe(
+      "http://localhost:17463/api/auth/tokens/current",
+    );
+    expect(rotationFetch.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer otter_api_persisted",
+        }),
+        method: "DELETE",
+      }),
+    );
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
+      servers: {
+        "http://localhost:17463": {
+          accessToken: "otter_api_rotated",
+          expiresAt: "2099-02-01T00:00:00.000Z",
+        },
+      },
+      version: 1,
+    });
+
     const failedLogoutFetch = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ error: "Service unavailable" }), {
         status: 503,
@@ -358,8 +461,8 @@ describe("device login", () => {
     expect(JSON.parse(await readFile(configPath, "utf8"))).toEqual({
       servers: {
         "http://localhost:17463": {
-          accessToken: "otter_api_persisted",
-          expiresAt: "2099-01-01T00:00:00.000Z",
+          accessToken: "otter_api_rotated",
+          expiresAt: "2099-02-01T00:00:00.000Z",
         },
       },
       version: 1,

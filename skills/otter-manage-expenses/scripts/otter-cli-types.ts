@@ -1,6 +1,7 @@
 export type CliEnvironment = Record<string, string | undefined>;
 
 export type CliCommand = {
+  authenticatedUserRequired?: true;
   body?: Record<string, unknown>;
   method: "DELETE" | "GET" | "PATCH" | "POST";
   path: string;

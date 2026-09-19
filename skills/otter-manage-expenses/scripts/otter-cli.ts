@@ -50,6 +50,15 @@ export async function executeCliCommand(
       authHeaders(credential),
       command.body,
     );
+    if (
+      command.authenticatedUserRequired &&
+      (!isRecord(data) || !isRecord(data.user))
+    ) {
+      throw new CliError(
+        "AUTH_ERROR",
+        "Otter authorization is missing or expired",
+      );
+    }
     return selectOutput(data, command.select);
   } finally {
     if (credential.kind === "session") {

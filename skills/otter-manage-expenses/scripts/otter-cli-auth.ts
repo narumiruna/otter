@@ -31,6 +31,7 @@ export async function executeDeviceLogin(
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
   const fetchImplementation = options.fetchImplementation ?? fetch;
+  await revokeStoredTokenBeforeLogin(environment, config, fetchImplementation);
   const response = await safeFetch(
     fetchImplementation,
     apiUrl(config, "/api/auth/device"),
@@ -96,6 +97,37 @@ export async function executeDeviceLogin(
     "DEVICE_CODE_EXPIRED",
     "The device code expired before it was approved",
   );
+}
+
+async function revokeStoredTokenBeforeLogin(
+  environment: CliEnvironment,
+  config: CliConfig,
+  fetchImplementation: FetchImplementation,
+): Promise<void> {
+  const credentials = await readCredentialFile(environment);
+  const credential = credentials.servers[config.baseUrl];
+  if (!credential) {
+    return;
+  }
+  if (new Date(credential.expiresAt).getTime() > Date.now()) {
+    try {
+      await requestJson(
+        config,
+        fetchImplementation,
+        "/api/auth/tokens/current",
+        "DELETE",
+        { Authorization: `Bearer ${credential.accessToken}` },
+      );
+    } catch (error) {
+      if (
+        !(error instanceof CliError) ||
+        (error.status !== 401 && error.status !== 404)
+      ) {
+        throw error;
+      }
+    }
+  }
+  await removeStoredToken(environment, config.baseUrl);
 }
 
 export async function executeDeviceLogout(
