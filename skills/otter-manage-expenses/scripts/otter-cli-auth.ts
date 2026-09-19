@@ -1,5 +1,14 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import {
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import {
@@ -423,6 +432,8 @@ async function withCredentialLock<T>(
 ): Promise<T> {
   const filename = credentialFilePath(environment);
   const lockDirectory = `${filename}.lock`;
+  const ownerFile = path.join(lockDirectory, "owner");
+  const ownerId = `${process.pid}:${randomUUID()}`;
   const waitStartedAt = Date.now();
   const staleAfterMs = 11 * 60 * 1000;
   await mkdir(path.dirname(filename), { mode: 0o700, recursive: true });
@@ -430,6 +441,12 @@ async function withCredentialLock<T>(
   while (true) {
     try {
       await mkdir(lockDirectory, { mode: 0o700 });
+      try {
+        await writeFile(ownerFile, ownerId, { mode: 0o600 });
+      } catch (error) {
+        await rm(lockDirectory, { force: true, recursive: true });
+        throw error;
+      }
       break;
     } catch (error) {
       if (!isNodeError(error) || error.code !== "EEXIST") {
@@ -439,10 +456,18 @@ async function withCredentialLock<T>(
         );
       }
       try {
+        const observedOwner = await readLockOwner(ownerFile);
         const lockStat = await stat(lockDirectory);
         if (Date.now() - lockStat.mtimeMs > staleAfterMs) {
-          await rm(lockDirectory, { force: true, recursive: true });
-          continue;
+          const currentOwner = await readLockOwner(ownerFile);
+          const currentStat = await stat(lockDirectory);
+          if (
+            currentOwner === observedOwner &&
+            Date.now() - currentStat.mtimeMs > staleAfterMs
+          ) {
+            await rm(lockDirectory, { force: true, recursive: true });
+            continue;
+          }
         }
       } catch (statError) {
         if (!isNodeError(statError) || statError.code !== "ENOENT") {
@@ -460,10 +485,29 @@ async function withCredentialLock<T>(
     }
   }
 
+  const heartbeat = setInterval(() => {
+    const now = new Date();
+    void utimes(lockDirectory, now, now).catch(() => undefined);
+  }, 30_000);
+  heartbeat.unref();
   try {
     return await operation();
   } finally {
-    await rm(lockDirectory, { force: true, recursive: true });
+    clearInterval(heartbeat);
+    if ((await readLockOwner(ownerFile)) === ownerId) {
+      await rm(lockDirectory, { force: true, recursive: true });
+    }
+  }
+}
+
+async function readLockOwner(filename: string): Promise<string | undefined> {
+  try {
+    return await readFile(filename, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
   }
 }
 
