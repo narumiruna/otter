@@ -94,7 +94,7 @@ export OTTER_URL=http://localhost:17463
 npm run --silent otter -- auth login
 ```
 
-CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。
+CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。帳號、Passkey、協作者、分享連結與 device approval 管理仍要求瀏覽器 session，Bearer token 不可執行。
 
 若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可改由 secret manager 提供 `OTTER_TOKEN`，而不寫入 credential file。
 

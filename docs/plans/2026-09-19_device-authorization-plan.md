@@ -10,7 +10,7 @@ Replace agent-facing password authentication with a browser-approved device flow
 - A signed-in user enters or reviews the user code and explicitly approves the CLI.
 - The CLI polls with a separate high-entropy device secret, receives an access token once, and stores it in a mode-`0600` config file scoped by server URL.
 - The server stores only SHA-256 hashes of device secrets and access tokens.
-- Existing browser cookie sessions remain unchanged, while API middleware also accepts unexpired, unrevoked Bearer tokens.
+- Existing browser cookie sessions remain unchanged, while data API middleware also accepts unexpired, unrevoked Bearer tokens. Account, passkey, collaborator, share-link, and device-approval administration remains browser-session-only.
 - `OTTER_TOKEN` remains available for ephemeral agents and CI without local persistence.
 
 ## Security

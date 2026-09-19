@@ -40,11 +40,11 @@ export function verifyShareTokenHash(
 export function registerShareRoutes(
   app: OtterApp,
   pool: PgPool,
-  mustBeSignedIn: OtterMiddleware,
+  mustHaveBrowserSession: OtterMiddleware,
 ) {
   app.post(
     "/api/trips/:tripId/share-links",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
@@ -79,7 +79,7 @@ export function registerShareRoutes(
 
   app.delete(
     "/api/trips/:tripId/share-links/:linkId",
-    mustBeSignedIn,
+    mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
       const user = currentUser(res);
       const trip = await loadTripForUser(pool, user.id, req.params.tripId);
