@@ -143,7 +143,7 @@ export function configFromEnvironment(environment: CliEnvironment): CliConfig {
       "OTTER_URL must not contain credentials, a query, or a fragment",
     );
   }
-  const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  const localHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
   if (
     url.protocol === "http:" &&
     !localHosts.has(url.hostname) &&

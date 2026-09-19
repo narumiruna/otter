@@ -52,8 +52,8 @@ export function registerDeviceAuthRoutes(
     asyncHandler(async (req, res) => {
       const clientName =
         stringField(requestBody(req), "clientName") ?? "Otter CLI";
-      if (clientName.length > 80) {
-        sendError(res, 400, "Client name must be 80 characters or fewer");
+      if (!clientName || clientName.length > 80) {
+        sendError(res, 400, "Client name must be between 1 and 80 characters");
         return;
       }
 

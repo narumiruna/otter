@@ -34,6 +34,20 @@ test(
   postgresTestOptions,
   async () => {
     const { baseUrl, pool } = await withTestApp();
+    const emptyClientName = await api<{ error: string }>(
+      baseUrl,
+      "/api/auth/device",
+      {
+        body: JSON.stringify({ clientName: "   " }),
+        method: "POST",
+      },
+    );
+    assert.equal(emptyClientName.response.status, 400);
+    assert.equal(
+      emptyClientName.data.error,
+      "Client name must be between 1 and 80 characters",
+    );
+
     const username = `device-${Date.now()}`;
     const registration = await api<UserResponse>(
       baseUrl,

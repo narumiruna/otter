@@ -239,6 +239,30 @@ describe("executeCliCommand", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  test("allows credentials over IPv6 loopback HTTP", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ user: null })));
+
+    await executeCliCommand(
+      { method: "GET", path: "/api/me" },
+      {
+        OTTER_TOKEN: "otter_api_ephemeral",
+        OTTER_URL: "http://[::1]:17463",
+      },
+      fetchMock,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://[::1]:17463/api/me",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer otter_api_ephemeral",
+        }),
+      }),
+    );
+  });
 });
 
 describe("device login", () => {
