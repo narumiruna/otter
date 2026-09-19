@@ -23,7 +23,7 @@ jobs:
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
        github.event.workflow_run.head_sha == github.sha)
-    runs-on: [self-hosted, linux, otter-production]
+    runs-on: self-hosted
     env:
       DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       OTTER_IMAGE: otter:${{ github.event.workflow_run.head_sha || github.sha }}
