@@ -456,18 +456,31 @@ async function withCredentialLock<T>(
         );
       }
       try {
-        const observedOwner = await readLockOwner(ownerFile);
-        const lockStat = await stat(lockDirectory);
-        if (Date.now() - lockStat.mtimeMs > staleAfterMs) {
-          const currentOwner = await readLockOwner(ownerFile);
-          const currentStat = await stat(lockDirectory);
+        const observedLease = await readLockLease(lockDirectory, ownerFile);
+        if (Date.now() - observedLease.mtimeMs > staleAfterMs) {
+          const reclaimDirectory = path.join(lockDirectory, "reclaim");
+          try {
+            await mkdir(reclaimDirectory, { mode: 0o700 });
+          } catch (reclaimError) {
+            if (isNodeError(reclaimError) && reclaimError.code === "ENOENT") {
+              continue;
+            }
+            if (!isNodeError(reclaimError) || reclaimError.code !== "EEXIST") {
+              throw reclaimError;
+            }
+            await delay(100);
+            continue;
+          }
+
+          const currentLease = await readLockLease(lockDirectory, ownerFile);
           if (
-            currentOwner === observedOwner &&
-            Date.now() - currentStat.mtimeMs > staleAfterMs
+            currentLease.owner === observedLease.owner &&
+            Date.now() - currentLease.mtimeMs > staleAfterMs
           ) {
             await rm(lockDirectory, { force: true, recursive: true });
             continue;
           }
+          await rm(reclaimDirectory, { force: true, recursive: true });
         }
       } catch (statError) {
         if (!isNodeError(statError) || statError.code !== "ENOENT") {
@@ -487,7 +500,7 @@ async function withCredentialLock<T>(
 
   const heartbeat = setInterval(() => {
     const now = new Date();
-    void utimes(lockDirectory, now, now).catch(() => undefined);
+    void utimes(ownerFile, now, now).catch(() => undefined);
   }, 30_000);
   heartbeat.unref();
   try {
@@ -498,6 +511,15 @@ async function withCredentialLock<T>(
       await rm(lockDirectory, { force: true, recursive: true });
     }
   }
+}
+
+async function readLockLease(
+  lockDirectory: string,
+  ownerFile: string,
+): Promise<{ mtimeMs: number; owner: string | undefined }> {
+  const owner = await readLockOwner(ownerFile);
+  const leaseStat = await stat(owner ? ownerFile : lockDirectory);
+  return { mtimeMs: leaseStat.mtimeMs, owner };
 }
 
 async function readLockOwner(filename: string): Promise<string | undefined> {

@@ -393,7 +393,7 @@ describe("device login", () => {
       attempt < 20 && firstFetch.mock.calls.length === 0;
       attempt += 1
     ) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await new Promise((resolve) => setImmediate(resolve));
     }
     expect(firstFetch).toHaveBeenCalledTimes(1);
 
@@ -402,8 +402,10 @@ describe("device login", () => {
       noOpen: true,
       sleep: vi.fn().mockResolvedValue(undefined),
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(secondFetch).not.toHaveBeenCalled();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(secondFetch).not.toHaveBeenCalled();
+    }
 
     releaseFirstPoll?.();
     await Promise.all([firstLogin, secondLogin]);
