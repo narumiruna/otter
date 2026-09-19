@@ -144,8 +144,16 @@ export function createPasskeyOptionsRateLimiter({
 
 function parsePasskeyOrigin(origin: string): URL {
   const parsedOrigin = new URL(origin);
-  if (parsedOrigin.origin !== origin) {
-    throw new Error("PASSKEY_ORIGIN must be an origin without a path");
+  if (
+    parsedOrigin.username ||
+    parsedOrigin.password ||
+    parsedOrigin.pathname !== "/" ||
+    parsedOrigin.search ||
+    parsedOrigin.hash
+  ) {
+    throw new Error(
+      "PASSKEY_ORIGIN must be an origin without credentials, path, query, or fragment",
+    );
   }
   if (!parsedOrigin.hostname) {
     throw new Error("PASSKEY_ORIGIN must include a hostname");
@@ -164,8 +172,8 @@ export function resolvePasskeyRelyingParty(
   configured?: PasskeyRelyingParty,
 ): PasskeyRelyingParty {
   if (configured) {
-    parsePasskeyOrigin(configured.origin);
-    return configured;
+    const parsedOrigin = parsePasskeyOrigin(configured.origin);
+    return { ...configured, origin: parsedOrigin.origin };
   }
 
   const forwardedProtocol = firstForwardedValue(req.get("x-forwarded-proto"));
@@ -181,7 +189,11 @@ export function resolvePasskeyRelyingParty(
   const origin =
     configuredOrigin ?? `${forwardedProtocol ?? req.protocol}://${requestHost}`;
   const parsedOrigin = parsePasskeyOrigin(origin);
-  return { origin, rpID: parsedOrigin.hostname, rpName: "otter" };
+  return {
+    origin: parsedOrigin.origin,
+    rpID: parsedOrigin.hostname,
+    rpName: "otter",
+  };
 }
 
 async function saveChallenge(

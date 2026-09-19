@@ -129,7 +129,25 @@ test("passkey rate limits trust forwarded addresses only when configured", () =>
   ).toBeUndefined();
 });
 
-test("passkey origins require HTTPS except on localhost", () => {
+test("passkey origins are normalized and require HTTPS except on localhost", () => {
+  expect(
+    resolvePasskeyRelyingParty(request, {
+      origin: "https://EXAMPLE.com:443/",
+      rpID: "example.com",
+      rpName: "otter",
+    }),
+  ).toEqual({
+    origin: "https://example.com",
+    rpID: "example.com",
+    rpName: "otter",
+  });
+  expect(() =>
+    resolvePasskeyRelyingParty(request, {
+      origin: "https://example.com/passkeys",
+      rpID: "example.com",
+      rpName: "otter",
+    }),
+  ).toThrow("PASSKEY_ORIGIN must be an origin");
   expect(() =>
     resolvePasskeyRelyingParty(request, {
       origin: "http://otter.example.com",
