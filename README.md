@@ -93,19 +93,19 @@ npm run check
 
 ## Docker
 
-Production-like（使用外部 Postgres，必須提供 `DATABASE_URL`）：
-
-```bash
-DATABASE_URL=postgres://user:pass@db:5432/otter docker compose -f compose.yaml up --build
-```
-
 Development container（含 Postgres）：
 
 ```bash
-docker compose -f compose.dev.yaml up --build
+docker compose up --build
 ```
 
-兩個 compose 檔都會把 app 暴露在 <http://localhost:3420>；container 啟動時會先套用 migrations。
+Production-like（使用外部 Postgres，必須提供 `DATABASE_URL`）：
+
+```bash
+DATABASE_URL=postgres://user:pass@db:5432/otter docker compose --profile production up --build otter
+```
+
+`compose.yaml` 預設啟動 development services；production app 位於 `production` profile。兩種模式都會把 app 暴露在 <http://localhost:3420>，且 container 啟動時會先套用 migrations。
 
 Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
 
