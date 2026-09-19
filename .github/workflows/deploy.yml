@@ -36,7 +36,6 @@ jobs:
       - name: Start services
         shell: bash
         env:
-          OTTER_DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           : "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD secret}"
