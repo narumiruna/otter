@@ -8,6 +8,7 @@ ci:
     npm ci
 
 produp:
+    @: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
     docker compose --project-name otter-production up -d --build otter
 
 dev:

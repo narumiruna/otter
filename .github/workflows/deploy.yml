@@ -18,7 +18,11 @@ jobs:
   deploy:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_sha == github.sha)
     runs-on: [self-hosted, linux, otter-production]
     env:
       DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -43,8 +47,9 @@ jobs:
       - name: Remove superseded deployment images
         shell: bash
         run: |
-          while IFS= read -r image; do
-            if [[ "${image}" != "${OTTER_IMAGE}" ]]; then
-              docker image rm "${image}"
+          current_image_id="$(docker image inspect --format '{{.Id}}' "${OTTER_IMAGE}")"
+          while IFS= read -r image_id; do
+            if [[ "${image_id}" != "${current_image_id}" ]]; then
+              docker image rm "${image_id}"
             fi
-          done < <(docker image ls --filter "label=io.otter.deployment=true" --format '{{.Repository}}:{{.Tag}}')
+          done < <(docker image ls --no-trunc --filter "label=io.otter.deployment=true" --format '{{.ID}}' | sort --unique)
