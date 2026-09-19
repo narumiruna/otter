@@ -17,6 +17,8 @@ jobs:
     runs-on: self-hosted
     env:
       OTTER_IMAGE: otter:${{ github.sha }}
+      PASSKEY_ORIGIN: https://otter.narumi.dev
+      PASSKEY_RP_ID: otter.narumi.dev
     steps:
       - uses: actions/checkout@v7
       - name: Build image
