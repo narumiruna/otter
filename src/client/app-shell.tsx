@@ -230,13 +230,6 @@ export function AppShell() {
           </a>
           {appData?.user ? (
             <div className="user-menu">
-              <span className="user-avatar" aria-hidden="true">
-                {appData.user.name.trim().charAt(0).toLocaleUpperCase() || "O"}
-              </span>
-              <span className="user-identity">
-                <strong>{appData.user.name}</strong>
-                <small>{appData.user.username}</small>
-              </span>
               <AccountUsernameDialog
                 offline={offline}
                 onUpdate={updateUsername}

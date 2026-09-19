@@ -78,6 +78,18 @@ test(
     const cookie = login.response.headers.get("set-cookie")?.split(";")[0];
     assert.ok(cookie);
 
+    const rename = await api<{ error: string }>(baseUrl, "/api/me", {
+      body: JSON.stringify({ username: "renamed-admin" }),
+      headers: { cookie },
+      method: "PATCH",
+    });
+    assert.equal(rename.response.status, 409);
+    assert.equal(rename.data.error, "開發環境預設帳號不能修改 Username");
+    const me = await api<UserResponse>(baseUrl, "/api/me", {
+      headers: { cookie },
+    });
+    assert.equal(me.data.user?.username, credentials.username);
+
     const trips = await api<TripsResponse>(baseUrl, "/api/trips", {
       headers: { cookie },
     });

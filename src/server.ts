@@ -140,6 +140,14 @@ export function createApp(
       }
 
       const normalizedUsername = normalizeUsername(username);
+      if (
+        options.devLoginCredentials &&
+        user.username ===
+          normalizeUsername(options.devLoginCredentials.username)
+      ) {
+        sendError(res, 409, "開發環境預設帳號不能修改 Username");
+        return;
+      }
       try {
         await pool.query("UPDATE users SET username = $1 WHERE id = $2", [
           normalizedUsername,

@@ -1,4 +1,3 @@
-import { Pencil2Icon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -70,10 +69,16 @@ export function AccountUsernameDialog({
         render={
           <Button
             aria-label={`修改 ${user.name} 的 Username`}
-            size="icon-sm"
+            className="user-account-button"
             variant="ghost"
           >
-            <Pencil2Icon aria-hidden="true" />
+            <span className="user-avatar" aria-hidden="true">
+              {user.name.trim().charAt(0).toLocaleUpperCase() || "O"}
+            </span>
+            <span className="user-identity">
+              <strong>{user.name}</strong>
+              <small>{user.username}</small>
+            </span>
           </Button>
         }
       />
