@@ -494,7 +494,9 @@ function credentialLockFileSystem(lockDirectory: string) {
   const ownerName = `owner-${ownerToken}`;
   const ownerFile = path.join(lockDirectory, ownerName);
   const pendingFile = `${lockDirectory}.pending-${ownerToken}`;
-  const reclaimName = `reclaim-${ownerToken}`;
+  // Encoding the reclaimer in the destination name publishes its identity in
+  // the same atomic rename that claims the stale marker.
+  const reclaimName = `reclaim-${process.pid}-${ownerToken}`;
   const reclaimFile = path.join(lockDirectory, reclaimName);
   let acquired = false;
   let compromised: Error | undefined;
@@ -521,7 +523,7 @@ function credentialLockFileSystem(lockDirectory: string) {
 
     const reclaimMarker = entries.find((entry) => entry.startsWith("reclaim-"));
     if (reclaimMarker) {
-      takeMarker(reclaimMarker);
+      takeReclaimMarker(reclaimMarker);
     } else {
       const ownerMarker = entries.find((entry) => entry.startsWith("owner-"));
       if (ownerMarker) {
@@ -540,10 +542,17 @@ function credentialLockFileSystem(lockDirectory: string) {
     fs.rmSync(quarantine, { force: true, recursive: true });
   };
 
-  const takeMarker = (marker: string): void => {
+  const takeReclaimMarker = (marker: string): void => {
     if (marker === reclaimName) {
       return;
     }
+    if (reclaimMarkerProcessIsAlive(marker)) {
+      throw lockHeldError();
+    }
+    fs.renameSync(path.join(lockDirectory, marker), reclaimFile);
+  };
+
+  const takeMarker = (marker: string): void => {
     const markerFile = path.join(lockDirectory, marker);
     const markerIdentity = readLockMarker(markerFile);
     if (lockMarkerProcessIsAlive(markerIdentity)) {
@@ -704,6 +713,11 @@ function readLockMarker(filename: string): string {
     }
     throw error;
   }
+}
+
+function reclaimMarkerProcessIsAlive(marker: string): boolean {
+  const match = /^reclaim-([1-9]\d*)-(.+)$/.exec(marker);
+  return !match || lockMarkerProcessIsAlive(`${match[1]}:${match[2]}`);
 }
 
 function lockMarkerProcessIsAlive(identity: string): boolean {

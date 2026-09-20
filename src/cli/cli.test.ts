@@ -344,7 +344,7 @@ describe("credential locking", () => {
   test.each([
     ["ownerless lock", undefined],
     ["dead owner", "owner-abandoned"],
-    ["dead reclaimer", "reclaim-abandoned"],
+    ["dead reclaimer", `reclaim-${2 ** 31 - 1}-abandoned`],
   ])("recovers an abandoned %s", async (_description, marker) => {
     const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
     const configPath = path.join(directory, "credentials.json");
