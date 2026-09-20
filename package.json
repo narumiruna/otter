@@ -24,8 +24,10 @@
     "test": "npm run build:packages && npm test --workspace @narumitw/otter-core && npm test --workspace @narumitw/otter-contracts && npm test --workspace @narumitw/otter-web && npm test --workspace @narumitw/otter-api && npm test --workspace @narumitw/otter",
     "biome:ci": "biome ci .",
     "check": "npm run biome:ci && npm run typecheck && npm test && npm run build",
-    "test:components": "npm run test:components --workspace @narumitw/otter-web",
-    "test:e2e": "npm run test:e2e --workspace @narumitw/otter-web"
+    "pretest:components": "npm run build:packages",
+    "test:components": "npm run test:components --workspace @narumitw/otter-web --",
+    "pretest:e2e": "npm run build:packages",
+    "test:e2e": "npm run test:e2e --workspace @narumitw/otter-web --"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
