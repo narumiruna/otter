@@ -154,10 +154,12 @@ test("an expense history with no outstanding balance still shows settled results
   expect(screen.queryByText("還沒有支出")).not.toBeInTheDocument();
 });
 
-test("removing all expenses does not hide balances from recorded payments", () => {
-  render(
-    <OverviewPage payload={payloadFor({ ...trip, expenses: [] })} readonly />,
-  );
+test("read-only shares preserve calculated payment results when payment details are omitted", () => {
+  const paymentOnly = { ...trip, expenses: [] };
+  const payload = payloadFor(paymentOnly);
+  const { settlementPayments: _settlementPayments, ...publicTrip } =
+    payload.trip;
+  render(<OverviewPage payload={{ ...payload, trip: publicTrip }} readonly />);
   expect(screen.getByRole("region", { name: "待結清" })).toBeVisible();
   expect(screen.getByRole("region", { name: "每人餘額" })).toBeVisible();
   expect(screen.queryByText("目前已經打平")).not.toBeInTheDocument();

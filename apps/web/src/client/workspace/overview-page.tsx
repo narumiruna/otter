@@ -53,7 +53,14 @@ export function OverviewPage({
 }) {
   const { messages } = useI18n();
   const { trip } = payload;
-  if (trip.expenses.length === 0 && !trip.settlementPayments?.length) {
+  const hasCalculatedResults =
+    payload.settlements.length > 0 ||
+    payload.balances.some(({ amountMinor }) => amountMinor !== 0);
+  if (
+    trip.expenses.length === 0 &&
+    !trip.settlementPayments?.length &&
+    !hasCalculatedResults
+  ) {
     return (
       <EmptyOverview
         trip={trip}
