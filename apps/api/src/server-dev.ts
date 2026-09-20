@@ -590,7 +590,7 @@ export async function ensureDevelopmentAdmin(
       makeId("user"),
       credentials.name,
       normalizeUsername(credentials.username),
-      hashPassword(credentials.password),
+      await hashPassword(credentials.password),
       nowIso(),
     ],
   );

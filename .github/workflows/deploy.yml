@@ -18,6 +18,7 @@ jobs:
     env:
       OTTER_IMAGE: otter:${{ github.sha }}
       DEVICE_AUTH_TRUST_PROXY: ${{ vars.DEVICE_AUTH_TRUST_PROXY }}
+      PASSWORD_AUTH_TRUST_PROXY: ${{ vars.PASSWORD_AUTH_TRUST_PROXY }}
       PASSKEY_ORIGIN: ${{ vars.PASSKEY_ORIGIN }}
       PASSKEY_TRUST_PROXY: ${{ vars.PASSKEY_TRUST_PROXY }}
     steps:

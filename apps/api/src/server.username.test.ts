@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { usernameValidationMessage } from "@narumitw/otter-core/username";
 import pg from "pg";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { runMigrations } from "../scripts/migrate.js";
 import { createApp } from "./server.js";
-import { createSession, hashPassword } from "./server-support.js";
+import {
+  createSession,
+  hashPassword,
+  verifyPassword,
+} from "./server-support.js";
 import {
   api,
   postgresTestOptions,
@@ -51,7 +55,10 @@ test(
   "username registration, uniqueness, login, and sessions",
   postgresTestOptions,
   async () => {
-    const { baseUrl } = await withTestApp();
+    const passwordVerifier = vi.fn(verifyPassword);
+    const { baseUrl } = await withTestApp({
+      appOptions: { passwordVerifier },
+    });
     const credentials = {
       username: "  Alice_123-Test  ",
       password: "password123",
@@ -96,6 +103,10 @@ test(
       });
       expect(invalid.response.status).toBe(401);
     }
+    expect(passwordVerifier).toHaveBeenCalledTimes(3);
+    expect(passwordVerifier.mock.calls[2]?.[1]).toMatch(
+      /^pbkdf2:210000:[0-9a-f]+:[0-9a-f]{64}$/,
+    );
     const missing = await api(baseUrl, "/api/auth/login", {
       method: "POST",
       body: JSON.stringify({
@@ -215,7 +226,7 @@ test(
             "legacy-user",
             "Legacy",
             "legacy@example.com",
-            hashPassword("password123"),
+            await hashPassword("password123"),
           ],
         );
         const session = await createSession(pool, "legacy-user");

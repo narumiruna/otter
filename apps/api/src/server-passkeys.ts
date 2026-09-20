@@ -10,6 +10,7 @@ import {
 } from "@simplewebauthn/server";
 import type { Pool as PgPool, QueryResult, QueryResultRow } from "pg";
 import type { OtterApp, OtterMiddleware, RouteRequest } from "./server-http.js";
+import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import {
   asyncHandler,
   createSession,
@@ -97,49 +98,6 @@ function responseFromBody<
 
 function firstForwardedValue(value: string | undefined): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
-}
-
-type PasskeyOptionsRateLimit = {
-  globalLimit?: number;
-  perClientLimit?: number;
-  trustProxy?: boolean;
-  windowMs?: number;
-};
-
-export function createPasskeyOptionsRateLimiter({
-  globalLimit = authenticationOptionsGlobalLimit,
-  perClientLimit = authenticationOptionsPerClientLimit,
-  trustProxy = false,
-  windowMs = authenticationOptionsRateLimitWindowMs,
-}: PasskeyOptionsRateLimit = {}) {
-  let globalCount = 0;
-  let resetAt = 0;
-  const clientCounts = new Map<string, number>();
-
-  return (req: RouteRequest, now = Date.now()): number | undefined => {
-    if (now >= resetAt) {
-      globalCount = 0;
-      resetAt = now + windowMs;
-      clientCounts.clear();
-    }
-
-    const forwardedClient = trustProxy
-      ? (firstForwardedValue(req.get("x-forwarded-for")) ??
-        firstForwardedValue(req.get("x-real-ip")))
-      : undefined;
-    const client = forwardedClient ?? (req.remoteAddress?.trim() || undefined);
-    const clientCount = client ? (clientCounts.get(client) ?? 0) : 0;
-    if (
-      globalCount >= globalLimit ||
-      (client !== undefined && clientCount >= perClientLimit)
-    ) {
-      return Math.max(1, Math.ceil((resetAt - now) / 1000));
-    }
-
-    globalCount += 1;
-    if (client) clientCounts.set(client, clientCount + 1);
-    return undefined;
-  };
 }
 
 function parsePasskeyOrigin(origin: string): URL {
@@ -272,12 +230,15 @@ export function registerPasskeyRoutes(
     verifyRegistration: verifyRegistrationResponse,
   };
   const rateLimitOptions = {
+    globalLimit: authenticationOptionsGlobalLimit,
+    perClientLimit: authenticationOptionsPerClientLimit,
     trustProxy: process.env.PASSKEY_TRUST_PROXY === "true",
+    windowMs: authenticationOptionsRateLimitWindowMs,
   };
   const limitAuthenticationOptions =
-    createPasskeyOptionsRateLimiter(rateLimitOptions);
+    createFixedWindowRateLimiter(rateLimitOptions);
   const limitRegistrationOptions =
-    createPasskeyOptionsRateLimiter(rateLimitOptions);
+    createFixedWindowRateLimiter(rateLimitOptions);
 
   app.get(
     "/api/passkeys",
