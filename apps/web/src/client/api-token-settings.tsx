@@ -142,7 +142,12 @@ export function ApiTokenSettings({
       setCreatedToken(result);
       setName("");
     } catch (error) {
-      failure = error instanceof ApiResponseError ? "definitive" : "ambiguous";
+      failure =
+        error instanceof ApiResponseError &&
+        error.status >= 400 &&
+        error.status < 500
+          ? "definitive"
+          : "ambiguous";
     } finally {
       endMutation(failure !== "ambiguous");
     }
