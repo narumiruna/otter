@@ -12,6 +12,7 @@
   "scripts": {
     "prebuild": "npm run build --workspace @narumitw/otter-contracts",
     "build": "esbuild src/main.ts --bundle --format=cjs --log-level=warning --outfile=dist/otter.cjs --platform=node --target=node20",
+    "predev": "npm run build --workspace @narumitw/otter-contracts",
     "dev": "tsx src/main.ts",
     "pretypecheck": "npm run build --workspace @narumitw/otter-contracts",
     "typecheck": "tsc --noEmit -p tsconfig.json",

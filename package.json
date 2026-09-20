@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "docker compose up --build",
+    "predev:server": "npm run build:packages",
     "dev:server": "tsx scripts/dev.ts",
     "build:packages": "npm run build --workspace @narumitw/otter-core && npm run build --workspace @narumitw/otter-contracts",
     "build": "npm run build:packages && npm run build --workspace @narumitw/otter-web && npm run build --workspace @narumitw/otter-api && npm run build --workspace @narumitw/otter",

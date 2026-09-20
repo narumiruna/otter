@@ -21,7 +21,7 @@ Run commands from the repository root.
 
 - `npm install` - install dependencies for local development.
 - `npm ci` - install dependencies exactly from `package-lock.json`, as CI does.
-- [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to run the API and Vite workspaces without Compose.
+- [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to build/watch shared packages and run the API and Vite workspaces without Compose.
 - [UNREVIEWED] `docker compose up --build` - build and start the app with bundled PostgreSQL; provide `POSTGRES_PASSWORD` for a non-development deployment.
 - `npm run migrate` - apply pending PostgreSQL migrations from `apps/api/db/migrations/`.
 - `npm run db:reset:dev` - remove the dev compose stack and database volume.

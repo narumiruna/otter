@@ -54,7 +54,7 @@ npm run dev
 
 `just dev` 會改以背景 container 啟動同一套環境。
 
-如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`。`npm run dev:server` 會同時啟動 `apps/api`（17464）與 `apps/web`（17463），Vite 將 `/api` proxy 到 API：
+如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`。`npm run dev:server` 會先建置再監看 `packages/core` 與 `packages/contracts`，並同時啟動 `apps/api`（17464）與 `apps/web`（17463）；Vite 將 `/api` proxy 到 API：
 
 ```bash
 DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run migrate

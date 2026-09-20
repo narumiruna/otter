@@ -15,6 +15,7 @@
   "scripts": {
     "prebuild": "npm run build --workspace @narumitw/otter-core",
     "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "pretypecheck": "npm run build --workspace @narumitw/otter-core",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "pretest": "npm run build --workspace @narumitw/otter-core",

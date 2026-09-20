@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "npm run build --workspace @narumitw/otter-contracts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json && cp -R db dist/db",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --include ../../packages/core/dist --include ../../packages/contracts/dist src/server.ts",
     "start": "NODE_ENV=production node dist/server.js",
     "migrate": "tsx scripts/migrate.ts",
     "pretypecheck": "npm run build --workspace @narumitw/otter-contracts",

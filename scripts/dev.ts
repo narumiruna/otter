@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
 
 const children = [
+  startWorkspace("@narumitw/otter-core"),
+  startWorkspace("@narumitw/otter-contracts"),
   startWorkspace("@narumitw/otter-api", { PORT: "17464" }),
   startWorkspace("@narumitw/otter-web"),
 ];
