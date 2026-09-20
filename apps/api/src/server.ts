@@ -33,6 +33,7 @@ import {
   registerPasskeyRoutes,
 } from "./server-passkeys.js";
 import { registerPersonalApiTokenRoutes } from "./server-personal-api-tokens.js";
+import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import { registerShareRoutes } from "./server-sharing.js";
@@ -105,6 +106,14 @@ function tripExchangeRatesFromBody(
   return rows;
 }
 
+const passwordRateLimitWindowMs = 60 * 1000;
+const loginPerClientLimit = 10;
+const loginGlobalLimit = 120;
+const registrationPerClientLimit = 5;
+const registrationGlobalLimit = 30;
+const dummyPasswordHash =
+  "pbkdf2:210000:0123456789abcdef0123456789abcdef:d2cd8cc578b0a477ba3359db4388f614d386886df393c8aabb022b3e8e40ff14";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -112,6 +121,7 @@ export type CreateAppOptions = {
   devLoginCredentials?: DevelopmentAdminCredentials | null;
   exchangeRates?: ExchangeRateRouteOptions;
   passkeys?: PasskeyRouteOptions;
+  passwordVerifier?: typeof verifyPassword;
 };
 
 export function createApp(
@@ -123,6 +133,21 @@ export function createApp(
   const mustHaveBrowserSession = requireSessionUser(pool);
   const exchangeRateService = createExchangeRateService(options.exchangeRates);
   const { buildTripPayload } = exchangeRateService;
+  const passwordVerifier = options.passwordVerifier ?? verifyPassword;
+  const passwordRateLimitOptions = {
+    trustProxy: process.env.PASSWORD_AUTH_TRUST_PROXY === "true",
+    windowMs: passwordRateLimitWindowMs,
+  };
+  const limitLoginRequests = createFixedWindowRateLimiter({
+    ...passwordRateLimitOptions,
+    globalLimit: loginGlobalLimit,
+    perClientLimit: loginPerClientLimit,
+  });
+  const limitRegistrationRequests = createFixedWindowRateLimiter({
+    ...passwordRateLimitOptions,
+    globalLimit: registrationGlobalLimit,
+    perClientLimit: registrationPerClientLimit,
+  });
 
   registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
   registerBackupRoutes(app, pool, mustBeSignedIn, buildTripPayload);
@@ -187,6 +212,13 @@ export function createApp(
   app.post(
     "/api/auth/register",
     asyncHandler(async (req, res) => {
+      const retryAfter = limitRegistrationRequests(req);
+      if (retryAfter !== undefined) {
+        res.setHeader("Retry-After", String(retryAfter));
+        sendError(res, 429, "驗證要求過於頻繁，請稍後再試");
+        return;
+      }
+
       const body = requestBody(req);
       const username = stringField(body, "username");
       const password = stringField(body, "password");
@@ -216,7 +248,7 @@ export function createApp(
         username: normalizedUsername,
         id: makeId("user"),
         name: legacyName || normalizedUsername,
-        passwordHash: hashPassword(password),
+        passwordHash: await hashPassword(password),
       };
 
       let session: Session;
@@ -251,6 +283,13 @@ export function createApp(
   app.post(
     "/api/auth/login",
     asyncHandler(async (req, res) => {
+      const retryAfter = limitLoginRequests(req);
+      if (retryAfter !== undefined) {
+        res.setHeader("Retry-After", String(retryAfter));
+        sendError(res, 429, "驗證要求過於頻繁，請稍後再試");
+        return;
+      }
+
       const body = requestBody(req);
       const username = stringField(body, "username");
       const password = stringField(body, "password");
@@ -261,7 +300,11 @@ export function createApp(
       }
 
       const user = await findUserByUsername(pool, normalizeUsername(username));
-      if (!user || !verifyPassword(password, user.passwordHash)) {
+      const passwordMatches = await passwordVerifier(
+        password,
+        user?.passwordHash ?? dummyPasswordHash,
+      );
+      if (!user || !passwordMatches) {
         sendError(res, 401, "Username 或密碼錯誤");
         return;
       }

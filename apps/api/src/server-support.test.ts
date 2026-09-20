@@ -4,7 +4,9 @@ import type { RouteRequest } from "./server-http.js";
 import {
   clearSessionCookieHeader,
   getCookie,
+  hashPassword,
   sessionCookieHeader,
+  verifyPassword,
 } from "./server-support.js";
 
 function withCookieEnv(
@@ -81,4 +83,32 @@ test("COOKIE_SECURE overrides session cookie security", () => {
   withCookieEnv("production", "false", () => {
     assert.doesNotMatch(sessionCookieHeader("session 1"), /; Secure/);
   });
+});
+
+test("password hashing and verification preserve the PBKDF2 format", async () => {
+  const hash = await hashPassword("password123");
+
+  assert.match(hash, /^pbkdf2:210000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+  assert.equal(await verifyPassword("password123", hash), true);
+  assert.equal(await verifyPassword("wrong-password", hash), false);
+  assert.equal(
+    await verifyPassword(
+      "otter-dummy-password-verification",
+      "pbkdf2:210000:0123456789abcdef0123456789abcdef:d2cd8cc578b0a477ba3359db4388f614d386886df393c8aabb022b3e8e40ff14",
+    ),
+    true,
+  );
+});
+
+test("password verification rejects malformed hashes without deriving", async () => {
+  for (const hash of [
+    "",
+    "scrypt:210000:salt:hash",
+    "pbkdf2:0:salt:hash",
+    "pbkdf2:not-a-number:salt:hash",
+    `pbkdf2:210000:salt:${"z".repeat(64)}`,
+    `pbkdf2:210000:salt:${"a".repeat(62)}`,
+  ]) {
+    assert.equal(await verifyPassword("password123", hash), false);
+  }
 });

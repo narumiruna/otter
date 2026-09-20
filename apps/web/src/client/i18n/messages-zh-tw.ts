@@ -14,6 +14,8 @@ export const zhTW = {
   signedIn: "登入成功",
   accountCreated: "帳號建立成功",
   unableToAuthenticate: "無法完成驗證",
+  authenticationRequestsTooFrequentTryAgainLater:
+    "驗證要求過於頻繁，請稍後再試",
   usernameUpdated: "Username 已更新",
   signedOut: "已登出",
   signOutFailedMessage: (values: MessageValues) =>

@@ -166,40 +166,52 @@ export function nowIso(): string {
 
 export { normalizeUsername } from "@narumitw/otter-core/username";
 
-export function hashPassword(password: string): string {
+function derivePassword(
+  password: string,
+  salt: string,
+  iterations: number,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt, iterations, 32, "sha256", (error, key) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(key);
+    });
+  });
+}
+
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto
-    .pbkdf2Sync(password, salt, passwordIterations, 32, "sha256")
-    .toString("hex");
+  const hash = (
+    await derivePassword(password, salt, passwordIterations)
+  ).toString("hex");
   return `pbkdf2:${passwordIterations}:${salt}:${hash}`;
 }
 
-export function verifyPassword(
+export async function verifyPassword(
   password: string,
   passwordHash: string,
-): boolean {
+): Promise<boolean> {
   const [algorithm, iterationsText, salt, hash] = passwordHash.split(":");
   const iterations = Number(iterationsText);
 
   if (
     algorithm !== "pbkdf2" ||
     !Number.isSafeInteger(iterations) ||
+    iterations < 1 ||
     !salt ||
-    !hash
+    !hash ||
+    !/^[0-9a-f]{64}$/i.test(hash)
   ) {
     return false;
   }
 
-  const candidate = crypto
-    .pbkdf2Sync(password, salt, iterations, 32, "sha256")
-    .toString("hex");
+  const candidateBuffer = await derivePassword(password, salt, iterations);
   const hashBuffer = Buffer.from(hash, "hex");
-  const candidateBuffer = Buffer.from(candidate, "hex");
 
-  return (
-    hashBuffer.length === candidateBuffer.length &&
-    crypto.timingSafeEqual(hashBuffer, candidateBuffer)
-  );
+  return crypto.timingSafeEqual(hashBuffer, candidateBuffer);
 }
 
 export function requestBody(req: RouteRequest): Record<string, unknown> {

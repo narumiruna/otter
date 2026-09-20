@@ -14,6 +14,8 @@ export const sourceMessageKeys = {
   登入成功: "signedIn",
   帳號建立成功: "accountCreated",
   無法完成驗證: "unableToAuthenticate",
+  "驗證要求過於頻繁，請稍後再試":
+    "authenticationRequestsTooFrequentTryAgainLater",
   "Username 已更新": "usernameUpdated",
   已登出: "signedOut",
   "登出失敗：{message}": "signOutFailedMessage",

@@ -201,6 +201,10 @@ test("message translation interpolates values and preserves Traditional Chinese"
   assert.equal(translate("zh-TW", "登入"), "登入");
   assert.equal(translate("en", "找不到旅行"), "Trip not found");
   assert.equal(
+    translate("en", "驗證要求過於頻繁，請稍後再試"),
+    "Too many authentication requests. Try again later.",
+  );
+  assert.equal(
     translate("en", "缺少欄位：description, currency"),
     "Missing columns: description, currency",
   );
@@ -208,4 +212,46 @@ test("message translation interpolates values and preserves Traditional Chinese"
     translate("en", "找不到參與者：Alice"),
     "Participant not found: Alice",
   );
+});
+
+test("English auth forms show localized rate-limit errors", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/config")) {
+        return Response.json({ devLoginCredentials: null });
+      }
+      if (url.endsWith("/api/me")) {
+        return Response.json({ user: null });
+      }
+      if (
+        url.endsWith("/api/auth/login") ||
+        url.endsWith("/api/auth/register")
+      ) {
+        return Response.json(
+          { error: "驗證要求過於頻繁，請稍後再試" },
+          { status: 429 },
+        );
+      }
+      return Response.json({ error: "找不到 API" }, { status: 404 });
+    }),
+  );
+  const user = userEvent.setup();
+  const view = renderApp("en");
+
+  await user.type(await view.findByLabelText("Username"), "alice");
+  await user.type(view.getByLabelText("Password"), "password123");
+  await user.click(view.getByRole("button", { name: "Sign in" }));
+  expect(
+    await view.findByText("Too many authentication requests. Try again later."),
+  ).toBeVisible();
+
+  await user.click(view.getByRole("button", { name: "Create account" }));
+  await user.type(view.getByLabelText("Username"), "new-alice");
+  await user.type(view.getByLabelText("Password"), "password123");
+  await user.click(view.getByRole("button", { name: "Create account" }));
+  expect(
+    await view.findByText("Too many authentication requests. Try again later."),
+  ).toBeVisible();
 });

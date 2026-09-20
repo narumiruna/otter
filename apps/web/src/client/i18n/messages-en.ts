@@ -22,6 +22,8 @@ export const en = {
   signedIn: "Signed in",
   accountCreated: "Account created",
   unableToAuthenticate: "Unable to authenticate",
+  authenticationRequestsTooFrequentTryAgainLater:
+    "Too many authentication requests. Try again later.",
   usernameUpdated: "Username updated",
   signedOut: "Signed out",
   signOutFailedMessage: (values: MessageValues) =>

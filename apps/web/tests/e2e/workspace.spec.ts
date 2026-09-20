@@ -24,7 +24,13 @@ async function overflowingElements(page: Page) {
   );
 }
 
+let nextLoginClient = 1;
+
 async function login(page: Page, groupName: string | RegExp = "東京賞櫻五日") {
+  await page.setExtraHTTPHeaders({
+    "X-Forwarded-For": `198.51.100.${nextLoginClient}`,
+  });
+  nextLoginClient += 1;
   await page.goto("/");
   await page
     .locator("#login-form")

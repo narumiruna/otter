@@ -21,6 +21,7 @@ export default defineConfig({
         ...process.env,
         DEV_ADMIN_PASSWORD: "admin1234",
         NODE_ENV: "development",
+        PASSWORD_AUTH_TRUST_PROXY: "true",
         PORT: "17464",
       },
       reuseExistingServer: !process.env.CI,
