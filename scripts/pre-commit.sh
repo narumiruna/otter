@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-# npm run check includes Biome lint and formatting checks.
+# Keep the Biome configuration and source files up to date before validating.
+npx --no-install biome migrate --write
+npx --no-install biome format --write .
+npx --no-install biome check --write .
+
 npm run check
