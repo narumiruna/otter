@@ -174,7 +174,7 @@ export const en = {
   recordSharedExpensesAndFocusOnThePeopleBesideYou:
     "Record shared expenses and focus on the people beside you.",
   archivedAndReadOnlyDataIsPreservedTheOwnerCanRestoreItUnderMore:
-    "Archived and read-only. Data is preserved; the owner can restore it under More.",
+    "Archived and read-only. Data is preserved; the owner can restore it under Group settings.",
   addTravelCompanionsFirst: "Add travel companions first",
   thereIsOnlyOneParticipantAddSomeoneToSplitWithBeforeRecordingTheFirstExpense:
     "There is only one participant. Add someone to split with before recording the first expense.",
@@ -249,7 +249,7 @@ export const en = {
     "This group has not recorded any shared expenses.",
   recordTheFirstSharedExpense: "Record the first shared expense",
   addThePeopleSplittingExpensesToCalculateEachBalance:
-    "Add the people splitting expenses to calculate each balance.",
+    "First add the people splitting expenses, then record your first expense. Balances and settlement suggestions will appear automatically.",
   balancesAndSettlementSuggestionsWillAppearHereAfterYouAddExpenses:
     "Balances and settlement suggestions will appear here after you add expenses.",
   addPerson: "Add person",
@@ -408,7 +408,7 @@ export const en = {
   expenseParticipantAdded: "Expense participant added",
   unableToAddPerson: "Unable to add person",
   expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess:
-    "Expense participants do not need to sign in. Manage accounts with access under More → Sharing and access.",
+    "Expense participants do not need to sign in. Manage accounts with access under Group settings → Sharing and access.",
   personsName: "Person's name",
   friendsName: "Friend's name",
   enterAName: "Enter a name",

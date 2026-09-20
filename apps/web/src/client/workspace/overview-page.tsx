@@ -5,6 +5,8 @@ import {
   CheckCircledIcon as CheckCircle2,
   ChevronDownIcon as ChevronDown,
   TokensIcon as HandCoins,
+  PersonIcon,
+  PlusIcon,
   TrashIcon as Trash2,
 } from "@radix-ui/react-icons";
 import { useMemo, useState } from "react";
@@ -51,17 +53,26 @@ export function OverviewPage({
 }) {
   const { messages } = useI18n();
   const { trip } = payload;
+  const hasCalculatedResults =
+    payload.settlements.length > 0 ||
+    payload.balances.some(({ amountMinor }) => amountMinor !== 0);
+  if (
+    trip.expenses.length === 0 &&
+    !trip.settlementPayments?.length &&
+    !hasCalculatedResults
+  ) {
+    return (
+      <EmptyOverview
+        trip={trip}
+        onAddExpense={onAddExpense}
+        onPeople={onPeople}
+        readonly={readonly}
+      />
+    );
+  }
   return (
     <div className="overview-grid">
       <OverviewSummary payload={payload} />
-      {trip.expenses.length === 0 ? (
-        <EmptyOverview
-          trip={trip}
-          onAddExpense={onAddExpense}
-          onPeople={onPeople}
-          readonly={readonly}
-        />
-      ) : null}
       <section
         className="surface overview-settlements grid gap-4"
         aria-labelledby="settlement-heading"
@@ -115,16 +126,27 @@ function EmptyOverview({
   const { messages } = useI18n();
   if (readonly)
     return (
-      <section className="surface empty-state">
-        <h3>{messages.noExpensesYet}</h3>
+      <section
+        className="surface overview-empty"
+        aria-labelledby="overview-empty-heading"
+      >
+        <h3 id="overview-empty-heading">{messages.noExpensesYet}</h3>
         <p>{messages.thisGroupHasNotRecordedAnySharedExpenses}</p>
+        <p>
+          {
+            messages.balancesAndSettlementSuggestionsWillAppearHereAfterYouAddExpenses
+          }
+        </p>
       </section>
     );
   const needsPeople = trip.participants.length < 2;
   return (
-    <section className="surface empty-state overview-empty">
-      <HandCoins className="empty-state-icon" aria-hidden="true" />
-      <h3>
+    <section
+      className="surface overview-empty"
+      aria-labelledby="overview-empty-heading"
+    >
+      <p className="overview-empty-status">{messages.noExpensesYet}</p>
+      <h3 id="overview-empty-heading">
         {needsPeople
           ? messages.addTravelCompanionsFirst
           : messages.recordTheFirstSharedExpense}
@@ -136,9 +158,15 @@ function EmptyOverview({
       </p>
       <div className="flex flex-wrap gap-2">
         {needsPeople ? (
-          <Button onClick={onPeople}>{messages.addPerson}</Button>
+          <Button onClick={onPeople}>
+            <PersonIcon aria-hidden="true" />
+            {messages.addPerson}
+          </Button>
         ) : (
-          <Button onClick={onAddExpense}>{messages.addExpense}</Button>
+          <Button onClick={onAddExpense}>
+            <PlusIcon aria-hidden="true" />
+            {messages.addExpense}
+          </Button>
         )}
         {!needsPeople ? (
           <Button onClick={onPeople} variant="outline">

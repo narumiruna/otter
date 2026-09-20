@@ -82,7 +82,9 @@ export function AccountUsernameDialog({
             </span>
             <span className="user-identity">
               <strong>{user.name}</strong>
-              <small>{user.username}</small>
+              {user.username !== user.name ? (
+                <small>@{user.username}</small>
+              ) : null}
             </span>
           </Button>
         }
