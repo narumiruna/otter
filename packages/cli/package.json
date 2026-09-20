@@ -1,5 +1,5 @@
 {
-  "name": "@narumitw/otter",
+  "name": "@narumitw/otter-cli",
   "version": "0.1.0",
   "description": "Non-interactive CLI for managing Otter travel and shared expenses",
   "type": "module",
