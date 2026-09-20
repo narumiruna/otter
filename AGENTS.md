@@ -33,6 +33,10 @@ Run commands from the repository root.
 - `npm run build` - build core/contracts, the Vite client, the API, and the bundled CLI.
 - `npm run check` - run Biome, typecheck, tests, and build.
 
+## Publishing
+
+- Add a changeset when a pull request changes published behavior.
+
 ## Style and Testing
 
 - Write TypeScript only for app code; avoid new plain JavaScript unless there is a clear tool/config reason.
