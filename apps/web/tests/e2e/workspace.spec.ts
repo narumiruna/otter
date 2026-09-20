@@ -329,6 +329,7 @@ test("supported viewports reflow without body overflow", async ({ page }) => {
   });
   expect(await overflowingElements(page)).toEqual([]);
   await page.setViewportSize({ height: 390, width: 844 });
+  expect(await overflowingElements(page)).toEqual([]);
   await expectNoOverflow(page);
 });
 
