@@ -257,7 +257,7 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
   assert.equal(ratedTrip.data.trip.exchangeRates?.USD, 1);
   assert.equal(ratedTrip.data.trip.exchangeRates?.TWD, 0.03);
 
-  // Changing baseCurrency without providing exchangeRates should clear stale rates
+  // Changing baseCurrency without rates clears stale custom rates and restores bank defaults
   const rebasedAfterRates = await api<TripPayload>(
     baseUrl,
     `/api/trips/${createdTrip.data.trip.id}`,
@@ -269,7 +269,13 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
   );
   assert.equal(rebasedAfterRates.response.status, 200);
   assert.equal(rebasedAfterRates.data.trip.baseCurrency, "TWD");
-  assert.equal(rebasedAfterRates.data.trip.exchangeRates, undefined);
+  assert.deepEqual(rebasedAfterRates.data.trip.exchangeRates, {
+    EUR: 35,
+    JPY: 0.22,
+    TWD: 1,
+    USD: 32,
+  });
+  assert.equal(rebasedAfterRates.data.exchangeRateInfo?.source, "bank");
 
   const invalidExchangeRate = await api<{ error: string }>(
     baseUrl,
