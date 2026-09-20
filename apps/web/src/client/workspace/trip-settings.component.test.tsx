@@ -160,6 +160,58 @@ test("loads a bank snapshot into the preview without saving it", async () => {
   }
 });
 
+test("disables custom-rate inputs while bank rates are loading", async () => {
+  let resolveRequest: ((response: Response) => void) | undefined;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Promise<Response>((resolve) => {
+      resolveRequest = resolve;
+    });
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={payload}
+        refreshCollection={async () => undefined}
+      >
+        <ExchangeRateSettings payload={payload} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  try {
+    await user.click(view.getByText("換算方式"));
+    await user.click(
+      view.getByRole("button", { name: "載入台灣銀行預設匯率" }),
+    );
+    await waitFor(() =>
+      expect(view.getByLabelText("USD → TWD")).toBeDisabled(),
+    );
+
+    assert.ok(resolveRequest);
+    resolveRequest(
+      new Response(
+        JSON.stringify({
+          baseCurrency: "TWD",
+          fetchedAt: "2026-09-20T12:00:00.000Z",
+          rates: bankRates,
+          rateType: "spotMid",
+          source: "BANK_OF_TAIWAN",
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 },
+      ),
+    );
+    await waitFor(() => expect(view.getByLabelText("USD → TWD")).toBeEnabled());
+  } finally {
+    view.unmount();
+    client.clear();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("applying the bank default clears persisted custom rates", async () => {
   const originalFetch = globalThis.fetch;
   const bodies: unknown[] = [];
@@ -229,6 +281,9 @@ test("applying the bank default clears persisted custom rates", async () => {
     await user.click(view.getByRole("button", { name: "套用匯率" }));
 
     await waitFor(() => expect(bodies).toEqual([{ exchangeRates: {} }]));
+    await waitFor(() =>
+      expect(view.queryByText("換算預覽")).not.toBeInTheDocument(),
+    );
   } finally {
     view.unmount();
     client.clear();

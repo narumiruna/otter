@@ -250,11 +250,13 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
 export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
   const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
-  const original = customRateValues(payload);
-  const [values, setValues] = useState(original);
-  const [defaultRates, setDefaultRates] = useState(() =>
-    automaticExchangeRates(payload),
-  );
+  const initialValues = customRateValues(payload);
+  const initialDefaultRates = automaticExchangeRates(payload);
+  const [savedValues, setSavedValues] = useState(initialValues);
+  const [values, setValues] = useState(initialValues);
+  const [savedDefaultRates, setSavedDefaultRates] =
+    useState(initialDefaultRates);
+  const [defaultRates, setDefaultRates] = useState(initialDefaultRates);
   const [error, setError] = useState("");
   const [loadedSnapshot, setLoadedSnapshot] = useState("");
   const [useBankDefault, setUseBankDefault] = useState(false);
@@ -274,12 +276,12 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
   const previewTrip = { ...payload.trip, exchangeRates: rates };
   const changed =
     useBankDefault ||
-    currencies.some((currency) => values[currency] !== original[currency]);
+    currencies.some((currency) => values[currency] !== savedValues[currency]);
   async function apply() {
     setBusy("apply");
     setError("");
     try {
-      await requestPayload(
+      const next = await requestPayload(
         `/api/trips/${payload.trip.id}`,
         {
           body: JSON.stringify({
@@ -293,6 +295,14 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
           ? messages.bankOfTaiwanDefaultRatesApplied
           : messages.customExchangeRatesApplied,
       );
+      const nextValues = customRateValues(next);
+      const nextDefaultRates = automaticExchangeRates(next);
+      setDefaultRates(nextDefaultRates);
+      setSavedDefaultRates(nextDefaultRates);
+      setSavedValues(nextValues);
+      setValues(nextValues);
+      setLoadedSnapshot("");
+      setUseBankDefault(false);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -368,6 +378,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
             >
               <input
                 className="form-control"
+                disabled={busy !== null}
                 inputMode="decimal"
                 readOnly={currency === payload.trip.baseCurrency}
                 value={values[currency]}
@@ -423,10 +434,10 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
             variant="outline"
             disabled={!changed || busy !== null}
             onClick={() => {
-              setDefaultRates(automaticExchangeRates(payload));
+              setDefaultRates(savedDefaultRates);
               setLoadedSnapshot("");
               setUseBankDefault(false);
-              setValues(original);
+              setValues(savedValues);
             }}
           >
             {messages.cancelChanges}
