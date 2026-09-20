@@ -84,6 +84,7 @@ export function AppShell() {
   );
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const restoreAccountFocus = useRef(accountSettingsOpen);
+  const [workspaceDraftDirty, setWorkspaceDraftDirty] = useState(false);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -157,6 +158,13 @@ export function AppShell() {
   function openAccountSettings() {
     const current = new URL(window.location.href);
     if (isAccountSettingsLocation(current)) return;
+    if (
+      workspaceDraftDirty &&
+      !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
+    ) {
+      return;
+    }
+    setWorkspaceDraftDirty(false);
     const currentState =
       typeof window.history.state === "object" && window.history.state !== null
         ? window.history.state
@@ -324,6 +332,7 @@ export function AppShell() {
         announce={announce}
         bootstrap={appData}
         offline={offline}
+        onDraftDirtyChange={setWorkspaceDraftDirty}
       />
     );
   } else {

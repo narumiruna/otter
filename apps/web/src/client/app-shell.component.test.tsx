@@ -35,7 +35,10 @@ const selected: TripPayload = {
     id: trip.id,
     name: trip.name,
     ownerId: userAccount.id,
-    participants: [{ id: "participant_1", name: userAccount.name }],
+    participants: [
+      { id: "participant_1", name: userAccount.name },
+      { id: "participant_2", name: "Bob" },
+    ],
   },
 };
 
@@ -80,6 +83,31 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("dirty expense drafts require confirmation before opening settings", async () => {
+  const user = userEvent.setup();
+  const view = renderApp();
+  const accountButton = await view.findByRole("button", {
+    name: "管理 Alice 的帳號",
+  });
+
+  await user.click(view.getByRole("button", { name: "記一筆" }));
+  const description = await view.findByLabelText("描述");
+  await user.type(description, "保留這份草稿");
+
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  await user.click(accountButton);
+
+  expect(confirm).toHaveBeenCalledWith("尚未儲存的內容會消失。要捨棄草稿嗎？");
+  expect(window.location.search).not.toContain("account=settings");
+  expect(description).toHaveValue("保留這份草稿");
+
+  confirm.mockReturnValue(true);
+  await user.click(accountButton);
+
+  expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
+  expect(window.location.search).toContain("account=settings");
 });
 
 test("account settings uses browser history and manages page focus", async () => {

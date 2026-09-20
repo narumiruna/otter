@@ -51,10 +51,12 @@ export function AuthenticatedWorkspace({
   announce,
   bootstrap,
   offline,
+  onDraftDirtyChange,
 }: {
   announce: (message: string) => void;
   bootstrap: AppBootstrap;
   offline: boolean;
+  onDraftDirtyChange?: (dirty: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
@@ -114,6 +116,12 @@ export function AuthenticatedWorkspace({
     },
     [location, pageKey],
   );
+
+  useEffect(() => {
+    onDraftDirtyChange?.(draftDirty);
+  }, [draftDirty, onDraftDirtyChange]);
+
+  useEffect(() => () => onDraftDirtyChange?.(false), [onDraftDirtyChange]);
 
   useEffect(() => {
     const pop = () => {
