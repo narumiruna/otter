@@ -262,6 +262,46 @@ test("clears a one-time secret when its token is revoked", async () => {
   expect(view.queryByRole("button", { name: "複製 token" })).toBeNull();
 });
 
+test("reconciles revocation when the token is already absent", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      return { tokens: [] };
+    }
+    if (url === "/api/auth/tokens" && init?.method === "POST") {
+      return { accessToken: "otter_api_secret", token };
+    }
+    if (url === "/api/auth/tokens/token-1" && init?.method === "DELETE") {
+      throw new Error("response lost");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<ApiTokenSettings offline={false} />);
+
+  await view.findByText("沒有有效的 API token。");
+  await user.type(
+    view.getByRole("textbox", { name: "Token 名稱" }),
+    token.name,
+  );
+  await user.click(view.getByRole("button", { name: "建立 API token" }));
+  expect(
+    await view.findByRole("region", { name: "新的 API token" }),
+  ).toBeVisible();
+
+  await user.click(
+    view.getByRole("button", { name: "撤銷 API token「Travel agent」" }),
+  );
+
+  expect(await view.findByText("API token 已撤銷")).toBeVisible();
+  expect(
+    view.queryByRole("region", { name: "新的 API token" }),
+  ).not.toBeInTheDocument();
+  expect(view.queryByRole("alert")).not.toBeInTheDocument();
+  expect(listRequests).toBe(2);
+});
+
 test("does not refresh the token list during a revocation", async () => {
   let listRequests = 0;
   let resolveDelete: (value: { ok: true }) => void = () => undefined;

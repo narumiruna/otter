@@ -219,8 +219,18 @@ export function ApiTokenSettings({
     }
 
     if (failed) {
-      await loadTokens();
-      setActionError(messages.unableToRevokeApiToken);
+      const refreshed = await loadTokens();
+      if (
+        refreshed &&
+        !refreshed.some((candidate) => candidate.id === token.id)
+      ) {
+        setCreatedToken((current) =>
+          current?.token.id === token.id ? null : current,
+        );
+        setStatus(messages.apiTokenRevoked);
+      } else {
+        setActionError(messages.unableToRevokeApiToken);
+      }
     }
     setBusy("");
   }
