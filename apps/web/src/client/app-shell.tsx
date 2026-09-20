@@ -84,6 +84,7 @@ export function AppShell() {
   );
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const restoreAccountFocus = useRef(accountSettingsOpen);
+  const workspaceScrollPosition = useRef<number | null>(null);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -133,10 +134,15 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    const sync = () =>
-      setAccountSettingsOpen(
-        isAccountSettingsLocation(new URL(window.location.href)),
-      );
+    const sync = () => {
+      const nextOpen = isAccountSettingsLocation(new URL(window.location.href));
+      setAccountSettingsOpen((currentOpen) => {
+        if (nextOpen && !currentOpen) {
+          workspaceScrollPosition.current = window.scrollY;
+        }
+        return nextOpen;
+      });
+    };
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
   }, []);
@@ -148,15 +154,21 @@ export function AppShell() {
     }
     if (!restoreAccountFocus.current) return;
     restoreAccountFocus.current = false;
-    const frame = requestAnimationFrame(() =>
-      accountButtonRef.current?.focus(),
-    );
+    const scrollPosition = workspaceScrollPosition.current;
+    workspaceScrollPosition.current = null;
+    const frame = requestAnimationFrame(() => {
+      accountButtonRef.current?.focus({ preventScroll: true });
+      if (scrollPosition !== null) {
+        window.scrollTo({ behavior: "instant", top: scrollPosition });
+      }
+    });
     return () => cancelAnimationFrame(frame);
   }, [accountSettingsOpen]);
 
   function openAccountSettings() {
     const current = new URL(window.location.href);
     if (isAccountSettingsLocation(current)) return;
+    workspaceScrollPosition.current = window.scrollY;
     const currentState =
       typeof window.history.state === "object" && window.history.state !== null
         ? window.history.state

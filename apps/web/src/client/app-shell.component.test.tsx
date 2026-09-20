@@ -57,6 +57,10 @@ function renderApp() {
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/?trip=trip_1");
+  Object.defineProperty(window, "scrollY", {
+    configurable: true,
+    value: 0,
+  });
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   vi.stubGlobal(
     "fetch",
@@ -173,6 +177,10 @@ test("account settings uses browser history and manages page focus", async () =>
   const accountButton = await view.findByRole("button", {
     name: "管理 Alice 的帳號",
   });
+  Object.defineProperty(window, "scrollY", {
+    configurable: true,
+    value: 640,
+  });
 
   await user.click(accountButton);
 
@@ -183,6 +191,8 @@ test("account settings uses browser history and manages page focus", async () =>
     name: "帳號設定",
   });
   await waitFor(() => expect(heading).toHaveFocus());
+  const scrollTo = vi.mocked(window.scrollTo);
+  scrollTo.mockClear();
 
   const back = vi
     .spyOn(window.history, "back")
@@ -199,6 +209,7 @@ test("account settings uses browser history and manages page focus", async () =>
     expect(view.queryByRole("region", { name: "帳號設定" })).toBeNull(),
   );
   await waitFor(() => expect(accountButton).toHaveFocus());
+  expect(scrollTo).toHaveBeenCalledWith({ behavior: "instant", top: 640 });
 
   act(() => {
     window.history.replaceState(
