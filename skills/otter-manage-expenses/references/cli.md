@@ -30,6 +30,8 @@ otter settlements list --trip <trip-id>
 ```
 
 `trips get` returns the complete trip payload.
+`expenses list` returns the complete expense array and does not impose a record-count limit.
+A terminal or agent tool may truncate how that JSON is displayed, so redirect large output to a temporary file and inspect it in bounded chunks.
 `balances get` returns current balances and suggested settlements.
 `settlements list` returns suggested settlements and recorded payments.
 

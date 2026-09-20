@@ -16,13 +16,18 @@ Use Otter's non-interactive CLI instead of browser automation or direct database
 5. For ephemeral automation, accept `OTTER_TOKEN` only when the user or execution environment already provides it through a secret mechanism.
 6. Run `otter trips list` and use returned IDs instead of guessing IDs from names.
 7. Read the selected trip or its narrow resource list before a mutation so participant, expense, and payment IDs are current.
-8. Resolve a name only when exactly one returned record has that name, and ask the user when the intended record remains ambiguous.
-9. Translate user-entered amounts as major units, such as `12.50` USD, while treating response fields named `amountMinor` as minor units.
-10. For an equal split, pass every intended participant ID to `--split-with` as one comma-separated value.
-11. Before any delete, identify the exact record and impact, obtain explicit user approval, then and only then pass `--yes`.
-12. Run the mutation once, inspect its JSON result, and verify the changed resource with a narrow read command.
-13. After expense or settlement changes, run `balances get` and report updated balances or settlement suggestions relevant to the request.
-14. On a non-zero exit, read the JSON error from stderr, correct only clear input mistakes, and do not retry authentication, permission, conflict, or connection failures without resolving their cause.
+8. When terminal output may be truncated, redirect the complete JSON response to a temporary file before inspecting its count and processing every record in bounded chunks.
+9. Do not treat a truncated terminal display as an incomplete Otter response.
+10. When the user asks for all records or as many as possible, use a compact format, include the shown and total counts, and fit the largest safe ordered batch in each response.
+11. Continue with ordered batches when the response channel supports multiple messages, and otherwise show the largest safe batch without defaulting to 10 records or asking the user to choose a grouping.
+12. Remove temporary files containing Otter data after the task.
+13. Resolve a name only when exactly one returned record has that name, and ask the user when the intended record remains ambiguous.
+14. Translate user-entered amounts as major units, such as `12.50` USD, while treating response fields named `amountMinor` as minor units.
+15. For an equal split, pass every intended participant ID to `--split-with` as one comma-separated value.
+16. Before any delete, identify the exact record and impact, obtain explicit user approval, then and only then pass `--yes`.
+17. Run the mutation once, inspect its JSON result, and verify the changed resource with a narrow read command.
+18. After expense or settlement changes, run `balances get` and report updated balances or settlement suggestions relevant to the request.
+19. On a non-zero exit, read the JSON error from stderr, correct only clear input mistakes, and do not retry authentication, permission, conflict, or connection failures without resolving their cause.
 
 Read [the installation guide](references/installation.md) when the `otter` executable is unavailable.
 Read [the CLI command reference](references/cli.md) when choosing flags or interpreting output.
@@ -30,6 +35,7 @@ Read [the CLI command reference](references/cli.md) when choosing flags or inter
 ## Limits
 
 Do not expose access tokens in commands, logs, summaries, or repository files.
+Do not claim that a client or provider hard message-size limit can be removed.
 Do not set `OTTER_ALLOW_INSECURE_HTTP=1` unless the user explicitly accepts sending credentials to that HTTP endpoint.
 Do not use this skill for receipt uploads, backup restore, sharing links, collaborator administration, custom split amounts, or exchange-rate changes because this CLI does not expose those operations.
 Do not bypass an unsupported operation with direct SQL or an undocumented API call.
