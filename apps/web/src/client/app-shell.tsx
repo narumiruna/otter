@@ -82,6 +82,8 @@ export function AppShell() {
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(() =>
     isAccountSettingsLocation(new URL(window.location.href)),
   );
+  const [accountSettingsMutationActive, setAccountSettingsMutationActive] =
+    useState(false);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const restoreAccountFocus = useRef(accountSettingsOpen);
   const workspaceScrollPosition = useRef<number | null>(null);
@@ -135,7 +137,22 @@ export function AppShell() {
 
   useEffect(() => {
     const sync = () => {
-      const nextOpen = isAccountSettingsLocation(new URL(window.location.href));
+      const current = new URL(window.location.href);
+      const nextOpen = isAccountSettingsLocation(current);
+      if (accountSettingsMutationActive && !nextOpen) {
+        const currentState =
+          typeof window.history.state === "object" &&
+          window.history.state !== null
+            ? window.history.state
+            : {};
+        window.history.pushState(
+          { ...currentState, [accountSettingsHistoryStateKey]: true },
+          "",
+          writeAccountSettingsLocation(current, true),
+        );
+        setAccountSettingsOpen(true);
+        return;
+      }
       setAccountSettingsOpen((currentOpen) => {
         if (nextOpen && !currentOpen) {
           workspaceScrollPosition.current = window.scrollY;
@@ -145,7 +162,17 @@ export function AppShell() {
     };
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, []);
+  }, [accountSettingsMutationActive]);
+
+  useEffect(() => {
+    if (!accountSettingsMutationActive) return;
+    const preventUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventUnload);
+    return () => window.removeEventListener("beforeunload", preventUnload);
+  }, [accountSettingsMutationActive]);
 
   useEffect(() => {
     if (accountSettingsOpen) {
@@ -182,6 +209,7 @@ export function AppShell() {
   }
 
   function closeAccountSettings() {
+    if (accountSettingsMutationActive) return;
     const current = new URL(window.location.href);
     if (
       isAccountSettingsLocation(current) &&
@@ -334,6 +362,7 @@ export function AppShell() {
           <AccountSettingsPage
             offline={offline}
             onClose={closeAccountSettings}
+            onMutationChange={setAccountSettingsMutationActive}
             onUpdate={updateUsername}
             user={appData.user}
           />
@@ -369,6 +398,9 @@ export function AppShell() {
             className="brand-row no-underline"
             href="/"
             aria-label={messages.otterHome}
+            onClick={(event) => {
+              if (accountSettingsMutationActive) event.preventDefault();
+            }}
           >
             <img
               className="brand-mark"
@@ -410,7 +442,11 @@ export function AppShell() {
                 />
                 <Button
                   aria-label={messages.signOutName({ name: appData.user.name })}
-                  disabled={offline || authAction === "logout"}
+                  disabled={
+                    offline ||
+                    accountSettingsMutationActive ||
+                    authAction === "logout"
+                  }
                   onClick={() => void logout()}
                   variant="outline"
                 >

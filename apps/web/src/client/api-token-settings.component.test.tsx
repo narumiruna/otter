@@ -65,6 +65,35 @@ test("creates a token, shows its secret once, and copies it", async () => {
   ).not.toBeInTheDocument();
 });
 
+test("refreshes tokens after an ambiguous creation failure", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      return { tokens: listRequests === 1 ? [] : [token] };
+    }
+    if (url === "/api/auth/tokens" && init?.method === "POST") {
+      throw new Error("response lost");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<ApiTokenSettings offline={false} />);
+
+  await view.findByText("沒有有效的 API token。");
+  await user.type(
+    view.getByRole("textbox", { name: "Token 名稱" }),
+    token.name,
+  );
+  await user.click(view.getByRole("button", { name: "建立 API token" }));
+
+  expect(await view.findByRole("alert")).toHaveTextContent(
+    "無法建立 API token",
+  );
+  expect(view.getByText(token.name)).toBeVisible();
+  expect(listRequests).toBe(2);
+});
+
 test("clears a one-time secret when its token is revoked", async () => {
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {

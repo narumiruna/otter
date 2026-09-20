@@ -112,6 +112,7 @@ export function ApiTokenSettings({
     setActionError("");
     setListError("");
     setStatus("");
+    let failed = false;
     try {
       const result = await api<CreateApiTokenResponse>("/api/auth/tokens", {
         body: JSON.stringify({ name: tokenName }),
@@ -124,11 +125,16 @@ export function ApiTokenSettings({
       setCreatedToken(result);
       setName("");
     } catch {
-      setActionError(messages.unableToCreateApiToken);
+      failed = true;
     } finally {
       endMutation();
-      setBusy("");
     }
+
+    if (failed) {
+      await loadTokens();
+      setActionError(messages.unableToCreateApiToken);
+    }
+    setBusy("");
   }
 
   async function revokeToken(token: ApiToken) {

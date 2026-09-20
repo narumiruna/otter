@@ -58,11 +58,13 @@ export const AccountSettingsButton = forwardRef<
 export function AccountSettingsPage({
   offline,
   onClose,
+  onMutationChange,
   onUpdate,
   user,
 }: {
   offline: boolean;
   onClose: () => void;
+  onMutationChange?: (active: boolean) => void;
   onUpdate: (username: string) => Promise<void>;
   user: User;
 }) {
@@ -77,6 +79,11 @@ export function AccountSettingsPage({
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+
+  function changeTokenMutation(active: boolean) {
+    setTokenMutationActive(active);
+    onMutationChange?.(active);
+  }
 
   async function update({ username }: UsernameForm) {
     if (tokenMutationActive) return;
@@ -155,7 +162,7 @@ export function AccountSettingsPage({
         <Separator />
         <ApiTokenSettings
           offline={offline}
-          onMutationChange={setTokenMutationActive}
+          onMutationChange={changeTokenMutation}
         />
         <footer className="account-settings-actions">
           <Button
