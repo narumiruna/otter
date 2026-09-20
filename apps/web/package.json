@@ -1,7 +1,10 @@
 {
   "name": "@narumitw/otter-web",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "scripts": {
     "prebuild": "npm run build --workspace @narumitw/otter-contracts",
