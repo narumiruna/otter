@@ -16,8 +16,8 @@ import {
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { spendingSummary, type TripPayload } from "../client-support.js";
-import { localizeMessage, useI18n } from "../i18n.js";
+import { api, spendingSummary, type TripPayload } from "../client-support.js";
+import { useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BalanceList,
@@ -323,16 +323,10 @@ export function LifecycleSettings({
   async function remove() {
     setError("");
     try {
-      const response = await fetch(`/api/trips/${payload.trip.id}`, {
-        credentials: "same-origin",
-        method: "DELETE",
-      });
-      const data = (await response.json()) as { error?: string; ok?: boolean };
-      if (!response.ok) {
-        throw new Error(
-          data.error ? localizeMessage(data.error) : messages.deleteFailed,
-        );
-      }
+      await api<{ ok: true }>(
+        `/api/trips/${encodeURIComponent(payload.trip.id)}`,
+        { method: "DELETE" },
+      );
       await refreshCollection();
       announce(messages.groupDeleted);
       onDeleted();
