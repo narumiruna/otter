@@ -332,6 +332,21 @@ export const zhTW = {
   clearFilters: "清除篩選",
   filteredExpenses: "篩選後的支出",
   allExpenses: "全部支出",
+  columns: "欄位",
+  chooseExpenseColumns: "選擇支出欄位",
+  expenseName: "支出名稱",
+  splitParticipants: "分攤對象",
+  receipt: "收據",
+  tags: "標籤",
+  restoreDefaults: "恢復預設",
+  actions: "操作",
+  expenseGroupSummary: (values: MessageValues) =>
+    interpolate("{count} 筆 · 合計 {total}", values),
+  countPeople: (values: MessageValues) => interpolate("{count} 人", values),
+  viewReceiptForName: (values: MessageValues) =>
+    interpolate("查看「{name}」的收據", values),
+  moreActionsForName: (values: MessageValues) =>
+    interpolate("「{name}」的更多操作", values),
   datePaidByName: (values: MessageValues) =>
     interpolate("{date} · {name} 付款", values),
   splitWithSplit: (values: MessageValues) =>

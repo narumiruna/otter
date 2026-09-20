@@ -801,7 +801,7 @@ select:disabled {
 
 @media (max-width: 900px) {
   .workspace-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .workspace-sidebar {
     display: none;

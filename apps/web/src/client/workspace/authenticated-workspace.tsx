@@ -354,7 +354,7 @@ export function AuthenticatedWorkspace({
                 filters={
                   filtersByTrip[payload.trip.id] ?? { ...defaultExpenseFilters }
                 }
-                grouping={groupingByTrip[payload.trip.id] ?? "none"}
+                grouping={groupingByTrip[payload.trip.id] ?? "date"}
                 onAddExpense={() =>
                   needsPeople ? go("people") : navigate({ mode: "add-expense" })
                 }
@@ -373,6 +373,7 @@ export function AuthenticatedWorkspace({
                 }
                 readonly={archived}
                 trip={payload.trip}
+                userId={bootstrap.user?.id ?? "current"}
               />
             ) : location.view === "people" ? (
               <PeoplePage readonly={archived} trip={payload.trip} />

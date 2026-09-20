@@ -126,6 +126,41 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     await page.goto("/?trip=hokkaido&view=expenses");
     await expect(expenses.getByText("午餐", { exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "分組方式" })).toHaveValue(
+      "date",
+    );
+    await expect(
+      expenses.getByRole("heading", { name: "2026-09-20" }),
+    ).toBeVisible();
+    await expect(expenses.getByText("1 筆 · 合計 ¥1,200")).toBeVisible();
+    expect(await expenses.getByRole("columnheader").allTextContents()).toEqual([
+      "支出名稱",
+      "付款人",
+      "分類",
+      "金額",
+      "操作",
+    ]);
+
+    await expenses.getByRole("button", { name: "欄位" }).click();
+    await page.getByRole("checkbox", { name: "付款人" }).uncheck();
+    await page.getByRole("checkbox", { name: "分攤對象" }).check();
+    await page.keyboard.press("Escape");
+    await expect(
+      expenses.getByRole("columnheader", { name: "分攤對象" }),
+    ).toBeVisible();
+    await expect(
+      expenses.getByRole("columnheader", { name: "付款人" }),
+    ).toHaveCount(0);
+
+    await page.reload();
+    await expect(
+      expenses.getByRole("columnheader", { name: "分攤對象" }),
+    ).toBeVisible();
+    await expenses.getByRole("button", { name: "「午餐」的更多操作" }).click();
+    await expect(page.getByRole("button", { name: "編輯" })).toBeVisible();
+    await expect(page.getByText("沒有收據")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
     await page.getByRole("textbox", { name: "搜尋描述" }).fill("missing");
     await expect(
       expenses.getByRole("heading", { name: "沒有符合條件的支出" }),
@@ -143,7 +178,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "管理 narumi 的帳號" }).click();
     await page.getByRole("combobox", { name: "語言" }).selectOption("en");
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("region", { name: "Expenses" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Expenses", exact: true }),
+    ).toBeVisible();
     for (const width of [320, 375, 901]) {
       await page.setViewportSize({ width, height: 900 });
       await expectNoOverflow(page);
