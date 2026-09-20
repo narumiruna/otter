@@ -12,7 +12,7 @@ git clone https://github.com/narumiruna/otter.git
 cd otter
 npm install
 npm run build:cli
-npm link --workspace @narumitw/otter
+npm link --workspace @narumitw/otter-cli
 ```
 
 Confirm that the `otter` executable is available:
@@ -30,5 +30,5 @@ cd otter
 git pull --ff-only
 npm install
 npm run build:cli
-npm link --workspace @narumitw/otter
+npm link --workspace @narumitw/otter-cli
 ```

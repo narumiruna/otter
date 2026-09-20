@@ -92,13 +92,13 @@ npm run db:reset:dev
 
 ## Agent CLI
 
-`packages/cli/` 內的 `@narumitw/otter` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
+`packages/cli/` 內的 `@narumitw/otter-cli` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
 
 ```bash
-npm install --global @narumitw/otter # package 發佈後
+npm install --global @narumitw/otter-cli # package 發佈後
 # 或在 repository root：
 npm run build:cli
-npm link --workspace @narumitw/otter
+npm link --workspace @narumitw/otter-cli
 ```
 
 兩種方式都會提供 `$ otter`。CLI 不需要接收帳號密碼；第一次使用時啟動 device authorization。未設定 `OTTER_URL` 時，預設連線至 `https://otter.narumi.dev/`：
@@ -136,7 +136,7 @@ otter settlements preview --input trip.json
 
 金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `otter auth logout` 可撤銷目前 token 並移除本機保存內容。
 
-使用 `otter --help` 查看完整命令。開發時仍可執行 `npm run --silent otter -- --help`；production bundle 可執行 `npm run --silent otter:built -- --help`。發佈前以 `npm pack --dry-run --workspace @narumitw/otter` 檢查 package 內容。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
+使用 `otter --help` 查看完整命令。開發時仍可執行 `npm run --silent otter -- --help`；production bundle 可執行 `npm run --silent otter:built -- --help`。發佈前以 `npm pack --dry-run --workspace @narumitw/otter-cli` 檢查 package 內容。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
 
 ## Pre-commit / Husky
 
