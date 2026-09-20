@@ -85,7 +85,8 @@ export const zhTW = {
   unableToUpdateUsername: "無法更新 Username",
   changeUsername: "修改 Username",
   accountSettings: "帳號設定",
-  manageYourUsernameAndPasskeys: "管理你的 Username、Passkey 與 API token。",
+  manageYourUsernameAndPasskeys:
+    "管理你的語言、Username、Passkey 與 API token。",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "更新後請使用新的 Username 登入；目前的登入狀態不會中斷。",
   passkeys: "Passkey",

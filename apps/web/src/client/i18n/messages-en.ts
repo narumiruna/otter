@@ -99,7 +99,7 @@ export const en = {
   changeUsername: "Change username",
   accountSettings: "Account settings",
   manageYourUsernameAndPasskeys:
-    "Manage your username, passkeys, and API tokens.",
+    "Manage your language, username, passkeys, and API tokens.",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "Use the new username the next time you sign in. Your current session will continue.",
   passkeys: "Passkeys",

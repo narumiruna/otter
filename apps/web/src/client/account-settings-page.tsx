@@ -20,7 +20,6 @@ type UsernameForm = { username: string };
 
 type AccountSettingsButtonProps = {
   active: boolean;
-  offline: boolean;
   onOpen: () => void;
   user: User;
 };
@@ -28,10 +27,7 @@ type AccountSettingsButtonProps = {
 export const AccountSettingsButton = forwardRef<
   HTMLButtonElement,
   AccountSettingsButtonProps
->(function AccountSettingsButton(
-  { active, offline, onOpen, user },
-  forwardedRef,
-) {
+>(function AccountSettingsButton({ active, onOpen, user }, forwardedRef) {
   const { messages } = useI18n();
 
   return (
@@ -40,7 +36,6 @@ export const AccountSettingsButton = forwardRef<
       aria-current={active ? "page" : undefined}
       aria-label={messages.manageNameSAccount({ name: user.name })}
       className="user-account-button"
-      disabled={offline}
       onClick={onOpen}
       variant="ghost"
     >
@@ -68,7 +63,7 @@ export function AccountSettingsPage({
   onUpdate: (username: string) => Promise<void>;
   user: User;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages, setLocale } = useI18n();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
   const [tokenMutationActive, setTokenMutationActive] = useState(false);
@@ -116,6 +111,26 @@ export function AccountSettingsPage({
         noValidate
         onSubmit={(event) => void form.handleSubmit(update)(event)}
       >
+        <section
+          className="account-settings-section"
+          aria-labelledby="language-settings-heading"
+        >
+          <div className="account-settings-section-heading">
+            <h3 id="language-settings-heading">{messages.language}</h3>
+          </div>
+          <select
+            aria-labelledby="language-settings-heading"
+            className="form-control account-language-select"
+            value={locale}
+            onChange={(event) =>
+              setLocale(event.target.value as "en" | "zh-TW")
+            }
+          >
+            <option value="en">{messages.english}</option>
+            <option value="zh-TW">{messages.traditionalChinese}</option>
+          </select>
+        </section>
+        <Separator />
         <section
           className="account-settings-section"
           aria-labelledby="username-settings-heading"

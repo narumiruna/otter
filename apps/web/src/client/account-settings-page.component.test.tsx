@@ -8,6 +8,7 @@ import {
   AccountSettingsButton,
   AccountSettingsPage,
 } from "./account-settings-page.js";
+import { I18nProvider } from "./i18n.js";
 
 vi.mock("./api-token-settings.js", () => ({
   ApiTokenSettings: ({
@@ -120,7 +121,6 @@ test("shows an identical display name and username only once", () => {
   render(
     <AccountSettingsButton
       active={false}
-      offline={false}
       onOpen={vi.fn()}
       user={{ ...account, name: "alice" }}
     />,
@@ -133,12 +133,7 @@ test("marks a distinct username with @ and opens account settings", async () => 
   const user = userEvent.setup();
   const onOpen = vi.fn();
   render(
-    <AccountSettingsButton
-      active={false}
-      offline={false}
-      onOpen={onOpen}
-      user={account}
-    />,
+    <AccountSettingsButton active={false} onOpen={onOpen} user={account} />,
   );
 
   expect(screen.getByText("Alice")).toBeVisible();
@@ -147,17 +142,25 @@ test("marks a distinct username with @ and opens account settings", async () => 
   expect(onOpen).toHaveBeenCalledOnce();
 });
 
-test("disables opening account settings while offline", () => {
+test("changes the language from account settings", async () => {
+  const user = userEvent.setup();
   render(
-    <AccountSettingsButton
-      active={false}
-      offline
-      onOpen={vi.fn()}
-      user={account}
-    />,
+    <I18nProvider initialLocale="zh-TW">
+      <AccountSettingsPage
+        offline
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+        user={account}
+      />
+    </I18nProvider>,
+  );
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "語言" }),
+    "en",
   );
 
   expect(
-    screen.getByRole("button", { name: "管理 Alice 的帳號" }),
-  ).toBeDisabled();
+    screen.getByRole("heading", { level: 2, name: "Account settings" }),
+  ).toBeVisible();
 });
