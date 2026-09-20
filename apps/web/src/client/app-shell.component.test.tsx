@@ -85,7 +85,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("dirty expense drafts require confirmation before opening settings", async () => {
+test("account settings preserves expense drafts across history navigation", async () => {
   const user = userEvent.setup();
   const view = renderApp();
   const accountButton = await view.findByRole("button", {
@@ -95,31 +95,16 @@ test("dirty expense drafts require confirmation before opening settings", async 
   await user.click(view.getByRole("button", { name: "記一筆" }));
   const description = await view.findByLabelText("描述");
   await user.type(description, "保留這份草稿");
-
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
   await user.click(accountButton);
 
-  expect(confirm).toHaveBeenCalledWith("尚未儲存的內容會消失。要捨棄草稿嗎？");
-  expect(window.location.search).not.toContain("account=settings");
-  expect(description).toHaveValue("保留這份草稿");
-
-  confirm.mockReturnValue(true);
-  await user.click(accountButton);
-
-  expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
-  expect(window.location.search).toContain("account=settings");
-});
-
-test("forward navigation to settings cannot discard a rejected dirty draft", async () => {
-  const user = userEvent.setup();
-  const view = renderApp();
-  const accountButton = await view.findByRole("button", {
-    name: "管理 Alice 的帳號",
-  });
-
-  await user.click(view.getByRole("button", { name: "記一筆" }));
-  await user.click(accountButton);
   const settingsUrl = window.location.href;
+  expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
+  expect(description).not.toBeVisible();
+  expect(description).toHaveValue("保留這份草稿");
+  expect(confirm).not.toHaveBeenCalled();
+
   const workspaceUrl = new URL(settingsUrl);
   workspaceUrl.searchParams.delete("account");
   act(() => {
@@ -130,15 +115,11 @@ test("forward navigation to settings cannot discard a rejected dirty draft", asy
     );
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
-  await waitFor(() => expect(accountButton).toHaveFocus());
 
-  const description = await view.findByLabelText("描述");
-  await user.type(description, "仍要保留的草稿");
+  await waitFor(() => expect(description).toBeVisible());
+  expect(description).toHaveValue("保留這份草稿");
+  expect(confirm).not.toHaveBeenCalled();
 
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-  const back = vi
-    .spyOn(window.history, "back")
-    .mockImplementation(() => undefined);
   act(() => {
     window.history.replaceState(
       { otterAccountSettings: true },
@@ -148,10 +129,42 @@ test("forward navigation to settings cannot discard a rejected dirty draft", asy
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
 
-  expect(confirm).toHaveBeenCalledOnce();
-  expect(back).toHaveBeenCalledOnce();
-  expect(view.queryByRole("region", { name: "帳號設定" })).toBeNull();
-  expect(description).toHaveValue("仍要保留的草稿");
+  expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
+  expect(description).not.toBeVisible();
+  expect(description).toHaveValue("保留這份草稿");
+  expect(confirm).not.toHaveBeenCalled();
+});
+
+test("account settings preserves non-expense form drafts", async () => {
+  const user = userEvent.setup();
+  const view = renderApp();
+  const accountButton = await view.findByRole("button", {
+    name: "管理 Alice 的帳號",
+  });
+
+  await user.click(view.getByRole("button", { name: "成員" }));
+  const name = await view.findByLabelText("成員名稱");
+  await user.type(name, "尚未新增的朋友");
+  await user.click(accountButton);
+
+  const settingsUrl = window.location.href;
+  expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
+  expect(name).not.toBeVisible();
+  expect(name).toHaveValue("尚未新增的朋友");
+
+  const workspaceUrl = new URL(settingsUrl);
+  workspaceUrl.searchParams.delete("account");
+  act(() => {
+    window.history.replaceState(
+      {},
+      "",
+      `${workspaceUrl.pathname}${workspaceUrl.search}`,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+
+  await waitFor(() => expect(name).toBeVisible());
+  expect(name).toHaveValue("尚未新增的朋友");
 });
 
 test("account settings uses browser history and manages page focus", async () => {

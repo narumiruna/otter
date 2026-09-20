@@ -84,7 +84,6 @@ export function AppShell() {
   );
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const restoreAccountFocus = useRef(accountSettingsOpen);
-  const workspaceDraftDirty = useRef(false);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -113,10 +112,6 @@ export function AppShell() {
     requestAnimationFrame(() => setAnnouncement(message));
   }, []);
 
-  const setWorkspaceDraftDirty = useCallback((dirty: boolean) => {
-    workspaceDraftDirty.current = dirty;
-  }, []);
-
   useEffect(() => {
     if (bootstrap.data) setLastBootstrap(bootstrap.data);
   }, [bootstrap.data]);
@@ -138,27 +133,13 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    const sync = () => {
-      const nextOpen = isAccountSettingsLocation(new URL(window.location.href));
-      if (
-        nextOpen &&
-        !accountSettingsOpen &&
-        workspaceDraftDirty.current &&
-        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
-      ) {
-        window.history.back();
-        return;
-      }
-      if (nextOpen) setWorkspaceDraftDirty(false);
-      setAccountSettingsOpen(nextOpen);
-    };
+    const sync = () =>
+      setAccountSettingsOpen(
+        isAccountSettingsLocation(new URL(window.location.href)),
+      );
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, [
-    accountSettingsOpen,
-    messages.unsavedChangesWillBeLostDiscardTheDraft,
-    setWorkspaceDraftDirty,
-  ]);
+  }, []);
 
   useEffect(() => {
     if (accountSettingsOpen) {
@@ -176,13 +157,6 @@ export function AppShell() {
   function openAccountSettings() {
     const current = new URL(window.location.href);
     if (isAccountSettingsLocation(current)) return;
-    if (
-      workspaceDraftDirty.current &&
-      !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
-    ) {
-      return;
-    }
-    setWorkspaceDraftDirty(false);
     const currentState =
       typeof window.history.state === "object" && window.history.state !== null
         ? window.history.state
@@ -327,31 +301,33 @@ export function AppShell() {
     );
   } else if (appData?.readonlyShare && appData.selected) {
     body = <ReadonlyWorkspace payload={appData.selected} />;
-  } else if (appData?.user && accountSettingsOpen) {
-    body = (
-      <AccountSettingsPage
-        offline={offline}
-        onClose={closeAccountSettings}
-        onUpdate={updateUsername}
-        user={appData.user}
-      />
-    );
-  } else if (appData?.user && window.location.pathname === "/device") {
-    body = (
-      <DeviceAuthorization
-        initialCode={
-          new URLSearchParams(window.location.search).get("code") ?? ""
-        }
-      />
-    );
   } else if (appData?.user) {
+    const authenticatedBody =
+      window.location.pathname === "/device" ? (
+        <DeviceAuthorization
+          initialCode={
+            new URLSearchParams(window.location.search).get("code") ?? ""
+          }
+        />
+      ) : (
+        <AuthenticatedWorkspace
+          announce={announce}
+          bootstrap={appData}
+          offline={offline}
+        />
+      );
     body = (
-      <AuthenticatedWorkspace
-        announce={announce}
-        bootstrap={appData}
-        offline={offline}
-        onDraftDirtyChange={setWorkspaceDraftDirty}
-      />
+      <>
+        {accountSettingsOpen ? (
+          <AccountSettingsPage
+            offline={offline}
+            onClose={closeAccountSettings}
+            onUpdate={updateUsername}
+            user={appData.user}
+          />
+        ) : null}
+        <div hidden={accountSettingsOpen}>{authenticatedBody}</div>
+      </>
     );
   } else {
     body = (
