@@ -60,6 +60,7 @@ export function ApiTokenSettings({
   const listGeneration = useRef(0);
   const mutationActive = useRef(false);
   const pendingCreation = useRef<CreateApiTokenRequest | null>(null);
+  const pendingRevocation = useRef<string | null>(null);
   const error = actionError || listError;
 
   const loadTokens = useCallback(async () => {
@@ -80,6 +81,17 @@ export function ApiTokenSettings({
         return;
       }
       setTokens(result.tokens);
+      setCreatedToken((current) =>
+        current && !result.tokens.some((token) => token.id === current.token.id)
+          ? null
+          : current,
+      );
+      const revoking = pendingRevocation.current;
+      if (revoking && !result.tokens.some((token) => token.id === revoking)) {
+        pendingRevocation.current = null;
+        setActionError("");
+        setStatus(messages.apiTokenRevoked);
+      }
       setListError("");
       return result.tokens;
     } catch {
@@ -96,7 +108,7 @@ export function ApiTokenSettings({
         listAbortController.current = undefined;
       }
     }
-  }, [messages.unableToLoadApiTokens]);
+  }, [messages.apiTokenRevoked, messages.unableToLoadApiTokens]);
 
   useEffect(() => {
     if (offline) {
@@ -195,6 +207,7 @@ export function ApiTokenSettings({
 
   async function revokeToken(token: ApiToken) {
     setBusy(token.id);
+    pendingRevocation.current = token.id;
     beginMutation();
     setActionError("");
     setListError("");
@@ -211,6 +224,7 @@ export function ApiTokenSettings({
       setCreatedToken((current) =>
         current?.token.id === token.id ? null : current,
       );
+      pendingRevocation.current = null;
       setStatus(messages.apiTokenRevoked);
     } catch {
       failed = true;
@@ -219,16 +233,8 @@ export function ApiTokenSettings({
     }
 
     if (failed) {
-      const refreshed = await loadTokens();
-      if (
-        refreshed &&
-        !refreshed.some((candidate) => candidate.id === token.id)
-      ) {
-        setCreatedToken((current) =>
-          current?.token.id === token.id ? null : current,
-        );
-        setStatus(messages.apiTokenRevoked);
-      } else {
+      await loadTokens();
+      if (pendingRevocation.current === token.id) {
         setActionError(messages.unableToRevokeApiToken);
       }
     }
