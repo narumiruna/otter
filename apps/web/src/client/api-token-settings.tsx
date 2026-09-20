@@ -9,7 +9,7 @@ import {
   IdCardIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -24,47 +24,85 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
     useState<CreateApiTokenResponse | null>(null);
   const [busy, setBusy] = useState("");
   const [loading, setLoading] = useState(!offline);
-  const [error, setError] = useState("");
+  const [listError, setListError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [status, setStatus] = useState("");
+  const listAbortController = useRef<AbortController | undefined>(undefined);
+  const listGeneration = useRef(0);
+  const mutationActive = useRef(false);
+  const error = actionError || listError;
 
-  const loadTokens = useCallback(
-    async (signal?: AbortSignal) => {
-      try {
-        const result = await api<ApiTokensResponse>("/api/auth/tokens", {
-          signal,
-        });
-        if (signal?.aborted) return;
-        setTokens(result.tokens);
-        setError("");
-      } catch {
-        if (!signal?.aborted) setError(messages.unableToLoadApiTokens);
+  const loadTokens = useCallback(async () => {
+    if (mutationActive.current) return;
+    listAbortController.current?.abort();
+    const controller = new AbortController();
+    listAbortController.current = controller;
+    const generation = ++listGeneration.current;
+    try {
+      const result = await api<ApiTokensResponse>("/api/auth/tokens", {
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        mutationActive.current ||
+        generation !== listGeneration.current
+      ) {
+        return;
       }
-    },
-    [messages.unableToLoadApiTokens],
-  );
+      setTokens(result.tokens);
+      setListError("");
+    } catch {
+      if (
+        !controller.signal.aborted &&
+        !mutationActive.current &&
+        generation === listGeneration.current
+      ) {
+        setListError(messages.unableToLoadApiTokens);
+      }
+    } finally {
+      if (listAbortController.current === controller) {
+        listAbortController.current = undefined;
+      }
+    }
+  }, [messages.unableToLoadApiTokens]);
 
   useEffect(() => {
     if (offline) {
+      listAbortController.current?.abort();
       setLoading(false);
       return;
     }
-    const controller = new AbortController();
     setLoading(true);
-    void loadTokens(controller.signal).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
+    void loadTokens().finally(() => {
+      if (!mutationActive.current) setLoading(false);
     });
-    return () => controller.abort();
+    return () => listAbortController.current?.abort();
   }, [loadTokens, offline]);
+
+  function beginMutation() {
+    mutationActive.current = true;
+    listGeneration.current += 1;
+    listAbortController.current?.abort();
+    setLoading(false);
+  }
+
+  function endMutation() {
+    mutationActive.current = false;
+    listGeneration.current += 1;
+    setLoading(false);
+  }
 
   async function createToken() {
     const tokenName = name.trim();
     if (!tokenName) {
-      setError(messages.enterATokenName);
+      setActionError(messages.enterATokenName);
       return;
     }
 
     setBusy("create");
-    setError("");
+    beginMutation();
+    setActionError("");
+    setListError("");
     setStatus("");
     try {
       const result = await api<CreateApiTokenResponse>("/api/auth/tokens", {
@@ -78,16 +116,20 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
       setCreatedToken(result);
       setName("");
     } catch {
-      setError(messages.unableToCreateApiToken);
+      setActionError(messages.unableToCreateApiToken);
     } finally {
+      endMutation();
       setBusy("");
     }
   }
 
   async function revokeToken(token: ApiToken) {
     setBusy(token.id);
-    setError("");
+    beginMutation();
+    setActionError("");
+    setListError("");
     setStatus("");
+    let failed = false;
     try {
       await api<{ ok: true }>(
         `/api/auth/tokens/${encodeURIComponent(token.id)}`,
@@ -101,11 +143,16 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
       );
       setStatus(messages.apiTokenRevoked);
     } catch {
-      await loadTokens();
-      setError(messages.unableToRevokeApiToken);
+      failed = true;
     } finally {
-      setBusy("");
+      endMutation();
     }
+
+    if (failed) {
+      await loadTokens();
+      setActionError(messages.unableToRevokeApiToken);
+    }
+    setBusy("");
   }
 
   async function copyToken() {
@@ -113,9 +160,9 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
     try {
       await navigator.clipboard.writeText(createdToken.accessToken);
       setStatus(messages.apiTokenCopied);
-      setError("");
+      setActionError("");
     } catch {
-      setError(messages.unableToCopyApiToken);
+      setActionError(messages.unableToCopyApiToken);
     }
   }
 

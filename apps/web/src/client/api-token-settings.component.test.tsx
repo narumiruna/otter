@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { ApiTokenSettings } from "./api-token-settings.js";
@@ -100,6 +100,39 @@ test("clears a one-time secret when its token is revoked", async () => {
     view.queryByRole("region", { name: "新的 API token" }),
   ).not.toBeInTheDocument();
   expect(view.queryByRole("button", { name: "複製 token" })).toBeNull();
+});
+
+test("does not refresh the token list during a revocation", async () => {
+  let listRequests = 0;
+  let resolveDelete: (value: { ok: true }) => void = () => undefined;
+  const deleteRequest = new Promise<{ ok: true }>((resolve) => {
+    resolveDelete = resolve;
+  });
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      return { tokens: [token] };
+    }
+    if (url === "/api/auth/tokens/token-1" && init?.method === "DELETE") {
+      return deleteRequest;
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<ApiTokenSettings offline={false} />);
+
+  expect(await view.findByText(token.name)).toBeVisible();
+  await user.click(
+    view.getByRole("button", { name: "撤銷 API token「Travel agent」" }),
+  );
+  view.rerender(<ApiTokenSettings offline />);
+  view.rerender(<ApiTokenSettings offline={false} />);
+  await act(async () => undefined);
+  expect(listRequests).toBe(1);
+
+  await act(async () => resolveDelete({ ok: true }));
+  expect(await view.findByText("API token 已撤銷")).toBeVisible();
+  expect(view.queryByText(token.name)).not.toBeInTheDocument();
 });
 
 test("preserves the revoke error after refreshing tokens", async () => {
