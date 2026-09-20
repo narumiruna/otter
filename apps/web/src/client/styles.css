@@ -173,6 +173,57 @@ select:disabled {
   color: var(--muted-foreground);
   font-size: 0.875rem;
 }
+.user-account-button[aria-current="page"] {
+  background: var(--green-3);
+  color: var(--green-12);
+}
+.account-settings-page {
+  display: grid;
+  width: min(56rem, 100%);
+  min-width: 0;
+  gap: 1rem;
+  margin-inline: auto;
+}
+.account-settings-header {
+  padding: 0.5rem 0.25rem 0;
+}
+.account-settings-header h2,
+.account-settings-section-heading h3 {
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+.account-settings-header h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+.account-settings-header p,
+.account-settings-section-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--muted-foreground);
+}
+.account-settings-form {
+  display: grid;
+  min-height: calc(100dvh - 13rem);
+  align-content: start;
+  gap: 1.5rem;
+}
+.account-settings-section {
+  display: grid;
+  gap: 1.25rem;
+}
+.account-settings-section-heading h3 {
+  font-size: 1.1rem;
+}
+.account-settings-section-heading p {
+  font-size: 0.875rem;
+}
+.account-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
 .passkey-settings {
   display: grid;
   gap: 0.85rem;
@@ -711,6 +762,17 @@ select:disabled {
   }
   .settings-panel {
     padding: 0.85rem;
+  }
+  .account-settings-form {
+    min-height: calc(100dvh - 12rem);
+  }
+  .account-settings-actions {
+    position: sticky;
+    bottom: max(0.65rem, env(safe-area-inset-bottom));
+    margin-inline: -0.35rem;
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    padding: 0.75rem 0.35rem 0;
+    backdrop-filter: blur(8px);
   }
   .summary-meta {
     max-width: 50%;

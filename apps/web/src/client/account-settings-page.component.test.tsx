@@ -4,23 +4,29 @@ import { usernameValidationMessage } from "@narumitw/otter-core/username";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
-import { AccountUsernameDialog } from "./account-username-dialog.js";
+import {
+  AccountSettingsButton,
+  AccountSettingsPage,
+} from "./account-settings-page.js";
 
 const account = { id: "user-1", name: "Alice", username: "alice" };
 
-test("validates and submits a username change", async () => {
+test("renders account settings as a page and submits a username change", async () => {
   const user = userEvent.setup();
+  const onClose = vi.fn();
   const onUpdate = vi.fn(async () => undefined);
   render(
-    <AccountUsernameDialog
+    <AccountSettingsPage
       offline={false}
+      onClose={onClose}
       onUpdate={onUpdate}
       user={account}
     />,
   );
 
-  await user.click(screen.getByRole("button", { name: "管理 Alice 的帳號" }));
-  const input = screen.getByLabelText("Username");
+  expect(screen.getByRole("region", { name: "帳號設定" })).toBeVisible();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  const input = screen.getByRole("textbox", { name: "Username" });
   expect(input).toHaveValue("alice");
 
   await user.clear(input);
@@ -33,14 +39,33 @@ test("validates and submits a username change", async () => {
   await user.type(input, "New_Alice");
   await user.click(screen.getByRole("button", { name: "儲存" }));
   expect(onUpdate).toHaveBeenCalledWith("New_Alice");
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(onClose).toHaveBeenCalledOnce();
+});
+
+test("closes the settings page without saving", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const onUpdate = vi.fn();
+  render(
+    <AccountSettingsPage
+      offline={false}
+      onClose={onClose}
+      onUpdate={onUpdate}
+      user={account}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(onUpdate).not.toHaveBeenCalled();
 });
 
 test("shows an identical display name and username only once", () => {
   render(
-    <AccountUsernameDialog
+    <AccountSettingsButton
+      active={false}
       offline={false}
-      onUpdate={vi.fn()}
+      onOpen={vi.fn()}
       user={{ ...account, name: "alice" }}
     />,
   );
@@ -48,19 +73,30 @@ test("shows an identical display name and username only once", () => {
   expect(screen.queryByText("@alice")).not.toBeInTheDocument();
 });
 
-test("marks a distinct username with @", () => {
+test("marks a distinct username with @ and opens account settings", async () => {
+  const user = userEvent.setup();
+  const onOpen = vi.fn();
   render(
-    <AccountUsernameDialog offline={false} onUpdate={vi.fn()} user={account} />,
+    <AccountSettingsButton
+      active={false}
+      offline={false}
+      onOpen={onOpen}
+      user={account}
+    />,
   );
+
   expect(screen.getByText("Alice")).toBeVisible();
   expect(screen.getByText("@alice")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "管理 Alice 的帳號" }));
+  expect(onOpen).toHaveBeenCalledOnce();
 });
 
-test("disables username changes while offline", () => {
+test("disables opening account settings while offline", () => {
   render(
-    <AccountUsernameDialog
+    <AccountSettingsButton
+      active={false}
       offline
-      onUpdate={vi.fn(async () => undefined)}
+      onOpen={vi.fn()}
       user={account}
     />,
   );

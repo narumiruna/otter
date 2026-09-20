@@ -6,7 +6,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AccountUsernameDialog } from "./account-username-dialog.js";
+import {
+  AccountSettingsButton,
+  AccountSettingsPage,
+} from "./account-settings-page.js";
 import { type AppBootstrap, fetchAppBootstrap } from "./app-bootstrap.js";
 import {
   AuthScreen,
@@ -55,6 +58,7 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const { locale, setLocale, messages } = useI18n();
   const [offline, setOffline] = useState(!navigator.onLine);
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -176,6 +180,7 @@ export function AppShell() {
     setAuthAction("logout");
     try {
       await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
+      setAccountSettingsOpen(false);
       queryClient.clear();
       window.history.replaceState({}, "", "/");
       await bootstrap.refetch();
@@ -213,6 +218,15 @@ export function AppShell() {
     );
   } else if (appData?.readonlyShare && appData.selected) {
     body = <ReadonlyWorkspace payload={appData.selected} />;
+  } else if (appData?.user && accountSettingsOpen) {
+    body = (
+      <AccountSettingsPage
+        offline={offline}
+        onClose={() => setAccountSettingsOpen(false)}
+        onUpdate={updateUsername}
+        user={appData.user}
+      />
+    );
   } else if (appData?.user && window.location.pathname === "/device") {
     body = (
       <DeviceAuthorization
@@ -289,9 +303,10 @@ export function AppShell() {
             </label>
             {appData?.user ? (
               <>
-                <AccountUsernameDialog
+                <AccountSettingsButton
+                  active={accountSettingsOpen}
                   offline={offline}
-                  onUpdate={updateUsername}
+                  onOpen={() => setAccountSettingsOpen(true)}
                   user={appData.user}
                 />
                 <Button
