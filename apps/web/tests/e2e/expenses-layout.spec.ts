@@ -1,0 +1,150 @@
+import AxeBuilder from "@axe-core/playwright";
+import {
+  calculateBalances,
+  calculateSettlements,
+  type Trip,
+} from "@narumitw/otter-core/settlement";
+import { expect, test } from "@playwright/test";
+import { expectNoOverflow } from "./layout-assertions.js";
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`${colorScheme} expenses reflow with long group names and clear empty states`, async ({
+    page,
+  }, testInfo) => {
+    const trip: Trip = {
+      id: "hokkaido",
+      name: "2026 北海道夏日自駕八日｜完整範例 Hokkaido summer road trip",
+      baseCurrency: "JPY",
+      createdAt: "2026-09-20T00:00:00.000Z",
+      ownerId: "owner",
+      participants: [
+        { id: "owner-person", name: "narumi" },
+        { id: "friend", name: "Alice" },
+      ],
+      expenses: [],
+    };
+    await page.route("**/api/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/config") {
+        await route.fulfill({ json: { devLoginCredentials: null } });
+      } else if (path === "/api/me") {
+        await route.fulfill({
+          json: { user: { id: "owner", name: "narumi", username: "narumi" } },
+        });
+      } else if (path === "/api/trips") {
+        await route.fulfill({
+          json: {
+            archivedTrips: [],
+            trips: [
+              {
+                id: trip.id,
+                name: trip.name,
+                baseCurrency: trip.baseCurrency,
+                expenseCount: trip.expenses.length,
+                participantCount: trip.participants.length,
+              },
+            ],
+          },
+        });
+      } else if (path === `/api/trips/${trip.id}`) {
+        await route.fulfill({
+          json: {
+            trip,
+            balances: calculateBalances(trip),
+            settlements: calculateSettlements(trip),
+            currentUserRole: "owner",
+            collaborators: [],
+            shareLinks: [],
+          },
+        });
+      } else {
+        throw new Error(`Unexpected request: ${path}`);
+      }
+    });
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await page.goto("/?trip=hokkaido&view=expenses");
+    const expenses = page.getByRole("region", { name: "支出", exact: true });
+    await expect(
+      expenses.getByRole("heading", { name: "還沒有支出" }),
+    ).toBeVisible();
+    await expect(expenses.getByRole("textbox")).toHaveCount(0);
+    await expect(expenses.getByRole("button")).toHaveCount(1);
+
+    for (const width of [320, 375, 768, 901, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectNoOverflow(page);
+      if (width > 900) {
+        const sidebar = page.getByRole("complementary", { name: "群組切換" });
+        await expect(
+          sidebar.getByRole("button").filter({ hasText: trip.name }),
+        ).toBeVisible();
+        expect(
+          await sidebar.evaluate(
+            (element) => element.scrollWidth <= element.clientWidth,
+          ),
+        ).toBe(true);
+      }
+      const results = await new AxeBuilder({ page }).analyze();
+      expect(
+        results.violations.filter(
+          ({ impact }) => impact === "serious" || impact === "critical",
+        ),
+      ).toEqual([]);
+    }
+    await page.screenshot({
+      path: testInfo.outputPath("expenses-desktop.png"),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.screenshot({
+      path: testInfo.outputPath("expenses-mobile.png"),
+      fullPage: true,
+    });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await expectNoOverflow(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "";
+    });
+    await expenses.getByRole("button", { name: "記錄第一筆支出" }).click();
+    await expect(page).toHaveURL(/mode=add-expense/);
+
+    trip.expenses.push({
+      id: "lunch",
+      description: "午餐",
+      amountMinor: 1200,
+      currency: "JPY",
+      expenseDate: "2026-09-20",
+      createdAt: "2026-09-20T00:00:00.000Z",
+      paidById: "owner-person",
+      participantIds: ["owner-person", "friend"],
+    });
+    await page.goto("/?trip=hokkaido&view=expenses");
+    await expect(expenses.getByText("午餐", { exact: true })).toBeVisible();
+    await page.getByRole("textbox", { name: "搜尋描述" }).fill("missing");
+    await expect(
+      expenses.getByRole("heading", { name: "沒有符合條件的支出" }),
+    ).toBeVisible();
+    await expenses
+      .getByRole("button", { name: "清除篩選", exact: true })
+      .click();
+    await expect(expenses.getByText("午餐", { exact: true })).toBeVisible();
+    await expectNoOverflow(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({
+      path: testInfo.outputPath("expenses-recorded-desktop.png"),
+      fullPage: true,
+    });
+    await page.locator(".language-picker select").selectOption("en");
+    for (const width of [320, 375, 901]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectNoOverflow(page);
+      for (const button of await page.locator(".workspace-nav button").all()) {
+        const bounds = await button.boundingBox();
+        expect(bounds?.width).toBeGreaterThanOrEqual(44);
+        expect(bounds?.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+}

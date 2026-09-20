@@ -282,7 +282,7 @@ export function AuthenticatedWorkspace({
           ) : null}
         </aside>
 
-        <section className="min-w-0 grid gap-4">
+        <section className="workspace-main">
           <TripHeader
             allTrips={allTrips}
             archived={archived}
@@ -465,15 +465,18 @@ function TripHeader({
                 : messages.owner}
             </span>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {messages.baseCurrencyCurrency({
-              currency: payload.trip.baseCurrency,
-            })}{" "}
-            ·{" "}
-            {Object.keys(payload.trip.exchangeRates ?? {}).length
-              ? messages.usingCustomExchangeRates
-              : messages.usingBuiltInFixedRates}
-            {pendingTripId ? ` · ${messages.loadingGroup2}` : ""}
+          <p className="trip-description">
+            <GlobeIcon aria-hidden="true" />
+            <span>
+              {messages.baseCurrencyCurrency({
+                currency: payload.trip.baseCurrency,
+              })}{" "}
+              ·{" "}
+              {Object.keys(payload.trip.exchangeRates ?? {}).length
+                ? messages.usingCustomExchangeRates
+                : messages.usingBuiltInFixedRates}
+              {pendingTripId ? ` · ${messages.loadingGroup2}` : ""}
+            </span>
           </p>
         </div>
       </div>
@@ -547,7 +550,8 @@ function TripList({
       aria-current={trip.id === selectedTripId ? "true" : undefined}
       busy={pendingTripId === trip.id}
       busyLabel={messages.loading}
-      className="trip-switcher-item h-auto w-full justify-start px-3 py-3 text-left"
+      className="trip-switcher-item"
+      title={trip.name}
       data-active={trip.id === selectedTripId || undefined}
       key={trip.id}
       onClick={() => void selectTrip(trip.id)}
@@ -556,21 +560,28 @@ function TripList({
       <span className="trip-list-icon" aria-hidden="true">
         <GlobeIcon />
       </span>
-      <span className="min-w-0">
-        <strong className="block truncate">{trip.name}</strong>
+      <span className="trip-list-copy">
+        <strong>{trip.name}</strong>
+        <small>
+          {messages.participantsPeopleExpensesExpensesCurrency({
+            participants: trip.participantCount,
+            expenses: trip.expenseCount,
+            currency: trip.baseCurrency,
+          })}
+        </small>
       </span>
     </BusyButton>
   );
   return (
-    <div className="grid gap-2">
-      <div className="grid gap-1">{trips.map(row)}</div>
+    <div className="trip-list">
+      <div className="trip-list">{trips.map(row)}</div>
       {archivedTrips.length ? (
         <details className="disclosure compact">
           <summary>
             {messages.archivedGroups}{" "}
             <span className="summary-meta">{archivedTrips.length}</span>
           </summary>
-          <div className="grid gap-1 pt-2">{archivedTrips.map(row)}</div>
+          <div className="trip-list">{archivedTrips.map(row)}</div>
         </details>
       ) : null}
     </div>
