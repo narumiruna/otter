@@ -75,6 +75,7 @@ select:disabled {
   z-index: 40;
   top: 0.75rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -364,7 +365,6 @@ select:disabled {
   z-index: 30;
   top: 6.5rem;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
   border-bottom: 1px solid var(--border);
@@ -632,7 +632,6 @@ select:disabled {
   }
   .app-header {
     top: 0.25rem;
-    flex-wrap: wrap;
     border-radius: 1rem;
     padding: 0.65rem 0.75rem;
   }
