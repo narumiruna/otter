@@ -77,7 +77,7 @@ function LoadingScreen() {
 
 export function AppShell() {
   const queryClient = useQueryClient();
-  const { locale, setLocale, messages } = useI18n();
+  const { messages } = useI18n();
   const [offline, setOffline] = useState(!navigator.onLine);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(() =>
     isAccountSettingsLocation(new URL(window.location.href)),
@@ -417,26 +417,11 @@ export function AppShell() {
             </span>
           </a>
           <div className="user-menu">
-            <label className="language-picker">
-              <span className="sr-only">{messages.language}</span>
-              <select
-                aria-label={messages.language}
-                value={locale}
-                onChange={(event) => {
-                  setAuthError({});
-                  setLocale(event.target.value as "en" | "zh-TW");
-                }}
-              >
-                <option value="en">{messages.english}</option>
-                <option value="zh-TW">{messages.traditionalChinese}</option>
-              </select>
-            </label>
             {appData?.user ? (
               <>
                 <AccountSettingsButton
                   ref={accountButtonRef}
                   active={accountSettingsOpen}
-                  offline={offline}
                   onOpen={openAccountSettings}
                   user={appData.user}
                 />

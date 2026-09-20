@@ -57,6 +57,10 @@ for (const colorScheme of ["light", "dark"] as const) {
             shareLinks: [],
           },
         });
+      } else if (path === "/api/passkeys") {
+        await route.fulfill({ json: { passkeys: [] } });
+      } else if (path === "/api/auth/tokens") {
+        await route.fulfill({ json: { tokens: [] } });
       } else {
         throw new Error(`Unexpected request: ${path}`);
       }
@@ -136,7 +140,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       path: testInfo.outputPath("expenses-recorded-desktop.png"),
       fullPage: true,
     });
-    await page.locator(".language-picker select").selectOption("en");
+    await page.getByRole("button", { name: "管理 narumi 的帳號" }).click();
+    await page.getByRole("combobox", { name: "語言" }).selectOption("en");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("region", { name: "Expenses" })).toBeVisible();
     for (const width of [320, 375, 901]) {
       await page.setViewportSize({ width, height: 900 });
       await expectNoOverflow(page);

@@ -60,7 +60,7 @@ test("browser language detection honors the user's preference order", () => {
   expect(view.getByText("en")).toBeVisible();
 });
 
-test("app switches between Traditional Chinese and English and persists the choice", async () => {
+test("app switches between Traditional Chinese and English in account settings and persists the choice", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request) => {
@@ -68,17 +68,33 @@ test("app switches between Traditional Chinese and English and persists the choi
       if (url.endsWith("/api/config")) {
         return Response.json({ devLoginCredentials: null });
       }
-      if (url.endsWith("/api/me")) return Response.json({ user: null });
+      if (url.endsWith("/api/me")) {
+        return Response.json({
+          user: { id: "user-1", name: "Alice", username: "alice" },
+        });
+      }
+      if (url.endsWith("/api/trips")) {
+        return Response.json({ archivedTrips: [], trips: [] });
+      }
+      if (url.endsWith("/api/passkeys")) {
+        return Response.json({ passkeys: [] });
+      }
+      if (url.endsWith("/api/auth/tokens")) {
+        return Response.json({ tokens: [] });
+      }
       return Response.json({ error: "找不到 API" }, { status: 404 });
     }),
   );
   const user = userEvent.setup();
   const view = renderApp("zh-TW");
 
-  expect(await view.findByRole("heading", { name: "登入" })).toBeVisible();
+  expect(view.queryByRole("combobox", { name: "語言" })).toBeNull();
+  await user.click(
+    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+  );
   await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
 
-  expect(view.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  expect(view.getByRole("heading", { name: "Account settings" })).toBeVisible();
   expect(
     view.getByRole("option", { name: "Traditional Chinese" }),
   ).toBeVisible();
@@ -88,65 +104,8 @@ test("app switches between Traditional Chinese and English and persists the choi
   view.unmount();
   const persisted = renderApp();
   expect(
-    await persisted.findByRole("heading", { name: "Sign in" }),
+    await persisted.findByRole("button", { name: "Manage Alice's account" }),
   ).toBeVisible();
-});
-
-test("switching locale clears an authentication error translated for the previous locale", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      if (url.endsWith("/api/config")) {
-        return Response.json({ devLoginCredentials: null });
-      }
-      if (url.endsWith("/api/me")) return Response.json({ user: null });
-      if (url.endsWith("/api/auth/login")) {
-        return Response.json({ error: "Username 或密碼錯誤" }, { status: 401 });
-      }
-      return Response.json({ error: "找不到 API" }, { status: 404 });
-    }),
-  );
-  const user = userEvent.setup();
-  const view = renderApp("zh-TW");
-
-  await user.type(await view.findByLabelText("Username"), "alice");
-  await user.type(view.getByLabelText("密碼"), "incorrect-password");
-  await user.click(view.getByRole("button", { name: "登入" }));
-  expect(await view.findByText("Username 或密碼錯誤")).toBeVisible();
-
-  await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
-
-  expect(view.queryByText("Username 或密碼錯誤")).toBeNull();
-  expect(view.getByRole("heading", { name: "Sign in" })).toBeVisible();
-});
-
-test("switching locale clears client-side authentication validation", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      if (url.endsWith("/api/config")) {
-        return Response.json({ devLoginCredentials: null });
-      }
-      if (url.endsWith("/api/me")) return Response.json({ user: null });
-      return Response.json({ error: "找不到 API" }, { status: 404 });
-    }),
-  );
-  const user = userEvent.setup();
-  const view = renderApp("zh-TW");
-
-  await user.click(await view.findByRole("button", { name: "登入" }));
-  expect(await view.findByText("請輸入 Username")).toBeVisible();
-  expect(view.getByText("請輸入密碼")).toBeVisible();
-
-  await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
-
-  expect(view.queryByText("請輸入 Username")).toBeNull();
-  expect(view.queryByText("請輸入密碼")).toBeNull();
-  await user.click(view.getByRole("button", { name: "Sign in" }));
-  expect(await view.findByText("Enter a username")).toBeVisible();
-  expect(view.getByText("Enter a password")).toBeVisible();
 });
 
 test("active locale survives unavailable browser storage", async () => {
@@ -165,7 +124,20 @@ test("active locale survives unavailable browser storage", async () => {
       if (url.endsWith("/api/config")) {
         return Response.json({ devLoginCredentials: null });
       }
-      if (url.endsWith("/api/me")) return Response.json({ user: null });
+      if (url.endsWith("/api/me")) {
+        return Response.json({
+          user: { id: "user-1", name: "Alice", username: "alice" },
+        });
+      }
+      if (url.endsWith("/api/trips")) {
+        return Response.json({ archivedTrips: [], trips: [] });
+      }
+      if (url.endsWith("/api/passkeys")) {
+        return Response.json({ passkeys: [] });
+      }
+      if (url.endsWith("/api/auth/tokens")) {
+        return Response.json({ tokens: [] });
+      }
       return Response.json({ error: "找不到 API" }, { status: 404 });
     },
   );
@@ -173,7 +145,9 @@ test("active locale survives unavailable browser storage", async () => {
   const user = userEvent.setup();
   const view = renderApp("zh-TW");
 
-  expect(await view.findByRole("heading", { name: "登入" })).toBeVisible();
+  await user.click(
+    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+  );
   await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
 
   assert.equal(currentLocale(), "en");
