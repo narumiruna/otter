@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { Pool as PgPool } from "pg";
 import {
+  apiTokenLifetimeSeconds,
   bearerTokenFromRequest,
   generateAccessToken,
   hashApiSecret,
@@ -19,7 +20,6 @@ import {
 } from "./server-support.js";
 
 const deviceLifetimeSeconds = 10 * 60;
-const tokenLifetimeSeconds = 90 * 24 * 60 * 60;
 const pollingIntervalSeconds = 3;
 const userCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const authorizationRateLimitWindowMs = 60 * 1000;
@@ -306,7 +306,7 @@ async function exchangeDeviceCode(
 
     const accessToken = generateAccessToken();
     const expiresAt = new Date(
-      Date.now() + tokenLifetimeSeconds * 1000,
+      Date.now() + apiTokenLifetimeSeconds * 1000,
     ).toISOString();
     const consumedAt = nowIso();
     await client.query(

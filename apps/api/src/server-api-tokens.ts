@@ -10,6 +10,8 @@ type Queryable = {
   ): Promise<QueryResult<Row>>;
 };
 
+export const apiTokenLifetimeSeconds = 90 * 24 * 60 * 60;
+
 type UserRow = {
   id: string;
   name: string;

@@ -27,6 +27,7 @@ import {
   type PasskeyRouteOptions,
   registerPasskeyRoutes,
 } from "./server-passkeys.js";
+import { registerPersonalApiTokenRoutes } from "./server-personal-api-tokens.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import { registerShareRoutes } from "./server-sharing.js";
@@ -119,6 +120,7 @@ export function createApp(
   registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
   registerBackupRoutes(app, pool, mustBeSignedIn);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
+  registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
 
   app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;

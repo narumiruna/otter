@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ApiTokenSettings } from "./api-token-settings.js";
 import type { User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
 import { PasskeySettings } from "./passkey-settings.js";
@@ -149,6 +150,8 @@ export function AccountSettingsPage({
         </section>
         <Separator />
         <PasskeySettings offline={offline} />
+        <Separator />
+        <ApiTokenSettings offline={offline} />
         <footer className="account-settings-actions">
           <Button
             disabled={form.formState.isSubmitting}

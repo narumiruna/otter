@@ -24,6 +24,8 @@ otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助�
 
 登入後可從右上角帳號設定新增或移除多組 Passkey。Passkey 使用 discoverable credential，可在登入頁直接選擇帳號，不必先輸入 Username；密碼登入會保留作為備援。Passkey 只能在 HTTPS secure context 或瀏覽器允許的 `localhost` 開發環境使用。
 
+帳號設定也可建立具名稱的 90 天 API token，並查看或撤銷目前有效的手動與 device authorization token。明文 token 只在建立後顯示一次，伺服器只保存 SHA-256 hash；token 管理端點只接受瀏覽器 session，Bearer token 不能建立或管理其他憑證。
+
 Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、session 與群組關聯。Migration `012_passkeys.sql` 只新增 Passkey credential 與短效 challenge 資料表，不修改既有帳號、密碼或 session。既有使用者仍可用 Username／原 Email 與密碼登入後新增 Passkey。
 
 ## 技術
@@ -107,11 +109,11 @@ otter auth login
 
 若要連線至其他 Otter server（例如本機開發環境），再以 `OTTER_URL` 覆寫。CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。帳號、Passkey、協作者、分享連結與 device approval 管理仍要求瀏覽器 session，Bearer token 不可執行。
 
-若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可改由 secret manager 提供 `OTTER_TOKEN`，而不寫入 credential file。
+若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可在網頁右上角的「帳號設定 → API token」建立 token，立即複製到 secret manager，再透過 `OTTER_TOKEN` 提供而不寫入 credential file：
 
 ```bash
-otter auth status
-otter trips list
+OTTER_TOKEN='otter_api_…' otter auth status
+OTTER_TOKEN='otter_api_…' otter trips list
 ```
 
 常見流程：
