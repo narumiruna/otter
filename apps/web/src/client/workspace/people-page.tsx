@@ -126,13 +126,7 @@ function ParticipantRow({
 }) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
-  const blocked =
-    participantDeleteBlockReason(trip, person.id) ||
-    ((trip.settlementPayments ?? []).some(
-      (payment) => payment.fromId === person.id || payment.toId === person.id,
-    )
-      ? messages.usedByAPayment
-      : null);
+  const blocked = participantDeleteBlockReason(trip, person.id);
   return (
     <li className="flex flex-wrap items-center gap-3 p-3">
       <span

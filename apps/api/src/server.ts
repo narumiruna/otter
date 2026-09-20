@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { serve as serveNode } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Currency, isCurrency } from "@narumitw/otter-core/money";
+import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
 import type { Participant, Trip } from "@narumitw/otter-core/settlement";
 import {
   isValidUsername,
@@ -701,26 +702,16 @@ export function createApp(
         sendError(res, 404, "找不到參與者");
         return;
       }
-      if (trip.participants.length <= 1) {
+      const deletionBlock = participantDeletionBlock(trip, participantId);
+      if (deletionBlock === "last-participant") {
         sendError(res, 400, "至少需要一位參與者");
         return;
       }
-      if (
-        trip.expenses.some(
-          (expense) =>
-            expense.paidById === participantId ||
-            expense.participantIds.includes(participantId),
-        )
-      ) {
+      if (deletionBlock === "expense") {
         sendError(res, 409, "參與者已有支出，不能刪除");
         return;
       }
-      if (
-        (trip.settlementPayments ?? []).some(
-          (payment) =>
-            payment.fromId === participantId || payment.toId === participantId,
-        )
-      ) {
+      if (deletionBlock === "payment") {
         sendError(res, 409, "參與者已有付款紀錄，不能刪除");
         return;
       }

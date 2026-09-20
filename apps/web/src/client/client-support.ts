@@ -1,4 +1,5 @@
 import { convertMinorWithRates } from "@narumitw/otter-core/money";
+import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
 import type { Trip } from "@narumitw/otter-core/settlement";
 import { currentLocale, localizeMessage } from "./i18n.js";
 
@@ -269,19 +270,16 @@ export function participantDeleteBlockReason(
   trip: Trip,
   participantId: string,
 ): string | null {
-  if (trip.participants.length <= 1) {
-    return localizeMessage("至少需要一位參與者");
+  switch (participantDeletionBlock(trip, participantId)) {
+    case "last-participant":
+      return localizeMessage("至少需要一位參與者");
+    case "expense":
+      return localizeMessage("已有支出");
+    case "payment":
+      return localizeMessage("已有付款紀錄");
+    case null:
+      return null;
   }
-  if (
-    trip.expenses.some(
-      (expense) =>
-        expense.paidById === participantId ||
-        expense.participantIds.includes(participantId),
-    )
-  ) {
-    return localizeMessage("已有支出");
-  }
-  return null;
 }
 
 export function downloadText(
