@@ -34,4 +34,27 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm run migrate
+      - run: node apps/api/dist/scripts/migrate.js
       - run: npm run test:e2e
+      - run: docker build --tag otter-ci .
+      - name: Smoke production image
+        run: |
+          docker run --detach --name otter-ci-app --network host \
+            --env DATABASE_URL="$DATABASE_URL" \
+            --env COOKIE_SECURE=false \
+            --env PASSKEY_ORIGIN=http://127.0.0.1:17463 \
+            otter-ci
+          trap 'docker logs otter-ci-app; docker rm --force otter-ci-app' EXIT
+          wait_for_url() {
+            for _ in {1..30}; do
+              if curl --fail --silent "$1" >/dev/null; then
+                return 0
+              fi
+              sleep 1
+            done
+            return 1
+          }
+          wait_for_url http://127.0.0.1:17463/api/config
+          wait_for_url http://127.0.0.1:17463/
+          docker restart otter-ci-app
+          wait_for_url http://127.0.0.1:17463/api/config

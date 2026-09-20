@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "types": ["node"]
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["scripts/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/server-test-utils.ts"]
 }

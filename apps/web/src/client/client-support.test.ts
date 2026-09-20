@@ -1,0 +1,285 @@
+import assert from "node:assert/strict";
+import type { Trip } from "@narumitw/otter-core/settlement";
+import { test } from "vitest";
+import {
+  api,
+  defaultExpenseFilters,
+  expenseSplitLabel,
+  filterAndSortExpenses,
+  participantDeleteBlockReason,
+  spendingSummary,
+} from "./client-support.js";
+
+const baseTrip: Trip = {
+  baseCurrency: "TWD",
+  createdAt: "2026-06-25T00:00:00.000Z",
+  expenses: [],
+  id: "trip-1",
+  name: "Tokyo",
+  ownerId: "user-1",
+  participants: [
+    { id: "alice", name: "Alice" },
+    { id: "bob", name: "Bob" },
+  ],
+};
+
+test("api keeps server JSON error messages", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: "伺服器錯誤" }), { status: 500 });
+
+  try {
+    await assert.rejects(api("/api/fail"), /伺服器錯誤/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("api falls back when failed response is not JSON", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("bad gateway", { status: 502 });
+
+  try {
+    await assert.rejects(api("/api/fail"), /Request failed/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("api reports connection failures with a stable message", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
+
+  try {
+    await assert.rejects(api("/api/fail"), /連線失敗，請稍後再試/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("api rejects successful non-JSON responses", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("ok", { status: 200 });
+
+  try {
+    await assert.rejects(api("/api/weird"), /伺服器回應格式錯誤/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("summarizes spending charts", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    baseCurrency: "TWD",
+    expenses: [
+      {
+        amountMinor: 100_00,
+        category: "住宿",
+        createdAt: "2026-06-25T00:00:00.000Z",
+        currency: "USD",
+        description: "Hotel",
+        expenseDate: "2026-06-25",
+        id: "expense-1",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+      {
+        amountMinor: 500,
+        category: "交通",
+        createdAt: "2026-06-24T00:00:00.000Z",
+        currency: "TWD",
+        description: "Train",
+        expenseDate: "2026-06-24",
+        id: "expense-2",
+        paidById: "bob",
+        participantIds: ["bob"],
+      },
+    ],
+    exchangeRates: { TWD: 1, USD: 30 },
+  };
+
+  assert.deepEqual(spendingSummary({ ...trip, expenses: [] }), {
+    categoryTotals: [],
+    dailyTotals: [],
+    payerTotals: [],
+    totalMinor: 0,
+  });
+  assert.deepEqual(spendingSummary(trip).dailyTotals, [
+    { amountMinor: 500, date: "2026-06-24" },
+    { amountMinor: 3000, date: "2026-06-25" },
+  ]);
+  assert.deepEqual(spendingSummary(trip).payerTotals, [
+    { amountMinor: 3000, name: "Alice", participantId: "alice" },
+    { amountMinor: 500, name: "Bob", participantId: "bob" },
+  ]);
+  assert.deepEqual(spendingSummary(trip).categoryTotals, [
+    { amountMinor: 3000, category: "住宿" },
+    { amountMinor: 500, category: "交通" },
+  ]);
+  assert.equal(spendingSummary(trip).totalMinor, 3500);
+});
+
+test("filters and sorts expenses", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T00:00:00.000Z",
+        category: "餐飲",
+        currency: "TWD",
+        description: "Dinner",
+        expenseDate: "2026-06-25",
+        id: "expense-1",
+        tags: ["food"],
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+      {
+        amountMinor: 500,
+        createdAt: "2026-06-24T00:00:00.000Z",
+        category: "交通",
+        currency: "JPY",
+        description: "Train",
+        expenseDate: "2026-06-24",
+        id: "expense-2",
+        tags: ["jr"],
+        paidById: "bob",
+        participantIds: ["bob"],
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      category: "交通",
+      participantId: "bob",
+      query: "tr",
+      tag: "jr",
+    }).map(({ id }) => id),
+    ["expense-2"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      currency: "TWD",
+      dateFrom: "2026-06-25",
+      paidById: "alice",
+    }).map(({ id }) => id),
+    ["expense-1"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-asc",
+    }).map(({ id }) => id),
+    ["expense-2", "expense-1"],
+  );
+  // expense-1 is TWD 100; expense-2 is JPY 500 ≈ TWD 110 (rate 0.22), so amount-asc puts expense-1 first
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "amount-asc",
+    }).map(({ id }) => id),
+    ["expense-1", "expense-2"],
+  );
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "amount-desc",
+    }).map(({ id }) => id),
+    ["expense-2", "expense-1"],
+  );
+});
+
+test("date sort uses createdAt and id as tie-breakers for same-date expenses", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T01:00:00.000Z",
+        currency: "TWD",
+        description: "Breakfast",
+        expenseDate: "2026-06-25",
+        id: "expense-a",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+      {
+        amountMinor: 200,
+        createdAt: "2026-06-25T02:00:00.000Z",
+        currency: "TWD",
+        description: "Lunch",
+        expenseDate: "2026-06-25",
+        id: "expense-b",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+    ],
+  };
+
+  // date-desc: newest createdAt first on same day
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-desc",
+    }).map(({ id }) => id),
+    ["expense-b", "expense-a"],
+  );
+  // date-asc: oldest createdAt first on same day
+  assert.deepEqual(
+    filterAndSortExpenses(trip, {
+      ...defaultExpenseFilters,
+      sort: "date-asc",
+    }).map(({ id }) => id),
+    ["expense-a", "expense-b"],
+  );
+});
+
+test("expense split labels summarize all-person splits", () => {
+  assert.equal(expenseSplitLabel(baseTrip, ["alice", "bob"]), "所有人");
+  assert.equal(expenseSplitLabel(baseTrip, ["bob"]), "Bob");
+  assert.equal(
+    expenseSplitLabel(baseTrip, ["alice", "missing"]),
+    "Alice、未知",
+  );
+});
+
+test("participant delete affordance explains blocked deletes", () => {
+  assert.equal(participantDeleteBlockReason(baseTrip, "bob"), null);
+
+  assert.equal(
+    participantDeleteBlockReason(
+      { ...baseTrip, participants: [{ id: "alice", name: "Alice" }] },
+      "alice",
+    ),
+    "至少需要一位參與者",
+  );
+
+  assert.equal(
+    participantDeleteBlockReason(
+      {
+        ...baseTrip,
+        expenses: [
+          {
+            amountMinor: 100,
+            createdAt: "2026-06-25T00:00:00.000Z",
+            currency: "TWD",
+            description: "Dinner",
+            expenseDate: "2026-06-25",
+            id: "expense-1",
+            paidById: "alice",
+            participantIds: ["alice", "bob"],
+          },
+        ],
+      },
+      "bob",
+    ),
+    "已有支出",
+  );
+});
