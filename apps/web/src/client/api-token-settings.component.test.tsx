@@ -94,6 +94,47 @@ test("refreshes tokens after an ambiguous creation failure", async () => {
   expect(listRequests).toBe(2);
 });
 
+test("blocks creation until an ambiguous failure is reconciled", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      if (listRequests === 2) throw new Error("still offline");
+      return { tokens: listRequests === 1 ? [] : [token] };
+    }
+    if (url === "/api/auth/tokens" && init?.method === "POST") {
+      throw new Error("response lost");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const onMutationChange = vi.fn();
+  const user = userEvent.setup();
+  const view = render(
+    <ApiTokenSettings offline={false} onMutationChange={onMutationChange} />,
+  );
+
+  await view.findByText("沒有有效的 API token。");
+  await user.type(
+    view.getByRole("textbox", { name: "Token 名稱" }),
+    token.name,
+  );
+  await user.click(view.getByRole("button", { name: "建立 API token" }));
+
+  expect(await view.findByRole("alert")).toHaveTextContent(
+    "無法確認 token 建立結果",
+  );
+  expect(view.getByRole("button", { name: "建立 API token" })).toBeDisabled();
+  expect(onMutationChange).toHaveBeenLastCalledWith(true);
+
+  await user.click(view.getByRole("button", { name: "重新載入 API token" }));
+
+  expect(await view.findByText(token.name)).toBeVisible();
+  expect(view.getByRole("alert")).toHaveTextContent("無法建立 API token");
+  expect(view.getByRole("button", { name: "建立 API token" })).toBeEnabled();
+  expect(onMutationChange).toHaveBeenLastCalledWith(false);
+  expect(listRequests).toBe(3);
+});
+
 test("clears a one-time secret when its token is revoked", async () => {
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {

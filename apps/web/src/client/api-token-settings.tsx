@@ -32,6 +32,7 @@ export function ApiTokenSettings({
   const [loading, setLoading] = useState(!offline);
   const [listError, setListError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [creationUncertain, setCreationUncertain] = useState(false);
   const [status, setStatus] = useState("");
   const listAbortController = useRef<AbortController | undefined>(undefined);
   const listGeneration = useRef(0);
@@ -39,7 +40,7 @@ export function ApiTokenSettings({
   const error = actionError || listError;
 
   const loadTokens = useCallback(async () => {
-    if (mutationActive.current) return;
+    if (mutationActive.current) return false;
     listAbortController.current?.abort();
     const controller = new AbortController();
     listAbortController.current = controller;
@@ -57,6 +58,7 @@ export function ApiTokenSettings({
       }
       setTokens(result.tokens);
       setListError("");
+      return true;
     } catch {
       if (
         !controller.signal.aborted &&
@@ -65,6 +67,7 @@ export function ApiTokenSettings({
       ) {
         setListError(messages.unableToLoadApiTokens);
       }
+      return false;
     } finally {
       if (listAbortController.current === controller) {
         listAbortController.current = undefined;
@@ -93,11 +96,25 @@ export function ApiTokenSettings({
     setLoading(false);
   }
 
-  function endMutation() {
+  function endMutation(notifyParent = true) {
     mutationActive.current = false;
-    onMutationChange(false);
+    if (notifyParent) onMutationChange(false);
     listGeneration.current += 1;
     setLoading(false);
+  }
+
+  async function reconcileCreation() {
+    setLoading(true);
+    setActionError("");
+    const reconciled = await loadTokens();
+    setLoading(false);
+    if (!reconciled) {
+      setActionError(messages.apiTokenCreationUncertain);
+      return;
+    }
+    setCreationUncertain(false);
+    setActionError(messages.unableToCreateApiToken);
+    onMutationChange(false);
   }
 
   async function createToken() {
@@ -127,12 +144,18 @@ export function ApiTokenSettings({
     } catch {
       failed = true;
     } finally {
-      endMutation();
+      endMutation(!failed);
     }
 
     if (failed) {
-      await loadTokens();
-      setActionError(messages.unableToCreateApiToken);
+      const reconciled = await loadTokens();
+      if (reconciled) {
+        setActionError(messages.unableToCreateApiToken);
+        onMutationChange(false);
+      } else {
+        setCreationUncertain(true);
+        setActionError(messages.apiTokenCreationUncertain);
+      }
     }
     setBusy("");
   }
@@ -200,6 +223,16 @@ export function ApiTokenSettings({
           {error}
         </p>
       ) : null}
+      {creationUncertain ? (
+        <Button
+          disabled={offline || loading}
+          onClick={() => void reconcileCreation()}
+          type="button"
+          variant="outline"
+        >
+          {messages.reloadApiTokens}
+        </Button>
+      ) : null}
       {status ? (
         <p className="api-token-message" role="status">
           <CheckCircledIcon aria-hidden="true" /> {status}
@@ -239,7 +272,9 @@ export function ApiTokenSettings({
             <Input
               id="api-token-name"
               autoComplete="off"
-              disabled={offline || loading || Boolean(busy)}
+              disabled={
+                offline || loading || creationUncertain || Boolean(busy)
+              }
               maxLength={80}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
@@ -252,7 +287,7 @@ export function ApiTokenSettings({
             />
           </Field>
           <Button
-            disabled={offline || loading || Boolean(busy)}
+            disabled={offline || loading || creationUncertain || Boolean(busy)}
             onClick={() => void createToken()}
             type="button"
             variant="outline"

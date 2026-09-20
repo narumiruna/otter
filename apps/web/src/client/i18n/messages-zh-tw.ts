@@ -111,6 +111,9 @@ export const zhTW = {
   loadingApiTokens: "正在載入 API token…",
   unableToLoadApiTokens: "無法載入 API token",
   unableToCreateApiToken: "無法建立 API token",
+  apiTokenCreationUncertain:
+    "無法確認 token 建立結果。請先重新載入 API token，再建立下一組。",
+  reloadApiTokens: "重新載入 API token",
   unableToRevokeApiToken: "無法撤銷 API token",
   unableToCopyApiToken: "無法複製 API token",
   apiTokenRevoked: "API token 已撤銷",
