@@ -25,20 +25,24 @@ import { ExpenseComposer } from "./expense-composer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 
-type ExpenseGrouping = "date" | "none" | "payer";
+export type ExpenseGrouping = "date" | "none" | "payer";
 
 export function ExpensesPage({
   filters,
+  grouping,
   onAddExpense,
   onDirtyChange,
   onFiltersChange,
+  onGroupingChange,
   readonly = false,
   trip,
 }: {
   filters: ExpenseFilters;
+  grouping: ExpenseGrouping;
   onAddExpense: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onFiltersChange: (filters: ExpenseFilters) => void;
+  onGroupingChange: (grouping: ExpenseGrouping) => void;
   readonly?: boolean;
   trip: Trip;
 }) {
@@ -49,7 +53,6 @@ export function ExpensesPage({
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [grouping, setGrouping] = useState<ExpenseGrouping>("none");
   const expenses = useMemo(
     () => filterAndSortExpenses(trip, filters),
     [filters, trip],
@@ -128,7 +131,7 @@ export function ExpensesPage({
                 className="form-control"
                 value={grouping}
                 onChange={(event) =>
-                  setGrouping(event.target.value as ExpenseGrouping)
+                  onGroupingChange(event.target.value as ExpenseGrouping)
                 }
               >
                 <option value="none">{messages.noGrouping}</option>

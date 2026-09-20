@@ -10,7 +10,7 @@ import {
   type ExpenseFilters,
 } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
-import { ExpensesPage } from "./expenses-page.js";
+import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 
 const trip: Trip = {
   baseCurrency: "TWD",
@@ -35,17 +35,20 @@ const trip: Trip = {
   settlementPayments: [],
 };
 
-function ExpensesHarness() {
+function ExpensesHarness({ currentTrip = trip }: { currentTrip?: Trip }) {
   const [filters, setFilters] = useState<ExpenseFilters>({
     ...defaultExpenseFilters,
   });
+  const [grouping, setGrouping] = useState<ExpenseGrouping>("none");
   return (
     <ExpensesPage
       filters={filters}
+      grouping={grouping}
       onAddExpense={vi.fn()}
       onFiltersChange={setFilters}
+      onGroupingChange={setGrouping}
       readonly
-      trip={trip}
+      trip={currentTrip}
     />
   );
 }
@@ -56,8 +59,10 @@ test("empty expenses prioritize the first expense without unused filters", async
     <I18nProvider initialLocale="en">
       <ExpensesPage
         filters={{ ...defaultExpenseFilters }}
+        grouping="none"
         onAddExpense={onAddExpense}
         onFiltersChange={vi.fn()}
+        onGroupingChange={vi.fn()}
         trip={{ ...trip, expenses: [] }}
       />
     </I18nProvider>,
@@ -78,8 +83,10 @@ test("readonly empty expenses do not offer an add action", () => {
     <I18nProvider initialLocale="en">
       <ExpensesPage
         filters={{ ...defaultExpenseFilters }}
+        grouping="none"
         onAddExpense={vi.fn()}
         onFiltersChange={vi.fn()}
+        onGroupingChange={vi.fn()}
         readonly
         trip={{ ...trip, expenses: [] }}
       />
@@ -123,13 +130,7 @@ test("expenses can be grouped by date or payer", async () => {
   };
   render(
     <I18nProvider initialLocale="en">
-      <ExpensesPage
-        filters={{ ...defaultExpenseFilters }}
-        onAddExpense={vi.fn()}
-        onFiltersChange={vi.fn()}
-        readonly
-        trip={groupedTrip}
-      />
+      <ExpensesHarness currentTrip={groupedTrip} />
     </I18nProvider>,
   );
 
