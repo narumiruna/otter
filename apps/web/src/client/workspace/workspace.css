@@ -373,6 +373,17 @@
   background: var(--green-11);
   color: var(--green-1);
 }
+.expense-group {
+  display: grid;
+  gap: 0.65rem;
+}
+.expense-group-heading {
+  border-bottom: 1px solid var(--border);
+  padding: 0 0.25rem 0.45rem;
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
 .expense-list-item {
   transition: border-color 160ms ease;
 }

@@ -38,7 +38,7 @@ import {
 } from "../url-state.js";
 import { RestoreBackup } from "./data-settings.js";
 import { ExpenseComposer } from "./expense-composer.js";
-import { ExpensesPage } from "./expenses-page.js";
+import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 import { MorePage } from "./more-page.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
@@ -75,6 +75,9 @@ export function AuthenticatedWorkspace({
   const [draftDirty, setDraftDirty] = useState(false);
   const [filtersByTrip, setFiltersByTrip] = useState<
     Record<string, ExpenseFilters>
+  >({});
+  const [groupingByTrip, setGroupingByTrip] = useState<
+    Record<string, ExpenseGrouping>
   >({});
   const scrollPositions = useRef(new Map<string, number>());
   const [pendingTripId, setPendingTripId] = useState("");
@@ -351,6 +354,7 @@ export function AuthenticatedWorkspace({
                 filters={
                   filtersByTrip[payload.trip.id] ?? { ...defaultExpenseFilters }
                 }
+                grouping={groupingByTrip[payload.trip.id] ?? "none"}
                 onAddExpense={() =>
                   needsPeople ? go("people") : navigate({ mode: "add-expense" })
                 }
@@ -359,6 +363,12 @@ export function AuthenticatedWorkspace({
                   setFiltersByTrip((current) => ({
                     ...current,
                     [payload.trip.id]: filters,
+                  }))
+                }
+                onGroupingChange={(grouping) =>
+                  setGroupingByTrip((current) => ({
+                    ...current,
+                    [payload.trip.id]: grouping,
                   }))
                 }
                 readonly={archived}
