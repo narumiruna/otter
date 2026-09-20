@@ -20,11 +20,21 @@ docker compose up --detach --build
 
 資料庫初始化後，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者密碼。
 
+使用外部 PostgreSQL 時，只啟動 `otter` service 並略過 bundled PostgreSQL dependency：
+
+```bash
+DATABASE_URL=postgres://user:password@db.example.com:5432/otter \
+PASSKEY_ORIGIN=https://otter.example.com \
+docker compose up --detach --build --no-deps otter
+```
+
+`--no-deps` 可避免 Compose 啟動及等待未使用的 bundled PostgreSQL；若省略此選項，Compose 仍會啟動 `postgres` service。
+
 ## 環境變數
 
 | 變數 | 用途 |
 | --- | --- |
-| `DATABASE_URL` | 使用外部 PostgreSQL。未設定時，container 會由 `POSTGRES_PASSWORD` 組成 Compose database URL。 |
+| `DATABASE_URL` | 使用外部 PostgreSQL；搭配 Compose 時使用上述 `--no-deps otter` command。未設定時，container 會由 `POSTGRES_PASSWORD` 組成 Compose database URL。 |
 | `POSTGRES_PASSWORD` | Compose PostgreSQL 密碼；正式環境必須明確設定。 |
 | `PASSKEY_ORIGIN` | WebAuthn origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。 |
 | `PASSKEY_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 Passkey request rate limiting 使用。預設 `false`。 |
