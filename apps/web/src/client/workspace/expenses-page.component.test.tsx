@@ -4,7 +4,7 @@ import type { Trip } from "@narumitw/otter-core/settlement";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import {
   defaultExpenseFilters,
   type ExpenseFilters,
@@ -35,7 +35,25 @@ const trip: Trip = {
   settlementPayments: [],
 };
 
-function ExpensesHarness({ currentTrip = trip }: { currentTrip?: Trip }) {
+beforeEach(() => {
+  const values = new Map<string, string>();
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => values.delete(key),
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+  });
+});
+
+function ExpensesHarness({
+  currentTrip = trip,
+  userId = "user-1",
+}: {
+  currentTrip?: Trip;
+  userId?: string;
+}) {
   const [filters, setFilters] = useState<ExpenseFilters>({
     ...defaultExpenseFilters,
   });
@@ -49,6 +67,7 @@ function ExpensesHarness({ currentTrip = trip }: { currentTrip?: Trip }) {
       onGroupingChange={setGrouping}
       readonly
       trip={currentTrip}
+      userId={userId}
     />
   );
 }
@@ -143,15 +162,18 @@ test("expenses can be grouped by date or payer", async () => {
       .getAllByRole("heading", { level: 3 })
       .map((heading) => heading.textContent),
   ).toEqual(["2026-09-20", "2026-09-19"]);
+  const september19Group = screen
+    .getByRole("heading", { level: 3, name: "2026-09-19" })
+    .closest("tbody");
+  expect(september19Group).not.toBeNull();
   expect(
-    within(screen.getByRole("list", { name: "2026-09-19" })).getByText(
-      "Dinner",
-    ),
+    within(september19Group as HTMLElement).getByText("Dinner"),
   ).toBeVisible();
   expect(
-    within(screen.getByRole("list", { name: "2026-09-19" })).getByText(
-      "Coffee",
-    ),
+    within(september19Group as HTMLElement).getByText("Coffee"),
+  ).toBeVisible();
+  expect(
+    within(september19Group as HTMLElement).getByText("2 expenses · NT$400"),
   ).toBeVisible();
 
   await user.selectOptions(grouping, "payer");
@@ -161,12 +183,67 @@ test("expenses can be grouped by date or payer", async () => {
       .getAllByRole("heading", { level: 3 })
       .map((heading) => heading.textContent),
   ).toEqual(["Alice", "Bob"]);
+  const aliceGroup = screen
+    .getByRole("heading", { level: 3, name: "Alice" })
+    .closest("tbody");
+  const bobGroup = screen
+    .getByRole("heading", { level: 3, name: "Bob" })
+    .closest("tbody");
+  expect(within(aliceGroup as HTMLElement).getByText("Coffee")).toBeVisible();
+  expect(within(bobGroup as HTMLElement).getByText("Lunch")).toBeVisible();
+});
+
+test("expense columns can be customized, persisted per user, and reset", async () => {
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness />
+    </I18nProvider>,
+  );
+
   expect(
-    within(screen.getByRole("list", { name: "Alice" })).getByText("Coffee"),
-  ).toBeVisible();
+    screen.getAllByRole("columnheader").map((header) => header.textContent),
+  ).toEqual(["Expense", "Paid by", "Category", "Date", "Amount"]);
+
+  await user.click(screen.getByRole("button", { name: "Columns" }));
+  await user.click(screen.getByRole("checkbox", { name: "Paid by" }));
+  await user.click(screen.getByRole("checkbox", { name: "Split" }));
+
   expect(
-    within(screen.getByRole("list", { name: "Bob" })).getByText("Lunch"),
-  ).toBeVisible();
+    screen.getAllByRole("columnheader").map((header) => header.textContent),
+  ).toEqual(["Expense", "Category", "Date", "Split", "Amount"]);
+  expect(window.localStorage.getItem("otter.expense-columns.user-1")).toBe(
+    '["category","date","participants"]',
+  );
+
+  view.unmount();
+  const otherUserView = render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness userId="user-2" />
+    </I18nProvider>,
+  );
+  expect(screen.getByRole("columnheader", { name: "Paid by" })).toBeVisible();
+  expect(
+    screen.queryByRole("columnheader", { name: "Split" }),
+  ).not.toBeInTheDocument();
+
+  otherUserView.unmount();
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness />
+    </I18nProvider>,
+  );
+  expect(screen.getByRole("columnheader", { name: "Split" })).toBeVisible();
+  expect(
+    screen.queryByRole("columnheader", { name: "Paid by" }),
+  ).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Columns" }));
+  await user.click(screen.getByRole("button", { name: "Restore defaults" }));
+  expect(screen.getByRole("columnheader", { name: "Paid by" })).toBeVisible();
+  expect(
+    screen.queryByRole("columnheader", { name: "Split" }),
+  ).not.toBeInTheDocument();
 });
 
 test("category filter chips translate stored domain values", async () => {

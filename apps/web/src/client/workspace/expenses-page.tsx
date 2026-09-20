@@ -2,21 +2,24 @@ import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import { currencies } from "@narumitw/otter-core/money";
 import type { Expense, Trip } from "@narumitw/otter-core/settlement";
 import {
+  ColumnsIcon,
+  DotsHorizontalIcon,
   ImageIcon as FileImage,
   MixerHorizontalIcon,
   Pencil2Icon as Pencil,
   PlusIcon,
   FileTextIcon as Receipt,
+  ResetIcon,
   MagnifyingGlassIcon as Search,
   TrashIcon as Trash2,
   UploadIcon as Upload,
 } from "@radix-ui/react-icons";
-import { useMemo, useState } from "react";
+import { Popover } from "@radix-ui/themes";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   defaultExpenseFilters,
   type ExpenseFilters,
-  expenseSplitLabel,
   filterAndSortExpenses,
 } from "../client-support.js";
 import { localizeMessage, type Messages, useI18n } from "../i18n.js";
@@ -27,6 +30,24 @@ import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 
 export type ExpenseGrouping = "date" | "none" | "payer";
 
+type ExpenseColumn =
+  | "category"
+  | "date"
+  | "participants"
+  | "payer"
+  | "receipt"
+  | "tags";
+
+const expenseColumns: ExpenseColumn[] = [
+  "payer",
+  "category",
+  "date",
+  "participants",
+  "receipt",
+  "tags",
+];
+const defaultExpenseColumns: ExpenseColumn[] = ["payer", "category", "date"];
+
 export function ExpensesPage({
   filters,
   grouping,
@@ -36,6 +57,7 @@ export function ExpensesPage({
   onGroupingChange,
   readonly = false,
   trip,
+  userId = "current",
 }: {
   filters: ExpenseFilters;
   grouping: ExpenseGrouping;
@@ -45,6 +67,7 @@ export function ExpensesPage({
   onGroupingChange: (grouping: ExpenseGrouping) => void;
   readonly?: boolean;
   trip: Trip;
+  userId?: string;
 }) {
   const { messages } = useI18n();
   const setFilters = (
@@ -53,6 +76,14 @@ export function ExpensesPage({
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
+    readExpenseColumns(userId),
+  );
+  useEffect(() => setColumns(readExpenseColumns(userId)), [userId]);
+  const updateColumns = (next: ExpenseColumn[]) => {
+    setColumns(next);
+    writeExpenseColumns(userId, next);
+  };
   const expenses = useMemo(
     () => filterAndSortExpenses(trip, filters),
     [filters, trip],
@@ -278,6 +309,7 @@ export function ExpensesPage({
         </div>
       ) : null}
       <ExpenseList
+        columns={columns}
         expenses={expenses}
         grouping={grouping}
         onAddExpense={onAddExpense}
@@ -287,6 +319,7 @@ export function ExpensesPage({
         trip={trip}
         filtered={activeFilters.length > 0 || !!filters.query}
         clear={() => setFilters({ ...defaultExpenseFilters })}
+        onColumnsChange={updateColumns}
       />
     </section>
   );
@@ -356,28 +389,59 @@ function activeFilterEntries(
     .map((key) => [key, labels[key]]);
 }
 
+function expenseColumnStorageKey(userId: string): string {
+  return `otter.expense-columns.${userId}`;
+}
+
+function readExpenseColumns(userId: string): ExpenseColumn[] {
+  try {
+    const stored = window.localStorage.getItem(expenseColumnStorageKey(userId));
+    if (stored === null) return [...defaultExpenseColumns];
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [...defaultExpenseColumns];
+    return expenseColumns.filter((column) => parsed.includes(column));
+  } catch {
+    return [...defaultExpenseColumns];
+  }
+}
+
+function writeExpenseColumns(userId: string, columns: ExpenseColumn[]): void {
+  try {
+    window.localStorage.setItem(
+      expenseColumnStorageKey(userId),
+      JSON.stringify(columns),
+    );
+  } catch {
+    // The current view still works when browser storage is unavailable.
+  }
+}
+
 function ExpenseList({
   clear,
+  columns,
   expenses,
   filtered,
   grouping,
   onAddExpense,
+  onColumnsChange,
   onEdit,
   readonly,
   sort,
   trip,
 }: {
   clear: () => void;
+  columns: ExpenseColumn[];
   expenses: Expense[];
   filtered: boolean;
   grouping: ExpenseGrouping;
   onAddExpense: () => void;
+  onColumnsChange: (columns: ExpenseColumn[]) => void;
   onEdit: (expense: Expense) => void;
   readonly: boolean;
   sort: ExpenseFilters["sort"];
   trip: Trip;
 }) {
-  const { messages } = useI18n();
+  const { formatMoney, messages } = useI18n();
   if (!trip.expenses.length)
     return (
       <div className="empty-state expense-empty-state">
@@ -414,30 +478,20 @@ function ExpenseList({
         </Button>
       </div>
     );
+
   const names = new Map(
     trip.participants.map((person) => [person.id, person.name]),
   );
   const listLabel = filtered ? messages.filteredExpenses : messages.allExpenses;
-  if (grouping === "none")
-    return (
-      <ul className="grid gap-3" aria-label={listLabel}>
-        {expenses.map((expense) => (
-          <ExpenseListItem
-            expense={expense}
-            key={expense.id}
-            names={names}
-            onEdit={onEdit}
-            readonly={readonly}
-            trip={trip}
-          />
-        ))}
-      </ul>
-    );
-  const groups = groupExpenses(
-    expenses,
-    grouping,
-    sort === "date-asc" ? "asc" : "desc",
+  const visibleColumns = columns.filter(
+    (column) =>
+      !(column === "date" && grouping === "date") &&
+      !(column === "payer" && grouping === "payer"),
   );
+  const groups =
+    grouping === "none"
+      ? [{ expenses, key: "all" }]
+      : groupExpenses(expenses, grouping, sort === "date-asc" ? "asc" : "desc");
   if (grouping === "payer") {
     const participantOrder = new Map(
       trip.participants.map((person, index) => [person.id, index]),
@@ -449,34 +503,162 @@ function ExpenseList({
         left.key.localeCompare(right.key),
     );
   }
+  const columnCount = visibleColumns.length + (readonly ? 2 : 3);
+
   return (
-    <section className="grid gap-5" aria-label={listLabel}>
-      {groups.map((group, index) => {
-        const headingId = `expense-group-${index}`;
-        return (
-          <section className="expense-group" key={group.key}>
-            <h3 className="expense-group-heading" id={headingId}>
-              {grouping === "date"
-                ? group.key
-                : (names.get(group.key) ?? messages.unknown)}
-            </h3>
-            <ul className="grid gap-3" aria-labelledby={headingId}>
-              {group.expenses.map((expense) => (
-                <ExpenseListItem
-                  expense={expense}
-                  key={expense.id}
-                  names={names}
-                  onEdit={onEdit}
-                  readonly={readonly}
-                  trip={trip}
-                />
+    <section className="expense-table-region" aria-label={listLabel}>
+      <div className="expense-table-toolbar">
+        <ExpenseColumnMenu columns={columns} onChange={onColumnsChange} />
+      </div>
+      <div className="expense-table-scroll">
+        <table className="expense-table">
+          <caption className="sr-only">{listLabel}</caption>
+          <thead>
+            <tr>
+              <th className="expense-description-column" scope="col">
+                {messages.expenseName}
+              </th>
+              {visibleColumns.map((column) => (
+                <th
+                  className={`expense-${column}-column`}
+                  key={column}
+                  scope="col"
+                >
+                  {expenseColumnLabel(column, messages)}
+                </th>
               ))}
-            </ul>
-          </section>
-        );
-      })}
+              <th className="expense-amount-column" scope="col">
+                {messages.amount}
+              </th>
+              {!readonly ? (
+                <th className="expense-actions-column" scope="col">
+                  <span className="sr-only">{messages.actions}</span>
+                </th>
+              ) : null}
+            </tr>
+          </thead>
+          {groups.map((group, index) => {
+            const headingId = `expense-group-${index}`;
+            const total = groupTotalLabel(group.expenses, formatMoney);
+            return (
+              <tbody key={group.key}>
+                {grouping !== "none" ? (
+                  <tr className="expense-group-row">
+                    <th colSpan={columnCount} scope="rowgroup">
+                      <div>
+                        <h3 id={headingId}>
+                          {grouping === "date"
+                            ? group.key
+                            : (names.get(group.key) ?? messages.unknown)}
+                        </h3>
+                        <span>
+                          {messages.expenseGroupSummary({
+                            count: group.expenses.length,
+                            total,
+                          })}
+                        </span>
+                      </div>
+                    </th>
+                  </tr>
+                ) : null}
+                {group.expenses.map((expense) => (
+                  <ExpenseTableRow
+                    columns={visibleColumns}
+                    expense={expense}
+                    key={expense.id}
+                    names={names}
+                    onEdit={onEdit}
+                    readonly={readonly}
+                    trip={trip}
+                  />
+                ))}
+              </tbody>
+            );
+          })}
+        </table>
+      </div>
     </section>
   );
+}
+
+function ExpenseColumnMenu({
+  columns,
+  onChange,
+}: {
+  columns: ExpenseColumn[];
+  onChange: (columns: ExpenseColumn[]) => void;
+}) {
+  const { messages } = useI18n();
+  const labels: [ExpenseColumn, string][] = expenseColumns.map((column) => [
+    column,
+    expenseColumnLabel(column, messages),
+  ]);
+  return (
+    <Popover.Root>
+      <Popover.Trigger>
+        <Button size="sm" variant="outline">
+          <ColumnsIcon aria-hidden="true" />
+          {messages.columns}
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content
+        align="end"
+        className="expense-column-popover"
+        sideOffset={6}
+      >
+        <fieldset>
+          <legend className="sr-only">{messages.chooseExpenseColumns}</legend>
+          <label>
+            <input checked disabled type="checkbox" />
+            {messages.expenseName}
+          </label>
+          <label>
+            <input checked disabled type="checkbox" />
+            {messages.amount}
+          </label>
+          {labels.map(([column, label]) => (
+            <label key={column}>
+              <input
+                checked={columns.includes(column)}
+                type="checkbox"
+                onChange={(event) =>
+                  onChange(
+                    event.target.checked
+                      ? expenseColumns.filter(
+                          (candidate) =>
+                            candidate === column || columns.includes(candidate),
+                        )
+                      : columns.filter((candidate) => candidate !== column),
+                  )
+                }
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onChange([...defaultExpenseColumns])}
+        >
+          <ResetIcon aria-hidden="true" />
+          {messages.restoreDefaults}
+        </Button>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
+function expenseColumnLabel(column: ExpenseColumn, messages: Messages): string {
+  const labels: Record<ExpenseColumn, string> = {
+    category: messages.category,
+    date: messages.date,
+    participants: messages.splitParticipants,
+    payer: messages.paidBy,
+    receipt: messages.receipt,
+    tags: messages.tags,
+  };
+  return labels[column];
 }
 
 function groupExpenses(
@@ -505,13 +687,46 @@ function groupExpenses(
   return groups;
 }
 
-function ExpenseListItem({
+function groupTotalLabel(
+  expenses: Expense[],
+  formatMoney: (amountMinor: number, currency: Expense["currency"]) => string,
+): string {
+  const totals = new Map<Expense["currency"], number>();
+  for (const expense of expenses) {
+    totals.set(
+      expense.currency,
+      (totals.get(expense.currency) ?? 0) + expense.amountMinor,
+    );
+  }
+  return [...totals]
+    .map(([currency, total]) => formatMoney(total, currency))
+    .join(" + ");
+}
+
+function splitParticipantLabel(
+  trip: Trip,
+  expense: Expense,
+  messages: Messages,
+) {
+  if (
+    expense.participantIds.length === trip.participants.length &&
+    trip.participants.every((person) =>
+      expense.participantIds.includes(person.id),
+    )
+  )
+    return messages.everyone;
+  return messages.countPeople({ count: expense.participantIds.length });
+}
+
+function ExpenseTableRow({
+  columns,
   expense,
   names,
   onEdit,
   readonly,
   trip,
 }: {
+  columns: ExpenseColumn[];
   expense: Expense;
   names: Map<string, string>;
   onEdit: (expense: Expense) => void;
@@ -520,42 +735,78 @@ function ExpenseListItem({
 }) {
   const { formatMoney, messages } = useI18n();
   return (
-    <li className="expense-list-item rounded-xl border bg-card p-4">
-      <div className="flex flex-wrap items-start gap-3">
-        <ExpenseCategoryIcon category={expense.category} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap justify-between gap-2">
-            <strong className="break-anywhere">{expense.description}</strong>
-            <strong className="tabular-nums">
-              {formatMoney(expense.amountMinor, expense.currency)}
-            </strong>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {messages.datePaidByName({
-              date: expense.expenseDate,
-              name: names.get(expense.paidById) ?? messages.unknown,
-            })}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {localizeMessage(expense.category ?? "其他")}
-            {expense.tags?.length ? ` · ${expense.tags.join(", ")}` : ""} ·{" "}
-            {messages.splitWithSplit({
-              split: expenseSplitLabel(trip, expense.participantIds),
-            })}
-          </p>
-        </div>
-      </div>
+    <tr className="expense-table-row">
+      <th className="expense-description-cell" scope="row">
+        <span aria-hidden="true" className="expense-table-category-icon">
+          <ExpenseCategoryIcon category={expense.category} />
+        </span>
+        {readonly ? (
+          <span>{expense.description}</span>
+        ) : (
+          <button type="button" onClick={() => onEdit(expense)}>
+            {expense.description}
+          </button>
+        )}
+      </th>
+      {columns.map((column) => (
+        <td className={`expense-${column}-cell`} key={column}>
+          {column === "payer" ? (
+            (names.get(expense.paidById) ?? messages.unknown)
+          ) : column === "category" ? (
+            localizeMessage(expense.category ?? "其他")
+          ) : column === "date" ? (
+            expense.expenseDate
+          ) : column === "participants" ? (
+            splitParticipantLabel(trip, expense, messages)
+          ) : column === "tags" ? (
+            expense.tags?.join(", ")
+          ) : expense.receiptUrl ? (
+            <a
+              aria-label={messages.viewReceiptForName({
+                name: expense.description,
+              })}
+              href={expense.receiptUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <FileImage aria-hidden="true" />
+            </a>
+          ) : null}
+        </td>
+      ))}
+      <td className="expense-amount-cell">
+        {formatMoney(expense.amountMinor, expense.currency)}
+      </td>
       {!readonly ? (
-        <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
-          <Button size="sm" variant="outline" onClick={() => onEdit(expense)}>
-            <Pencil aria-hidden="true" />
-            {messages.edit}
-          </Button>
-          <ReceiptControls expense={expense} trip={trip} />
-          <DeleteExpense expense={expense} trip={trip} />
-        </div>
+        <td className="expense-actions-cell">
+          <Popover.Root>
+            <Popover.Trigger>
+              <Button
+                aria-label={messages.moreActionsForName({
+                  name: expense.description,
+                })}
+                size="icon-sm"
+                variant="ghost"
+              >
+                <DotsHorizontalIcon aria-hidden="true" />
+              </Button>
+            </Popover.Trigger>
+            <Popover.Content
+              align="end"
+              className="expense-row-popover"
+              sideOffset={4}
+            >
+              <Button size="sm" variant="ghost" onClick={() => onEdit(expense)}>
+                <Pencil aria-hidden="true" />
+                {messages.edit}
+              </Button>
+              <ReceiptControls expense={expense} trip={trip} />
+              <DeleteExpense expense={expense} trip={trip} />
+            </Popover.Content>
+          </Popover.Root>
+        </td>
       ) : null}
-    </li>
+    </tr>
   );
 }
 
@@ -621,11 +872,7 @@ function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
           <FileImage aria-hidden="true" />
           {messages.viewReceipt}
         </a>
-      ) : (
-        <span className="self-center text-xs text-muted-foreground">
-          {messages.noReceipt}
-        </span>
-      )}
+      ) : null}
       <ActionError message={error} />
       {expense.receiptUrl ? (
         <DeleteReceipt expense={expense} trip={trip} />
@@ -681,7 +928,7 @@ function DeleteExpense({ expense, trip }: { expense: Expense; trip: Trip }) {
       }
       title={messages.deleteThisExpense}
       trigger={
-        <Button className="ml-auto" size="sm" variant="ghost">
+        <Button size="sm" variant="ghost">
           <Trash2 aria-hidden="true" />
           {messages.delete}
         </Button>

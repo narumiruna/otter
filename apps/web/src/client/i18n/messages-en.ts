@@ -374,6 +374,28 @@ export const en = {
   clearFilters: "Clear filters",
   filteredExpenses: "Filtered expenses",
   allExpenses: "All expenses",
+  columns: "Columns",
+  chooseExpenseColumns: "Choose expense columns",
+  expenseName: "Expense",
+  splitParticipants: "Split",
+  receipt: "Receipt",
+  tags: "Tags",
+  restoreDefaults: "Restore defaults",
+  actions: "Actions",
+  expenseGroupSummary: (values: MessageValues) =>
+    interpolate(
+      `{count} ${pluralize(values.count, "expense")} · {total}`,
+      values,
+    ),
+  countPeople: (values: MessageValues) =>
+    interpolate(
+      `{count} ${pluralize(values.count, "person", "people")}`,
+      values,
+    ),
+  viewReceiptForName: (values: MessageValues) =>
+    interpolate("View receipt for {name}", values),
+  moreActionsForName: (values: MessageValues) =>
+    interpolate("More actions for {name}", values),
   datePaidByName: (values: MessageValues) =>
     interpolate("{date} · paid by {name}", values),
   splitWithSplit: (values: MessageValues) =>
