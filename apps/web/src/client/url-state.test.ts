@@ -1,6 +1,40 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { readWorkspaceLocation, writeWorkspaceLocation } from "./url-state.js";
+import {
+  isAccountSettingsLocation,
+  readWorkspaceLocation,
+  withoutAccountSettingsLocation,
+  writeAccountSettingsLocation,
+  writeWorkspaceLocation,
+} from "./url-state.js";
+
+test("account settings URL state preserves the workspace location", () => {
+  const source = new URL(
+    "https://otter.test/?trip=trip_1&view=expenses&campaign=friends#details",
+  );
+  const opened = writeAccountSettingsLocation(source, true);
+
+  assert.equal(
+    opened,
+    "/?trip=trip_1&view=expenses&campaign=friends&account=settings#details",
+  );
+  assert.equal(isAccountSettingsLocation(new URL(opened, source)), true);
+  assert.equal(
+    writeAccountSettingsLocation(new URL(opened, source), false),
+    "/?trip=trip_1&view=expenses&campaign=friends#details",
+  );
+});
+
+test("bootstrap locations ignore account settings state", () => {
+  const result = withoutAccountSettingsLocation(
+    new URL(
+      "https://otter.test/?trip=trip_1&account=settings&campaign=friends",
+    ),
+  );
+
+  assert.equal(result.pathname, "/");
+  assert.equal(result.search, "?trip=trip_1&campaign=friends");
+});
 
 test("workspace URL state reads valid owned parameters", () => {
   assert.deepEqual(

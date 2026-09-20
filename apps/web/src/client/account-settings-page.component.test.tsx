@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { usernameValidationMessage } from "@narumitw/otter-core/username";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import {
@@ -26,6 +26,11 @@ test("renders account settings as a page and submits a username change", async (
 
   expect(screen.getByRole("region", { name: "帳號設定" })).toBeVisible();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { level: 2, name: "帳號設定" }),
+    ).toHaveFocus(),
+  );
   const input = screen.getByRole("textbox", { name: "Username" });
   expect(input).toHaveValue("alice");
 

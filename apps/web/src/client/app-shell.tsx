@@ -3,7 +3,13 @@ import {
   GlobeIcon as WifiOff,
 } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,6 +26,11 @@ import { api, type TripPayload, type User } from "./client-support.js";
 import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
 import { authenticateWithPasskey, supportsPasskeys } from "./passkeys.js";
+import {
+  isAccountSettingsLocation,
+  withoutAccountSettingsLocation,
+  writeAccountSettingsLocation,
+} from "./url-state.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
 import { ReadonlyWorkspace } from "./workspace/readonly-workspace.js";
 
@@ -36,6 +47,16 @@ function updateCollaboratorUsername(
         : collaborator,
     ),
   };
+}
+
+const accountSettingsHistoryStateKey = "otterAccountSettings";
+
+function isAccountSettingsHistoryEntry(state: unknown): boolean {
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    Reflect.get(state, accountSettingsHistoryStateKey) === true
+  );
 }
 
 function LoadingScreen() {
@@ -58,7 +79,11 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const { locale, setLocale, messages } = useI18n();
   const [offline, setOffline] = useState(!navigator.onLine);
-  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(() =>
+    isAccountSettingsLocation(new URL(window.location.href)),
+  );
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreAccountFocus = useRef(accountSettingsOpen);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -66,14 +91,17 @@ export function AppShell() {
     login?: string;
     register?: string;
   }>({});
+  const bootstrapLocation = withoutAccountSettingsLocation(
+    new URL(window.location.href),
+  );
   const bootstrapQueryKey = [
     "app-bootstrap",
-    window.location.pathname,
-    window.location.search,
+    bootstrapLocation.pathname,
+    bootstrapLocation.search,
   ] as const;
   const bootstrap = useQuery({
     queryFn: () =>
-      fetchAppBootstrap(window.location.pathname, window.location.search),
+      fetchAppBootstrap(bootstrapLocation.pathname, bootstrapLocation.search),
     queryKey: bootstrapQueryKey,
     refetchOnWindowFocus: false,
     retry: false,
@@ -103,6 +131,60 @@ export function AppShell() {
       window.removeEventListener("offline", sync);
     };
   }, []);
+
+  useEffect(() => {
+    const sync = () =>
+      setAccountSettingsOpen(
+        isAccountSettingsLocation(new URL(window.location.href)),
+      );
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+
+  useEffect(() => {
+    if (accountSettingsOpen) {
+      restoreAccountFocus.current = true;
+      return;
+    }
+    if (!restoreAccountFocus.current) return;
+    restoreAccountFocus.current = false;
+    const frame = requestAnimationFrame(() =>
+      accountButtonRef.current?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [accountSettingsOpen]);
+
+  function openAccountSettings() {
+    const current = new URL(window.location.href);
+    if (isAccountSettingsLocation(current)) return;
+    const currentState =
+      typeof window.history.state === "object" && window.history.state !== null
+        ? window.history.state
+        : {};
+    window.history.pushState(
+      { ...currentState, [accountSettingsHistoryStateKey]: true },
+      "",
+      writeAccountSettingsLocation(current, true),
+    );
+    setAccountSettingsOpen(true);
+  }
+
+  function closeAccountSettings() {
+    const current = new URL(window.location.href);
+    if (
+      isAccountSettingsLocation(current) &&
+      isAccountSettingsHistoryEntry(window.history.state)
+    ) {
+      window.history.back();
+      return;
+    }
+    window.history.replaceState(
+      window.history.state,
+      "",
+      writeAccountSettingsLocation(current, false),
+    );
+    setAccountSettingsOpen(false);
+  }
 
   async function completeAuth(
     path: "/api/auth/login" | "/api/auth/register",
@@ -180,6 +262,7 @@ export function AppShell() {
     setAuthAction("logout");
     try {
       await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
+      restoreAccountFocus.current = false;
       setAccountSettingsOpen(false);
       queryClient.clear();
       window.history.replaceState({}, "", "/");
@@ -222,7 +305,7 @@ export function AppShell() {
     body = (
       <AccountSettingsPage
         offline={offline}
-        onClose={() => setAccountSettingsOpen(false)}
+        onClose={closeAccountSettings}
         onUpdate={updateUsername}
         user={appData.user}
       />
@@ -304,9 +387,10 @@ export function AppShell() {
             {appData?.user ? (
               <>
                 <AccountSettingsButton
+                  ref={accountButtonRef}
                   active={accountSettingsOpen}
                   offline={offline}
-                  onOpen={() => setAccountSettingsOpen(true)}
+                  onOpen={openAccountSettings}
                   user={appData.user}
                 />
                 <Button

@@ -1,3 +1,28 @@
+const accountSettingsParameter = "account";
+const accountSettingsValue = "settings";
+
+export function isAccountSettingsLocation(url: URL): boolean {
+  return (
+    url.searchParams.get(accountSettingsParameter) === accountSettingsValue
+  );
+}
+
+export function writeAccountSettingsLocation(url: URL, open: boolean): string {
+  const next = new URL(url);
+  if (open) {
+    next.searchParams.set(accountSettingsParameter, accountSettingsValue);
+  } else {
+    next.searchParams.delete(accountSettingsParameter);
+  }
+  return `${next.pathname}${next.search}${next.hash}`;
+}
+
+export function withoutAccountSettingsLocation(url: URL): URL {
+  const next = new URL(url);
+  next.searchParams.delete(accountSettingsParameter);
+  return next;
+}
+
 export const workspaceViews = [
   "overview",
   "expenses",

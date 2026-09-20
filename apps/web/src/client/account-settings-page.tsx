@@ -1,5 +1,5 @@
 import { isValidUsername } from "@narumitw/otter-core/username";
-import { useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,21 +17,25 @@ import { PasskeySettings } from "./passkey-settings.js";
 
 type UsernameForm = { username: string };
 
-export function AccountSettingsButton({
-  active,
-  offline,
-  onOpen,
-  user,
-}: {
+type AccountSettingsButtonProps = {
   active: boolean;
   offline: boolean;
   onOpen: () => void;
   user: User;
-}) {
+};
+
+export const AccountSettingsButton = forwardRef<
+  HTMLButtonElement,
+  AccountSettingsButtonProps
+>(function AccountSettingsButton(
+  { active, offline, onOpen, user },
+  forwardedRef,
+) {
   const { messages } = useI18n();
 
   return (
     <Button
+      ref={forwardedRef}
       aria-current={active ? "page" : undefined}
       aria-label={messages.manageNameSAccount({ name: user.name })}
       className="user-account-button"
@@ -48,7 +52,7 @@ export function AccountSettingsButton({
       </span>
     </Button>
   );
-}
+});
 
 export function AccountSettingsPage({
   offline,
@@ -62,10 +66,15 @@ export function AccountSettingsPage({
   user: User;
 }) {
   const { messages } = useI18n();
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
   const form = useForm<UsernameForm>({
     defaultValues: { username: user.username },
   });
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   async function update({ username }: UsernameForm) {
     setError("");
@@ -87,7 +96,9 @@ export function AccountSettingsPage({
       aria-labelledby="account-settings-heading"
     >
       <header className="account-settings-header">
-        <h2 id="account-settings-heading">{messages.accountSettings}</h2>
+        <h2 id="account-settings-heading" ref={headingRef} tabIndex={-1}>
+          {messages.accountSettings}
+        </h2>
         <p>{messages.manageYourUsernameAndPasskeys}</p>
       </header>
       <form
