@@ -7,6 +7,7 @@ This private workspace owns transport types shared by the browser, API tests, an
 | API area | Contract owner |
 | --- | --- |
 | Configuration and authentication | `User`, `UserResponse`, `ApiErrorResponse`, `OkResponse` |
+| API tokens | `ApiToken`, `ApiTokensResponse`, `CreateApiTokenResponse` |
 | Trip collections and details | `TripSummary`, `TripsResponse`, `TripPayload`, `TripRole` |
 | Collaboration and share links | `TripCollaborator`, `TripShareLink` inside `TripPayload` |
 | Expense writes | `CreateExpenseRequest`, `UpdateExpenseRequest`; expense results use `TripPayload` |

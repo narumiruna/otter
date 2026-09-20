@@ -30,6 +30,16 @@ export type ExpenseFilters = {
   sort: "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 };
 
+export class ApiResponseError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiResponseError";
+  }
+}
+
 export const defaultExpenseFilters: ExpenseFilters = {
   category: "",
   currency: "",
@@ -74,7 +84,7 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
       typeof data.error === "string"
         ? data.error
         : "Request failed";
-    throw new Error(localizeMessage(error));
+    throw new ApiResponseError(localizeMessage(error), response.status);
   }
 
   if (!parsedJson) {

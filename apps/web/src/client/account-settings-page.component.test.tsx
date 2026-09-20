@@ -1,13 +1,30 @@
 // @vitest-environment jsdom
 
 import { usernameValidationMessage } from "@narumitw/otter-core/username";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import {
   AccountSettingsButton,
   AccountSettingsPage,
 } from "./account-settings-page.js";
+
+vi.mock("./api-token-settings.js", () => ({
+  ApiTokenSettings: ({
+    onMutationChange,
+  }: {
+    onMutationChange?: (active: boolean) => void;
+  }) => (
+    <div>
+      <button onClick={() => onMutationChange?.(true)} type="button">
+        Start token mutation
+      </button>
+      <button onClick={() => onMutationChange?.(false)} type="button">
+        Finish token mutation
+      </button>
+    </div>
+  ),
+}));
 
 const account = { id: "user-1", name: "Alice", username: "alice" };
 
@@ -63,6 +80,40 @@ test("closes the settings page without saving", async () => {
   await user.click(screen.getByRole("button", { name: "取消" }));
   expect(onClose).toHaveBeenCalledOnce();
   expect(onUpdate).not.toHaveBeenCalled();
+});
+
+test("blocks closing and username submission during a token mutation", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const onUpdate = vi.fn();
+  render(
+    <AccountSettingsPage
+      offline={false}
+      onClose={onClose}
+      onUpdate={onUpdate}
+      user={account}
+    />,
+  );
+
+  await user.click(
+    screen.getByRole("button", { name: "Start token mutation" }),
+  );
+  const cancel = screen.getByRole("button", { name: "取消" });
+  const save = screen.getByRole("button", { name: "儲存" });
+  expect(cancel).toBeDisabled();
+  expect(save).toBeDisabled();
+
+  const form = save.closest("form");
+  if (!form) throw new Error("Account settings form not found");
+  fireEvent.submit(form);
+  expect(onUpdate).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+
+  await user.click(
+    screen.getByRole("button", { name: "Finish token mutation" }),
+  );
+  expect(cancel).toBeEnabled();
+  expect(save).toBeEnabled();
 });
 
 test("shows an identical display name and username only once", () => {

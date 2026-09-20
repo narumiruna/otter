@@ -30,7 +30,13 @@ otter auth login
 otter auth status
 ```
 
-Device login stores the token in `~/.config/otter/credentials.json`. For ephemeral automation, provide `OTTER_TOKEN` through a secret manager instead.
+Device login stores the token in `~/.config/otter/credentials.json`. For ephemeral automation, create a named 90-day token under **Account settings → API tokens** in the Otter web app, copy it when shown, and provide it through a secret manager instead:
+
+```bash
+OTTER_TOKEN='otter_api_…' otter trips list
+```
+
+The plaintext token is shown only once. Revoke active personal and device tokens from the same account settings page.
 
 ## Commands
 

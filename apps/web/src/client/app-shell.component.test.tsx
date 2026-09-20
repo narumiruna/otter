@@ -22,6 +22,8 @@ const trip: TripSummary = {
   participantCount: 1,
 };
 
+let tokenCreateResponse: Promise<Response> | undefined;
+
 const selected: TripPayload = {
   balances: [],
   collaborators: [],
@@ -56,6 +58,7 @@ function renderApp() {
 }
 
 beforeEach(() => {
+  tokenCreateResponse = undefined;
   window.history.replaceState({}, "", "/?trip=trip_1");
   Object.defineProperty(window, "scrollY", {
     configurable: true,
@@ -64,8 +67,9 @@ beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: string | URL | Request) => {
+    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const pathname = new URL(String(input), window.location.origin).pathname;
+      const method = input instanceof Request ? input.method : init?.method;
       if (pathname === "/api/config") {
         return Response.json({ devLoginCredentials: null });
       }
@@ -78,6 +82,18 @@ beforeEach(() => {
       }
       if (pathname === "/api/passkeys") {
         return Response.json({ passkeys: [] });
+      }
+      if (pathname === "/api/auth/tokens") {
+        if (method === "POST") {
+          return (
+            tokenCreateResponse ??
+            Response.json(
+              { error: "Unexpected token creation" },
+              { status: 500 },
+            )
+          );
+        }
+        return Response.json({ tokens: [] });
       }
       throw new Error(`Unexpected request: ${pathname}`);
     }),
@@ -137,6 +153,59 @@ test("account settings preserves expense drafts across history navigation", asyn
   expect(description).not.toBeVisible();
   expect(description).toHaveValue("保留這份草稿");
   expect(confirm).not.toHaveBeenCalled();
+});
+
+test("account settings blocks browser history during token creation", async () => {
+  let resolveCreate: (response: Response) => void = () => undefined;
+  tokenCreateResponse = new Promise<Response>((resolve) => {
+    resolveCreate = resolve;
+  });
+  const user = userEvent.setup();
+  const view = renderApp();
+  await user.click(
+    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+  );
+  const tokenName = await view.findByRole("textbox", { name: "Token 名稱" });
+  await waitFor(() => expect(tokenName).toBeEnabled());
+  await user.type(tokenName, "Travel agent");
+  await user.click(view.getByRole("button", { name: "建立 API token" }));
+  await waitFor(() =>
+    expect(view.getByRole("button", { name: "取消" })).toBeDisabled(),
+  );
+
+  const workspaceUrl = new URL(window.location.href);
+  workspaceUrl.searchParams.delete("account");
+  act(() => {
+    window.history.replaceState(
+      {},
+      "",
+      `${workspaceUrl.pathname}${workspaceUrl.search}`,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+
+  expect(window.location.search).toContain("account=settings");
+  expect(view.getByRole("region", { name: "帳號設定" })).toBeVisible();
+
+  await act(async () =>
+    resolveCreate(
+      Response.json(
+        {
+          accessToken: "otter_api_secret",
+          token: {
+            createdAt: "2026-09-20T00:00:00.000Z",
+            expiresAt: "2026-12-19T00:00:00.000Z",
+            id: "token-1",
+            name: "Travel agent",
+          },
+        },
+        { status: 201 },
+      ),
+    ),
+  );
+  expect(
+    await view.findByRole("region", { name: "新的 API token" }),
+  ).toHaveTextContent("otter_api_secret");
 });
 
 test("account settings preserves non-expense form drafts", async () => {

@@ -273,6 +273,97 @@ select:disabled {
 .passkey-message.error-text {
   color: var(--red-11);
 }
+.api-token-settings {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.25rem 0;
+}
+.api-token-settings h3,
+.api-token-message {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.api-token-settings h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.api-token-description,
+.api-token-empty,
+.api-token-help,
+.api-token-message {
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+.api-token-message.error-text {
+  color: var(--red-11);
+}
+.api-token-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+.api-token-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.api-token-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.65rem 0.55rem 0.8rem;
+}
+.api-token-list span,
+.api-token-list small {
+  display: block;
+}
+.api-token-list span {
+  min-width: 0;
+}
+.api-token-list strong,
+.api-token-list small {
+  overflow-wrap: anywhere;
+}
+.api-token-list small {
+  margin-top: 0.15rem;
+  color: var(--muted-foreground);
+}
+.api-token-secret {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid var(--amber-7);
+  border-radius: 0.75rem;
+  background: var(--amber-2);
+  padding: 0.85rem;
+}
+.api-token-secret p {
+  margin: 0;
+  color: var(--amber-11);
+  font-size: 0.85rem;
+}
+.api-token-secret code {
+  overflow-wrap: anywhere;
+  border-radius: 0.5rem;
+  background: var(--gray-2);
+  padding: 0.65rem;
+  user-select: all;
+}
+.api-token-secret-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.api-token-help code {
+  color: var(--foreground);
+}
 .status-toast {
   position: fixed;
   z-index: 70;
@@ -846,6 +937,12 @@ select:disabled {
   }
   .account-settings-form {
     min-height: calc(100dvh - 12rem);
+  }
+  .api-token-create {
+    grid-template-columns: 1fr;
+  }
+  .api-token-create > button {
+    justify-self: start;
   }
   .account-settings-actions {
     position: sticky;

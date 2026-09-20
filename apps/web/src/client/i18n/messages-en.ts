@@ -98,7 +98,8 @@ export const en = {
   unableToUpdateUsername: "Unable to update username",
   changeUsername: "Change username",
   accountSettings: "Account settings",
-  manageYourUsernameAndPasskeys: "Manage your username and passkeys.",
+  manageYourUsernameAndPasskeys:
+    "Manage your username, passkeys, and API tokens.",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "Use the new username the next time you sign in. Your current session will continue.",
   passkeys: "Passkeys",
@@ -118,6 +119,37 @@ export const en = {
   addingPasskey: "Adding passkey…",
   addPasskey: "Add passkey",
   thisBrowserDoesNotSupportPasskeys: "This browser does not support passkeys.",
+  apiTokens: "API tokens",
+  useApiTokensWithTheOtterCli:
+    "Create Bearer tokens for the Otter CLI or automation tools.",
+  loadingApiTokens: "Loading API tokens…",
+  unableToLoadApiTokens: "Unable to load API tokens",
+  unableToCreateApiToken: "Unable to create the API token",
+  apiTokenCreationUncertain:
+    "The token request outcome is unknown. Retry this request before creating another.",
+  retryApiTokenCreation: "Retry token creation",
+  unableToRevokeApiToken: "Unable to revoke the API token",
+  unableToCopyApiToken: "Unable to copy the API token",
+  apiTokenRevoked: "API token revoked",
+  apiTokenCopied: "API token copied",
+  enterATokenName: "Enter a token name",
+  newApiToken: "New API token",
+  copyYourApiTokenNow: "Copy your API token now",
+  apiTokenShownOnce:
+    "This token is shown only once. You cannot view it again after leaving.",
+  copyToken: "Copy token",
+  done: "Done",
+  tokenName: "Token name",
+  tokenNameExample: "For example: Travel automation",
+  creatingApiToken: "Creating token…",
+  createApiToken: "Create API token",
+  apiTokenDates: (values: MessageValues) =>
+    interpolate("Created {created} · Expires {expires}", values),
+  revokeNamedApiToken: (values: MessageValues) =>
+    interpolate('Revoke API token "{name}"', values),
+  noActiveApiTokens: "No active API tokens.",
+  apiTokensExpireAfter90Days:
+    "Tokens expire after 90 days. To use one with the CLI, set it as",
   passkeyRegistrationResponseIsInvalid:
     "The passkey registration response is invalid",
   passkeyRegistrationRequestExpired:

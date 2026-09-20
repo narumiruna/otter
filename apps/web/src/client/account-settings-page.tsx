@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ApiTokenSettings } from "./api-token-settings.js";
 import type { User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
 import { PasskeySettings } from "./passkey-settings.js";
@@ -57,17 +58,20 @@ export const AccountSettingsButton = forwardRef<
 export function AccountSettingsPage({
   offline,
   onClose,
+  onMutationChange,
   onUpdate,
   user,
 }: {
   offline: boolean;
   onClose: () => void;
+  onMutationChange?: (active: boolean) => void;
   onUpdate: (username: string) => Promise<void>;
   user: User;
 }) {
   const { messages } = useI18n();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
+  const [tokenMutationActive, setTokenMutationActive] = useState(false);
   const form = useForm<UsernameForm>({
     defaultValues: { username: user.username },
   });
@@ -76,7 +80,13 @@ export function AccountSettingsPage({
     headingRef.current?.focus();
   }, []);
 
+  function changeTokenMutation(active: boolean) {
+    setTokenMutationActive(active);
+    onMutationChange?.(active);
+  }
+
   async function update({ username }: UsernameForm) {
+    if (tokenMutationActive) return;
     setError("");
     try {
       await onUpdate(username);
@@ -149,9 +159,14 @@ export function AccountSettingsPage({
         </section>
         <Separator />
         <PasskeySettings offline={offline} />
+        <Separator />
+        <ApiTokenSettings
+          offline={offline}
+          onMutationChange={changeTokenMutation}
+        />
         <footer className="account-settings-actions">
           <Button
-            disabled={form.formState.isSubmitting}
+            disabled={tokenMutationActive || form.formState.isSubmitting}
             onClick={onClose}
             type="button"
             variant="outline"
@@ -159,7 +174,9 @@ export function AccountSettingsPage({
             {messages.cancel}
           </Button>
           <Button
-            disabled={offline || form.formState.isSubmitting}
+            disabled={
+              offline || tokenMutationActive || form.formState.isSubmitting
+            }
             type="submit"
           >
             {form.formState.isSubmitting ? messages.saving : messages.save}

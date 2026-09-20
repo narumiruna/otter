@@ -70,6 +70,28 @@ export type TripsResponse = {
 
 export type OkResponse = { ok: true };
 
+export type ApiToken = {
+  createdAt: string;
+  expiresAt: string;
+  id: string;
+  name: string;
+};
+
+export type ApiTokensResponse = {
+  tokens: ApiToken[];
+};
+
+export type CreateApiTokenRequest = {
+  accessToken: string;
+  id: string;
+  name: string;
+};
+
+export type CreateApiTokenResponse = {
+  accessToken: string;
+  token: ApiToken;
+};
+
 export type DeviceAuthorization = {
   device_code: string;
   expires_in: number;
