@@ -154,7 +154,7 @@ export const zhTW = {
   recordSharedExpensesAndFocusOnThePeopleBesideYou:
     "記下共同支出，把心思留給一起出發的人。",
   archivedAndReadOnlyDataIsPreservedTheOwnerCanRestoreItUnderMore:
-    "已封存・唯讀。資料會保留；擁有者可到「更多」還原。",
+    "已封存・唯讀。資料會保留；擁有者可到「群組設定」還原。",
   addTravelCompanionsFirst: "先新增同行成員",
   thereIsOnlyOneParticipantAddSomeoneToSplitWithBeforeRecordingTheFirstExpense:
     "目前只有一位成員。加入要一起分帳的人，再記錄第一筆共同支出。",
@@ -214,7 +214,7 @@ export const zhTW = {
   thisGroupHasNotRecordedAnySharedExpenses: "這個群組尚未記錄共同支出。",
   recordTheFirstSharedExpense: "記錄第一筆共同支出",
   addThePeopleSplittingExpensesToCalculateEachBalance:
-    "加入要一起分帳的人，才能清楚算出每人餘額。",
+    "先新增要一起分帳的人，再記錄第一筆支出。之後會自動顯示每人餘額與結清建議。",
   balancesAndSettlementSuggestionsWillAppearHereAfterYouAddExpenses:
     "開始記帳後，總覽會自動顯示餘額與結清建議。",
   addPerson: "新增成員",
@@ -365,7 +365,7 @@ export const zhTW = {
   expenseParticipantAdded: "已新增分帳成員",
   unableToAddPerson: "無法新增成員",
   expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess:
-    "分帳成員不需要登入；有登入權限的帳號請到「更多 → 分享與權限」管理。",
+    "分帳成員不需要登入；有登入權限的帳號請到「群組設定 → 分享與權限」管理。",
   personsName: "成員名稱",
   friendsName: "朋友名字",
   enterAName: "請輸入名稱",

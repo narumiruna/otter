@@ -79,16 +79,91 @@ test("summary converts expenses to base currency and accounts for recorded payme
   expect(within(summary).getByText("2 位成員一起分帳")).toBeVisible();
 });
 
-test("empty overview shows zero summaries and a working first-expense action", async () => {
+test("empty overview prioritizes the first expense without premature settlement results", async () => {
   const onAddExpense = vi.fn();
   const empty = { ...trip, expenses: [], settlementPayments: [] };
   render(
     <OverviewPage payload={payloadFor(empty)} onAddExpense={onAddExpense} />,
   );
-  expect(screen.getAllByText("$0")).toHaveLength(4);
-  expect(screen.getByText("記帳後自動計算結清建議")).toBeVisible();
+  expect(screen.getByText("還沒有支出")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "記錄第一筆共同支出" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("region", { name: "群組帳目摘要" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "每人餘額" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "最近支出" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("目前已經打平")).not.toBeInTheDocument();
+  expect(screen.queryByText("$0")).not.toBeInTheDocument();
   await userEvent.setup().click(screen.getByRole("button", { name: "記一筆" }));
   expect(onAddExpense).toHaveBeenCalledOnce();
+});
+
+test.each([0, 1])(
+  "empty overview with %i people prioritizes adding companions",
+  async (count) => {
+    const onPeople = vi.fn();
+    const empty = {
+      ...trip,
+      expenses: [],
+      settlementPayments: [],
+      participants: trip.participants.slice(0, count),
+    };
+    render(<OverviewPage payload={payloadFor(empty)} onPeople={onPeople} />);
+    expect(
+      screen.getByRole("heading", { name: "先新增同行成員" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "記一筆" }),
+    ).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "新增成員" }));
+    expect(onPeople).toHaveBeenCalledOnce();
+  },
+);
+
+test("read-only empty overview explains missing data without actions or settled status", () => {
+  render(
+    <OverviewPage
+      payload={payloadFor({ ...trip, expenses: [], settlementPayments: [] })}
+      readonly
+    />,
+  );
+  expect(screen.getByRole("heading", { name: "還沒有支出" })).toBeVisible();
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  expect(screen.queryByText("目前已經打平")).not.toBeInTheDocument();
+});
+
+test("an expense history with no outstanding balance still shows settled results", () => {
+  const settled = {
+    ...trip,
+    settlementPayments: trip.settlementPayments?.map((payment) => ({
+      ...payment,
+      amountMinor: 150,
+    })),
+  };
+  render(<OverviewPage payload={payloadFor(settled)} readonly />);
+  expect(screen.getByText("目前已經打平")).toBeVisible();
+  expect(screen.getByRole("region", { name: "群組帳目摘要" })).toBeVisible();
+  expect(screen.queryByText("還沒有支出")).not.toBeInTheDocument();
+});
+
+test("removing all expenses does not hide balances from recorded payments", () => {
+  render(
+    <OverviewPage payload={payloadFor({ ...trip, expenses: [] })} readonly />,
+  );
+  expect(screen.getByRole("region", { name: "待結清" })).toBeVisible();
+  expect(screen.getByRole("region", { name: "每人餘額" })).toBeVisible();
+  expect(screen.queryByText("目前已經打平")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "記錄第一筆共同支出" }),
+  ).not.toBeInTheDocument();
 });
 
 test("overview localizes the spending analysis heading", async () => {

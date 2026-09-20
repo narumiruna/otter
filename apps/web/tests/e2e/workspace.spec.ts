@@ -118,7 +118,7 @@ test("Back restores the previous view scroll position", async ({ page }) => {
   await page.evaluate(() => window.scrollTo({ behavior: "instant", top: 900 }));
   const previousScroll = await page.evaluate(() => window.scrollY);
   expect(previousScroll).toBeGreaterThan(200);
-  await page.getByRole("button", { name: "更多" }).click();
+  await page.getByRole("button", { name: "群組設定" }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await page.goBack();
   await expect
@@ -192,7 +192,7 @@ test("consequential settings preview without mutating until apply", async ({
       settingMutations += 1;
   });
   await login(page);
-  await page.getByRole("button", { name: "更多" }).click();
+  await page.getByRole("button", { name: "群組設定" }).click();
 
   await page.locator("summary").filter({ hasText: "群組偏好" }).click();
   await page.locator('select[name="baseCurrency"]').selectOption("JPY");
@@ -281,7 +281,7 @@ test("a new group can record an expense and be safely removed", async ({
   await page.getByRole("button", { name: "記錄支出" }).click();
   await expect(page.getByText("E2E dinner", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "更多" }).click();
+  await page.getByRole("button", { name: "群組設定" }).click();
   await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
   await page.getByLabel(`輸入「${groupName}」確認`).fill(groupName);
   await page.getByRole("button", { name: "永久刪除群組" }).click();

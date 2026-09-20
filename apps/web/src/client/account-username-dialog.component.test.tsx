@@ -36,6 +36,26 @@ test("validates and submits a username change", async () => {
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
+test("shows an identical display name and username only once", () => {
+  render(
+    <AccountUsernameDialog
+      offline={false}
+      onUpdate={vi.fn()}
+      user={{ ...account, name: "alice" }}
+    />,
+  );
+  expect(screen.getAllByText("alice")).toHaveLength(1);
+  expect(screen.queryByText("@alice")).not.toBeInTheDocument();
+});
+
+test("marks a distinct username with @", () => {
+  render(
+    <AccountUsernameDialog offline={false} onUpdate={vi.fn()} user={account} />,
+  );
+  expect(screen.getByText("Alice")).toBeVisible();
+  expect(screen.getByText("@alice")).toBeVisible();
+});
+
 test("disables username changes while offline", () => {
   render(
     <AccountUsernameDialog

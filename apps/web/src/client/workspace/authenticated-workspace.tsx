@@ -2,12 +2,12 @@ import {
   ArchiveIcon as Archive,
   ChevronDownIcon as ChevronDown,
   TokensIcon as CircleDollarSign,
+  FileTextIcon,
+  GearIcon,
   GlobeIcon,
   DashboardIcon as LayoutDashboard,
-  MixerHorizontalIcon as ListFilter,
-  DotsHorizontalIcon as MoreHorizontal,
   PlusIcon as Plus,
-  GroupIcon as Users,
+  PersonIcon as Users,
 } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -221,6 +221,8 @@ export function AuthenticatedWorkspace({
 
   const payload = selectedQuery.data;
   const archived = !!payload.trip.archivedAt;
+  const needsPeople =
+    payload.trip.participants.length < 2 && payload.trip.expenses.length === 0;
   const go = (view: WorkspaceView) => navigate({ mode: null, view });
   return (
     <WorkspaceProvider
@@ -235,12 +237,7 @@ export function AuthenticatedWorkspace({
           aria-label={messages.groupSwitcher}
         >
           <div className="sidebar-heading">
-            <div>
-              <span className="sidebar-eyebrow" lang="en">
-                YOUR GROUPS
-              </span>
-              <h2>{messages.groups}</h2>
-            </div>
+            <h2>{messages.groups}</h2>
             <span
               className="count-pill"
               title={messages.countActiveGroups({
@@ -270,11 +267,6 @@ export function AuthenticatedWorkspace({
               {switchError}
             </p>
           ) : null}
-          <div className="sidebar-note">
-            <GlobeIcon aria-hidden="true" />
-            <strong>{messages.everyTripAddsUpToSomethingWonderful}</strong>
-            <p>{messages.recordSharedExpensesAndFocusOnThePeopleBesideYou}</p>
-          </div>
         </aside>
 
         <section className="min-w-0 grid gap-4">
@@ -297,14 +289,21 @@ export function AuthenticatedWorkspace({
             <WorkspaceNavigation
               archived={archived}
               location={location}
+              showAdd={
+                !needsPeople &&
+                !(
+                  location.view === "overview" &&
+                  payload.trip.expenses.length === 0 &&
+                  !payload.trip.settlementPayments?.length
+                )
+              }
               onAdd={() => navigate({ mode: "add-expense" })}
               onNavigate={go}
             />
           )}
           <div id="workspace-content" className="min-w-0" tabIndex={-1}>
             {location.mode === "add-expense" && !archived ? (
-              payload.trip.participants.length < 2 &&
-              payload.trip.expenses.length === 0 ? (
+              needsPeople ? (
                 <section className="surface empty-state">
                   <h2>{messages.addTravelCompanionsFirst}</h2>
                   <p>
@@ -339,7 +338,9 @@ export function AuthenticatedWorkspace({
                 filters={
                   filtersByTrip[payload.trip.id] ?? { ...defaultExpenseFilters }
                 }
-                onAddExpense={() => navigate({ mode: "add-expense" })}
+                onAddExpense={() =>
+                  needsPeople ? go("people") : navigate({ mode: "add-expense" })
+                }
                 onDirtyChange={setDraftDirty}
                 onFiltersChange={(filters) =>
                   setFiltersByTrip((current) => ({
@@ -387,7 +388,7 @@ function TripHeader({
 }) {
   const { messages } = useI18n();
   return (
-    <header className="surface trip-header">
+    <header className="trip-header">
       <div className="mobile-group-switch">
         <Dialog>
           <DialogTrigger
@@ -437,11 +438,7 @@ function TripHeader({
         </Dialog>
       </div>
       <div className="trip-heading">
-        <div className="trip-cover-icon" aria-hidden="true">
-          <GlobeIcon />
-        </div>
         <div className="min-w-0">
-          <p className="trip-eyebrow">{messages.everydayMomentsTogether}</p>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
               {payload.trip.name}
@@ -467,33 +464,18 @@ function TripHeader({
           </p>
         </div>
       </div>
-      <dl className="trip-stats">
-        <Stat
-          label={messages.people}
-          value={payload.trip.participants.length}
-        />
-        <Stat label={messages.expenses} value={payload.trip.expenses.length} />
-        <Stat label={messages.base} value={payload.trip.baseCurrency} />
-      </dl>
     </header>
   );
 }
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
 function WorkspaceNavigation({
   archived,
   location,
   onAdd,
   onNavigate,
+  showAdd,
 }: {
   archived: boolean;
+  showAdd: boolean;
   location: WorkspaceLocation;
   onAdd: () => void;
   onNavigate: (view: WorkspaceView) => void;
@@ -501,9 +483,9 @@ function WorkspaceNavigation({
   const { messages } = useI18n();
   const items = [
     { icon: LayoutDashboard, label: messages.overview, view: "overview" },
-    { icon: ListFilter, label: messages.expenses, view: "expenses" },
+    { icon: FileTextIcon, label: messages.expenses, view: "expenses" },
     { icon: Users, label: messages.people, view: "people" },
-    { icon: MoreHorizontal, label: messages.more, view: "more" },
+    { icon: GearIcon, label: messages.groupSettings, view: "more" },
   ] as const;
   return (
     <nav className="workspace-nav" aria-label={messages.groupWorkspace}>
@@ -523,7 +505,7 @@ function WorkspaceNavigation({
           {label}
         </Button>
       ))}
-      {!archived ? (
+      {!archived && showAdd ? (
         <Button className="record-expense-button" onClick={onAdd}>
           <Plus aria-hidden="true" />
           {messages.addExpense}
@@ -563,13 +545,6 @@ function TripList({
       </span>
       <span className="min-w-0">
         <strong className="block truncate">{trip.name}</strong>
-        <span className="text-xs font-normal text-muted-foreground">
-          {messages.participantsPeopleExpensesExpensesCurrency({
-            participants: trip.participantCount,
-            expenses: trip.expenseCount,
-            currency: trip.baseCurrency,
-          })}
-        </span>
       </span>
     </BusyButton>
   );
