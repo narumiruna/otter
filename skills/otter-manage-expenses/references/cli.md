@@ -1,7 +1,7 @@
 # Otter CLI Command Reference
 
-Install the published package with `npm install --global @narumitw/otter`. From an Otter repository checkout, run `npm run build:cli` and `npm link --workspace @narumitw/otter` instead.
-Run commands with the resulting `otter` executable, and run `otter --help` for the installed command list.
+Follow [the installation guide](installation.md) when the `otter` executable is unavailable.
+Run `otter --help` for the installed command list.
 
 ## Authorization
 

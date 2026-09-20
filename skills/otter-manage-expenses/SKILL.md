@@ -24,6 +24,7 @@ Use Otter's non-interactive CLI instead of browser automation or direct database
 13. After expense or settlement changes, run `balances get` and report updated balances or settlement suggestions relevant to the request.
 14. On a non-zero exit, read the JSON error from stderr, correct only clear input mistakes, and do not retry authentication, permission, conflict, or connection failures without resolving their cause.
 
+Read [the installation guide](references/installation.md) when the `otter` executable is unavailable.
 Read [the CLI command reference](references/cli.md) when choosing flags or interpreting output.
 
 ## Limits
