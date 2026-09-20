@@ -1,236 +1,29 @@
 # otter
 
-otter 是一個為旅行和朋友聚會設計的網頁記帳拆帳 app，協助使用者記錄共同支出、整理每個人的付款狀況，並計算最後誰要付給誰多少錢。
+旅行與朋友聚會用的共同記帳工具。記錄支出、拆分費用，並算出簡單的結清方式。
 
-## 功能
+## 快速開始
 
-- 使用 Username 與密碼註冊、登入、登出；登入後可新增 Passkey，之後用裝置解鎖快速登入。
-- 建立、選擇、重新命名、調整基準貨幣、封存/還原與刪除支出群組，並避免同帳號重複命名。
-- 可用 Username 加入既有帳號為協作者；協作者可記帳與維護成員，但不能刪除旅行或管理協作者。
-- 新增、重新命名與刪除未使用的參與者，並避免同一旅行內重複命名。
-- 記錄支出：日期、描述、付款人、金額、貨幣、分帳參與者，並可修改日期、描述、金額、貨幣、付款人與分帳參與者。
-- 每筆支出可上傳一張 JPEG、PNG 或 WebP 收據照片，大小上限 5MB，圖片目前存在 PostgreSQL。
-- 刪除誤建的支出。
-- 支援 TWD、JPY、USD、EUR，並以旅行的基準貨幣計算餘額；每趟旅行可自訂匯率。
-- 顯示每位參與者的分帳餘額與 settle up 結清建議。
-- 群組工作區以「總覽、支出、成員、更多」四個目標導向區域組織；「記一筆」是持續可見的主要動作。總覽先顯示待結清與餘額，花費分析則按需展開。
-- 匯出支出群組支出、餘額與結清建議 CSV，批次匯入同格式支出 CSV，下載/還原 JSON 備份，並可用列印按鈕輸出適合列印的結算畫面。
-- 擁有者可建立可撤銷的唯讀分享連結，朋友不登入也能查看支出、餘額與結清建議。
-- 可安裝成手機瀏覽器捷徑；API 和記帳資料需連線，不支援離線新增或同步記帳。
-
-## 帳號
-
-註冊只需填寫 Username 和密碼，新帳號會以正規化後的 Username 作為預設顯示名稱。Username 為 3–32 個英文字母、數字、底線或連字號；會去除前後空白並轉成小寫，不分大小寫且不可重複。密碼至少 8 個字。為相容既有 client，註冊 API 仍接受選填的 `name`。開發環境預填帳號為 `admin`。
-
-登入後可從右上角帳號設定新增或移除多組 Passkey。Passkey 使用 discoverable credential，可在登入頁直接選擇帳號，不必先輸入 Username；密碼登入會保留作為備援。Passkey 只能在 HTTPS secure context 或瀏覽器允許的 `localhost` 開發環境使用。
-
-帳號設定也可建立具名稱的 90 天 API token，並查看或撤銷目前有效的手動與 device authorization token。明文 token 只在建立後顯示一次，伺服器只保存 SHA-256 hash；token 管理端點只接受瀏覽器 session，Bearer token 不能建立或管理其他憑證。
-
-Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、session 與群組關聯。Migration `012_passkeys.sql` 只新增 Passkey credential 與短效 challenge 資料表，不修改既有帳號、密碼或 session。既有使用者仍可用 Username／原 Email 與密碼登入後新增 Passkey。
-
-## 技術
-
-- 前端：React + Vite + TypeScript。
-- UI：Radix Themes、Colors、Primitives、Icons，以及 Tailwind CSS layout utilities。
-- Server state：TanStack Query；表單：React Hook Form。
-- 後端：Hono + `@hono/node-server` + TypeScript。
-- 資料庫：PostgreSQL + raw SQL migrations。
-- Monorepo：`apps/web`、`apps/api` 與 `packages/core`、`packages/contracts`、`packages/cli`。
-- 共用拆帳邏輯：`packages/core`；HTTP DTO 與 payload guards：`packages/contracts`。
-- 單元與元件測試：Vitest + Testing Library；瀏覽器測試：Playwright + axe。
-- 格式與 lint：Biome CI。
-- Git hook：Husky；`npm install` 會透過 `prepare` 安裝 hook。
-
-依賴方向固定為 `apps/* → packages/*`：web 與 CLI 只透過 HTTP/contract 與 API 溝通，`packages/core` 不依賴 transport 或 app implementation。Production 仍由 API process 提供 `apps/web/dist` 靜態檔案，因此部署維持單一 app service。
-
-前端工作區已完整使用 React feature components；TanStack Query 只在 API 成功後更新遠端狀態，React Hook Form 管理草稿、驗證、預覽與取消。URL 的 `trip`、`view`、`mode` query parameters 支援返回、上一頁與直接連結，且不會移除未知參數。
-
-## 本機開發
+建議使用 Node.js 25（與 CI 相同），另需 npm 與 Docker Compose。
 
 ```bash
 npm install
 npm run dev
 ```
 
-開啟 <http://localhost:17463>。`npm run dev` 會在前景啟動 compose，建置 `otter` image、啟動 PostgreSQL、套用 migrations，再啟動 app。第一次使用時請在註冊頁建立帳號。
+開啟 <http://localhost:17463>，註冊帳號後即可建立第一個支出群組。
 
-`just dev` 會改以背景 container 啟動同一套環境。
+## 文件
 
-如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`。`npm run dev:server` 會先建置再監看 `packages/core` 與 `packages/contracts`，並同時啟動 `apps/api`（17464）與 `apps/web`（17463）；Vite 將 `/api` proxy 到 API：
+- [功能與使用限制](docs/product.md)
+- [本機開發與架構](docs/development.md)
+- [部署與安全設定](docs/deployment.md)
+- [CLI](docs/cli.md)
+- [版本與發佈](docs/releasing.md)
+- [完整文件索引](docs/README.md)
 
-```bash
-DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run migrate
-DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run dev:server
-```
+專案方向見 [GOAL.md](GOAL.md)，歷史進度見 [docs/progress-log.md](docs/progress-log.md)。
 
-常用檢查：
+## License
 
-```bash
-npm run migrate -- --help
-npm run typecheck
-npm test
-npm run test:components
-npm run test:e2e
-npm run biome:ci
-npm run check
-```
-
-執行 DB-backed API 測試（需先啟動 dev Postgres）：
-
-```bash
-DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
-```
-
-重建 dev 資料庫 volume：
-
-```bash
-npm run db:reset:dev
-```
-
-`npm run check` 會執行 Biome CI、TypeScript typecheck、Vitest 與 production build，且維持不依賴資料庫。
-`npm run test:e2e` 會用 Playwright Chromium 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility；先執行 `npx playwright install chromium`，並提供已遷移的 `DATABASE_URL`。
-
-## Agent CLI
-
-`packages/cli/` 內的 `@narumitw/otter-cli` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
-
-```bash
-npm install --global @narumitw/otter-cli # package 發佈後
-# 或在 repository root：
-npm run build:cli
-npm link --workspace @narumitw/otter-cli
-```
-
-兩種方式都會提供 `$ otter`。CLI 不需要接收帳號密碼；第一次使用時啟動 device authorization。未設定 `OTTER_URL` 時，預設連線至 `https://otter.narumi.dev/`：
-
-```bash
-otter auth login
-```
-
-若要連線至其他 Otter server（例如本機開發環境），再以 `OTTER_URL` 覆寫。CLI 會開啟 Otter `/device` 頁面並顯示一次性 code。使用者在瀏覽器登入、確認要求來源並核准後，CLI 會取得 90 天有效的 Bearer token。伺服器只保存 token hash；CLI 將 token 依 server URL 寫入 `~/.config/otter/credentials.json`，檔案權限為 `0600`。Device code 10 分鐘後失效且只能兌換一次。帳號、Passkey、協作者、分享連結與 device approval 管理仍要求瀏覽器 session，Bearer token 不可執行。
-
-若瀏覽器無法自動開啟，可加上 `--no-open` 並手動前往 CLI 顯示的 URL。無狀態 agent 或 CI 可在網頁右上角的「帳號設定 → API token」建立 token，立即複製到 secret manager，再透過 `OTTER_TOKEN` 提供而不寫入 credential file：
-
-```bash
-OTTER_TOKEN='otter_api_…' otter auth status
-OTTER_TOKEN='otter_api_…' otter trips list
-```
-
-常見流程：
-
-```bash
-otter participants list --trip trip-id
-otter expenses add \
-  --trip trip-id \
-  --description Dinner \
-  --amount 1200 \
-  --currency TWD \
-  --paid-by participant-id \
-  --split-with participant-id,other-participant-id
-otter balances get --trip trip-id
-otter trips get --trip trip-id > trip.json
-otter settlements preview --input trip.json
-```
-
-`settlements preview` 會用 `packages/contracts` 驗證已保存的 trip payload，再用 `packages/core` 在本機重新計算餘額與結清建議，不需要 token 或網路；也可用 `--input -` 從 stdin 讀取。CLI 的貨幣、金額、日期、分類與分帳清單會先做本機驗證，但 API 仍是最終驗證權威。
-
-金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `otter auth logout` 可撤銷目前 token 並移除本機保存內容。
-
-使用 `otter --help` 查看完整命令。開發時仍可執行 `npm run --silent otter -- --help`；production bundle 可執行 `npm run --silent otter:built -- --help`。發佈前以 `npm pack --dry-run --workspace @narumitw/otter-cli` 檢查 package 內容。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
-
-## 版本與發佈
-
-npm package 使用 [Changesets](https://github.com/changesets/changesets) 管理版本與 changelog。目前只有 `@narumitw/otter-cli` 會發佈到 npm；root、app、core 與 contracts workspace 都標記為 private。
-
-會影響 CLI 使用者的 pull request 應執行以下命令，選擇 `@narumitw/otter-cli` 的 SemVer 變更層級，並提交產生的 `.changeset/*.md`：
-
-```bash
-npm run changeset
-```
-
-合併到 `main` 後，GitHub Actions 會建立或更新 release pull request。合併該 pull request 後，workflow 會執行檢查、更新 npm package，並建立 Git tag；repository 必須設定具有 npm publish 權限的 `NPM_TOKEN` secret。
-
-本機也可執行相同的版本與發佈命令：
-
-```bash
-npm run version-packages
-npm run release
-```
-
-## Pre-commit / Husky
-
-`npm install` 或 `npm ci` 會透過 `prepare` 安裝 `.husky/pre-commit`。
-目前 pre-commit hook 會執行完整檢查：
-
-```bash
-npm run check
-```
-
-## Docker
-
-App 與 PostgreSQL：
-
-```bash
-docker compose up --build
-```
-
-`compose.yaml` 只有一個 `otter` app service，預設連線到同一份 compose 啟動的 PostgreSQL。正式部署時請提供安全的資料庫密碼：
-
-```bash
-POSTGRES_PASSWORD=change-me docker compose up --detach --build
-```
-
-App 會暴露在 <http://localhost:17463>，且 container 啟動時會先套用 migrations。PostgreSQL 的 host port 只綁定至 `127.0.0.1:55432`。若資料庫已初始化，修改 `POSTGRES_PASSWORD` 不會自動修改既有 PostgreSQL 使用者的密碼。
-
-GitHub `Deploy` workflow 需要 self-hosted runner、`POSTGRES_PASSWORD` repository secret 與 `PASSKEY_ORIGIN` repository variable。每次 push 到 `main` 都會直接部署，也可以手動觸發；部署使用 compose 內的 PostgreSQL。
-
-Production session cookie 在 `NODE_ENV=production` 時預設使用 `Secure`；只有在可信任的 HTTP 測試環境才設定 `COOKIE_SECURE=false`。
-
-Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。本機 compose 預設使用 `PASSKEY_ORIGIN=http://localhost:17463`；正式環境必須明確設定公開 HTTPS origin，例如：
-
-```bash
-PASSKEY_ORIGIN=https://otter.example.com
-```
-
-`PASSKEY_ORIGIN` 只能包含 scheme、hostname 與選填 port，不可包含 path；除 `localhost` 開發環境外必須使用 HTTPS。Relying party ID 會自動使用 origin 的 hostname。變更網域後，既有 Passkey 不會在新 relying party 下生效，使用者需以密碼登入並重新新增。
-
-Passkey options 與 device authorization 建立要求會依 client 限流，預設使用 socket peer address。只有在 app 前方的可信任 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP` 時，才將 `PASSKEY_TRUST_PROXY=true` 與 `DEVICE_AUTH_TRUST_PROXY=true` 設為 repository variables；app port 若可由外部直接連線則不可啟用，避免 client 偽造 header 繞過限流。
-
-## 工作流程與安全狀態
-
-新增支出預設使用今天、群組基準貨幣、第一位付款人、所有分帳成員與平均分帳；指定金額、比例、份數、分類與標籤透過有名稱的進階區塊展開。輸入金額後會先顯示每人的具體分帳預覽，只有「記錄支出」會寫入資料。
-
-修改基準貨幣、匯率、CSV 匯入、JSON 還原、分享、封存、合併及刪除都先顯示結果或影響範圍。`取消`、Escape 或捨棄草稿不會呼叫 mutation API；失敗會保留舊資料與草稿。封存及唯讀分享不顯示修改 controls；協作者可維護日常支出，但只有擁有者能管理權限、偏好與生命週期。離線時可閱讀已載入資料，寫入 actions 會停用並說明需恢復連線。
-
-## 匯入、備份、分享與附件限制
-
-CSV 匯入欄位範例：
-
-```csv
-date,description,amount,currency,paid_by,category,tags,split_participants
-2026-06-25,Dinner,1200,TWD,Alice,餐飲,"food|night","Alice; Bob"
-```
-
-匯入前需先建立對應參與者；任一列錯誤會取消整批匯入。JSON 備份會還原成新的支出群組，不覆蓋既有資料；備份不包含帳號、session、密碼或收據圖片。收據圖片目前存在 PostgreSQL，每筆支出一張、上限 5MB。
-
-分享連結知道網址即可讀取整趟旅行的結算資訊；外洩時請在「更多 → 分享與權限」撤銷。手機瀏覽器可加到主畫面捷徑，但 API 和記帳資料仍需連線，不支援離線新增支出。
-
-## 貨幣與匯率限制
-
-支援貨幣：TWD、JPY、USD、EUR。每趟旅行可在「更多 → 換算方式」先預覽再套用自訂匯率；未設定的幣別會使用固定原型匯率。若要正式用於長期或高金額記帳，下一步應接即時匯率。
-
-## CI
-
-GitHub Actions 設定在 `.github/workflows/ci.yml`，流程為：
-
-```bash
-npm ci
-npx playwright install --with-deps chromium
-npm run check
-npm run migrate
-node apps/api/dist/scripts/migrate.js
-npm run test:e2e
-docker build --tag otter-ci .
-```
-
-CI 接著會以 disposable PostgreSQL 啟動 production image，檢查 API、SPA 與 container restart。
+[AGPL-3.0-only](LICENSE)
