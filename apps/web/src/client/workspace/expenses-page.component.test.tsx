@@ -50,6 +50,48 @@ function ExpensesHarness() {
   );
 }
 
+test("empty expenses prioritize the first expense without unused filters", async () => {
+  const onAddExpense = vi.fn();
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        onAddExpense={onAddExpense}
+        onFiltersChange={vi.fn()}
+        trip={{ ...trip, expenses: [] }}
+      />
+    </I18nProvider>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "No expenses yet" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  expect(screen.queryByText("More filters")).not.toBeInTheDocument();
+  const button = screen.getByRole("button");
+  await userEvent.setup().click(button);
+  expect(onAddExpense).toHaveBeenCalledOnce();
+});
+
+test("readonly empty expenses do not offer an add action", () => {
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        onAddExpense={vi.fn()}
+        onFiltersChange={vi.fn()}
+        readonly
+        trip={{ ...trip, expenses: [] }}
+      />
+    </I18nProvider>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "No expenses yet" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
 test("category filter chips translate stored domain values", async () => {
   const user = userEvent.setup();
   render(

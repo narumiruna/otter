@@ -3,7 +3,9 @@ import { currencies } from "@narumitw/otter-core/money";
 import type { Expense, Trip } from "@narumitw/otter-core/settlement";
 import {
   ImageIcon as FileImage,
+  MixerHorizontalIcon,
   Pencil2Icon as Pencil,
+  PlusIcon,
   FileTextIcon as Receipt,
   MagnifyingGlassIcon as Search,
   TrashIcon as Trash2,
@@ -61,8 +63,11 @@ export function ExpensesPage({
       />
     );
   return (
-    <section className="surface grid gap-5" aria-labelledby="expenses-heading">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section
+      className="surface expenses-page"
+      aria-labelledby="expenses-heading"
+    >
+      <div className="expenses-page-heading">
         <SectionHeading
           description={messages.showingShownOfTotalExpenses({
             shown: expenses.length,
@@ -71,175 +76,186 @@ export function ExpensesPage({
         >
           <span id="expenses-heading">{messages.expenses}</span>
         </SectionHeading>
-        {!readonly ? (
-          <Button onClick={onAddExpense}>{messages.addExpense}</Button>
-        ) : null}
+        <span className="expenses-heading-icon" aria-hidden="true">
+          <Receipt />
+        </span>
       </div>
-      <div className="grid gap-3 md:grid-cols-[1fr_13rem]">
-        <label className="relative">
-          <span className="sr-only">{messages.searchDescriptions}</span>
-          <Search
-            className="pointer-events-none absolute top-3 left-3 size-5 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <input
-            className="form-control expense-search-input"
-            placeholder={messages.searchExpenseDescriptions}
-            value={filters.query}
-            onChange={(event) =>
-              setFilters((value) => ({ ...value, query: event.target.value }))
-            }
-          />
-        </label>
-        <label>
-          <span className="sr-only">{messages.sort}</span>
-          <select
-            className="form-control"
-            value={filters.sort}
-            onChange={(event) =>
-              setFilters((value) => ({
-                ...value,
-                sort: event.target.value as ExpenseFilters["sort"],
-              }))
-            }
-          >
-            <option value="date-desc">{messages.dateNewestFirst}</option>
-            <option value="date-asc">{messages.dateOldestFirst}</option>
-            <option value="amount-desc">{messages.amountHighToLow}</option>
-            <option value="amount-asc">{messages.amountLowToHigh}</option>
-          </select>
-        </label>
-      </div>
-      <details className="disclosure">
-        <summary>
-          {messages.moreFilters}{" "}
-          <span className="summary-meta">
-            {activeFilters.length
-              ? messages.countApplied({ count: activeFilters.length })
-              : messages.datePersonCurrencyCategoryAndTag}
-          </span>
-        </summary>
-        <div className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Filter label={messages.from}>
-            <input
-              className="form-control"
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) =>
-                setFilters((value) => ({
-                  ...value,
-                  dateFrom: event.target.value,
-                }))
-              }
-            />
-          </Filter>
-          <Filter label={messages.to}>
-            <input
-              className="form-control"
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) =>
-                setFilters((value) => ({
-                  ...value,
-                  dateTo: event.target.value,
-                }))
-              }
-            />
-          </Filter>
-          <Filter label={messages.paidBy}>
-            <ParticipantFilter
-              trip={trip}
-              value={filters.paidById}
-              onChange={(paidById) =>
-                setFilters((current) => ({ ...current, paidById }))
-              }
-            />
-          </Filter>
-          <Filter label={messages.splitWith}>
-            <ParticipantFilter
-              trip={trip}
-              value={filters.participantId}
-              onChange={(participantId) =>
-                setFilters((current) => ({ ...current, participantId }))
-              }
-            />
-          </Filter>
-          <Filter label={messages.currency}>
-            <select
-              className="form-control"
-              value={filters.currency}
-              onChange={(event) =>
-                setFilters((value) => ({
-                  ...value,
-                  currency: event.target.value,
-                }))
-              }
-            >
-              <option value="">{messages.allCurrencies}</option>
-              {currencies.map((currency) => (
-                <option key={currency}>{currency}</option>
+      {trip.expenses.length > 0 ? (
+        <div className="expense-tools">
+          <div className="grid gap-3 md:grid-cols-[1fr_13rem]">
+            <label className="relative">
+              <span className="sr-only">{messages.searchDescriptions}</span>
+              <Search
+                className="pointer-events-none absolute top-3 left-3 size-5 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <input
+                className="form-control expense-search-input"
+                placeholder={messages.searchExpenseDescriptions}
+                value={filters.query}
+                onChange={(event) =>
+                  setFilters((value) => ({
+                    ...value,
+                    query: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              <span className="sr-only">{messages.sort}</span>
+              <select
+                className="form-control"
+                value={filters.sort}
+                onChange={(event) =>
+                  setFilters((value) => ({
+                    ...value,
+                    sort: event.target.value as ExpenseFilters["sort"],
+                  }))
+                }
+              >
+                <option value="date-desc">{messages.dateNewestFirst}</option>
+                <option value="date-asc">{messages.dateOldestFirst}</option>
+                <option value="amount-desc">{messages.amountHighToLow}</option>
+                <option value="amount-asc">{messages.amountLowToHigh}</option>
+              </select>
+            </label>
+          </div>
+          <details className="disclosure expense-filters">
+            <summary>
+              <MixerHorizontalIcon aria-hidden="true" />
+              {messages.moreFilters}{" "}
+              <span className="summary-meta">
+                {activeFilters.length
+                  ? messages.countApplied({ count: activeFilters.length })
+                  : messages.datePersonCurrencyCategoryAndTag}
+              </span>
+            </summary>
+            <div className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Filter label={messages.from}>
+                <input
+                  className="form-control"
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(event) =>
+                    setFilters((value) => ({
+                      ...value,
+                      dateFrom: event.target.value,
+                    }))
+                  }
+                />
+              </Filter>
+              <Filter label={messages.to}>
+                <input
+                  className="form-control"
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(event) =>
+                    setFilters((value) => ({
+                      ...value,
+                      dateTo: event.target.value,
+                    }))
+                  }
+                />
+              </Filter>
+              <Filter label={messages.paidBy}>
+                <ParticipantFilter
+                  trip={trip}
+                  value={filters.paidById}
+                  onChange={(paidById) =>
+                    setFilters((current) => ({ ...current, paidById }))
+                  }
+                />
+              </Filter>
+              <Filter label={messages.splitWith}>
+                <ParticipantFilter
+                  trip={trip}
+                  value={filters.participantId}
+                  onChange={(participantId) =>
+                    setFilters((current) => ({ ...current, participantId }))
+                  }
+                />
+              </Filter>
+              <Filter label={messages.currency}>
+                <select
+                  className="form-control"
+                  value={filters.currency}
+                  onChange={(event) =>
+                    setFilters((value) => ({
+                      ...value,
+                      currency: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">{messages.allCurrencies}</option>
+                  {currencies.map((currency) => (
+                    <option key={currency}>{currency}</option>
+                  ))}
+                </select>
+              </Filter>
+              <Filter label={messages.category}>
+                <select
+                  className="form-control"
+                  value={filters.category}
+                  onChange={(event) =>
+                    setFilters((value) => ({
+                      ...value,
+                      category: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">{messages.allCategories}</option>
+                  {expenseCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {localizeMessage(category)}
+                    </option>
+                  ))}
+                </select>
+              </Filter>
+              <Filter label={messages.tag}>
+                <input
+                  className="form-control"
+                  placeholder={messages.exactTag}
+                  value={filters.tag}
+                  onChange={(event) =>
+                    setFilters((value) => ({
+                      ...value,
+                      tag: event.target.value,
+                    }))
+                  }
+                />
+              </Filter>
+            </div>
+          </details>
+          {activeFilters.length ? (
+            <fieldset className="flex flex-wrap items-center gap-2">
+              <legend className="text-sm text-muted-foreground">
+                {messages.applied}
+              </legend>
+              {activeFilters.map(([key, label]) => (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    setFilters((value) => ({
+                      ...value,
+                      [key]: defaultExpenseFilters[key],
+                    }))
+                  }
+                >
+                  {label} ×
+                </Button>
               ))}
-            </select>
-          </Filter>
-          <Filter label={messages.category}>
-            <select
-              className="form-control"
-              value={filters.category}
-              onChange={(event) =>
-                setFilters((value) => ({
-                  ...value,
-                  category: event.target.value,
-                }))
-              }
-            >
-              <option value="">{messages.allCategories}</option>
-              {expenseCategories.map((category) => (
-                <option key={category} value={category}>
-                  {localizeMessage(category)}
-                </option>
-              ))}
-            </select>
-          </Filter>
-          <Filter label={messages.tag}>
-            <input
-              className="form-control"
-              placeholder={messages.exactTag}
-              value={filters.tag}
-              onChange={(event) =>
-                setFilters((value) => ({ ...value, tag: event.target.value }))
-              }
-            />
-          </Filter>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setFilters({ ...defaultExpenseFilters })}
+              >
+                {messages.clearAll}
+              </Button>
+            </fieldset>
+          ) : null}
         </div>
-      </details>
-      {activeFilters.length ? (
-        <fieldset className="flex flex-wrap items-center gap-2">
-          <legend className="text-sm text-muted-foreground">
-            {messages.applied}
-          </legend>
-          {activeFilters.map(([key, label]) => (
-            <Button
-              key={key}
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                setFilters((value) => ({
-                  ...value,
-                  [key]: defaultExpenseFilters[key],
-                }))
-              }
-            >
-              {label} ×
-            </Button>
-          ))}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setFilters({ ...defaultExpenseFilters })}
-          >
-            {messages.clearAll}
-          </Button>
-        </fieldset>
       ) : null}
       <ExpenseList
         expenses={expenses}
@@ -338,20 +354,33 @@ function ExpenseList({
   const { formatMoney, messages } = useI18n();
   if (!trip.expenses.length)
     return (
-      <div className="empty-state">
-        <Receipt className="mx-auto" aria-hidden="true" />
+      <div className="empty-state expense-empty-state">
+        <div className="expense-empty-art" aria-hidden="true">
+          <span className="expense-empty-receipt">
+            <Receipt />
+          </span>
+          <span className="expense-empty-plus">
+            <PlusIcon />
+          </span>
+        </div>
         <h3>{messages.noExpensesYet}</h3>
         <p>
           {messages.aCompleteHistoryWillAppearHereAfterTheFirstSharedExpense}
         </p>
         {!readonly ? (
-          <Button onClick={onAddExpense}>{messages.recordFirstExpense}</Button>
+          <Button onClick={onAddExpense}>
+            <PlusIcon aria-hidden="true" />
+            {messages.recordFirstExpense}
+          </Button>
         ) : null}
       </div>
     );
   if (!expenses.length)
     return (
-      <div className="empty-state">
+      <div className="empty-state expense-empty-state">
+        <span className="expenses-heading-icon" aria-hidden="true">
+          <Search />
+        </span>
         <h3>{messages.noMatchingExpenses}</h3>
         <p>{messages.adjustOrClearTheFiltersToSeeAllExpenses}</p>
         <Button onClick={clear} variant="outline">
