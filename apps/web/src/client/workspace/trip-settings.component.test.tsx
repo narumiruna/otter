@@ -348,6 +348,78 @@ test("saves only edited custom overrides for an automatic-rate trip", async () =
   }
 });
 
+test("refreshes pristine rate defaults without replacing a dirty draft", async () => {
+  const automaticPayload: TripPayload = {
+    ...payload,
+    exchangeRateInfo: bankRateInfo,
+    trip: {
+      ...payload.trip,
+      exchangeRates: bankRates,
+      expenses: [
+        {
+          amountMinor: 10_000,
+          createdAt: "2026-09-20T00:00:00.000Z",
+          currency: "USD",
+          description: "Dinner",
+          expenseDate: "2026-09-20",
+          id: "expense_1",
+          paidById: "participant_1",
+          participantIds: ["participant_1"],
+        },
+      ],
+    },
+  };
+  const refreshedPayload: TripPayload = {
+    ...automaticPayload,
+    exchangeRateInfo: {
+      ...bankRateInfo,
+      fetchedAt: "2026-09-20T12:15:00.000Z",
+    },
+    trip: {
+      ...automaticPayload.trip,
+      exchangeRates: { ...bankRates, USD: 30.5 },
+    },
+  };
+  const laterPayload: TripPayload = {
+    ...refreshedPayload,
+    exchangeRateInfo: {
+      ...bankRateInfo,
+      fetchedAt: "2026-09-20T12:30:00.000Z",
+    },
+    trip: {
+      ...refreshedPayload.trip,
+      exchangeRates: { ...bankRates, USD: 29 },
+    },
+  };
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const settings = (current: TripPayload) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={current}
+        refreshCollection={async () => undefined}
+      >
+        <ExchangeRateSettings payload={current} />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(settings(automaticPayload));
+
+  await user.click(view.getByText("換算方式"));
+  view.rerender(settings(refreshedPayload));
+  await user.type(view.getByLabelText("EUR → TWD"), "40");
+  expect(view.getByText(/總支出：.*3,050/)).toBeVisible();
+
+  view.rerender(settings(laterPayload));
+  expect(view.getByLabelText("EUR → TWD")).toHaveValue("40");
+  expect(view.getByText(/總支出：.*3,050/)).toBeVisible();
+
+  view.unmount();
+  client.clear();
+});
+
 test("reinitializes rate drafts after the base currency changes", () => {
   const automaticPayload: TripPayload = {
     ...payload,

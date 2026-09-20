@@ -15,7 +15,7 @@ import {
   GearIcon as Settings2,
   TrashIcon as Trash2,
 } from "@radix-ui/react-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { api, spendingSummary, type TripPayload } from "../client-support.js";
@@ -252,6 +252,14 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
   const { offline, requestPayload } = useWorkspace();
   const initialValues = customRateValues(payload);
   const initialDefaultRates = automaticExchangeRates(payload);
+  const payloadRateKey = [
+    payload.trip.baseCurrency,
+    ...currencies.flatMap((currency) => [
+      initialValues[currency],
+      initialDefaultRates[currency],
+    ]),
+  ].join("|");
+  const lastSyncedPayloadRateKey = useRef(payloadRateKey);
   const [savedValues, setSavedValues] = useState(initialValues);
   const [values, setValues] = useState(initialValues);
   const [savedDefaultRates, setSavedDefaultRates] =
@@ -277,6 +285,24 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
   const changed =
     useBankDefault ||
     currencies.some((currency) => values[currency] !== savedValues[currency]);
+  useEffect(() => {
+    if (
+      payloadRateKey === lastSyncedPayloadRateKey.current ||
+      changed ||
+      busy !== null
+    ) {
+      return;
+    }
+
+    const nextValues = customRateValues(payload);
+    const nextDefaultRates = automaticExchangeRates(payload);
+    lastSyncedPayloadRateKey.current = payloadRateKey;
+    setSavedValues(nextValues);
+    setValues(nextValues);
+    setSavedDefaultRates(nextDefaultRates);
+    setDefaultRates(nextDefaultRates);
+    setLoadedSnapshot("");
+  }, [busy, changed, payload, payloadRateKey]);
   async function apply() {
     setBusy("apply");
     setError("");
@@ -297,6 +323,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
       );
       const nextValues = customRateValues(next);
       const nextDefaultRates = automaticExchangeRates(next);
+      lastSyncedPayloadRateKey.current = payloadRateKey;
       setDefaultRates(nextDefaultRates);
       setSavedDefaultRates(nextDefaultRates);
       setSavedValues(nextValues);
