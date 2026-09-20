@@ -1,8 +1,8 @@
 import type { Pool as PgPool } from "pg";
 import { apiTokenLifetimeSeconds, hashApiSecret } from "./server-api-tokens.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
   currentUser,
   nowIso,
   requestBody,
@@ -33,7 +33,8 @@ export function registerPersonalApiTokenRoutes(
   app.get(
     "/api/auth/tokens",
     mustHaveBrowserSession,
-    asyncHandler(async (_req, res) => {
+    parseRequestBody,
+    async (context) => {
       const result = await pool.query<ApiTokenRow>(
         `SELECT id, name, created_at, expires_at
          FROM api_tokens
@@ -41,34 +42,36 @@ export function registerPersonalApiTokenRoutes(
            AND revoked_at IS NULL
            AND expires_at > now()
          ORDER BY created_at DESC, id DESC`,
-        [currentUser(res).id],
+        [currentUser(context).id],
       );
-      res.json({ tokens: result.rows.map(publicApiToken) });
-    }),
+      return context.json({ tokens: result.rows.map(publicApiToken) });
+    },
   );
 
   app.post(
     "/api/auth/tokens",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const body = requestBody(req);
+    parseRequestBody,
+    async (context) => {
+      const body = requestBody(context);
       const accessToken = stringField(body, "accessToken");
       const id = stringField(body, "id");
       const name = stringField(body, "name");
       if (!name || name.length > 80) {
-        sendError(res, 400, "Token name must be between 1 and 80 characters");
-        return;
+        return sendError(
+          context,
+          400,
+          "Token name must be between 1 and 80 characters",
+        );
       }
       if (!id || !apiTokenIdPattern.test(id)) {
-        sendError(res, 400, "Invalid API token request ID");
-        return;
+        return sendError(context, 400, "Invalid API token request ID");
       }
       if (!accessToken || !accessTokenPattern.test(accessToken)) {
-        sendError(res, 400, "Invalid API token secret");
-        return;
+        return sendError(context, 400, "Invalid API token secret");
       }
 
-      const userId = currentUser(res).id;
+      const userId = currentUser(context).id;
       const tokenHash = hashApiSecret(accessToken);
       const createdAt = nowIso();
       const token = {
@@ -94,8 +97,7 @@ export function registerPersonalApiTokenRoutes(
         ],
       );
       if (inserted.rowCount === 1) {
-        res.status(201).json({ accessToken, token });
-        return;
+        return context.json({ accessToken, token }, 201);
       }
 
       const existing = await pool.query<StoredApiTokenRow>(
@@ -109,33 +111,35 @@ export function registerPersonalApiTokenRoutes(
         [id, userId, tokenHash],
       );
       if (!existing.rows[0]) {
-        sendError(
-          res,
+        return sendError(
+          context,
           409,
           "API token request conflicts with an existing token",
         );
-        return;
       }
-      res.json({ accessToken, token: publicApiToken(existing.rows[0]) });
-    }),
+      return context.json({
+        accessToken,
+        token: publicApiToken(existing.rows[0]),
+      });
+    },
   );
 
   app.delete(
     "/api/auth/tokens/:tokenId",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const result = await pool.query(
         `UPDATE api_tokens
          SET revoked_at = $1
          WHERE id = $2 AND user_id = $3 AND revoked_at IS NULL`,
-        [nowIso(), req.params.tokenId, currentUser(res).id],
+        [nowIso(), context.req.param("tokenId"), currentUser(context).id],
       );
       if (result.rowCount === 0) {
-        sendError(res, 404, "API token not found");
-        return;
+        return sendError(context, 404, "API token not found");
       }
-      res.json({ ok: true });
-    }),
+      return context.json({ ok: true });
+    },
   );
 }
 

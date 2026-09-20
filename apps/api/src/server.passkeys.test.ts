@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { expect, test, vi } from "vitest";
 import { hashApiSecret } from "./server-api-tokens.js";
-import type { RouteRequest } from "./server-http.js";
 import {
   type PasskeyVerifiers,
   resolvePasskeyRelyingParty,
@@ -71,13 +70,7 @@ const fakeAuthenticationResponse = {
   type: "public-key",
 };
 
-const request: RouteRequest = {
-  body: {},
-  get: () => undefined,
-  headers: {},
-  params: {},
-  protocol: "https",
-};
+const request = new Request("https://example.com");
 
 test("passkey origins are normalized and require HTTPS except on localhost", () => {
   expect(
@@ -116,6 +109,46 @@ test("passkey origins are normalized and require HTTPS except on localhost", () 
     rpID: "localhost",
     rpName: "otter",
   });
+});
+
+test("passkey origin resolution retains forwarded headers and configured-origin precedence", () => {
+  vi.stubEnv("PASSKEY_ORIGIN", undefined);
+  try {
+    expect(() => resolvePasskeyRelyingParty(request)).toThrow(
+      "PASSKEY_ORIGIN is required when the request has no Host header",
+    );
+    const local = new Request("http://localhost:17464", {
+      headers: { host: "localhost:17464" },
+    });
+    expect(resolvePasskeyRelyingParty(local).origin).toBe(
+      "http://localhost:17464",
+    );
+    const forwarded = new Request(local, {
+      headers: {
+        host: "localhost:17464",
+        "x-forwarded-proto": " https , http ",
+        "x-forwarded-host": " EXAMPLE.com:443 , internal ",
+      },
+    });
+    expect(resolvePasskeyRelyingParty(forwarded)).toEqual({
+      origin: "https://example.com",
+      rpID: "example.com",
+      rpName: "otter",
+    });
+    vi.stubEnv("PASSKEY_ORIGIN", " https://configured.example ");
+    expect(resolvePasskeyRelyingParty(forwarded).origin).toBe(
+      "https://configured.example",
+    );
+    expect(
+      resolvePasskeyRelyingParty(forwarded, {
+        origin: "https://explicit.example",
+        rpID: "explicit.example",
+        rpName: "explicit",
+      }).origin,
+    ).toBe("https://explicit.example");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 test(

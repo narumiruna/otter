@@ -28,6 +28,10 @@
       "types": "./dist/money.d.ts",
       "import": "./dist/money.js"
     },
+    "./participant-deletion": {
+      "types": "./dist/participant-deletion.d.ts",
+      "import": "./dist/participant-deletion.js"
+    },
     "./settlement": {
       "types": "./dist/settlement.d.ts",
       "import": "./dist/settlement.js"

@@ -7,9 +7,9 @@ import {
   hashApiSecret,
 } from "./server-api-tokens.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
 import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import {
-  asyncHandler,
   currentUser,
   isPgCode,
   makeId,
@@ -58,56 +58,61 @@ export function registerDeviceAuthRoutes(
     windowMs: authorizationRateLimitWindowMs,
   });
 
-  app.post(
-    "/api/auth/device",
-    asyncHandler(async (req, res) => {
-      const retryAfter = limitAuthorizationRequests(req);
-      if (retryAfter !== undefined) {
-        res.setHeader("Retry-After", String(retryAfter));
-        sendError(res, 429, "Too many device authorization requests");
-        return;
-      }
+  app.post("/api/auth/device", parseRequestBody, async (context) => {
+    const retryAfter = limitAuthorizationRequests(
+      context.req.raw,
+      requestRemoteAddress(context),
+    );
+    if (retryAfter !== undefined) {
+      context.header("Retry-After", String(retryAfter));
+      return sendError(context, 429, "Too many device authorization requests");
+    }
 
-      const clientName =
-        stringField(requestBody(req), "clientName") ?? "Otter CLI";
-      if (!clientName || clientName.length > 80) {
-        sendError(res, 400, "Client name must be between 1 and 80 characters");
-        return;
-      }
+    const clientName =
+      stringField(requestBody(context), "clientName") ?? "Otter CLI";
+    if (!clientName || clientName.length > 80) {
+      return sendError(
+        context,
+        400,
+        "Client name must be between 1 and 80 characters",
+      );
+    }
 
-      await pool.query(
-        "DELETE FROM device_authorizations WHERE expires_at <= now()",
-      );
-      const deviceCode = crypto.randomBytes(32).toString("base64url");
-      const expiresAt = new Date(
-        Date.now() + deviceLifetimeSeconds * 1000,
-      ).toISOString();
-      const userCode = await insertDeviceAuthorization(
-        pool,
-        deviceCode,
-        clientName,
-        expiresAt,
-      );
-      const verificationUri = `${req.protocol}://${req.get("host")}/device`;
-      res.status(201).json({
+    await pool.query(
+      "DELETE FROM device_authorizations WHERE expires_at <= now()",
+    );
+    const deviceCode = crypto.randomBytes(32).toString("base64url");
+    const expiresAt = new Date(
+      Date.now() + deviceLifetimeSeconds * 1000,
+    ).toISOString();
+    const userCode = await insertDeviceAuthorization(
+      pool,
+      deviceCode,
+      clientName,
+      expiresAt,
+    );
+    const verificationUri = `${new URL(context.req.url).protocol}//${context.req.header("host")}/device`;
+    return context.json(
+      {
         device_code: deviceCode,
         expires_in: deviceLifetimeSeconds,
         interval: pollingIntervalSeconds,
         user_code: userCode,
         verification_uri: verificationUri,
         verification_uri_complete: `${verificationUri}?code=${encodeURIComponent(userCode)}`,
-      });
-    }),
-  );
+      },
+      201,
+    );
+  });
 
   app.get(
     "/api/auth/device/:userCode",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const userCode = normalizeUserCode(req.params.userCode);
+    parseRequestBody,
+    async (context) => {
+      const userCode = normalizeUserCode(context.req.param("userCode"));
       if (!userCode) {
-        sendError(res, 404, "Device code not found or expired");
-        return;
+        return sendError(context, 404, "Device code not found or expired");
       }
       const result = await pool.query<DeviceInspectionRow>(
         `SELECT client_name, expires_at
@@ -120,27 +125,26 @@ export function registerDeviceAuthRoutes(
       );
       const row = result.rows[0];
       if (!row) {
-        sendError(res, 404, "Device code not found or expired");
-        return;
+        return sendError(context, 404, "Device code not found or expired");
       }
-      res.json({
+      return context.json({
         clientName: row.client_name,
         expiresAt: toIso(row.expires_at),
         userCode,
       });
-    }),
+    },
   );
 
   app.post(
     "/api/auth/device/approve",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const userCode = normalizeUserCode(
-        stringField(requestBody(req), "userCode") ?? "",
+        stringField(requestBody(context), "userCode") ?? "",
       );
       if (!userCode) {
-        sendError(res, 400, "Enter a valid device code");
-        return;
+        return sendError(context, 400, "Enter a valid device code");
       }
       const result = await pool.query<{ client_name: string }>(
         `UPDATE device_authorizations
@@ -150,59 +154,56 @@ export function registerDeviceAuthRoutes(
            AND approved_at IS NULL
            AND consumed_at IS NULL
          RETURNING client_name`,
-        [currentUser(res).id, nowIso(), userCode],
+        [currentUser(context).id, nowIso(), userCode],
       );
       const row = result.rows[0];
       if (!row) {
-        sendError(res, 404, "Device code not found or expired");
-        return;
+        return sendError(context, 404, "Device code not found or expired");
       }
-      res.json({ clientName: row.client_name, ok: true });
-    }),
+      return context.json({ clientName: row.client_name, ok: true });
+    },
   );
 
-  app.post(
-    "/api/auth/device/token",
-    asyncHandler(async (req, res) => {
-      const deviceCode = stringField(requestBody(req), "device_code");
-      if (!deviceCode) {
-        sendError(res, 400, "invalid_request");
-        return;
-      }
-      const exchange = await exchangeDeviceCode(pool, deviceCode);
-      if ("error" in exchange) {
-        sendError(res, 400, exchange.error);
-        return;
-      }
-      res.json({
-        access_token: exchange.accessToken,
-        expires_at: exchange.expiresAt,
-        token_type: "Bearer",
-      });
-    }),
-  );
+  app.post("/api/auth/device/token", parseRequestBody, async (context) => {
+    const deviceCode = stringField(requestBody(context), "device_code");
+    if (!deviceCode) {
+      return sendError(context, 400, "invalid_request");
+    }
+    const exchange = await exchangeDeviceCode(pool, deviceCode);
+    if ("error" in exchange) {
+      return sendError(context, 400, exchange.error);
+    }
+    return context.json({
+      access_token: exchange.accessToken,
+      expires_at: exchange.expiresAt,
+      token_type: "Bearer",
+    });
+  });
 
   app.delete(
     "/api/auth/tokens/current",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const token = bearerTokenFromRequest(req);
+    parseRequestBody,
+    async (context) => {
+      const token = bearerTokenFromRequest(context.req.raw);
       if (!token) {
-        sendError(res, 400, "This request is not using an API token");
-        return;
+        return sendError(
+          context,
+          400,
+          "This request is not using an API token",
+        );
       }
       const result = await pool.query(
         `UPDATE api_tokens
          SET revoked_at = $1
          WHERE token_hash = $2 AND user_id = $3 AND revoked_at IS NULL`,
-        [nowIso(), hashApiSecret(token), currentUser(res).id],
+        [nowIso(), hashApiSecret(token), currentUser(context).id],
       );
       if (result.rowCount === 0) {
-        sendError(res, 404, "API token not found");
-        return;
+        return sendError(context, 404, "API token not found");
       }
-      res.json({ ok: true });
-    }),
+      return context.json({ ok: true });
+    },
   );
 }
 

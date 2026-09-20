@@ -73,6 +73,14 @@ packages/cli    Published non-interactive CLI
 
 Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/scripts/migrate.ts`。
 
+### 共用規則與 HTTP boundary
+
+- `packages/core/src/participant-deletion.ts` 決定刪除參與者的阻擋原因，優先順序為最後一位參與者、支出、付款紀錄。API 決定 status/error，Web 決定在地化文字；權限與封存檢查仍由各 app 處理。
+- `apps/api/src/server-expense-store.ts` 共用支出與有序分帳資料的 INSERT。呼叫端負責驗證、預設值、ID 映射、時間戳及 transaction；開發 fixtures 保留自己的 conflict handling。
+- API routes 直接使用 Hono context 與 response。`server-http.ts` 的 `parseRequestBody` 在受保護 routes 的 authentication 之後、route validation 與 rate limiter 之前執行；未知 API paths 不經過此 parser。
+- Parser 保留既有政策：GET/HEAD 或未提供 Content-Type 時為空物件；JSON 上限為 1 MiB，`/api/trips/restore` 為 10 MiB；JPEG/PNG/WebP 為 5 MiB。其他 Content-Type 保留為原始 bytes，由 route 決定是否接受。這些限制在讀取完整 body 後檢查，並非 streaming limits。
+- 空 JSON body 視為空物件；無效 JSON 回傳 400，超過上述大小限制回傳 413，兩者都不計入 route-level rate limit。成功解析但欄位無效的驗證請求仍計入限制。Cookie 屬性、proxy 信任設定與 Bearer/session 權限不變。
+
 ## 技術選擇
 
 - Web：React、Vite、TypeScript、Radix、Tailwind CSS layout utilities。

@@ -55,6 +55,81 @@ const validPayload: TripPayload = {
   },
 };
 
+const completeRates = { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 };
+test.each([
+  { name: "absent", rates: undefined, trip: true, snapshot: false },
+  { name: "empty", rates: {}, trip: true, snapshot: false },
+  { name: "partial", rates: { USD: 31.8 }, trip: true, snapshot: false },
+  { name: "complete", rates: completeRates, trip: true, snapshot: true },
+  { name: "array", rates: [], trip: false, snapshot: false },
+  { name: "null", rates: null, trip: false, snapshot: false },
+  {
+    name: "unsupported key",
+    rates: { ...completeRates, BTC: 1 },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "numeric string",
+    rates: { ...completeRates, USD: "31.8" },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "zero",
+    rates: { ...completeRates, USD: 0 },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "negative",
+    rates: { ...completeRates, USD: -1 },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "NaN",
+    rates: { ...completeRates, USD: Number.NaN },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "infinity",
+    rates: { ...completeRates, USD: Number.POSITIVE_INFINITY },
+    trip: false,
+    snapshot: false,
+  },
+  {
+    name: "undefined rate",
+    rates: { ...completeRates, USD: undefined },
+    trip: false,
+    snapshot: false,
+  },
+])("rate-map validation: $name", (scenario) => {
+  const payload = {
+    ...validPayload,
+    trip: { ...validPayload.trip, exchangeRates: scenario.rates },
+  };
+  const snapshot = {
+    baseCurrency: "TWD",
+    fetchedAt: "2026-09-20T12:00:00.000Z",
+    rateType: "spotMid",
+    source: "BANK_OF_TAIWAN",
+    rates: scenario.rates,
+  };
+  if (scenario.trip) expect(parseTripPayload(payload)).toBe(payload);
+  else
+    expect(() => parseTripPayload(payload)).toThrow(
+      "Otter returned an unexpected trip payload",
+    );
+  if (scenario.snapshot)
+    expect(parseExchangeRateSnapshot(snapshot)).toBe(snapshot);
+  else
+    expect(() => parseExchangeRateSnapshot(snapshot)).toThrow(
+      "Invalid exchange-rate snapshot",
+    );
+});
+
 describe("parseTripPayload", () => {
   test("returns a valid payload", () => {
     expect(parseTripPayload(validPayload)).toEqual(validPayload);

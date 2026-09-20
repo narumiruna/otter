@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { serve as serveNode } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Currency, isCurrency } from "@narumitw/otter-core/money";
+import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
 import type { Participant, Trip } from "@narumitw/otter-core/settlement";
 import {
   isValidUsername,
@@ -27,6 +28,7 @@ import {
 } from "./server-exchange-rates.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
+import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
 import {
   type PasskeyRouteOptions,
@@ -38,7 +40,7 @@ import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import { registerShareRoutes } from "./server-sharing.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   clearSessionCookie,
   createPool,
   createSession,
@@ -57,7 +59,6 @@ import {
   participantExists,
   participantNameExists,
   publicUser,
-  rejectArchivedTrip,
   requestBody,
   requireSessionUser,
   requireUser,
@@ -164,23 +165,20 @@ export function createApp(
     });
   });
 
-  app.get(
-    "/api/me",
-    asyncHandler(async (req, res) => {
-      const user = await userFromRequest(pool, req);
-      res.json({ user: user ? publicUser(user) : null });
-    }),
-  );
+  app.get("/api/me", parseRequestBody, async (context) => {
+    const user = await userFromRequest(pool, context.req.raw);
+    return context.json({ user: user ? publicUser(user) : null });
+  });
 
   app.patch(
     "/api/me",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const username = stringField(requestBody(req), "username");
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const username = stringField(requestBody(context), "username");
       if (!username || !isValidUsername(username)) {
-        sendError(res, 400, usernameValidationMessage);
-        return;
+        return sendError(context, 400, usernameValidationMessage);
       }
 
       const normalizedUsername = normalizeUsername(username);
@@ -189,8 +187,7 @@ export function createApp(
         user.username ===
           normalizeUsername(options.devLoginCredentials.username)
       ) {
-        sendError(res, 409, "開發環境預設帳號不能修改 Username");
-        return;
+        return sendError(context, 409, "開發環境預設帳號不能修改 Username");
       }
       try {
         await pool.query("UPDATE users SET username = $1 WHERE id = $2", [
@@ -199,141 +196,127 @@ export function createApp(
         ]);
       } catch (error) {
         if (isPgCode(error, "23505")) {
-          sendError(res, 409, "這個 Username 已經註冊");
-          return;
+          return sendError(context, 409, "這個 Username 已經註冊");
         }
         throw error;
       }
 
-      res.json({ user: publicUser({ ...user, username: normalizedUsername }) });
-    }),
+      return context.json({
+        user: publicUser({ ...user, username: normalizedUsername }),
+      });
+    },
   );
 
-  app.post(
-    "/api/auth/register",
-    asyncHandler(async (req, res) => {
-      const retryAfter = limitRegistrationRequests(req);
-      if (retryAfter !== undefined) {
-        res.setHeader("Retry-After", String(retryAfter));
-        sendError(res, 429, "驗證要求過於頻繁，請稍後再試");
-        return;
-      }
+  app.post("/api/auth/register", parseRequestBody, async (context) => {
+    const retryAfter = limitRegistrationRequests(
+      context.req.raw,
+      requestRemoteAddress(context),
+    );
+    if (retryAfter !== undefined) {
+      context.header("Retry-After", String(retryAfter));
+      return sendError(context, 429, "驗證要求過於頻繁，請稍後再試");
+    }
 
-      const body = requestBody(req);
-      const username = stringField(body, "username");
-      const password = stringField(body, "password");
+    const body = requestBody(context);
+    const username = stringField(body, "username");
+    const password = stringField(body, "password");
 
-      if (!username || !isValidUsername(username)) {
-        sendError(res, 400, usernameValidationMessage);
-        return;
-      }
-      if (!password || password.length < 8) {
-        sendError(res, 400, "密碼至少需要 8 個字");
-        return;
-      }
+    if (!username || !isValidUsername(username)) {
+      return sendError(context, 400, usernameValidationMessage);
+    }
+    if (!password || password.length < 8) {
+      return sendError(context, 400, "密碼至少需要 8 個字");
+    }
 
-      const normalizedUsername = normalizeUsername(username);
-      const legacyName = stringField(body, "name");
-      if (legacyName && legacyName.length > 80) {
-        sendError(res, 400, "名稱最多 80 字");
-        return;
-      }
-      if (await findUserByUsername(pool, normalizedUsername)) {
-        sendError(res, 409, "這個 Username 已經註冊");
-        return;
-      }
+    const normalizedUsername = normalizeUsername(username);
+    const legacyName = stringField(body, "name");
+    if (legacyName && legacyName.length > 80) {
+      return sendError(context, 400, "名稱最多 80 字");
+    }
+    if (await findUserByUsername(pool, normalizedUsername)) {
+      return sendError(context, 409, "這個 Username 已經註冊");
+    }
 
-      const user: User = {
-        createdAt: nowIso(),
-        username: normalizedUsername,
-        id: makeId("user"),
-        name: legacyName || normalizedUsername,
-        passwordHash: await hashPassword(password),
-      };
+    const user: User = {
+      createdAt: nowIso(),
+      username: normalizedUsername,
+      id: makeId("user"),
+      name: legacyName || normalizedUsername,
+      passwordHash: await hashPassword(password),
+    };
 
-      let session: Session;
-      try {
-        session = await withTransaction(pool, async (client) => {
-          await client.query(
-            `INSERT INTO users (id, name, username, password_hash, created_at)
+    let session: Session;
+    try {
+      session = await withTransaction(pool, async (client) => {
+        await client.query(
+          `INSERT INTO users (id, name, username, password_hash, created_at)
              VALUES ($1, $2, $3, $4, $5)`,
-            [
-              user.id,
-              user.name,
-              user.username,
-              user.passwordHash,
-              user.createdAt,
-            ],
-          );
-          return createSession(client, user.id);
-        });
-      } catch (error) {
-        if (isPgCode(error, "23505")) {
-          sendError(res, 409, "這個 Username 已經註冊");
-          return;
-        }
-        throw error;
+          [
+            user.id,
+            user.name,
+            user.username,
+            user.passwordHash,
+            user.createdAt,
+          ],
+        );
+        return createSession(client, user.id);
+      });
+    } catch (error) {
+      if (isPgCode(error, "23505")) {
+        return sendError(context, 409, "這個 Username 已經註冊");
       }
+      throw error;
+    }
 
-      setSessionCookie(res, session.id);
-      res.status(201).json({ user: publicUser(user) });
-    }),
-  );
+    setSessionCookie(context, session.id);
+    return context.json({ user: publicUser(user) }, 201);
+  });
 
-  app.post(
-    "/api/auth/login",
-    asyncHandler(async (req, res) => {
-      const retryAfter = limitLoginRequests(req);
-      if (retryAfter !== undefined) {
-        res.setHeader("Retry-After", String(retryAfter));
-        sendError(res, 429, "驗證要求過於頻繁，請稍後再試");
-        return;
-      }
+  app.post("/api/auth/login", parseRequestBody, async (context) => {
+    const retryAfter = limitLoginRequests(
+      context.req.raw,
+      requestRemoteAddress(context),
+    );
+    if (retryAfter !== undefined) {
+      context.header("Retry-After", String(retryAfter));
+      return sendError(context, 429, "驗證要求過於頻繁，請稍後再試");
+    }
 
-      const body = requestBody(req);
-      const username = stringField(body, "username");
-      const password = stringField(body, "password");
+    const body = requestBody(context);
+    const username = stringField(body, "username");
+    const password = stringField(body, "password");
 
-      if (!username || !password) {
-        sendError(res, 400, "請輸入 Username 和密碼");
-        return;
-      }
+    if (!username || !password) {
+      return sendError(context, 400, "請輸入 Username 和密碼");
+    }
 
-      const user = await findUserByUsername(pool, normalizeUsername(username));
-      const passwordMatches = await passwordVerifier(
-        password,
-        user?.passwordHash ?? dummyPasswordHash,
-      );
-      if (!user || !passwordMatches) {
-        sendError(res, 401, "Username 或密碼錯誤");
-        return;
-      }
+    const user = await findUserByUsername(pool, normalizeUsername(username));
+    const passwordMatches = await passwordVerifier(
+      password,
+      user?.passwordHash ?? dummyPasswordHash,
+    );
+    if (!user || !passwordMatches) {
+      return sendError(context, 401, "Username 或密碼錯誤");
+    }
 
-      const session = await createSession(pool, user.id);
-      setSessionCookie(res, session.id);
-      res.json({ user: publicUser(user) });
-    }),
-  );
+    const session = await createSession(pool, user.id);
+    setSessionCookie(context, session.id);
+    return context.json({ user: publicUser(user) });
+  });
 
-  app.post(
-    "/api/auth/logout",
-    asyncHandler(async (req, res) => {
-      const sessionId = getCookie(req, "otter_session");
-      if (sessionId) {
-        await pool.query("DELETE FROM sessions WHERE id = $1", [sessionId]);
-      }
-      clearSessionCookie(res);
-      res.json({ ok: true });
-    }),
-  );
+  app.post("/api/auth/logout", parseRequestBody, async (context) => {
+    const sessionId = getCookie(context.req.raw, "otter_session");
+    if (sessionId) {
+      await pool.query("DELETE FROM sessions WHERE id = $1", [sessionId]);
+    }
+    clearSessionCookie(context);
+    return context.json({ ok: true });
+  });
 
-  app.get(
-    "/api/trips",
-    mustBeSignedIn,
-    asyncHandler(async (_req, res) => {
-      const user = currentUser(res);
-      const result = await pool.query<TripSummaryRow>(
-        `SELECT trips.id,
+  app.get("/api/trips", mustBeSignedIn, parseRequestBody, async (context) => {
+    const user = currentUser(context);
+    const result = await pool.query<TripSummaryRow>(
+      `SELECT trips.id,
                 trips.name,
                 trips.base_currency,
                 trips.archived_at,
@@ -347,155 +330,144 @@ export function createApp(
          WHERE trip_members.user_id = $1
          GROUP BY trips.id, trip_members.role
          ORDER BY trips.created_at, trips.id`,
-        [user.id],
-      );
+      [user.id],
+    );
 
-      const trips = result.rows.map((row) => ({
-        archivedAt: row.archived_at ? iso(row.archived_at) : null,
-        baseCurrency: currencyFromDb(row.base_currency),
-        createdAt: iso(row.created_at),
-        expenseCount: Number(row.expense_count),
-        id: row.id,
-        name: row.name,
-        participantCount: Number(row.participant_count),
-      }));
-      res.json({
-        archivedTrips: trips.filter((trip) => trip.archivedAt),
-        trips: trips.filter((trip) => !trip.archivedAt),
-      });
-    }),
-  );
+    const trips = result.rows.map((row) => ({
+      archivedAt: row.archived_at ? iso(row.archived_at) : null,
+      baseCurrency: currencyFromDb(row.base_currency),
+      createdAt: iso(row.created_at),
+      expenseCount: Number(row.expense_count),
+      id: row.id,
+      name: row.name,
+      participantCount: Number(row.participant_count),
+    }));
+    return context.json({
+      archivedTrips: trips.filter((trip) => trip.archivedAt),
+      trips: trips.filter((trip) => !trip.archivedAt),
+    });
+  });
 
-  app.post(
-    "/api/trips",
-    mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const body = requestBody(req);
-      const name = stringField(body, "name");
-      const baseCurrencyValue = body.baseCurrency;
-      if (baseCurrencyValue !== undefined && !isCurrency(baseCurrencyValue)) {
-        sendError(res, 400, "不支援的基準貨幣");
-        return;
-      }
-      const baseCurrency: Currency = baseCurrencyValue ?? "TWD";
+  app.post("/api/trips", mustBeSignedIn, parseRequestBody, async (context) => {
+    const user = currentUser(context);
+    const body = requestBody(context);
+    const name = stringField(body, "name");
+    const baseCurrencyValue = body.baseCurrency;
+    if (baseCurrencyValue !== undefined && !isCurrency(baseCurrencyValue)) {
+      return sendError(context, 400, "不支援的基準貨幣");
+    }
+    const baseCurrency: Currency = baseCurrencyValue ?? "TWD";
 
-      if (!name || name.length > 100) {
-        sendError(res, 400, "請輸入 1-100 字的旅行名稱");
-        return;
-      }
-      if (await tripNameExistsForUser(pool, user.id, name)) {
-        sendError(res, 409, "旅行名稱已存在");
-        return;
-      }
+    if (!name || name.length > 100) {
+      return sendError(context, 400, "請輸入 1-100 字的旅行名稱");
+    }
+    if (await tripNameExistsForUser(pool, user.id, name)) {
+      return sendError(context, 409, "旅行名稱已存在");
+    }
 
-      const createdAt = nowIso();
-      const ownerParticipant: Participant = {
-        id: makeId("participant"),
-        name: user.name,
-      };
-      const trip: Trip = {
-        baseCurrency,
-        createdAt,
-        expenses: [],
-        id: makeId("trip"),
-        name,
-        ownerId: user.id,
-        participants: [ownerParticipant],
-      };
+    const createdAt = nowIso();
+    const ownerParticipant: Participant = {
+      id: makeId("participant"),
+      name: user.name,
+    };
+    const trip: Trip = {
+      baseCurrency,
+      createdAt,
+      expenses: [],
+      id: makeId("trip"),
+      name,
+      ownerId: user.id,
+      participants: [ownerParticipant],
+    };
 
-      await withTransaction(pool, async (client) => {
-        await client.query(
-          `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
            VALUES ($1, $2, $3, $4, $5)`,
-          [trip.id, trip.ownerId, trip.name, trip.baseCurrency, trip.createdAt],
-        );
-        await client.query(
-          `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
+        [trip.id, trip.ownerId, trip.name, trip.baseCurrency, trip.createdAt],
+      );
+      await client.query(
+        `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
            VALUES ($1, $2, $3, 'owner', $4)`,
-          [makeId("member"), trip.id, user.id, createdAt],
-        );
-        await client.query(
-          `INSERT INTO participants (id, trip_id, name, created_at)
+        [makeId("member"), trip.id, user.id, createdAt],
+      );
+      await client.query(
+        `INSERT INTO participants (id, trip_id, name, created_at)
            VALUES ($1, $2, $3, $4)`,
-          [ownerParticipant.id, trip.id, ownerParticipant.name, createdAt],
-        );
-      });
+        [ownerParticipant.id, trip.id, ownerParticipant.name, createdAt],
+      );
+    });
 
-      res.status(201).json(await buildTripPayload(trip));
-    }),
-  );
+    return context.json(await buildTripPayload(trip), 201);
+  });
 
   app.get(
     "/api/trips/:tripId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const trip = await loadTripForUser(
         pool,
-        currentUser(res).id,
-        req.params.tripId,
+        currentUser(context).id,
+        context.req.param("tripId"),
       );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
 
-      res.json(await buildTripPayload(trip));
-    }),
+      return context.json(await buildTripPayload(trip));
+    },
   );
 
   app.patch(
     "/api/trips/:tripId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       if (trip.currentUserRole !== "owner") {
-        sendError(res, 403, "只有擁有者可管理旅行設定");
-        return;
+        return sendError(context, 403, "只有擁有者可管理旅行設定");
       }
 
-      const body = requestBody(req);
+      const body = requestBody(context);
       const hasName = "name" in body;
       const hasBaseCurrency = "baseCurrency" in body;
       const hasArchived = "archived" in body;
       const hasExchangeRates = "exchangeRates" in body;
       if (!hasName && !hasBaseCurrency && !hasArchived && !hasExchangeRates) {
-        sendError(res, 400, "請提供要更新的旅行內容");
-        return;
+        return sendError(context, 400, "請提供要更新的旅行內容");
       }
       if (trip.archivedAt && (hasName || hasBaseCurrency || hasExchangeRates)) {
-        rejectArchivedTrip(res, trip);
-        return;
+        return archivedTripResponse(context);
       }
 
       const name = hasName ? stringField(body, "name") : trip.name;
       if (!name || name.length > 100) {
-        sendError(res, 400, "請輸入 1-100 字的旅行名稱");
-        return;
+        return sendError(context, 400, "請輸入 1-100 字的旅行名稱");
       }
       if (await tripNameExistsForUser(pool, user.id, name, trip.id)) {
-        sendError(res, 409, "旅行名稱已存在");
-        return;
+        return sendError(context, 409, "旅行名稱已存在");
       }
 
       const baseCurrencyValue = hasBaseCurrency
         ? body.baseCurrency
         : trip.baseCurrency;
       if (!isCurrency(baseCurrencyValue)) {
-        sendError(res, 400, "不支援的基準貨幣");
-        return;
+        return sendError(context, 400, "不支援的基準貨幣");
       }
 
       let archivedAt: string | null | undefined;
       if (hasArchived) {
         if (typeof body.archived !== "boolean") {
-          sendError(res, 400, "封存狀態格式錯誤");
-          return;
+          return sendError(context, 400, "封存狀態格式錯誤");
         }
         archivedAt = body.archived === true ? nowIso() : null;
       }
@@ -508,12 +480,11 @@ export function createApp(
             baseCurrencyValue,
           );
         } catch (error) {
-          sendError(
-            res,
+          return sendError(
+            context,
             400,
             error instanceof Error ? error.message : "匯率格式錯誤",
           );
-          return;
         }
       }
 
@@ -524,12 +495,18 @@ export function createApp(
         if (hasArchived) {
           await client.query(
             "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
-            [name, baseCurrencyValue, archivedAt, req.params.tripId, user.id],
+            [
+              name,
+              baseCurrencyValue,
+              archivedAt,
+              context.req.param("tripId"),
+              user.id,
+            ],
           );
         } else {
           await client.query(
             "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
-            [name, baseCurrencyValue, req.params.tripId, user.id],
+            [name, baseCurrencyValue, context.req.param("tripId"), user.id],
           );
         }
 
@@ -538,34 +515,39 @@ export function createApp(
         }
         await client.query(
           "DELETE FROM trip_exchange_rates WHERE trip_id = $1",
-          [req.params.tripId],
+          [context.req.param("tripId")],
         );
         for (const [currency, rate] of exchangeRates) {
           await client.query(
             `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
              VALUES ($1, $2, $3)`,
-            [req.params.tripId, currency, rate],
+            [context.req.param("tripId"), currency, rate],
           );
         }
       });
 
-      const updated = await loadTripForUser(pool, user.id, req.params.tripId);
+      const updated = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!updated) {
         throw new Error("Trip disappeared after rename");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 
   app.delete(
     "/api/trips/:tripId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
       const deleted = await withTransaction(pool, async (client) => {
         const lockedTrip = await client.query(
           "SELECT id FROM trips WHERE id = $1 AND owner_id = $2 FOR UPDATE",
-          [req.params.tripId, user.id],
+          [context.req.param("tripId"), user.id],
         );
         if (lockedTrip.rowCount === 0) {
           return lockedTrip;
@@ -573,53 +555,54 @@ export function createApp(
 
         await client.query(
           "DELETE FROM settlement_payments WHERE trip_id = $1",
-          [req.params.tripId],
+          [context.req.param("tripId")],
         );
         await client.query(
           "DELETE FROM expense_participants WHERE trip_id = $1",
-          [req.params.tripId],
+          [context.req.param("tripId")],
         );
         await client.query("DELETE FROM expenses WHERE trip_id = $1", [
-          req.params.tripId,
+          context.req.param("tripId"),
         ]);
         await client.query("DELETE FROM participants WHERE trip_id = $1", [
-          req.params.tripId,
+          context.req.param("tripId"),
         ]);
         return client.query("DELETE FROM trips WHERE id = $1", [
-          req.params.tripId,
+          context.req.param("tripId"),
         ]);
       });
       if (deleted.rowCount === 0) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
 
-      res.json({ ok: true });
-    }),
+      return context.json({ ok: true });
+    },
   );
 
   app.post(
     "/api/trips/:tripId/participants",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const name = stringField(requestBody(req), "name");
+      const name = stringField(requestBody(context), "name");
       if (!name || name.length > 80) {
-        sendError(res, 400, "請輸入 1-80 字的參與者名稱");
-        return;
+        return sendError(context, 400, "請輸入 1-80 字的參與者名稱");
       }
       if (participantNameExists(trip, name)) {
-        sendError(res, 409, "參與者名稱已存在");
-        return;
+        return sendError(context, 409, "參與者名稱已存在");
       }
 
       await pool.query(
@@ -631,53 +614,55 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant insert");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 
   app.patch(
     "/api/trips/:tripId/participants/:participantId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const name = stringField(requestBody(req), "name");
+      const name = stringField(requestBody(context), "name");
       if (!name || name.length > 80) {
-        sendError(res, 400, "請輸入 1-80 字的參與者名稱");
-        return;
+        return sendError(context, 400, "請輸入 1-80 字的參與者名稱");
       }
-      if (!participantExists(trip, req.params.participantId)) {
-        sendError(res, 404, "找不到參與者");
-        return;
+      if (!participantExists(trip, context.req.param("participantId"))) {
+        return sendError(context, 404, "找不到參與者");
       }
-      if (participantNameExists(trip, name, req.params.participantId)) {
-        sendError(res, 409, "參與者名稱已存在");
-        return;
+      if (
+        participantNameExists(trip, name, context.req.param("participantId"))
+      ) {
+        return sendError(context, 409, "參與者名稱已存在");
       }
 
       const renamed = await pool.query(
         "UPDATE participants SET name = $1 WHERE trip_id = $2 AND id = $3",
-        [name, trip.id, req.params.participantId],
+        [name, trip.id, context.req.param("participantId")],
       );
       if (renamed.rowCount === 0) {
-        sendError(res, 404, "找不到參與者");
-        return;
+        return sendError(context, 404, "找不到參與者");
       }
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after participant rename");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 
   registerParticipantMergeRoute(app, pool, mustBeSignedIn, buildTripPayload);
@@ -685,44 +670,34 @@ export function createApp(
   app.delete(
     "/api/trips/:tripId/participants/:participantId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const participantId = req.params.participantId;
+      const participantId = context.req.param("participantId");
       if (!participantExists(trip, participantId)) {
-        sendError(res, 404, "找不到參與者");
-        return;
+        return sendError(context, 404, "找不到參與者");
       }
-      if (trip.participants.length <= 1) {
-        sendError(res, 400, "至少需要一位參與者");
-        return;
+      const deletionBlock = participantDeletionBlock(trip, participantId);
+      if (deletionBlock === "last-participant") {
+        return sendError(context, 400, "至少需要一位參與者");
       }
-      if (
-        trip.expenses.some(
-          (expense) =>
-            expense.paidById === participantId ||
-            expense.participantIds.includes(participantId),
-        )
-      ) {
-        sendError(res, 409, "參與者已有支出，不能刪除");
-        return;
+      if (deletionBlock === "expense") {
+        return sendError(context, 409, "參與者已有支出，不能刪除");
       }
-      if (
-        (trip.settlementPayments ?? []).some(
-          (payment) =>
-            payment.fromId === participantId || payment.toId === participantId,
-        )
-      ) {
-        sendError(res, 409, "參與者已有付款紀錄，不能刪除");
-        return;
+      if (deletionBlock === "payment") {
+        return sendError(context, 409, "參與者已有付款紀錄，不能刪除");
       }
 
       await pool.query(
@@ -733,8 +708,8 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant delete");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 
   registerCollaborationRoutes(

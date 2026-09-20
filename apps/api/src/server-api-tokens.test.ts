@@ -1,16 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { bearerTokenFromRequest } from "./server-api-tokens.js";
-import type { RouteRequest } from "./server-http.js";
 
-function requestWithAuthorization(authorization?: string): RouteRequest {
-  return {
-    body: {},
-    get: (name) =>
-      name.toLowerCase() === "authorization" ? authorization : undefined,
+function requestWithAuthorization(authorization?: string): Request {
+  return new Request("https://example.com", {
     headers: authorization ? { authorization } : {},
-    params: {},
-    protocol: "https",
-  };
+  });
 }
 
 describe("bearerTokenFromRequest", () => {

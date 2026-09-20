@@ -14,8 +14,6 @@ export type CliConfig = {
   baseUrl: string;
 };
 
-export type AuthCredential = { kind: "token"; token: string };
-
 export type { DeviceAuthorization } from "@narumitw/otter-contracts";
 
 export type DeviceLoginOptions = {

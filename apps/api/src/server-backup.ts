@@ -3,9 +3,10 @@ import {
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import type { Pool as PgPool, PoolClient } from "pg";
+import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
@@ -26,40 +27,39 @@ export function registerBackupRoutes(
   app.get(
     "/api/trips/:tripId/backup",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const trip = await loadTripForUser(
         pool,
-        currentUser(res).id,
-        req.params.tripId,
+        currentUser(context).id,
+        context.req.param("tripId"),
       );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       if (trip.currentUserRole !== "owner") {
-        sendError(res, 403, "只有擁有者可下載完整備份");
-        return;
+        return sendError(context, 403, "只有擁有者可下載完整備份");
       }
-      res.json(tripBackupV1(trip));
-    }),
+      return context.json(tripBackupV1(trip));
+    },
   );
 
   app.post(
     "/api/trips/restore",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
       let backup: TripBackupV1;
       try {
-        const body = requestBody(req);
+        const body = requestBody(context);
         backup = validateTripBackupV1("version" in body ? body : body.backup);
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "備份格式錯誤",
         );
-        return;
       }
 
       const tripId = await withTransaction(pool, async (client) => {
@@ -105,48 +105,25 @@ export function registerBackupRoutes(
           );
         }
 
+        const restoredParticipantId = (id: string): string => {
+          const restored = participantIds.get(id);
+          if (!restored)
+            throw new Error("Validated backup participant is missing");
+          return restored;
+        };
         for (const expense of backup.trip.expenses) {
-          const expenseId = makeId("expense");
-          await client.query(
-            `INSERT INTO expenses
-               (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              expenseId,
-              newTripId,
-              expense.description,
-              expense.amountMinor,
-              expense.currency,
-              expense.category ?? "其他",
-              expense.tags ?? [],
-              participantIds.get(expense.paidById),
-              expense.expenseDate,
-              expense.createdAt,
-            ],
-          );
-          const shareByParticipant = new Map(
-            expense.participantShares?.map((share) => [
-              share.participantId,
-              share.shareMinor,
-            ]) ?? [],
-          );
-          for (const [
-            index,
-            oldParticipantId,
-          ] of expense.participantIds.entries()) {
-            await client.query(
-              `INSERT INTO expense_participants
-                 (expense_id, trip_id, participant_id, position, share_minor)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [
-                expenseId,
-                newTripId,
-                participantIds.get(oldParticipantId),
-                index,
-                shareByParticipant.get(oldParticipantId) ?? null,
-              ],
-            );
-          }
+          await insertExpense(client, newTripId, {
+            ...expense,
+            id: makeId("expense"),
+            category: expense.category ?? "其他",
+            tags: expense.tags ?? [],
+            paidById: restoredParticipantId(expense.paidById),
+            participantIds: expense.participantIds.map(restoredParticipantId),
+            participantShares: expense.participantShares?.map((share) => ({
+              ...share,
+              participantId: restoredParticipantId(share.participantId),
+            })),
+          });
         }
 
         for (const payment of backup.trip.settlementPayments ?? []) {
@@ -175,8 +152,8 @@ export function registerBackupRoutes(
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      res.status(201).json(await buildTripPayload(restored));
-    }),
+      return context.json(await buildTripPayload(restored), 201);
+    },
   );
 }
 

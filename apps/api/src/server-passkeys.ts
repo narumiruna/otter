@@ -9,10 +9,10 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import type { Pool as PgPool, QueryResult, QueryResultRow } from "pg";
-import type { OtterApp, OtterMiddleware, RouteRequest } from "./server-http.js";
+import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
 import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import {
-  asyncHandler,
   createSession,
   currentUser,
   isPgCode,
@@ -96,7 +96,7 @@ function responseFromBody<
   return { challengeId: body.challengeId, response: response as T };
 }
 
-function firstForwardedValue(value: string | undefined): string | undefined {
+function firstForwardedValue(value: string | null): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
 }
 
@@ -126,7 +126,7 @@ function parsePasskeyOrigin(origin: string): URL {
 }
 
 export function resolvePasskeyRelyingParty(
-  req: RouteRequest,
+  req: Request,
   configured?: PasskeyRelyingParty,
 ): PasskeyRelyingParty {
   if (configured) {
@@ -134,9 +134,13 @@ export function resolvePasskeyRelyingParty(
     return { ...configured, origin: parsedOrigin.origin };
   }
 
-  const forwardedProtocol = firstForwardedValue(req.get("x-forwarded-proto"));
-  const forwardedHost = firstForwardedValue(req.get("x-forwarded-host"));
-  const requestHost = forwardedHost ?? req.get("host");
+  const forwardedProtocol = firstForwardedValue(
+    req.headers.get("x-forwarded-proto"),
+  );
+  const forwardedHost = firstForwardedValue(
+    req.headers.get("x-forwarded-host"),
+  );
+  const requestHost = forwardedHost ?? req.headers.get("host");
   const configuredOrigin = process.env.PASSKEY_ORIGIN?.trim();
   if (!configuredOrigin && !requestHost) {
     throw new Error(
@@ -145,7 +149,8 @@ export function resolvePasskeyRelyingParty(
   }
 
   const origin =
-    configuredOrigin ?? `${forwardedProtocol ?? req.protocol}://${requestHost}`;
+    configuredOrigin ??
+    `${forwardedProtocol ?? new URL(req.url).protocol.slice(0, -1)}://${requestHost}`;
   const parsedOrigin = parsePasskeyOrigin(origin);
   return {
     origin: parsedOrigin.origin,
@@ -243,8 +248,9 @@ export function registerPasskeyRoutes(
   app.get(
     "/api/passkeys",
     mustHaveBrowserSession,
-    asyncHandler(async (_req, res) => {
-      const user = currentUser(res);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
       const result = await pool.query<PublicPasskeyRow>(
         `SELECT credential_id, device_type, backed_up, created_at, last_used_at
          FROM passkeys
@@ -252,24 +258,27 @@ export function registerPasskeyRoutes(
          ORDER BY created_at, credential_id`,
         [user.id],
       );
-      res.json({ passkeys: result.rows.map(publicPasskey) });
-    }),
+      return context.json({ passkeys: result.rows.map(publicPasskey) });
+    },
   );
 
   app.post(
     "/api/passkeys/registration/options",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const retryAfter = limitRegistrationOptions(req);
+    parseRequestBody,
+    async (context) => {
+      const retryAfter = limitRegistrationOptions(
+        context.req.raw,
+        requestRemoteAddress(context),
+      );
       if (retryAfter !== undefined) {
-        res.setHeader("Retry-After", String(retryAfter));
-        sendError(res, 429, "Passkey 註冊要求過於頻繁，請稍後再試");
-        return;
+        context.header("Retry-After", String(retryAfter));
+        return sendError(context, 429, "Passkey 註冊要求過於頻繁，請稍後再試");
       }
 
-      const user = currentUser(res);
+      const user = currentUser(context);
       const relyingParty = resolvePasskeyRelyingParty(
-        req,
+        context.req.raw,
         routeOptions.relyingParty,
       );
       const existing = await pool.query<
@@ -299,19 +308,21 @@ export function registerPasskeyRoutes(
         options.challenge,
         user.id,
       );
-      res.json({ challengeId, options });
-    }),
+      return context.json({ challengeId, options });
+    },
   );
 
   app.post(
     "/api/passkeys/registration/verify",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const submitted = responseFromBody<RegistrationResponseJSON>(req.body);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const submitted = responseFromBody<RegistrationResponseJSON>(
+        context.get("requestBody"),
+      );
       if (!submitted) {
-        sendError(res, 400, "Passkey 註冊回應格式錯誤");
-        return;
+        return sendError(context, 400, "Passkey 註冊回應格式錯誤");
       }
       const challenge = await consumeChallenge(
         pool,
@@ -320,12 +331,11 @@ export function registerPasskeyRoutes(
         user.id,
       );
       if (!challenge) {
-        sendError(res, 400, "Passkey 註冊要求已失效，請重新嘗試");
-        return;
+        return sendError(context, 400, "Passkey 註冊要求已失效，請重新嘗試");
       }
 
       const relyingParty = resolvePasskeyRelyingParty(
-        req,
+        context.req.raw,
         routeOptions.relyingParty,
       );
       let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>;
@@ -338,12 +348,10 @@ export function registerPasskeyRoutes(
           response: submitted.response,
         });
       } catch {
-        sendError(res, 400, "無法驗證 Passkey，請重新嘗試");
-        return;
+        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
       }
       if (!verification.verified) {
-        sendError(res, 400, "無法驗證 Passkey，請重新嘗試");
-        return;
+        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
       }
 
       const { registrationInfo } = verification;
@@ -365,139 +373,133 @@ export function registerPasskeyRoutes(
         );
       } catch (error) {
         if (isPgCode(error, "23505")) {
-          sendError(res, 409, "這組 Passkey 已經註冊");
-          return;
+          return sendError(context, 409, "這組 Passkey 已經註冊");
         }
         throw error;
       }
-      res.status(201).json({ ok: true });
-    }),
+      return context.json({ ok: true }, 201);
+    },
   );
 
   app.delete(
     "/api/passkeys/:credentialId",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
       const result = await pool.query(
         `DELETE FROM passkeys WHERE credential_id = $1 AND user_id = $2`,
-        [req.params.credentialId, user.id],
+        [context.req.param("credentialId"), user.id],
       );
       if (result.rowCount === 0) {
-        sendError(res, 404, "找不到 Passkey");
-        return;
+        return sendError(context, 404, "找不到 Passkey");
       }
-      res.json({ ok: true });
-    }),
+      return context.json({ ok: true });
+    },
   );
 
-  app.post(
-    "/api/auth/passkey/options",
-    asyncHandler(async (req, res) => {
-      const retryAfter = limitAuthenticationOptions(req);
-      if (retryAfter !== undefined) {
-        res.setHeader("Retry-After", String(retryAfter));
-        sendError(res, 429, "Passkey 登入要求過於頻繁，請稍後再試");
-        return;
-      }
+  app.post("/api/auth/passkey/options", parseRequestBody, async (context) => {
+    const retryAfter = limitAuthenticationOptions(
+      context.req.raw,
+      requestRemoteAddress(context),
+    );
+    if (retryAfter !== undefined) {
+      context.header("Retry-After", String(retryAfter));
+      return sendError(context, 429, "Passkey 登入要求過於頻繁，請稍後再試");
+    }
 
-      const relyingParty = resolvePasskeyRelyingParty(
-        req,
-        routeOptions.relyingParty,
-      );
-      const options = await generateAuthenticationOptions({
-        rpID: relyingParty.rpID,
-        userVerification: "required",
-      });
-      const challengeId = await saveChallenge(
-        pool,
-        "authentication",
-        options.challenge,
-        null,
-      );
-      res.json({ challengeId, options });
-    }),
-  );
+    const relyingParty = resolvePasskeyRelyingParty(
+      context.req.raw,
+      routeOptions.relyingParty,
+    );
+    const options = await generateAuthenticationOptions({
+      rpID: relyingParty.rpID,
+      userVerification: "required",
+    });
+    const challengeId = await saveChallenge(
+      pool,
+      "authentication",
+      options.challenge,
+      null,
+    );
+    return context.json({ challengeId, options });
+  });
 
-  app.post(
-    "/api/auth/passkey/verify",
-    asyncHandler(async (req, res) => {
-      const submitted = responseFromBody<AuthenticationResponseJSON>(req.body);
-      if (!submitted) {
-        sendError(res, 400, "Passkey 登入回應格式錯誤");
-        return;
-      }
-      const challenge = await consumeChallenge(
-        pool,
-        submitted.challengeId,
-        "authentication",
-        null,
-      );
-      if (!challenge) {
-        sendError(res, 400, "Passkey 登入要求已失效，請重新嘗試");
-        return;
-      }
+  app.post("/api/auth/passkey/verify", parseRequestBody, async (context) => {
+    const submitted = responseFromBody<AuthenticationResponseJSON>(
+      context.get("requestBody"),
+    );
+    if (!submitted) {
+      return sendError(context, 400, "Passkey 登入回應格式錯誤");
+    }
+    const challenge = await consumeChallenge(
+      pool,
+      submitted.challengeId,
+      "authentication",
+      null,
+    );
+    if (!challenge) {
+      return sendError(context, 400, "Passkey 登入要求已失效，請重新嘗試");
+    }
 
-      const relyingParty = resolvePasskeyRelyingParty(
-        req,
-        routeOptions.relyingParty,
-      );
-      const session = await withTransaction(pool, async (client) => {
-        const credentialResult = await client.query<PasskeyRow>(
-          `SELECT credential_id, user_id, public_key, counter, transports,
+    const relyingParty = resolvePasskeyRelyingParty(
+      context.req.raw,
+      routeOptions.relyingParty,
+    );
+    const session = await withTransaction(pool, async (client) => {
+      const credentialResult = await client.query<PasskeyRow>(
+        `SELECT credential_id, user_id, public_key, counter, transports,
                   device_type, backed_up, created_at, last_used_at
            FROM passkeys
            WHERE credential_id = $1
            FOR UPDATE`,
-          [submitted.response.id],
-        );
-        const credential = credentialResult.rows[0];
-        if (!credential) return undefined;
+        [submitted.response.id],
+      );
+      const credential = credentialResult.rows[0];
+      if (!credential) return undefined;
 
-        let verification: Awaited<
-          ReturnType<typeof verifyAuthenticationResponse>
-        >;
-        try {
-          verification = await verifiers.verifyAuthentication({
-            credential: {
-              counter: numericCounter(credential.counter),
-              id: credential.credential_id,
-              publicKey: new Uint8Array(credential.public_key),
-              transports: credential.transports,
-            },
-            expectedChallenge: challenge,
-            expectedOrigin: relyingParty.origin,
-            expectedRPID: relyingParty.rpID,
-            requireUserVerification: true,
-            response: submitted.response,
-          });
-        } catch {
-          return undefined;
-        }
-        if (!verification.verified) return undefined;
+      let verification: Awaited<
+        ReturnType<typeof verifyAuthenticationResponse>
+      >;
+      try {
+        verification = await verifiers.verifyAuthentication({
+          credential: {
+            counter: numericCounter(credential.counter),
+            id: credential.credential_id,
+            publicKey: new Uint8Array(credential.public_key),
+            transports: credential.transports,
+          },
+          expectedChallenge: challenge,
+          expectedOrigin: relyingParty.origin,
+          expectedRPID: relyingParty.rpID,
+          requireUserVerification: true,
+          response: submitted.response,
+        });
+      } catch {
+        return undefined;
+      }
+      if (!verification.verified) return undefined;
 
-        await client.query(
-          `UPDATE passkeys
+      await client.query(
+        `UPDATE passkeys
            SET counter = $1,
                device_type = $2,
                backed_up = $3,
                last_used_at = now()
            WHERE credential_id = $4`,
-          [
-            verification.authenticationInfo.newCounter,
-            verification.authenticationInfo.credentialDeviceType,
-            verification.authenticationInfo.credentialBackedUp,
-            credential.credential_id,
-          ],
-        );
-        return createSession(client, credential.user_id);
-      });
-      if (!session) {
-        sendError(res, 401, "無法使用這組 Passkey 登入");
-        return;
-      }
-      setSessionCookie(res, session.id);
-      res.json({ ok: true });
-    }),
-  );
+        [
+          verification.authenticationInfo.newCounter,
+          verification.authenticationInfo.credentialDeviceType,
+          verification.authenticationInfo.credentialBackedUp,
+          credential.credential_id,
+        ],
+      );
+      return createSession(client, credential.user_id);
+    });
+    if (!session) {
+      return sendError(context, 401, "無法使用這組 Passkey 登入");
+    }
+    setSessionCookie(context, session.id);
+    return context.json({ ok: true });
+  });
 }

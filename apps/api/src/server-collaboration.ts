@@ -1,7 +1,7 @@
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
   type BuildTripPayload,
   currentUser,
   findUserByUsername,
@@ -23,42 +23,41 @@ export function registerCollaborationRoutes(
   app.post(
     "/api/trips/:tripId/members",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       if (trip.currentUserRole !== "owner") {
-        sendError(res, 403, "只有擁有者可管理協作者");
-        return;
+        return sendError(context, 403, "只有擁有者可管理協作者");
       }
 
-      const username = stringField(requestBody(req), "username");
+      const username = stringField(requestBody(context), "username");
       if (!username) {
-        sendError(res, 400, "請輸入 Username");
-        return;
+        return sendError(context, 400, "請輸入 Username");
       }
       const collaborator = await findUserByUsername(
         pool,
         normalizeUsername(username),
       );
       if (!collaborator) {
-        sendError(res, 404, "找不到這個使用者");
-        return;
+        return sendError(context, 404, "找不到這個使用者");
       }
       if (collaborator.id === user.id) {
-        sendError(res, 409, "擁有者已在協作者清單中");
-        return;
+        return sendError(context, 409, "擁有者已在協作者清單中");
       }
       if (
         (trip.collaborators ?? []).some(
           (member) => member.userId === collaborator.id,
         )
       ) {
-        sendError(res, 409, "這位使用者已是協作者");
-        return;
+        return sendError(context, 409, "這位使用者已是協作者");
       }
 
       await pool.query(
@@ -70,42 +69,43 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator insert");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 
   app.delete(
     "/api/trips/:tripId/members/:userId",
     mustHaveBrowserSession,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       if (trip.currentUserRole !== "owner") {
-        sendError(res, 403, "只有擁有者可管理協作者");
-        return;
+        return sendError(context, 403, "只有擁有者可管理協作者");
       }
-      if (req.params.userId === trip.ownerId) {
-        sendError(res, 400, "不能移除擁有者");
-        return;
+      if (context.req.param("userId") === trip.ownerId) {
+        return sendError(context, 400, "不能移除擁有者");
       }
 
       const removed = await pool.query(
         "DELETE FROM trip_members WHERE trip_id = $1 AND user_id = $2 AND role = 'editor'",
-        [trip.id, req.params.userId],
+        [trip.id, context.req.param("userId")],
       );
       if (removed.rowCount === 0) {
-        sendError(res, 404, "找不到協作者");
-        return;
+        return sendError(context, 404, "找不到協作者");
       }
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after collaborator delete");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 }

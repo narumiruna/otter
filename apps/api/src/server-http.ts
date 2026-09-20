@@ -1,66 +1,17 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, Hono, MiddlewareHandler } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { User } from "./server-support.js";
 
 export type OtterEnv = {
   Variables: {
     user: User;
+    requestBody: unknown;
   };
 };
 
 export type OtterApp = Hono<OtterEnv>;
 export type OtterContext = Context<OtterEnv>;
 export type OtterMiddleware = MiddlewareHandler<OtterEnv>;
-
-export type RouteRequest = {
-  body: unknown;
-  get(name: string): string | undefined;
-  headers: Record<string, string | undefined>;
-  params: Record<string, string>;
-  protocol: string;
-  remoteAddress?: string;
-};
-
-export class RouteResponse {
-  readonly locals: { user?: User };
-  response?: Response;
-  private readonly headers: Record<string, string> = {};
-  private statusCode: ContentfulStatusCode = 200;
-
-  constructor(private readonly context: OtterContext) {
-    this.locals = { user: context.get("user") };
-  }
-
-  json(value: unknown): void {
-    this.response = this.context.json(value, this.statusCode, this.headers);
-  }
-
-  send(value: Buffer | string): void {
-    this.response = Buffer.isBuffer(value)
-      ? this.context.body(new Uint8Array(value), this.statusCode, this.headers)
-      : this.context.body(value, this.statusCode, this.headers);
-  }
-
-  setHeader(name: string, value: string): void {
-    this.headers[name] = value;
-  }
-
-  status(status: number): this {
-    this.statusCode = status as ContentfulStatusCode;
-    return this;
-  }
-
-  type(contentType: string): this {
-    this.headers["Content-Type"] = contentType;
-    return this;
-  }
-}
-
-type Handler = (
-  request: RouteRequest,
-  response: RouteResponse,
-) => Promise<void> | void;
 
 class RequestBodyError extends Error {
   constructor(
@@ -71,44 +22,27 @@ class RequestBodyError extends Error {
   }
 }
 
-export function asyncHandler(handler: Handler): OtterMiddleware {
-  return async (context) => {
-    let request: RouteRequest;
-    try {
-      request = await routeRequest(context);
-    } catch (error) {
-      if (error instanceof RequestBodyError) {
-        return context.json({ error: error.message }, error.status);
-      }
-      throw error;
+// Register after authentication on protected routes, before route validation.
+export const parseRequestBody: OtterMiddleware = async (context, next) => {
+  try {
+    context.set("requestBody", await parseBody(context));
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return context.json({ error: error.message }, error.status);
     }
+    throw error;
+  }
+  await next();
+};
 
-    const response = new RouteResponse(context);
-    await handler(request, response);
-    return response.response ?? context.body(null, 204);
-  };
-}
-
-function requestRemoteAddress(context: OtterContext): string | undefined {
+export function requestRemoteAddress(
+  context: OtterContext,
+): string | undefined {
   try {
     return getConnInfo(context).remote.address;
   } catch {
     return undefined;
   }
-}
-
-async function routeRequest(context: OtterContext): Promise<RouteRequest> {
-  const headers = Object.fromEntries(context.req.raw.headers.entries());
-  return {
-    body: await parseBody(context),
-    get(name) {
-      return context.req.header(name);
-    },
-    headers,
-    params: context.req.param(),
-    protocol: new URL(context.req.url).protocol.slice(0, -1),
-    remoteAddress: requestRemoteAddress(context),
-  };
 }
 
 async function parseBody(context: OtterContext): Promise<unknown> {

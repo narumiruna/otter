@@ -14,6 +14,7 @@ import {
   calculateSettlements,
   type Trip,
 } from "@narumitw/otter-core/settlement";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type {
   Pool as PgPool,
   PoolClient,
@@ -25,13 +26,7 @@ import {
   bearerTokenFromRequest,
   userFromApiToken,
 } from "./server-api-tokens.js";
-import {
-  asyncHandler,
-  type OtterContext,
-  type OtterMiddleware,
-  type RouteRequest,
-  type RouteResponse,
-} from "./server-http.js";
+import type { OtterContext, OtterMiddleware } from "./server-http.js";
 
 const { Pool } = pg;
 
@@ -214,9 +209,10 @@ export async function verifyPassword(
   return crypto.timingSafeEqual(hashBuffer, candidateBuffer);
 }
 
-export function requestBody(req: RouteRequest): Record<string, unknown> {
-  return req.body && typeof req.body === "object"
-    ? (req.body as Record<string, unknown>)
+export function requestBody(context: OtterContext): Record<string, unknown> {
+  const body = context.get("requestBody");
+  return body && typeof body === "object"
+    ? (body as Record<string, unknown>)
     : {};
 }
 
@@ -228,12 +224,16 @@ export function stringField(
   return typeof value === "string" ? value.trim() : undefined;
 }
 
-export function sendError(res: RouteResponse, status: number, error: string) {
-  res.status(status).json({ error });
+export function sendError(
+  context: OtterContext,
+  status: ContentfulStatusCode,
+  error: string,
+) {
+  return context.json({ error }, status);
 }
 
-export function getCookie(req: RouteRequest, name: string): string | undefined {
-  const cookieHeader = req.headers.cookie;
+export function getCookie(req: Request, name: string): string | undefined {
+  const cookieHeader = req.headers.get("cookie");
   if (!cookieHeader) {
     return undefined;
   }
@@ -270,12 +270,12 @@ export function clearSessionCookieHeader(): string {
   return `otter_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secureCookieAttribute()}`;
 }
 
-export function setSessionCookie(res: RouteResponse, sessionId: string) {
-  res.setHeader("Set-Cookie", sessionCookieHeader(sessionId));
+export function setSessionCookie(context: OtterContext, sessionId: string) {
+  context.header("Set-Cookie", sessionCookieHeader(sessionId));
 }
 
-export function clearSessionCookie(res: RouteResponse) {
-  res.setHeader("Set-Cookie", clearSessionCookieHeader());
+export function clearSessionCookie(context: OtterContext) {
+  context.header("Set-Cookie", clearSessionCookieHeader());
 }
 
 export type BuildTripPayload = (trip: LoadedTrip) => Promise<TripPayload>;
@@ -302,12 +302,8 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
-export function rejectArchivedTrip(res: RouteResponse, trip: Trip): boolean {
-  if (!trip.archivedAt) {
-    return false;
-  }
-  sendError(res, 409, "支出群組已封存，請先還原");
-  return true;
+export function archivedTripResponse(context: OtterContext) {
+  return sendError(context, 409, "支出群組已封存，請先還原");
 }
 
 export function participantNameExists(
@@ -340,8 +336,6 @@ export async function tripNameExistsForUser(
   );
   return result.rows.length > 0;
 }
-
-export { asyncHandler };
 
 export function iso(value: Date | string): string {
   return (value instanceof Date ? value : new Date(value)).toISOString();
@@ -396,8 +390,8 @@ export function isPgCode(error: unknown, code: string): boolean {
   );
 }
 
-export function currentUser(res: RouteResponse): User {
-  const user = res.locals.user;
+export function currentUser(context: OtterContext): User {
+  const user = context.get("user");
   if (!user) {
     throw new Error("Authenticated user is missing from Hono context");
   }
@@ -467,7 +461,7 @@ export async function createSession(
 
 export async function userFromSessionRequest(
   db: Queryable,
-  req: RouteRequest,
+  req: Request,
 ): Promise<User | undefined> {
   const sessionId = getCookie(req, "otter_session");
   if (!sessionId) {
@@ -490,9 +484,9 @@ export async function userFromSessionRequest(
 
 export async function userFromRequest(
   db: Queryable,
-  req: RouteRequest,
+  req: Request,
 ): Promise<User | undefined> {
-  if (req.get("authorization")) {
+  if (req.headers.get("authorization")) {
     const bearerToken = bearerTokenFromRequest(req);
     return bearerToken ? userFromApiToken(db, bearerToken) : undefined;
   }
@@ -501,20 +495,10 @@ export async function userFromRequest(
 
 function requireAuthenticatedUser(
   db: Queryable,
-  authenticate: (
-    db: Queryable,
-    request: RouteRequest,
-  ) => Promise<User | undefined>,
+  authenticate: (db: Queryable, request: Request) => Promise<User | undefined>,
 ): OtterMiddleware {
   return async (context: OtterContext, next) => {
-    const request: RouteRequest = {
-      body: {},
-      get: (name) => context.req.header(name),
-      headers: Object.fromEntries(context.req.raw.headers.entries()),
-      params: context.req.param(),
-      protocol: new URL(context.req.url).protocol.slice(0, -1),
-    };
-    const user = await authenticate(db, request);
+    const user = await authenticate(db, context.req.raw);
     if (!user) {
       return context.json({ error: "請先登入" }, 401);
     }

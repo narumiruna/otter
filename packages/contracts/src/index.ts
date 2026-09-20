@@ -206,10 +206,8 @@ export function parseExchangeRateSnapshot(
   ) {
     throw new Error("Invalid exchange-rate snapshot");
   }
-  for (const [currency, rate] of Object.entries(value.rates)) {
-    if (!isCurrency(currency) || !isPositiveNumber(rate)) {
-      throw new Error("Invalid exchange-rate snapshot");
-    }
+  if (!isExchangeRateMap(value.rates, false)) {
+    throw new Error("Invalid exchange-rate snapshot");
   }
   for (const currency of currencies) {
     if (!isPositiveNumber(value.rates[currency])) {
@@ -302,15 +300,11 @@ function validateTrip(value: unknown): asserts value is Trip {
     }
   }
 
-  if (value.exchangeRates !== undefined) {
-    if (!isRecord(value.exchangeRates)) {
-      throw invalidTripPayload();
-    }
-    for (const [currency, rate] of Object.entries(value.exchangeRates)) {
-      if (!isCurrency(currency) || !isPositiveNumber(rate)) {
-        throw invalidTripPayload();
-      }
-    }
+  if (
+    value.exchangeRates !== undefined &&
+    !isExchangeRateMap(value.exchangeRates, false)
+  ) {
+    throw invalidTripPayload();
   }
 }
 

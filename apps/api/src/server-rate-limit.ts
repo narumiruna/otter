@@ -1,5 +1,3 @@
-import type { RouteRequest } from "./server-http.js";
-
 export type FixedWindowRateLimitOptions = {
   globalLimit: number;
   perClientLimit: number;
@@ -7,19 +5,20 @@ export type FixedWindowRateLimitOptions = {
   windowMs: number;
 };
 
-function firstForwardedValue(value: string | undefined): string | undefined {
+function firstForwardedValue(value: string | null): string | undefined {
   return value?.split(",", 1)[0]?.trim() || undefined;
 }
 
 function requestClient(
-  req: RouteRequest,
+  req: Request,
+  remoteAddress: string | undefined,
   trustProxy: boolean,
 ): string | undefined {
   const forwardedClient = trustProxy
-    ? (firstForwardedValue(req.get("x-forwarded-for")) ??
-      firstForwardedValue(req.get("x-real-ip")))
+    ? (firstForwardedValue(req.headers.get("x-forwarded-for")) ??
+      firstForwardedValue(req.headers.get("x-real-ip")))
     : undefined;
-  return forwardedClient ?? (req.remoteAddress?.trim() || undefined);
+  return forwardedClient ?? (remoteAddress?.trim() || undefined);
 }
 
 export function createFixedWindowRateLimiter({
@@ -32,14 +31,18 @@ export function createFixedWindowRateLimiter({
   let resetAt = 0;
   const clientCounts = new Map<string, number>();
 
-  return (req: RouteRequest, now = Date.now()): number | undefined => {
+  return (
+    req: Request,
+    remoteAddress?: string,
+    now = Date.now(),
+  ): number | undefined => {
     if (now >= resetAt) {
       globalCount = 0;
       resetAt = now + windowMs;
       clientCounts.clear();
     }
 
-    const client = requestClient(req, trustProxy);
+    const client = requestClient(req, remoteAddress, trustProxy);
     const clientCount = client ? (clientCounts.get(client) ?? 0) : 0;
     if (
       globalCount >= globalLimit ||

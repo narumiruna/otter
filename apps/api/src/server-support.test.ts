@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import type { RouteRequest } from "./server-http.js";
 import {
   clearSessionCookieHeader,
   getCookie,
@@ -42,14 +41,8 @@ function withCookieEnv(
   }
 }
 
-function requestWithCookie(cookie: string): RouteRequest {
-  return {
-    body: {},
-    get: () => undefined,
-    headers: { cookie },
-    params: {},
-    protocol: "http",
-  };
+function requestWithCookie(cookie: string): Request {
+  return new Request("http://localhost", { headers: { cookie } });
 }
 
 test("cookie parser decodes valid values and ignores malformed values", () => {

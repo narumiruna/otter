@@ -5,15 +5,16 @@ import {
 } from "@narumitw/otter-core/expense-metadata";
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
+import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
   makeId,
   nowIso,
-  rejectArchivedTrip,
   requestBody,
   sendError,
   stringField,
@@ -29,21 +30,24 @@ export function registerCsvImportRoutes(
   app.post(
     "/api/trips/:tripId/expenses/import",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const csv = stringField(requestBody(req), "csv");
+      const csv = stringField(requestBody(context), "csv");
       if (!csv) {
-        sendError(res, 400, "請選擇 CSV 檔案");
-        return;
+        return sendError(context, 400, "請選擇 CSV 檔案");
       }
 
       const participantByName = new Map(
@@ -60,8 +64,7 @@ export function registerCsvImportRoutes(
         (error) => `第 ${error.row} 列：${error.message}`,
       );
       if (errors.length > 0) {
-        res.status(400).json({ error: "CSV 匯入失敗", errors });
-        return;
+        return context.json({ error: "CSV 匯入失敗", errors }, 400);
       }
       const expenses = parsed.rows.map((row) => {
         if (!isCurrency(row.currency)) {
@@ -108,8 +111,7 @@ export function registerCsvImportRoutes(
         };
       });
       if (errors.length > 0 || expenses.some((expense) => !expense?.paidById)) {
-        res.status(400).json({ error: "CSV 匯入失敗", errors });
-        return;
+        return context.json({ error: "CSV 匯入失敗", errors }, 400);
       }
 
       await withTransaction(pool, async (client) => {
@@ -117,47 +119,12 @@ export function registerCsvImportRoutes(
           if (!expense?.paidById) {
             continue;
           }
-          const expenseId = makeId("expense");
-          await client.query(
-            `INSERT INTO expenses
-               (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              expenseId,
-              trip.id,
-              expense.description,
-              expense.amountMinor,
-              expense.currency,
-              expense.category,
-              expense.tags,
-              expense.paidById,
-              expense.expenseDate,
-              nowIso(),
-            ],
-          );
-          const shareByParticipant = new Map(
-            expense.participantShares?.map((share) => [
-              share.participantId,
-              share.shareMinor,
-            ]),
-          );
-          for (const [
-            index,
-            participantId,
-          ] of expense.participantIds.entries()) {
-            await client.query(
-              `INSERT INTO expense_participants
-                 (expense_id, trip_id, participant_id, position, share_minor)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [
-                expenseId,
-                trip.id,
-                participantId,
-                index,
-                shareByParticipant.get(participantId) ?? null,
-              ],
-            );
-          }
+          await insertExpense(client, trip.id, {
+            ...expense,
+            paidById: expense.paidById,
+            id: makeId("expense"),
+            createdAt: nowIso(),
+          });
         }
       });
 
@@ -165,7 +132,7 @@ export function registerCsvImportRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after CSV import");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 }

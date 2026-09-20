@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import type { QueryResult, QueryResultRow } from "pg";
-import type { RouteRequest } from "./server-http.js";
 import type { User } from "./server-support.js";
 
 type Queryable = {
@@ -27,8 +26,8 @@ export function hashApiSecret(secret: string): string {
   return crypto.createHash("sha256").update(secret).digest("hex");
 }
 
-export function bearerTokenFromRequest(req: RouteRequest): string | undefined {
-  const authorization = req.get("authorization");
+export function bearerTokenFromRequest(req: Request): string | undefined {
+  const authorization = req.headers.get("authorization");
   if (!authorization) {
     return undefined;
   }

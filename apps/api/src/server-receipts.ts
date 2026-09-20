@@ -1,13 +1,13 @@
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
   makeId,
   nowIso,
-  rejectArchivedTrip,
   sendError,
 } from "./server-support.js";
 
@@ -22,31 +22,35 @@ export function registerReceiptRoutes(
   app.put(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
       if (
-        !trip.expenses.some((expense) => expense.id === req.params.expenseId)
+        !trip.expenses.some(
+          (expense) => expense.id === context.req.param("expenseId"),
+        )
       ) {
-        sendError(res, 404, "找不到支出");
-        return;
+        return sendError(context, 404, "找不到支出");
       }
 
-      const mimeType = contentType(req.headers["content-type"]);
+      const mimeType = contentType(context.req.header("content-type"));
       if (!mimeType || !receiptMimeTypes.has(mimeType)) {
-        sendError(res, 415, "收據只支援 JPEG、PNG 或 WebP 圖片");
-        return;
+        return sendError(context, 415, "收據只支援 JPEG、PNG 或 WebP 圖片");
       }
-      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-        sendError(res, 400, "請選擇收據圖片");
-        return;
+      const body = context.get("requestBody");
+      if (!Buffer.isBuffer(body) || body.length === 0) {
+        return sendError(context, 400, "請選擇收據圖片");
       }
 
       await pool.query(
@@ -60,9 +64,9 @@ export function registerReceiptRoutes(
         [
           makeId("receipt"),
           trip.id,
-          req.params.expenseId,
+          context.req.param("expenseId"),
           mimeType,
-          req.body,
+          body,
           nowIso(),
         ],
       );
@@ -71,71 +75,71 @@ export function registerReceiptRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after receipt upload");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 
   app.get(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const trip = await loadTripForUser(
         pool,
-        currentUser(res).id,
-        req.params.tripId,
+        currentUser(context).id,
+        context.req.param("tripId"),
       );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       const result = await pool.query<{ mime_type: string; data: Buffer }>(
         `SELECT mime_type, data
          FROM receipt_attachments
          WHERE trip_id = $1 AND expense_id = $2`,
-        [trip.id, req.params.expenseId],
+        [trip.id, context.req.param("expenseId")],
       );
       const receipt = result.rows[0];
       if (!receipt) {
-        sendError(res, 404, "找不到收據");
-        return;
+        return sendError(context, 404, "找不到收據");
       }
-      res.type(receipt.mime_type).send(receipt.data);
-    }),
+      context.header("Content-Type", receipt.mime_type);
+      return context.body(new Uint8Array(receipt.data));
+    },
   );
 
   app.delete(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
       const deleted = await pool.query(
         "DELETE FROM receipt_attachments WHERE trip_id = $1 AND expense_id = $2",
-        [trip.id, req.params.expenseId],
+        [trip.id, context.req.param("expenseId")],
       );
       if (deleted.rowCount === 0) {
-        sendError(res, 404, "找不到收據");
-        return;
+        return sendError(context, 404, "找不到收據");
       }
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after receipt delete");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 }
 
-function contentType(value: string | string[] | undefined): string {
-  return String(Array.isArray(value) ? value[0] : (value ?? ""))
-    .split(";")[0]
-    .trim()
-    .toLowerCase();
+function contentType(value: string | undefined): string {
+  return (value ?? "").split(";")[0].trim().toLowerCase();
 }
