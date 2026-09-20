@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { Trip } from "@narumitw/otter-core/settlement";
 import { test } from "vitest";
 import {
+  ApiResponseError,
   api,
   defaultExpenseFilters,
   expenseSplitLabel,
@@ -29,7 +30,12 @@ test("api keeps server JSON error messages", async () => {
     new Response(JSON.stringify({ error: "伺服器錯誤" }), { status: 500 });
 
   try {
-    await assert.rejects(api("/api/fail"), /伺服器錯誤/);
+    await assert.rejects(api("/api/fail"), (error: unknown) => {
+      assert.ok(error instanceof ApiResponseError);
+      assert.equal(error.message, "伺服器錯誤");
+      assert.equal(error.status, 500);
+      return true;
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }

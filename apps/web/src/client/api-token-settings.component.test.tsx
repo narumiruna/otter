@@ -4,9 +4,12 @@ import { act, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { ApiTokenSettings } from "./api-token-settings.js";
-import { api } from "./client-support.js";
+import { ApiResponseError, api } from "./client-support.js";
 
-vi.mock("./client-support.js", () => ({ api: vi.fn() }));
+vi.mock("./client-support.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./client-support.js")>()),
+  api: vi.fn(),
+}));
 
 const token = {
   createdAt: "2026-09-20T00:00:00.000Z",
@@ -92,6 +95,42 @@ test("refreshes tokens after an ambiguous creation failure", async () => {
   );
   expect(view.getByText(token.name)).toBeVisible();
   expect(listRequests).toBe(2);
+});
+
+test("releases navigation after a definitive creation rejection", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      return { tokens: [] };
+    }
+    if (url === "/api/auth/tokens" && init?.method === "POST") {
+      throw new ApiResponseError("Unauthorized", 401);
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const onMutationChange = vi.fn();
+  const user = userEvent.setup();
+  const view = render(
+    <ApiTokenSettings offline={false} onMutationChange={onMutationChange} />,
+  );
+
+  await view.findByText("沒有有效的 API token。");
+  await user.type(
+    view.getByRole("textbox", { name: "Token 名稱" }),
+    token.name,
+  );
+  await user.click(view.getByRole("button", { name: "建立 API token" }));
+
+  expect(await view.findByRole("alert")).toHaveTextContent(
+    "無法建立 API token",
+  );
+  expect(view.getByRole("button", { name: "建立 API token" })).toBeEnabled();
+  expect(
+    view.queryByRole("button", { name: "重新載入 API token" }),
+  ).not.toBeInTheDocument();
+  expect(onMutationChange).toHaveBeenLastCalledWith(false);
+  expect(listRequests).toBe(1);
 });
 
 test("blocks creation until an ambiguous failure is reconciled", async () => {

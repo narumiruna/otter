@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { api } from "./client-support.js";
+import { ApiResponseError, api } from "./client-support.js";
 import { useI18n } from "./i18n.js";
 
 export function ApiTokenSettings({
@@ -129,7 +129,7 @@ export function ApiTokenSettings({
     setActionError("");
     setListError("");
     setStatus("");
-    let failed = false;
+    let failure: "ambiguous" | "definitive" | null = null;
     try {
       const result = await api<CreateApiTokenResponse>("/api/auth/tokens", {
         body: JSON.stringify({ name: tokenName }),
@@ -141,13 +141,15 @@ export function ApiTokenSettings({
       ]);
       setCreatedToken(result);
       setName("");
-    } catch {
-      failed = true;
+    } catch (error) {
+      failure = error instanceof ApiResponseError ? "definitive" : "ambiguous";
     } finally {
-      endMutation(!failed);
+      endMutation(failure !== "ambiguous");
     }
 
-    if (failed) {
+    if (failure === "definitive") {
+      setActionError(messages.unableToCreateApiToken);
+    } else if (failure === "ambiguous") {
       const reconciled = await loadTokens();
       if (reconciled) {
         setActionError(messages.unableToCreateApiToken);
