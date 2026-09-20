@@ -1,8 +1,9 @@
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   type BuildTripPayload,
   currentUser,
   isDateOnly,
@@ -10,7 +11,6 @@ import {
   makeId,
   nowIso,
   participantExists,
-  rejectArchivedTrip,
   requestBody,
   sendError,
   stringField,
@@ -26,46 +26,44 @@ export function registerSettlementPaymentRoutes(
   app.post(
     "/api/trips/:tripId/settlement-payments",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const body = requestBody(req);
+      const body = requestBody(context);
       const fromId = stringField(body, "fromId");
       const toId = stringField(body, "toId");
       const currencyValue = body.currency ?? trip.baseCurrency;
       const paidAt = stringField(body, "paidAt") ?? todayDate();
       const note = stringField(body, "note") ?? "";
       if (!fromId || !participantExists(trip, fromId)) {
-        sendError(res, 400, "付款人必須是參與者");
-        return;
+        return sendError(context, 400, "付款人必須是參與者");
       }
       if (!toId || !participantExists(trip, toId)) {
-        sendError(res, 400, "收款人必須是參與者");
-        return;
+        return sendError(context, 400, "收款人必須是參與者");
       }
       if (fromId === toId) {
-        sendError(res, 400, "付款人和收款人不能相同");
-        return;
+        return sendError(context, 400, "付款人和收款人不能相同");
       }
       if (!isCurrency(currencyValue)) {
-        sendError(res, 400, "不支援的貨幣");
-        return;
+        return sendError(context, 400, "不支援的貨幣");
       }
       if (!isDateOnly(paidAt)) {
-        sendError(res, 400, "請輸入有效付款日期");
-        return;
+        return sendError(context, 400, "請輸入有效付款日期");
       }
       if (note.length > 160) {
-        sendError(res, 400, "備註最多 160 字");
-        return;
+        return sendError(context, 400, "備註最多 160 字");
       }
 
       let amountMinor: number;
@@ -75,12 +73,11 @@ export function registerSettlementPaymentRoutes(
           currencyValue,
         );
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "金額格式錯誤",
         );
-        return;
       }
 
       await pool.query(
@@ -104,38 +101,41 @@ export function registerSettlementPaymentRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment insert");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 
   app.delete(
     "/api/trips/:tripId/settlement-payments/:paymentId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
       const result = await pool.query(
         "DELETE FROM settlement_payments WHERE trip_id = $1 AND id = $2",
-        [trip.id, req.params.paymentId],
+        [trip.id, context.req.param("paymentId")],
       );
       if (result.rowCount === 0) {
-        sendError(res, 404, "找不到付款紀錄");
-        return;
+        return sendError(context, 404, "找不到付款紀錄");
       }
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment delete");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 }

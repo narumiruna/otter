@@ -5,8 +5,8 @@ import {
 import type { Pool as PgPool, PoolClient } from "pg";
 import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
@@ -27,40 +27,39 @@ export function registerBackupRoutes(
   app.get(
     "/api/trips/:tripId/backup",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
+    parseRequestBody,
+    async (context) => {
       const trip = await loadTripForUser(
         pool,
-        currentUser(res).id,
-        req.params.tripId,
+        currentUser(context).id,
+        context.req.param("tripId"),
       );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
       if (trip.currentUserRole !== "owner") {
-        sendError(res, 403, "只有擁有者可下載完整備份");
-        return;
+        return sendError(context, 403, "只有擁有者可下載完整備份");
       }
-      res.json(tripBackupV1(trip));
-    }),
+      return context.json(tripBackupV1(trip));
+    },
   );
 
   app.post(
     "/api/trips/restore",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
       let backup: TripBackupV1;
       try {
-        const body = requestBody(req);
+        const body = requestBody(context);
         backup = validateTripBackupV1("version" in body ? body : body.backup);
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "備份格式錯誤",
         );
-        return;
       }
 
       const tripId = await withTransaction(pool, async (client) => {
@@ -153,8 +152,8 @@ export function registerBackupRoutes(
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      res.status(201).json(await buildTripPayload(restored));
-    }),
+      return context.json(await buildTripPayload(restored), 201);
+    },
   );
 }
 

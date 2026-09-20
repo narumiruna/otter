@@ -17,13 +17,14 @@ import {
   insertExpenseParticipants,
 } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
   type ParticipantShare,
   participantSharesFromBody,
   participantSharesFromExisting,
 } from "./server-splits.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   type BuildTripPayload,
   currentUser,
   isDateOnly,
@@ -31,7 +32,6 @@ import {
   makeId,
   nowIso,
   participantExists,
-  rejectArchivedTrip,
   requestBody,
   sendError,
   stringField,
@@ -58,18 +58,22 @@ export function registerExpenseRoutes(
   app.post(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
-      const body = requestBody(req);
+      const body = requestBody(context);
       const description = stringField(body, "description");
       const amountInput = body.amount;
       const currencyValue = body.currency;
@@ -78,24 +82,19 @@ export function registerExpenseRoutes(
       const participantIdsInput = body.participantIds;
 
       if (!description || description.length > 120) {
-        sendError(res, 400, "請輸入 1-120 字的支出描述");
-        return;
+        return sendError(context, 400, "請輸入 1-120 字的支出描述");
       }
       if (!isCurrency(currencyValue)) {
-        sendError(res, 400, "不支援的貨幣");
-        return;
+        return sendError(context, 400, "不支援的貨幣");
       }
       if (!paidById || !participantExists(trip, paidById)) {
-        sendError(res, 400, "付款人必須是參與者");
-        return;
+        return sendError(context, 400, "付款人必須是參與者");
       }
       if (!Array.isArray(participantIdsInput)) {
-        sendError(res, 400, "請選擇分帳參與者");
-        return;
+        return sendError(context, 400, "請選擇分帳參與者");
       }
       if (!isDateOnly(expenseDate)) {
-        sendError(res, 400, "請輸入有效支出日期");
-        return;
+        return sendError(context, 400, "請輸入有效支出日期");
       }
 
       let category: ExpenseCategory;
@@ -104,12 +103,11 @@ export function registerExpenseRoutes(
         category = expenseCategoryFromBody(body.category);
         tags = normalizeExpenseTags(body.tags);
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "分類或標籤格式錯誤",
         );
-        return;
       }
 
       const participantIds: string[] = [];
@@ -118,15 +116,13 @@ export function registerExpenseRoutes(
           typeof participantId !== "string" ||
           !participantExists(trip, participantId)
         ) {
-          sendError(res, 400, "分帳參與者必須是旅行參與者");
-          return;
+          return sendError(context, 400, "分帳參與者必須是旅行參與者");
         }
         participantIds.push(participantId);
       }
 
       if (participantIds.length === 0) {
-        sendError(res, 400, "請至少選擇一位分帳參與者");
-        return;
+        return sendError(context, 400, "請至少選擇一位分帳參與者");
       }
 
       let amountMinor: number;
@@ -136,12 +132,11 @@ export function registerExpenseRoutes(
           currencyValue,
         );
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "金額格式錯誤",
         );
-        return;
       }
 
       let participantShares: ParticipantShare[] | undefined;
@@ -153,12 +148,11 @@ export function registerExpenseRoutes(
           currencyValue,
         );
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "分帳格式錯誤",
         );
-        return;
       }
 
       const expenseId = makeId("expense");
@@ -182,33 +176,36 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense insert");
       }
-      res.status(201).json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated), 201);
+    },
   );
 
   app.patch(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
       const expense = trip.expenses.find(
-        (item) => item.id === req.params.expenseId,
+        (item) => item.id === context.req.param("expenseId"),
       );
       if (!expense) {
-        sendError(res, 404, "找不到支出");
-        return;
+        return sendError(context, 404, "找不到支出");
       }
 
-      const body = requestBody(req);
+      const body = requestBody(context);
       const hasDescription = "description" in body;
       const hasAmount = "amount" in body;
       const hasCurrency = "currency" in body;
@@ -229,16 +226,14 @@ export function registerExpenseRoutes(
         !hasCategory &&
         !hasTags
       ) {
-        sendError(res, 400, "請提供要更新的支出內容");
-        return;
+        return sendError(context, 400, "請提供要更新的支出內容");
       }
 
       const description = hasDescription
         ? stringField(body, "description")
         : expense.description;
       if (!description || description.length > 120) {
-        sendError(res, 400, "請輸入 1-120 字的支出描述");
-        return;
+        return sendError(context, 400, "請輸入 1-120 字的支出描述");
       }
 
       let category: ExpenseCategory = expense.category ?? "其他";
@@ -251,19 +246,17 @@ export function registerExpenseRoutes(
           tags = normalizeExpenseTags(body.tags);
         }
       } catch (error) {
-        sendError(
-          res,
+        return sendError(
+          context,
           400,
           error instanceof Error ? error.message : "分類或標籤格式錯誤",
         );
-        return;
       }
 
       let currencyValue: Currency = expense.currency;
       if (hasCurrency) {
         if (!isCurrency(body.currency)) {
-          sendError(res, 400, "不支援的貨幣");
-          return;
+          return sendError(context, 400, "不支援的貨幣");
         }
         currencyValue = body.currency;
       }
@@ -280,12 +273,11 @@ export function registerExpenseRoutes(
             currencyValue,
           );
         } catch (error) {
-          sendError(
-            res,
+          return sendError(
+            context,
             400,
             error instanceof Error ? error.message : "金額格式錯誤",
           );
-          return;
         }
       }
 
@@ -293,24 +285,21 @@ export function registerExpenseRoutes(
         ? stringField(body, "paidById")
         : expense.paidById;
       if (!paidById || !participantExists(trip, paidById)) {
-        sendError(res, 400, "付款人必須是參與者");
-        return;
+        return sendError(context, 400, "付款人必須是參與者");
       }
 
       const expenseDate = hasExpenseDate
         ? stringField(body, "expenseDate")
         : expense.expenseDate;
       if (!expenseDate || !isDateOnly(expenseDate)) {
-        sendError(res, 400, "請輸入有效支出日期");
-        return;
+        return sendError(context, 400, "請輸入有效支出日期");
       }
 
       let participantIds = expense.participantIds;
       if (hasParticipantIds) {
         const participantIdsInput = body.participantIds;
         if (!Array.isArray(participantIdsInput)) {
-          sendError(res, 400, "請選擇分帳參與者");
-          return;
+          return sendError(context, 400, "請選擇分帳參與者");
         }
 
         const nextParticipantIds: string[] = [];
@@ -319,14 +308,12 @@ export function registerExpenseRoutes(
             typeof participantId !== "string" ||
             !participantExists(trip, participantId)
           ) {
-            sendError(res, 400, "分帳參與者必須是旅行參與者");
-            return;
+            return sendError(context, 400, "分帳參與者必須是旅行參與者");
           }
           nextParticipantIds.push(participantId);
         }
         if (nextParticipantIds.length === 0) {
-          sendError(res, 400, "請至少選擇一位分帳參與者");
-          return;
+          return sendError(context, 400, "請至少選擇一位分帳參與者");
         }
         participantIds = nextParticipantIds;
       }
@@ -354,12 +341,11 @@ export function registerExpenseRoutes(
                   currencyValue,
                 );
         } catch (error) {
-          sendError(
-            res,
+          return sendError(
+            context,
             400,
             error instanceof Error ? error.message : "分帳格式錯誤",
           );
-          return;
         }
       }
       const updatedExpense = await withTransaction(pool, async (client) => {
@@ -376,7 +362,7 @@ export function registerExpenseRoutes(
             paidById,
             expenseDate,
             trip.id,
-            req.params.expenseId,
+            context.req.param("expenseId"),
           ],
         );
         if (result.rowCount === 0 || !shouldReplaceSplits) {
@@ -385,56 +371,58 @@ export function registerExpenseRoutes(
 
         await client.query(
           "DELETE FROM expense_participants WHERE trip_id = $1 AND expense_id = $2",
-          [trip.id, req.params.expenseId],
+          [trip.id, context.req.param("expenseId")],
         );
         await insertExpenseParticipants(client, trip.id, {
-          id: req.params.expenseId,
+          id: context.req.param("expenseId"),
           participantIds,
           participantShares,
         });
         return result;
       });
       if (updatedExpense.rowCount === 0) {
-        sendError(res, 404, "找不到支出");
-        return;
+        return sendError(context, 404, "找不到支出");
       }
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after expense update");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 
   app.delete(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
 
       const deleted = await pool.query(
         "DELETE FROM expenses WHERE trip_id = $1 AND id = $2",
-        [trip.id, req.params.expenseId],
+        [trip.id, context.req.param("expenseId")],
       );
       if (deleted.rowCount === 0) {
-        sendError(res, 404, "找不到支出");
-        return;
+        return sendError(context, 404, "找不到支出");
       }
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after expense delete");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 }

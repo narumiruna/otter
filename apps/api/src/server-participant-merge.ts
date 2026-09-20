@@ -1,12 +1,12 @@
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
+  archivedTripResponse,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
   participantExists,
-  rejectArchivedTrip,
   requestBody,
   sendError,
   stringField,
@@ -22,29 +22,30 @@ export function registerParticipantMergeRoute(
   app.post(
     "/api/trips/:tripId/participants/:participantId/merge",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      const user = currentUser(res);
-      const trip = await loadTripForUser(pool, user.id, req.params.tripId);
+    parseRequestBody,
+    async (context) => {
+      const user = currentUser(context);
+      const trip = await loadTripForUser(
+        pool,
+        user.id,
+        context.req.param("tripId"),
+      );
       if (!trip) {
-        sendError(res, 404, "找不到旅行");
-        return;
+        return sendError(context, 404, "找不到旅行");
       }
-      if (rejectArchivedTrip(res, trip)) {
-        return;
+      if (trip.archivedAt) {
+        return archivedTripResponse(context);
       }
-      const sourceId = req.params.participantId;
-      const targetId = stringField(requestBody(req), "targetParticipantId");
+      const sourceId = context.req.param("participantId");
+      const targetId = stringField(requestBody(context), "targetParticipantId");
       if (!participantExists(trip, sourceId)) {
-        sendError(res, 404, "找不到參與者");
-        return;
+        return sendError(context, 404, "找不到參與者");
       }
       if (!targetId || !participantExists(trip, targetId)) {
-        sendError(res, 400, "目標參與者必須是旅行參與者");
-        return;
+        return sendError(context, 400, "目標參與者必須是旅行參與者");
       }
       if (sourceId === targetId) {
-        sendError(res, 400, "不能合併同一位參與者");
-        return;
+        return sendError(context, 400, "不能合併同一位參與者");
       }
 
       await withTransaction(pool, async (client) => {
@@ -110,7 +111,7 @@ export function registerParticipantMergeRoute(
       if (!updated) {
         throw new Error("Trip disappeared after participant merge");
       }
-      res.json(await buildTripPayload(updated));
-    }),
+      return context.json(await buildTripPayload(updated));
+    },
   );
 }

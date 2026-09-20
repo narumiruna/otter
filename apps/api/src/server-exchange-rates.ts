@@ -16,8 +16,8 @@ import {
   spotMid,
 } from "@narumitw/otter-exchange-rates";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import { parseRequestBody } from "./server-http.js";
 import {
-  asyncHandler,
   type BuildTripPayload,
   type LoadedTrip,
   sendError,
@@ -113,17 +113,18 @@ export function registerExchangeRateRoutes(
   app.get(
     "/api/exchange-rates/:baseCurrency",
     mustBeSignedIn,
-    asyncHandler(async (req, res) => {
-      if (!isCurrency(req.params.baseCurrency)) {
-        sendError(res, 400, "不支援的基準貨幣");
-        return;
+    parseRequestBody,
+    async (context) => {
+      const baseCurrency = context.req.param("baseCurrency");
+      if (!isCurrency(baseCurrency)) {
+        return sendError(context, 400, "不支援的基準貨幣");
       }
       try {
-        res.json(await service.getSnapshot(req.params.baseCurrency));
+        return context.json(await service.getSnapshot(baseCurrency));
       } catch {
-        sendError(res, 502, "目前無法取得銀行匯率，請稍後再試");
+        return sendError(context, 502, "目前無法取得銀行匯率，請稍後再試");
       }
-    }),
+    },
   );
 }
 
