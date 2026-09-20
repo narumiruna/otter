@@ -154,7 +154,8 @@ export const sourceMessageKeys = {
   擁有者: "owner",
   "基準貨幣 {currency}": "baseCurrencyCurrency",
   使用自訂匯率: "usingCustomExchangeRates",
-  使用內建固定匯率: "usingBuiltInFixedRates",
+  使用台灣銀行預設匯率: "usingBankOfTaiwanExchangeRates",
+  "台灣銀行暫時無法連線，使用備援固定匯率": "usingFixedFallbackRates",
   "正在載入群組…": "loadingGroup2",
   成員: "people",
   支出: "expenses",
@@ -471,7 +472,7 @@ export const sourceMessageKeys = {
   名稱與基準貨幣: "nameAndBaseCurrency",
   "總支出將顯示為 {amount}；以下餘額與結清會重新換算。":
     "totalSpendingWillDisplayAsAmountBalancesAndSettlementsBelowWillBeConverted",
-  "預計 {count} 筆結清建議；自訂匯率將重設為內建固定值。":
+  "預計 {count} 筆結清建議；自訂匯率將重設為台灣銀行預設值。":
     "expectCountSettlementSuggestionsCustomRatesWillResetToBuiltInValues",
   取消變更: "cancelChanges",
   套用群組偏好: "applyGroupPreferences",
@@ -486,17 +487,24 @@ export const sourceMessageKeys = {
   匯率儲存失敗: "unableToSaveExchangeRates",
   換算方式: "currencyConversion",
   "{count} 個自訂匯率": "countCustomRates",
-  "設定 1 單位外幣等於多少 {currency}；留空會使用內建固定匯率。":
+  "設定 1 單位外幣等於多少 {currency}；未設定時會自動使用台灣銀行即期中價。":
     "setHowMuch1UnitOfEachCurrencyEqualsInCurrencyLeaveBlankToUseTheBuiltInFixedRate",
   自訂匯率: "customExchangeRates",
+  "未設定自訂匯率時，系統會自動使用台灣銀行即期買進與賣出的中價。載入後套用可清除自訂值，恢復自動更新。":
+    "bankOfTaiwanSpotMidRateDescription",
+  載入台灣銀行預設匯率: "loadBankOfTaiwanSpotMidRates",
+  "正在載入銀行匯率…": "loadingBankExchangeRates",
+  "已載入台灣銀行即期中價（{time}）。": "bankOfTaiwanSpotMidRatesLoadedAtTime",
+  已恢復台灣銀行預設匯率: "bankOfTaiwanDefaultRatesApplied",
+  "目前無法取得銀行匯率，請稍後再試": "unableToLoadBankExchangeRates",
   換算預覽: "conversionPreview",
   "總支出：{amount} · {count} 筆結清建議。":
     "totalSpendingAmountCountSettlementSuggestions",
-  重設為內建匯率: "resetToBuiltInRates",
   套用匯率: "applyRates",
   "所有總額、餘額與結清建議會使用這組匯率重新計算。":
     "allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates",
   "套用自訂匯率？": "applyCustomExchangeRates",
+  "恢復台灣銀行預設匯率？": "restoreBankOfTaiwanDefaultRates",
   群組生命週期: "groupLifecycle",
   "已封存・唯讀": "archivedReadOnly",
   使用中: "active2",

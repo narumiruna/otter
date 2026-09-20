@@ -8,6 +8,7 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   loadTripForUser,
   makeId,
@@ -16,7 +17,6 @@ import {
   requestBody,
   sendError,
   stringField,
-  tripPayload,
   withTransaction,
 } from "./server-support.js";
 
@@ -24,6 +24,7 @@ export function registerCsvImportRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/expenses/import",
@@ -164,7 +165,7 @@ export function registerCsvImportRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after CSV import");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 }

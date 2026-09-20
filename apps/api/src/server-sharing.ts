@@ -1,12 +1,9 @@
 import crypto from "node:crypto";
-import {
-  calculateBalances,
-  calculateSettlements,
-} from "@narumitw/otter-core/settlement";
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   type LoadedTrip,
   loadTripById,
@@ -14,7 +11,6 @@ import {
   makeId,
   nowIso,
   sendError,
-  tripPayload,
 } from "./server-support.js";
 
 export function generateShareToken(): string {
@@ -41,6 +37,7 @@ export function registerShareRoutes(
   app: OtterApp,
   pool: PgPool,
   mustHaveBrowserSession: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/share-links",
@@ -73,7 +70,7 @@ export function registerShareRoutes(
       if (link) {
         link.url = url;
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -106,7 +103,7 @@ export function registerShareRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after share link revoke");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 
@@ -142,31 +139,33 @@ export function registerShareRoutes(
         sendError(res, 404, "分享連結無效或已撤銷");
         return;
       }
-      res.json(readonlyTripPayload(trip));
+      res.json(await readonlyTripPayload(trip, buildTripPayload));
     }),
   );
 }
 
-function readonlyTripPayload(trip: LoadedTrip) {
-  const calculationTrip = {
+async function readonlyTripPayload(
+  trip: LoadedTrip,
+  buildTripPayload: BuildTripPayload,
+) {
+  const payload = await buildTripPayload({
     ...trip,
     expenses: trip.expenses.map(
       ({ receiptId: _receiptId, receiptUrl: _receiptUrl, ...expense }) =>
         expense,
     ),
-  };
+  });
   const {
     collaborators: _collaborators,
     currentUserRole: _currentUserRole,
+    shareLinks: _shareLinks,
+    trip: calculationTrip,
+    ...publicPayload
+  } = payload;
+  const {
     ownerId: _ownerId,
     settlementPayments: _settlementPayments,
-    shareLinks: _shareLinks,
     ...publicTrip
   } = calculationTrip;
-  return {
-    balances: calculateBalances(calculationTrip),
-    readonly: true,
-    settlements: calculateSettlements(calculationTrip),
-    trip: publicTrip,
-  };
+  return { ...publicPayload, readonly: true, trip: publicTrip };
 }

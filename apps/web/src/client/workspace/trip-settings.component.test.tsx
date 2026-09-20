@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 
+import assert from "node:assert/strict";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TripPayload } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
-import { LifecycleSettings } from "./trip-settings.js";
+import {
+  ExchangeRateSettings,
+  LifecycleSettings,
+} from "./trip-settings.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const payload: TripPayload = {
@@ -73,4 +77,128 @@ test("reports a stable error when group deletion returns HTML", async () => {
 
   view.unmount();
   client.clear();
+});
+
+test("loads a bank snapshot into the preview without saving it", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: { method: string; url: string }[] = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ method: init?.method ?? "GET", url: String(input) });
+    return new Response(
+      JSON.stringify({
+        baseCurrency: "TWD",
+        fetchedAt: "2026-09-20T12:00:00.000Z",
+        rates: { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 },
+        rateType: "spotMid",
+        source: "BANK_OF_TAIWAN",
+      }),
+      { headers: { "Content-Type": "application/json" }, status: 200 },
+    );
+  };
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={payload}
+        refreshCollection={async () => undefined}
+      >
+        <ExchangeRateSettings payload={payload} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  try {
+    await user.click(view.getByText("換算方式"));
+    await user.click(
+      view.getByRole("button", { name: "載入台灣銀行預設匯率" }),
+    );
+
+    expect(view.getByLabelText("JPY → TWD")).toHaveValue("0.2");
+    expect(view.getByLabelText("USD → TWD")).toHaveValue("31.8");
+    expect(view.getByLabelText("EUR → TWD")).toHaveValue("36.5");
+    expect(view.getByText(/已載入台灣銀行即期中價/)).toBeVisible();
+    expect(view.getByText("換算預覽")).toBeVisible();
+    assert.deepEqual(requests, [
+      { method: "GET", url: "/api/exchange-rates/TWD" },
+    ]);
+  } finally {
+    view.unmount();
+    client.clear();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("applying the bank default clears persisted custom rates", async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: unknown[] = [];
+  const customPayload: TripPayload = {
+    ...payload,
+    exchangeRateInfo: { source: "custom" },
+    trip: {
+      ...payload.trip,
+      exchangeRates: { EUR: 36, JPY: 0.21, TWD: 1, USD: 31 },
+    },
+  };
+  globalThis.fetch = async (input, init) => {
+    const snapshot = {
+      baseCurrency: "TWD",
+      fetchedAt: "2026-09-20T12:00:00.000Z",
+      rates: { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 },
+      rateType: "spotMid",
+      source: "BANK_OF_TAIWAN",
+    };
+    if ((init?.method ?? "GET") === "PATCH") {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        JSON.stringify({
+          ...customPayload,
+          exchangeRateInfo: {
+            fetchedAt: snapshot.fetchedAt,
+            provider: "BANK_OF_TAIWAN",
+            rateType: "spotMid",
+            source: "bank",
+          },
+          trip: { ...customPayload.trip, exchangeRates: snapshot.rates },
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 },
+      );
+    }
+    assert.equal(String(input), "/api/exchange-rates/TWD");
+    return new Response(JSON.stringify(snapshot), {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    });
+  };
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={customPayload}
+        refreshCollection={async () => undefined}
+      >
+        <ExchangeRateSettings payload={customPayload} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  try {
+    await user.click(view.getByText("換算方式"));
+    await user.click(
+      view.getByRole("button", { name: "載入台灣銀行預設匯率" }),
+    );
+    await user.click(view.getByRole("button", { name: "預覽完成，套用變更" }));
+    await user.click(view.getByRole("button", { name: "套用匯率" }));
+
+    await waitFor(() => expect(bodies).toEqual([{ exchangeRates: {} }]));
+  } finally {
+    view.unmount();
+    client.clear();
+    globalThis.fetch = originalFetch;
+  }
 });

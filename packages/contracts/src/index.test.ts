@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { parseTripPayload, type TripPayload } from "./index.js";
+import {
+  parseExchangeRateSnapshot,
+  parseTripPayload,
+  type TripPayload,
+} from "./index.js";
 
 const validPayload: TripPayload = {
   balances: [
@@ -72,5 +76,65 @@ describe("parseTripPayload", () => {
         settlements: [{ ...validPayload.settlements[0], amountMinor: 0 }],
       }),
     ).toThrow("Otter returned an unexpected trip payload");
+  });
+
+  test("accepts valid Bank of Taiwan metadata and rejects other providers", () => {
+    expect(
+      parseTripPayload({
+        ...validPayload,
+        exchangeRateInfo: {
+          fetchedAt: "2026-09-20T12:00:00.000Z",
+          provider: "BANK_OF_TAIWAN",
+          rateType: "spotMid",
+          source: "bank",
+        },
+      }).exchangeRateInfo?.source,
+    ).toBe("bank");
+    expect(() =>
+      parseTripPayload({
+        ...validPayload,
+        exchangeRateInfo: {
+          fetchedAt: "2026-09-20T12:00:00.000Z",
+          provider: "BANK_SINOPAC",
+          rateType: "spotMid",
+          source: "bank",
+        },
+      }),
+    ).toThrow("Otter returned an unexpected trip payload");
+  });
+});
+
+describe("parseExchangeRateSnapshot", () => {
+  const snapshot = {
+    baseCurrency: "TWD",
+    fetchedAt: "2026-09-20T12:00:00.000Z",
+    rates: { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 },
+    rateType: "spotMid",
+    source: "BANK_OF_TAIWAN",
+  };
+
+  test("returns a complete supported-currency snapshot", () => {
+    expect(parseExchangeRateSnapshot(snapshot)).toEqual(snapshot);
+  });
+
+  test("rejects missing, non-positive, and unsupported rates", () => {
+    expect(() =>
+      parseExchangeRateSnapshot({
+        ...snapshot,
+        rates: { JPY: 0.2, TWD: 1, USD: 31.8 },
+      }),
+    ).toThrow("Invalid exchange-rate snapshot");
+    expect(() =>
+      parseExchangeRateSnapshot({
+        ...snapshot,
+        rates: { ...snapshot.rates, EUR: 0 },
+      }),
+    ).toThrow("Invalid exchange-rate snapshot");
+    expect(() =>
+      parseExchangeRateSnapshot({
+        ...snapshot,
+        rates: { ...snapshot.rates, BTC: 100_000 },
+      }),
+    ).toThrow("Invalid exchange-rate snapshot");
   });
 });
