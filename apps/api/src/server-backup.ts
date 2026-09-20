@@ -3,6 +3,7 @@ import {
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import type { Pool as PgPool, PoolClient } from "pg";
+import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
@@ -105,48 +106,25 @@ export function registerBackupRoutes(
           );
         }
 
+        const restoredParticipantId = (id: string): string => {
+          const restored = participantIds.get(id);
+          if (!restored)
+            throw new Error("Validated backup participant is missing");
+          return restored;
+        };
         for (const expense of backup.trip.expenses) {
-          const expenseId = makeId("expense");
-          await client.query(
-            `INSERT INTO expenses
-               (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              expenseId,
-              newTripId,
-              expense.description,
-              expense.amountMinor,
-              expense.currency,
-              expense.category ?? "其他",
-              expense.tags ?? [],
-              participantIds.get(expense.paidById),
-              expense.expenseDate,
-              expense.createdAt,
-            ],
-          );
-          const shareByParticipant = new Map(
-            expense.participantShares?.map((share) => [
-              share.participantId,
-              share.shareMinor,
-            ]) ?? [],
-          );
-          for (const [
-            index,
-            oldParticipantId,
-          ] of expense.participantIds.entries()) {
-            await client.query(
-              `INSERT INTO expense_participants
-                 (expense_id, trip_id, participant_id, position, share_minor)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [
-                expenseId,
-                newTripId,
-                participantIds.get(oldParticipantId),
-                index,
-                shareByParticipant.get(oldParticipantId) ?? null,
-              ],
-            );
-          }
+          await insertExpense(client, newTripId, {
+            ...expense,
+            id: makeId("expense"),
+            category: expense.category ?? "其他",
+            tags: expense.tags ?? [],
+            paidById: restoredParticipantId(expense.paidById),
+            participantIds: expense.participantIds.map(restoredParticipantId),
+            participantShares: expense.participantShares?.map((share) => ({
+              ...share,
+              participantId: restoredParticipantId(share.participantId),
+            })),
+          });
         }
 
         for (const payment of backup.trip.settlementPayments ?? []) {

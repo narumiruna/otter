@@ -5,6 +5,7 @@ import {
 } from "@narumitw/otter-core/expense-metadata";
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
+import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
@@ -117,47 +118,12 @@ export function registerCsvImportRoutes(
           if (!expense?.paidById) {
             continue;
           }
-          const expenseId = makeId("expense");
-          await client.query(
-            `INSERT INTO expenses
-               (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              expenseId,
-              trip.id,
-              expense.description,
-              expense.amountMinor,
-              expense.currency,
-              expense.category,
-              expense.tags,
-              expense.paidById,
-              expense.expenseDate,
-              nowIso(),
-            ],
-          );
-          const shareByParticipant = new Map(
-            expense.participantShares?.map((share) => [
-              share.participantId,
-              share.shareMinor,
-            ]),
-          );
-          for (const [
-            index,
-            participantId,
-          ] of expense.participantIds.entries()) {
-            await client.query(
-              `INSERT INTO expense_participants
-                 (expense_id, trip_id, participant_id, position, share_minor)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [
-                expenseId,
-                trip.id,
-                participantId,
-                index,
-                shareByParticipant.get(participantId) ?? null,
-              ],
-            );
-          }
+          await insertExpense(client, trip.id, {
+            ...expense,
+            paidById: expense.paidById,
+            id: makeId("expense"),
+            createdAt: nowIso(),
+          });
         }
       });
 

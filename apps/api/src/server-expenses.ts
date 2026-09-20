@@ -12,6 +12,10 @@ import {
   toMajor,
 } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
+import {
+  insertExpense,
+  insertExpenseParticipants,
+} from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   type ParticipantShare,
@@ -157,46 +161,22 @@ export function registerExpenseRoutes(
         return;
       }
 
-      const shareByParticipant = new Map(
-        participantShares?.map((share) => [
-          share.participantId,
-          share.shareMinor,
-        ]),
-      );
       const expenseId = makeId("expense");
-      await withTransaction(pool, async (client) => {
-        await client.query(
-          `INSERT INTO expenses
-             (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            expenseId,
-            trip.id,
-            description,
-            amountMinor,
-            currencyValue,
-            category,
-            tags,
-            paidById,
-            expenseDate,
-            nowIso(),
-          ],
-        );
-        for (const [index, participantId] of participantIds.entries()) {
-          await client.query(
-            `INSERT INTO expense_participants
-               (expense_id, trip_id, participant_id, position, share_minor)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              expenseId,
-              trip.id,
-              participantId,
-              index,
-              shareByParticipant.get(participantId) ?? null,
-            ],
-          );
-        }
-      });
+      await withTransaction(pool, (client) =>
+        insertExpense(client, trip.id, {
+          id: expenseId,
+          description,
+          amountMinor,
+          currency: currencyValue,
+          category,
+          tags,
+          paidById,
+          expenseDate,
+          createdAt: nowIso(),
+          participantIds,
+          participantShares,
+        }),
+      );
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
@@ -382,13 +362,6 @@ export function registerExpenseRoutes(
           return;
         }
       }
-      const shareByParticipant = new Map(
-        participantShares?.map((share) => [
-          share.participantId,
-          share.shareMinor,
-        ]),
-      );
-
       const updatedExpense = await withTransaction(pool, async (client) => {
         const result = await client.query(
           `UPDATE expenses
@@ -414,20 +387,11 @@ export function registerExpenseRoutes(
           "DELETE FROM expense_participants WHERE trip_id = $1 AND expense_id = $2",
           [trip.id, req.params.expenseId],
         );
-        for (const [index, participantId] of participantIds.entries()) {
-          await client.query(
-            `INSERT INTO expense_participants
-               (expense_id, trip_id, participant_id, position, share_minor)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              req.params.expenseId,
-              trip.id,
-              participantId,
-              index,
-              shareByParticipant.get(participantId) ?? null,
-            ],
-          );
-        }
+        await insertExpenseParticipants(client, trip.id, {
+          id: req.params.expenseId,
+          participantIds,
+          participantShares,
+        });
         return result;
       });
       if (updatedExpense.rowCount === 0) {
