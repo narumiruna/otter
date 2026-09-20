@@ -33,10 +33,13 @@ Migration `011_username_auth.sql` 將 `users.email` 改名為 `users.username`�
 - Server state：TanStack Query；表單：React Hook Form。
 - 後端：Hono + `@hono/node-server` + TypeScript。
 - 資料庫：PostgreSQL + raw SQL migrations。
-- 共用拆帳邏輯：`src/shared/`。
+- Monorepo：`apps/web`、`apps/api` 與 `packages/core`、`packages/contracts`、`packages/cli`。
+- 共用拆帳邏輯：`packages/core`；HTTP DTO 與 payload guards：`packages/contracts`。
 - 單元與元件測試：Vitest + Testing Library；瀏覽器測試：Playwright + axe。
 - 格式與 lint：Biome CI。
 - Git hook：Husky；`npm install` 會透過 `prepare` 安裝 hook。
+
+依賴方向固定為 `apps/* → packages/*`：web 與 CLI 只透過 HTTP/contract 與 API 溝通，`packages/core` 不依賴 transport 或 app implementation。Production 仍由 API process 提供 `apps/web/dist` 靜態檔案，因此部署維持單一 app service。
 
 前端工作區已完整使用 React feature components；TanStack Query 只在 API 成功後更新遠端狀態，React Hook Form 管理草稿、驗證、預覽與取消。URL 的 `trip`、`view`、`mode` query parameters 支援返回、上一頁與直接連結，且不會移除未知參數。
 
@@ -51,7 +54,7 @@ npm run dev
 
 `just dev` 會改以背景 container 啟動同一套環境。
 
-如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`：
+如果不用 compose，先準備 Postgres 並設定 `DATABASE_URL`。`npm run dev:server` 會先建置再監看 `packages/core` 與 `packages/contracts`，並同時啟動 `apps/api`（17464）與 `apps/web`（17463）；Vite 將 `/api` proxy 到 API：
 
 ```bash
 DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run migrate
@@ -87,7 +90,7 @@ npm run db:reset:dev
 
 ## Agent CLI
 
-`src/cli/` 內的 `@narumitw/otter` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
+`packages/cli/` 內的 `@narumitw/otter` package 提供非互動式 CLI，透過現有 HTTP API 管理支出群組、成員、支出、餘額與結清紀錄。資料結果固定輸出 JSON，適合 script 或 AI agent 使用。發佈後可全域安裝；在 repository 中則可 build 並 link：
 
 ```bash
 npm install --global @narumitw/otter # package 發佈後
@@ -123,7 +126,11 @@ otter expenses add \
   --paid-by participant-id \
   --split-with participant-id,other-participant-id
 otter balances get --trip trip-id
+otter trips get --trip trip-id > trip.json
+otter settlements preview --input trip.json
 ```
+
+`settlements preview` 會用 `packages/contracts` 驗證已保存的 trip payload，再用 `packages/core` 在本機重新計算餘額與結清建議，不需要 token 或網路；也可用 `--input -` 從 stdin 讀取。CLI 的貨幣、金額、日期、分類與分帳清單會先做本機驗證，但 API 仍是最終驗證權威。
 
 金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 回應中的 `amountMinor` 使用最小貨幣單位。刪除命令必須明確加上 `--yes`。遠端 URL 預設必須使用 HTTPS；只有明確設定 `OTTER_ALLOW_INSECURE_HTTP=1` 才會把認證資料送到非本機 HTTP URL。使用 `otter auth logout` 可撤銷目前 token 並移除本機保存內容。
 
@@ -200,5 +207,9 @@ npm ci
 npx playwright install --with-deps chromium
 npm run check
 npm run migrate
+node apps/api/dist/scripts/migrate.js
 npm run test:e2e
+docker build --tag otter-ci .
 ```
+
+CI 接著會以 disposable PostgreSQL 啟動 production image，檢查 API、SPA 與 container restart。
