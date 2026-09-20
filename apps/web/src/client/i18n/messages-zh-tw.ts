@@ -202,7 +202,8 @@ export const zhTW = {
   baseCurrencyCurrency: (values: MessageValues) =>
     interpolate("基準貨幣 {currency}", values),
   usingCustomExchangeRates: "使用自訂匯率",
-  usingBuiltInFixedRates: "使用內建固定匯率",
+  usingBankOfTaiwanExchangeRates: "使用台灣銀行預設匯率",
+  usingFixedFallbackRates: "台灣銀行暫時無法連線，使用備援固定匯率",
   loadingGroup2: "正在載入群組…",
   people: "成員",
   expenses: "支出",
@@ -574,7 +575,7 @@ export const zhTW = {
     values: MessageValues,
   ) =>
     interpolate(
-      "預計 {count} 筆結清建議；自訂匯率將重設為內建固定值。",
+      "預計 {count} 筆結清建議；自訂匯率將重設為台灣銀行預設值。",
       values,
     ),
   cancelChanges: "取消變更",
@@ -600,18 +601,26 @@ export const zhTW = {
   setHowMuch1UnitOfEachCurrencyEqualsInCurrencyLeaveBlankToUseTheBuiltInFixedRate:
     (values: MessageValues) =>
       interpolate(
-        "設定 1 單位外幣等於多少 {currency}；留空會使用內建固定匯率。",
+        "設定 1 單位外幣等於多少 {currency}；未設定時會自動使用台灣銀行即期中價。",
         values,
       ),
   customExchangeRates: "自訂匯率",
+  bankOfTaiwanSpotMidRateDescription:
+    "未設定自訂匯率時，系統會自動使用台灣銀行即期買進與賣出的中價。載入後套用可清除自訂值，恢復自動更新。",
+  loadBankOfTaiwanSpotMidRates: "載入台灣銀行預設匯率",
+  loadingBankExchangeRates: "正在載入銀行匯率…",
+  bankOfTaiwanSpotMidRatesLoadedAtTime: (values: MessageValues) =>
+    interpolate("已載入台灣銀行即期中價（{time}）。", values),
+  bankOfTaiwanDefaultRatesApplied: "已恢復台灣銀行預設匯率",
+  unableToLoadBankExchangeRates: "目前無法取得銀行匯率，請稍後再試",
   conversionPreview: "換算預覽",
   totalSpendingAmountCountSettlementSuggestions: (values: MessageValues) =>
     interpolate("總支出：{amount} · {count} 筆結清建議。", values),
-  resetToBuiltInRates: "重設為內建匯率",
   applyRates: "套用匯率",
   allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates:
     "所有總額、餘額與結清建議會使用這組匯率重新計算。",
   applyCustomExchangeRates: "套用自訂匯率？",
+  restoreBankOfTaiwanDefaultRates: "恢復台灣銀行預設匯率？",
   groupLifecycle: "群組生命週期",
   archivedReadOnly: "已封存・唯讀",
   active2: "使用中",

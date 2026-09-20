@@ -2,6 +2,7 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   findUserByUsername,
   loadTripForUser,
@@ -11,13 +12,13 @@ import {
   requestBody,
   sendError,
   stringField,
-  tripPayload,
 } from "./server-support.js";
 
 export function registerCollaborationRoutes(
   app: OtterApp,
   pool: PgPool,
   mustHaveBrowserSession: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/members",
@@ -69,7 +70,7 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator insert");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -104,7 +105,7 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator delete");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 }

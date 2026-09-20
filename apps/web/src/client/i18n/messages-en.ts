@@ -226,7 +226,9 @@ export const en = {
   baseCurrencyCurrency: (values: MessageValues) =>
     interpolate("Base currency {currency}", values),
   usingCustomExchangeRates: "Using custom exchange rates",
-  usingBuiltInFixedRates: "Using built-in fixed rates",
+  usingBankOfTaiwanExchangeRates: "Using Bank of Taiwan default rates",
+  usingFixedFallbackRates:
+    "Bank of Taiwan is unavailable; using fixed fallback rates",
   loadingGroup2: "Loading group…",
   people: "People",
   expenses: "Expenses",
@@ -645,7 +647,7 @@ export const en = {
     values: MessageValues,
   ) =>
     interpolate(
-      `Expect {count} settlement ${pluralize(values.count, "suggestion")}; custom rates will reset to built-in values.`,
+      `Expect {count} settlement ${pluralize(values.count, "suggestion")}; custom rates will reset to Bank of Taiwan defaults.`,
       values,
     ),
   cancelChanges: "Cancel changes",
@@ -671,21 +673,30 @@ export const en = {
   setHowMuch1UnitOfEachCurrencyEqualsInCurrencyLeaveBlankToUseTheBuiltInFixedRate:
     (values: MessageValues) =>
       interpolate(
-        "Set how much 1 unit of each currency equals in {currency}. Leave blank to use the built-in fixed rate.",
+        "Set how much 1 unit of each currency equals in {currency}. Unset rates automatically use Bank of Taiwan spot mid-rates.",
         values,
       ),
   customExchangeRates: "Custom exchange rates",
+  bankOfTaiwanSpotMidRateDescription:
+    "When no custom rates are set, Otter automatically uses the midpoint of Bank of Taiwan's spot buy and sell rates. Load and apply these defaults to clear custom values and resume automatic updates.",
+  loadBankOfTaiwanSpotMidRates: "Load Bank of Taiwan default rates",
+  loadingBankExchangeRates: "Loading bank exchange rates…",
+  bankOfTaiwanSpotMidRatesLoadedAtTime: (values: MessageValues) =>
+    interpolate("Loaded Bank of Taiwan spot mid-rates ({time}).", values),
+  bankOfTaiwanDefaultRatesApplied: "Bank of Taiwan default rates restored",
+  unableToLoadBankExchangeRates:
+    "Bank exchange rates are currently unavailable. Try again later.",
   conversionPreview: "Conversion preview",
   totalSpendingAmountCountSettlementSuggestions: (values: MessageValues) =>
     interpolate(
       `Total spending: {amount} · {count} settlement ${pluralize(values.count, "suggestion")}.`,
       values,
     ),
-  resetToBuiltInRates: "Reset to built-in rates",
   applyRates: "Apply rates",
   allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates:
     "All totals, balances, and settlement suggestions will be recalculated with these rates.",
   applyCustomExchangeRates: "Apply custom exchange rates?",
+  restoreBankOfTaiwanDefaultRates: "Restore Bank of Taiwan default rates?",
   groupLifecycle: "Group lifecycle",
   archivedReadOnly: "Archived · read-only",
   active2: "Active",

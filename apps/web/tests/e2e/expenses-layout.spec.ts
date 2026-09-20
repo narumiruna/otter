@@ -52,6 +52,12 @@ for (const colorScheme of ["light", "dark"] as const) {
             trip,
             balances: calculateBalances(trip),
             settlements: calculateSettlements(trip),
+            exchangeRateInfo: {
+              fetchedAt: "2026-09-20T00:00:00.000Z",
+              provider: "BANK_OF_TAIWAN",
+              rateType: "spotMid",
+              source: "bank",
+            },
             currentUserRole: "owner",
             collaborators: [],
             shareLinks: [],

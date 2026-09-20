@@ -2,13 +2,13 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   loadTripForUser,
   makeId,
   nowIso,
   rejectArchivedTrip,
   sendError,
-  tripPayload,
 } from "./server-support.js";
 
 const receiptMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -17,6 +17,7 @@ export function registerReceiptRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.put(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
@@ -70,7 +71,7 @@ export function registerReceiptRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after receipt upload");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -127,7 +128,7 @@ export function registerReceiptRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after receipt delete");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 }

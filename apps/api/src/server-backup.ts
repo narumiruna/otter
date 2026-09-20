@@ -6,6 +6,7 @@ import type { Pool as PgPool, PoolClient } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   loadTripForUser,
   makeId,
@@ -13,7 +14,6 @@ import {
   requestBody,
   sendError,
   tripNameExistsForUser,
-  tripPayload,
   withTransaction,
 } from "./server-support.js";
 
@@ -21,6 +21,7 @@ export function registerBackupRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.get(
     "/api/trips/:tripId/backup",
@@ -174,7 +175,7 @@ export function registerBackupRoutes(
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      res.status(201).json(tripPayload(restored));
+      res.status(201).json(await buildTripPayload(restored));
     }),
   );
 }

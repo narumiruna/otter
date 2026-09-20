@@ -2,6 +2,7 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   loadTripForUser,
   participantExists,
@@ -9,7 +10,6 @@ import {
   requestBody,
   sendError,
   stringField,
-  tripPayload,
   withTransaction,
 } from "./server-support.js";
 
@@ -17,6 +17,7 @@ export function registerParticipantMergeRoute(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/participants/:participantId/merge",
@@ -109,7 +110,7 @@ export function registerParticipantMergeRoute(
       if (!updated) {
         throw new Error("Trip disappeared after participant merge");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 }

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type {
+  ExchangeRateInfo,
   User as PublicUser,
   TripCollaborator,
   TripPayload,
@@ -265,10 +266,16 @@ export function clearSessionCookie(res: RouteResponse) {
   res.setHeader("Set-Cookie", clearSessionCookieHeader());
 }
 
-export function tripPayload(trip: LoadedTrip): TripPayload {
+export type BuildTripPayload = (trip: LoadedTrip) => Promise<TripPayload>;
+
+export function tripPayload(
+  trip: LoadedTrip,
+  exchangeRateInfo?: ExchangeRateInfo,
+): TripPayload {
   const { collaborators, currentUserRole, shareLinks, ...plainTrip } = trip;
   return {
     balances: calculateBalances(plainTrip),
+    ...(exchangeRateInfo ? { exchangeRateInfo } : {}),
     settlements: calculateSettlements(plainTrip),
     trip: plainTrip,
     ...(currentUserRole ? { currentUserRole } : {}),

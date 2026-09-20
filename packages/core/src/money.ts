@@ -21,6 +21,18 @@ export function isCurrency(value: unknown): value is Currency {
   return typeof value === "string" && currencies.includes(value as Currency);
 }
 
+export function fixedExchangeRates(
+  baseCurrency: Currency,
+): Record<Currency, number> {
+  const baseRateToTwd = currencyInfo[baseCurrency].rateToTwd;
+  return Object.fromEntries(
+    currencies.map((currency) => [
+      currency,
+      currencyInfo[currency].rateToTwd / baseRateToTwd,
+    ]),
+  ) as Record<Currency, number>;
+}
+
 export function parseAmountToMinor(input: string, currency: Currency): number {
   const value = input.trim();
   if (!/^\d+(\.\d+)?$/.test(value)) {

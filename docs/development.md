@@ -65,6 +65,7 @@ apps/web        React/Vite browser app
 apps/api        Hono API, PostgreSQL access and migrations
 packages/core   Environment-neutral expense and settlement logic
 packages/contracts  HTTP DTOs and payload guards
+packages/exchange-rates  Bank exchange-rate clients and parsers
 packages/cli    Published non-interactive CLI
 ```
 

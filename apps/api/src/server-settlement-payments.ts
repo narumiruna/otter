@@ -3,6 +3,7 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   isDateOnly,
   loadTripForUser,
@@ -14,13 +15,13 @@ import {
   sendError,
   stringField,
   todayDate,
-  tripPayload,
 } from "./server-support.js";
 
 export function registerSettlementPaymentRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/settlement-payments",
@@ -103,7 +104,7 @@ export function registerSettlementPaymentRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment insert");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -134,7 +135,7 @@ export function registerSettlementPaymentRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment delete");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 }

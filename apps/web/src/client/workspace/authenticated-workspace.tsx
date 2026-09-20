@@ -483,9 +483,11 @@ function TripHeader({
                 currency: payload.trip.baseCurrency,
               })}{" "}
               ·{" "}
-              {Object.keys(payload.trip.exchangeRates ?? {}).length
+              {payload.exchangeRateInfo?.source === "custom"
                 ? messages.usingCustomExchangeRates
-                : messages.usingBuiltInFixedRates}
+                : payload.exchangeRateInfo?.source === "bank"
+                  ? messages.usingBankOfTaiwanExchangeRates
+                  : messages.usingFixedFallbackRates}
               {pendingTripId ? ` · ${messages.loadingGroup2}` : ""}
             </span>
           </p>

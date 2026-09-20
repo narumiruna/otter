@@ -20,6 +20,11 @@ import {
   ensureDevelopmentFixtures,
 } from "./server-dev.js";
 import { registerDeviceAuthRoutes } from "./server-device-auth.js";
+import {
+  createExchangeRateService,
+  type ExchangeRateRouteOptions,
+  registerExchangeRateRoutes,
+} from "./server-exchange-rates.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
@@ -60,7 +65,6 @@ import {
   setSessionCookie,
   stringField,
   tripNameExistsForUser,
-  tripPayload,
   type User,
   userFromRequest,
   verifyPassword,
@@ -106,6 +110,7 @@ const __dirname = path.dirname(__filename);
 
 export type CreateAppOptions = {
   devLoginCredentials?: DevelopmentAdminCredentials | null;
+  exchangeRates?: ExchangeRateRouteOptions;
   passkeys?: PasskeyRouteOptions;
 };
 
@@ -116,10 +121,13 @@ export function createApp(
   const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUser(pool);
   const mustHaveBrowserSession = requireSessionUser(pool);
+  const exchangeRateService = createExchangeRateService(options.exchangeRates);
+  const { buildTripPayload } = exchangeRateService;
 
   registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
-  registerBackupRoutes(app, pool, mustBeSignedIn);
+  registerBackupRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
+  registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
 
   app.get("/api/config", (context) => {
@@ -371,7 +379,7 @@ export function createApp(
         );
       });
 
-      res.status(201).json(tripPayload(trip));
+      res.status(201).json(await buildTripPayload(trip));
     }),
   );
 
@@ -389,7 +397,7 @@ export function createApp(
         return;
       }
 
-      res.json(tripPayload(trip));
+      res.json(await buildTripPayload(trip));
     }),
   );
 
@@ -502,7 +510,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after rename");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 
@@ -580,7 +588,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant insert");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -625,11 +633,11 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant rename");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 
-  registerParticipantMergeRoute(app, pool, mustBeSignedIn);
+  registerParticipantMergeRoute(app, pool, mustBeSignedIn, buildTripPayload);
 
   app.delete(
     "/api/trips/:tripId/participants/:participantId",
@@ -682,16 +690,21 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant delete");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 
-  registerCollaborationRoutes(app, pool, mustHaveBrowserSession);
-  registerCsvImportRoutes(app, pool, mustBeSignedIn);
-  registerExpenseRoutes(app, pool, mustBeSignedIn);
-  registerReceiptRoutes(app, pool, mustBeSignedIn);
-  registerSettlementPaymentRoutes(app, pool, mustBeSignedIn);
-  registerShareRoutes(app, pool, mustHaveBrowserSession);
+  registerCollaborationRoutes(
+    app,
+    pool,
+    mustHaveBrowserSession,
+    buildTripPayload,
+  );
+  registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);
 
   app.all("/api", (context) => context.json({ error: "找不到 API" }, 404));
   app.all("/api/*", (context) => context.json({ error: "找不到 API" }, 404));

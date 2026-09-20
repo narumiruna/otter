@@ -39,7 +39,10 @@ export function MorePage({
       ) : null}
       <DataSettings onRestored={onRestored} payload={payload} />
       {isOwner && !payload.trip.archivedAt ? (
-        <ExchangeRateSettings payload={payload} />
+        <ExchangeRateSettings
+          key={`${payload.trip.id}:${payload.trip.baseCurrency}`}
+          payload={payload}
+        />
       ) : null}
       {isOwner ? (
         <LifecycleSettings onDeleted={onDeleted} payload={payload} />

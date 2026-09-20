@@ -20,6 +20,7 @@ import {
 } from "./server-splits.js";
 import {
   asyncHandler,
+  type BuildTripPayload,
   currentUser,
   isDateOnly,
   loadTripForUser,
@@ -31,7 +32,6 @@ import {
   sendError,
   stringField,
   todayDate,
-  tripPayload,
   withTransaction,
 } from "./server-support.js";
 
@@ -49,6 +49,7 @@ export function registerExpenseRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
+  buildTripPayload: BuildTripPayload,
 ) {
   app.post(
     "/api/trips/:tripId/expenses",
@@ -201,7 +202,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense insert");
       }
-      res.status(201).json(tripPayload(updated));
+      res.status(201).json(await buildTripPayload(updated));
     }),
   );
 
@@ -438,7 +439,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense update");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 
@@ -469,7 +470,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense delete");
       }
-      res.json(tripPayload(updated));
+      res.json(await buildTripPayload(updated));
     }),
   );
 }

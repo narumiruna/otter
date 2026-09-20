@@ -4,7 +4,12 @@ import {
   isExpenseCategory,
 } from "@narumitw/otter-core/expense-metadata";
 import type { SplitMode } from "@narumitw/otter-core/expense-splits";
-import { type Currency, isCurrency } from "@narumitw/otter-core/money";
+import {
+  type Currency,
+  currencies,
+  type ExchangeRates,
+  isCurrency,
+} from "@narumitw/otter-core/money";
 import type {
   Balance,
   Settlement,
@@ -44,10 +49,35 @@ export type TripShareLink = {
   url?: string;
 };
 
+export type ExchangeRateDefaults =
+  | {
+      fetchedAt: string;
+      provider: "BANK_OF_TAIWAN";
+      rates: Record<Currency, number>;
+      rateType: "spotMid";
+      source: "bank";
+    }
+  | { rates: Record<Currency, number>; source: "fixed" };
+
+export type ExchangeRateInfo =
+  | {
+      fetchedAt: string;
+      provider: "BANK_OF_TAIWAN";
+      rateType: "spotMid";
+      source: "bank";
+    }
+  | {
+      customRates: ExchangeRates;
+      defaults: ExchangeRateDefaults;
+      source: "custom";
+    }
+  | { source: "fixed" };
+
 export type TripPayload = {
   trip: Trip;
   balances: Balance[];
   settlements: Settlement[];
+  exchangeRateInfo?: ExchangeRateInfo;
   currentUserRole?: TripRole;
   collaborators?: TripCollaborator[];
   shareLinks?: TripShareLink[];
@@ -69,6 +99,14 @@ export type TripsResponse = {
 };
 
 export type OkResponse = { ok: true };
+
+export type ExchangeRateSnapshot = {
+  baseCurrency: Currency;
+  fetchedAt: string;
+  rates: Record<Currency, number>;
+  rateType: "spotMid";
+  source: "BANK_OF_TAIWAN";
+};
 
 export type ApiToken = {
   createdAt: string;
@@ -144,6 +182,7 @@ export function parseTripPayload(value: unknown): TripPayload {
   validateTrip(value.trip);
   validateBalances(value.balances);
   validateSettlements(value.settlements);
+  validateExchangeRateInfo(value.exchangeRateInfo);
   validateRole(value.currentUserRole);
   validateCollaborators(value.collaborators);
   validateShareLinks(value.shareLinks);
@@ -151,6 +190,33 @@ export function parseTripPayload(value: unknown): TripPayload {
     throw invalidTripPayload();
   }
   return value as TripPayload;
+}
+
+export function parseExchangeRateSnapshot(
+  value: unknown,
+): ExchangeRateSnapshot {
+  if (
+    !isRecord(value) ||
+    !isCurrency(value.baseCurrency) ||
+    !isNonEmptyString(value.fetchedAt) ||
+    !Number.isFinite(Date.parse(value.fetchedAt)) ||
+    value.rateType !== "spotMid" ||
+    value.source !== "BANK_OF_TAIWAN" ||
+    !isRecord(value.rates)
+  ) {
+    throw new Error("Invalid exchange-rate snapshot");
+  }
+  for (const [currency, rate] of Object.entries(value.rates)) {
+    if (!isCurrency(currency) || !isPositiveNumber(rate)) {
+      throw new Error("Invalid exchange-rate snapshot");
+    }
+  }
+  for (const currency of currencies) {
+    if (!isPositiveNumber(value.rates[currency])) {
+      throw new Error("Invalid exchange-rate snapshot");
+    }
+  }
+  return value as ExchangeRateSnapshot;
 }
 
 function validateTrip(value: unknown): asserts value is Trip {
@@ -282,6 +348,64 @@ function validateSettlements(value: unknown): asserts value is Settlement[] {
       throw invalidTripPayload();
     }
   }
+}
+
+function validateExchangeRateInfo(value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!isRecord(value)) {
+    throw invalidTripPayload();
+  }
+  if (value.source === "fixed") {
+    return;
+  }
+  if (value.source === "custom") {
+    if (
+      !isRecord(value.customRates) ||
+      !isExchangeRateMap(value.customRates, false) ||
+      Object.keys(value.customRates).length === 0 ||
+      !isRecord(value.defaults) ||
+      !isExchangeRateDefaults(value.defaults)
+    ) {
+      throw invalidTripPayload();
+    }
+    return;
+  }
+  if (!isBankRateMetadata(value)) {
+    throw invalidTripPayload();
+  }
+}
+
+function isExchangeRateDefaults(value: Record<string, unknown>): boolean {
+  if (!isExchangeRateMap(value.rates, true)) {
+    return false;
+  }
+  return value.source === "fixed" || isBankRateMetadata(value);
+}
+
+function isBankRateMetadata(value: Record<string, unknown>): boolean {
+  return (
+    value.source === "bank" &&
+    value.provider === "BANK_OF_TAIWAN" &&
+    value.rateType === "spotMid" &&
+    isNonEmptyString(value.fetchedAt) &&
+    Number.isFinite(Date.parse(value.fetchedAt))
+  );
+}
+
+function isExchangeRateMap(value: unknown, complete: boolean): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  for (const [currency, rate] of Object.entries(value)) {
+    if (!isCurrency(currency) || !isPositiveNumber(rate)) {
+      return false;
+    }
+  }
+  return (
+    !complete || currencies.every((currency) => value[currency] !== undefined)
+  );
 }
 
 function validateRole(value: unknown): void {

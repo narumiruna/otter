@@ -7,6 +7,7 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/cli/package.json ./packages/cli/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/exchange-rates/package.json ./packages/exchange-rates/package.json
 COPY packages/core/package.json ./packages/core/package.json
 RUN npm ci
 
@@ -29,6 +30,8 @@ COPY --from=build /app/packages/cli/package.json ./packages/cli/package.json
 COPY --from=build /app/packages/cli/dist ./packages/cli/dist
 COPY --from=build /app/packages/contracts/package.json ./packages/contracts/package.json
 COPY --from=build /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=build /app/packages/exchange-rates/package.json ./packages/exchange-rates/package.json
+COPY --from=build /app/packages/exchange-rates/dist ./packages/exchange-rates/dist
 COPY --from=build /app/packages/core/package.json ./packages/core/package.json
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY scripts/docker-entrypoint.sh /usr/local/bin/otter-entrypoint
