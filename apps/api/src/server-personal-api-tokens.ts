@@ -1,14 +1,9 @@
 import type { Pool as PgPool } from "pg";
-import {
-  apiTokenLifetimeSeconds,
-  generateAccessToken,
-  hashApiSecret,
-} from "./server-api-tokens.js";
+import { apiTokenLifetimeSeconds, hashApiSecret } from "./server-api-tokens.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   currentUser,
-  makeId,
   nowIso,
   requestBody,
   sendError,
@@ -21,6 +16,14 @@ type ApiTokenRow = {
   created_at: Date | string;
   expires_at: Date | string;
 };
+
+type StoredApiTokenRow = ApiTokenRow & {
+  token_hash: string;
+};
+
+const apiTokenIdPattern =
+  /^token_[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const accessTokenPattern = /^otter_api_[A-Za-z0-9_-]{43}$/;
 
 export function registerPersonalApiTokenRoutes(
   app: OtterApp,
@@ -48,36 +51,72 @@ export function registerPersonalApiTokenRoutes(
     "/api/auth/tokens",
     mustHaveBrowserSession,
     asyncHandler(async (req, res) => {
-      const name = stringField(requestBody(req), "name");
+      const body = requestBody(req);
+      const accessToken = stringField(body, "accessToken");
+      const id = stringField(body, "id");
+      const name = stringField(body, "name");
       if (!name || name.length > 80) {
         sendError(res, 400, "Token name must be between 1 and 80 characters");
         return;
       }
+      if (!id || !apiTokenIdPattern.test(id)) {
+        sendError(res, 400, "Invalid API token request ID");
+        return;
+      }
+      if (!accessToken || !accessTokenPattern.test(accessToken)) {
+        sendError(res, 400, "Invalid API token secret");
+        return;
+      }
 
-      const accessToken = generateAccessToken();
+      const userId = currentUser(res).id;
+      const tokenHash = hashApiSecret(accessToken);
       const createdAt = nowIso();
       const token = {
         createdAt,
         expiresAt: new Date(
           Date.now() + apiTokenLifetimeSeconds * 1000,
         ).toISOString(),
-        id: makeId("token"),
+        id,
         name,
       };
-      await pool.query(
+      const inserted = await pool.query(
         `INSERT INTO api_tokens
            (id, user_id, token_hash, name, created_at, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO NOTHING`,
         [
           token.id,
-          currentUser(res).id,
-          hashApiSecret(accessToken),
+          userId,
+          tokenHash,
           token.name,
           token.createdAt,
           token.expiresAt,
         ],
       );
-      res.status(201).json({ accessToken, token });
+      if (inserted.rowCount === 1) {
+        res.status(201).json({ accessToken, token });
+        return;
+      }
+
+      const existing = await pool.query<StoredApiTokenRow>(
+        `SELECT id, name, token_hash, created_at, expires_at
+         FROM api_tokens
+         WHERE id = $1
+           AND user_id = $2
+           AND token_hash = $3
+           AND revoked_at IS NULL
+           AND expires_at > now()`,
+        [id, userId, tokenHash],
+      );
+      if (!existing.rows[0]) {
+        sendError(
+          res,
+          409,
+          "API token request conflicts with an existing token",
+        );
+        return;
+      }
+      res.json({ accessToken, token: publicApiToken(existing.rows[0]) });
     }),
   );
 

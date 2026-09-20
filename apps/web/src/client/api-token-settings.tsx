@@ -1,6 +1,7 @@
 import type {
   ApiToken,
   ApiTokensResponse,
+  CreateApiTokenRequest,
   CreateApiTokenResponse,
 } from "@narumitw/otter-contracts";
 import {
@@ -15,6 +16,27 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ApiResponseError, api } from "./client-support.js";
 import { useI18n } from "./i18n.js";
+
+function newApiTokenRequest(name: string): CreateApiTokenRequest {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const secret = btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+  return {
+    accessToken: `otter_api_${secret}`,
+    id: `token_${crypto.randomUUID()}`,
+    name,
+  };
+}
+
+function definitiveRejection(error: unknown): boolean {
+  return (
+    error instanceof ApiResponseError &&
+    error.status >= 400 &&
+    error.status < 500
+  );
+}
 
 export function ApiTokenSettings({
   offline,
@@ -37,10 +59,11 @@ export function ApiTokenSettings({
   const listAbortController = useRef<AbortController | undefined>(undefined);
   const listGeneration = useRef(0);
   const mutationActive = useRef(false);
+  const pendingCreation = useRef<CreateApiTokenRequest | null>(null);
   const error = actionError || listError;
 
   const loadTokens = useCallback(async () => {
-    if (mutationActive.current) return false;
+    if (mutationActive.current) return null;
     listAbortController.current?.abort();
     const controller = new AbortController();
     listAbortController.current = controller;
@@ -58,7 +81,7 @@ export function ApiTokenSettings({
       }
       setTokens(result.tokens);
       setListError("");
-      return true;
+      return result.tokens;
     } catch {
       if (
         !controller.signal.aborted &&
@@ -67,7 +90,7 @@ export function ApiTokenSettings({
       ) {
         setListError(messages.unableToLoadApiTokens);
       }
-      return false;
+      return null;
     } finally {
       if (listAbortController.current === controller) {
         listAbortController.current = undefined;
@@ -103,18 +126,55 @@ export function ApiTokenSettings({
     setLoading(false);
   }
 
-  async function reconcileCreation() {
-    setLoading(true);
-    setActionError("");
-    const reconciled = await loadTokens();
-    setLoading(false);
-    if (!reconciled) {
-      setActionError(messages.apiTokenCreationUncertain);
-      return;
-    }
+  function acceptCreatedToken(result: CreateApiTokenResponse) {
+    pendingCreation.current = null;
     setCreationUncertain(false);
-    setActionError(messages.unableToCreateApiToken);
-    onMutationChange(false);
+    setTokens((current) => [
+      result.token,
+      ...current.filter((token) => token.id !== result.token.id),
+    ]);
+    setCreatedToken(result);
+    setName("");
+  }
+
+  async function submitCreation(request: CreateApiTokenRequest) {
+    setBusy("create");
+    setCreationUncertain(false);
+    beginMutation();
+    setActionError("");
+    setListError("");
+    setStatus("");
+    let failure: "ambiguous" | "definitive" | null = null;
+    try {
+      const result = await api<CreateApiTokenResponse>("/api/auth/tokens", {
+        body: JSON.stringify(request),
+        method: "POST",
+      });
+      acceptCreatedToken(result);
+    } catch (error) {
+      failure = definitiveRejection(error) ? "definitive" : "ambiguous";
+    } finally {
+      endMutation(failure !== "ambiguous");
+    }
+
+    if (failure === "definitive") {
+      pendingCreation.current = null;
+      setActionError(messages.unableToCreateApiToken);
+    } else if (failure === "ambiguous") {
+      const refreshed = await loadTokens();
+      const confirmed = refreshed?.find((token) => token.id === request.id);
+      if (confirmed) {
+        acceptCreatedToken({
+          accessToken: request.accessToken,
+          token: confirmed,
+        });
+        onMutationChange(false);
+      } else {
+        setCreationUncertain(true);
+        setActionError(messages.apiTokenCreationUncertain);
+      }
+    }
+    setBusy("");
   }
 
   async function createToken() {
@@ -123,48 +183,14 @@ export function ApiTokenSettings({
       setActionError(messages.enterATokenName);
       return;
     }
+    const request = newApiTokenRequest(tokenName);
+    pendingCreation.current = request;
+    await submitCreation(request);
+  }
 
-    setBusy("create");
-    beginMutation();
-    setActionError("");
-    setListError("");
-    setStatus("");
-    let failure: "ambiguous" | "definitive" | null = null;
-    try {
-      const result = await api<CreateApiTokenResponse>("/api/auth/tokens", {
-        body: JSON.stringify({ name: tokenName }),
-        method: "POST",
-      });
-      setTokens((current) => [
-        result.token,
-        ...current.filter((token) => token.id !== result.token.id),
-      ]);
-      setCreatedToken(result);
-      setName("");
-    } catch (error) {
-      failure =
-        error instanceof ApiResponseError &&
-        error.status >= 400 &&
-        error.status < 500
-          ? "definitive"
-          : "ambiguous";
-    } finally {
-      endMutation(failure !== "ambiguous");
-    }
-
-    if (failure === "definitive") {
-      setActionError(messages.unableToCreateApiToken);
-    } else if (failure === "ambiguous") {
-      const reconciled = await loadTokens();
-      if (reconciled) {
-        setActionError(messages.unableToCreateApiToken);
-        onMutationChange(false);
-      } else {
-        setCreationUncertain(true);
-        setActionError(messages.apiTokenCreationUncertain);
-      }
-    }
-    setBusy("");
+  async function retryCreation() {
+    const request = pendingCreation.current;
+    if (request) await submitCreation(request);
   }
 
   async function revokeToken(token: ApiToken) {
@@ -233,11 +259,11 @@ export function ApiTokenSettings({
       {creationUncertain ? (
         <Button
           disabled={offline || loading}
-          onClick={() => void reconcileCreation()}
+          onClick={() => void retryCreation()}
           type="button"
           variant="outline"
         >
-          {messages.reloadApiTokens}
+          {messages.retryApiTokenCreation}
         </Button>
       ) : null}
       {status ? (

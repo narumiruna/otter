@@ -81,6 +81,12 @@ export type ApiTokensResponse = {
   tokens: ApiToken[];
 };
 
+export type CreateApiTokenRequest = {
+  accessToken: string;
+  id: string;
+  name: string;
+};
+
 export type CreateApiTokenResponse = {
   accessToken: string;
   token: ApiToken;

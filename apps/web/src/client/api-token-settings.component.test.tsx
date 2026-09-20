@@ -53,10 +53,13 @@ test("creates a token, shows its secret once, and copies it", async () => {
   const secret = await view.findByRole("region", { name: "新的 API token" });
   expect(secret).toHaveTextContent("otter_api_secret");
   expect(view.getByText(token.name)).toBeVisible();
-  expect(api).toHaveBeenCalledWith("/api/auth/tokens", {
-    body: JSON.stringify({ name: token.name }),
-    method: "POST",
-  });
+  const createCall = vi
+    .mocked(api)
+    .mock.calls.find(([, init]) => init?.method === "POST");
+  const request = JSON.parse(String(createCall?.[1]?.body));
+  expect(request).toMatchObject({ name: token.name });
+  expect(request.id).toMatch(/^token_[0-9a-f-]{36}$/);
+  expect(request.accessToken).toMatch(/^otter_api_[A-Za-z0-9_-]{43}$/);
 
   await user.click(view.getByRole("button", { name: "複製 token" }));
   expect(clipboardWrite).toHaveBeenCalledWith("otter_api_secret");
@@ -70,12 +73,16 @@ test("creates a token, shows its secret once, and copies it", async () => {
 
 test("refreshes tokens after an ambiguous creation failure", async () => {
   let listRequests = 0;
+  let requestedId = "";
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {
       listRequests += 1;
-      return { tokens: listRequests === 1 ? [] : [token] };
+      return {
+        tokens: listRequests === 1 ? [] : [{ ...token, id: requestedId }],
+      };
     }
     if (url === "/api/auth/tokens" && init?.method === "POST") {
+      requestedId = JSON.parse(String(init.body)).id;
       throw new Error("response lost");
     }
     throw new Error(`Unexpected API request: ${url}`);
@@ -90,21 +97,26 @@ test("refreshes tokens after an ambiguous creation failure", async () => {
   );
   await user.click(view.getByRole("button", { name: "建立 API token" }));
 
-  expect(await view.findByRole("alert")).toHaveTextContent(
-    "無法建立 API token",
-  );
+  expect(
+    await view.findByRole("region", { name: "新的 API token" }),
+  ).toHaveTextContent(/otter_api_/);
   expect(view.getByText(token.name)).toBeVisible();
+  expect(view.queryByRole("alert")).not.toBeInTheDocument();
   expect(listRequests).toBe(2);
 });
 
 test("reconciles token creation after a server failure", async () => {
   let listRequests = 0;
+  let requestedId = "";
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {
       listRequests += 1;
-      return { tokens: listRequests === 1 ? [] : [token] };
+      return {
+        tokens: listRequests === 1 ? [] : [{ ...token, id: requestedId }],
+      };
     }
     if (url === "/api/auth/tokens" && init?.method === "POST") {
+      requestedId = JSON.parse(String(init.body)).id;
       throw new ApiResponseError("Bad gateway", 502);
     }
     throw new Error(`Unexpected API request: ${url}`);
@@ -119,10 +131,11 @@ test("reconciles token creation after a server failure", async () => {
   );
   await user.click(view.getByRole("button", { name: "建立 API token" }));
 
-  expect(await view.findByRole("alert")).toHaveTextContent(
-    "無法建立 API token",
-  );
+  expect(
+    await view.findByRole("region", { name: "新的 API token" }),
+  ).toHaveTextContent(/otter_api_/);
   expect(view.getByText(token.name)).toBeVisible();
+  expect(view.queryByRole("alert")).not.toBeInTheDocument();
   expect(listRequests).toBe(2);
 });
 
@@ -156,22 +169,29 @@ test("releases navigation after a definitive creation rejection", async () => {
   );
   expect(view.getByRole("button", { name: "建立 API token" })).toBeEnabled();
   expect(
-    view.queryByRole("button", { name: "重新載入 API token" }),
+    view.queryByRole("button", { name: "重試建立 token" }),
   ).not.toBeInTheDocument();
   expect(onMutationChange).toHaveBeenLastCalledWith(false);
   expect(listRequests).toBe(1);
 });
 
-test("blocks creation until an ambiguous failure is reconciled", async () => {
+test("retries the same request while creation remains uncertain", async () => {
   let listRequests = 0;
+  const creationBodies: string[] = [];
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {
       listRequests += 1;
-      if (listRequests === 2) throw new Error("still offline");
-      return { tokens: listRequests === 1 ? [] : [token] };
+      return { tokens: [] };
     }
     if (url === "/api/auth/tokens" && init?.method === "POST") {
-      throw new Error("response lost");
+      const body = String(init.body);
+      creationBodies.push(body);
+      if (creationBodies.length === 1) throw new Error("response lost");
+      const request = JSON.parse(body);
+      return {
+        accessToken: request.accessToken,
+        token: { ...token, id: request.id },
+      };
     }
     throw new Error(`Unexpected API request: ${url}`);
   });
@@ -194,13 +214,15 @@ test("blocks creation until an ambiguous failure is reconciled", async () => {
   expect(view.getByRole("button", { name: "建立 API token" })).toBeDisabled();
   expect(onMutationChange).toHaveBeenLastCalledWith(true);
 
-  await user.click(view.getByRole("button", { name: "重新載入 API token" }));
+  await user.click(view.getByRole("button", { name: "重試建立 token" }));
 
-  expect(await view.findByText(token.name)).toBeVisible();
-  expect(view.getByRole("alert")).toHaveTextContent("無法建立 API token");
-  expect(view.getByRole("button", { name: "建立 API token" })).toBeEnabled();
+  expect(
+    await view.findByRole("region", { name: "新的 API token" }),
+  ).toHaveTextContent(/otter_api_/);
   expect(onMutationChange).toHaveBeenLastCalledWith(false);
-  expect(listRequests).toBe(3);
+  expect(creationBodies).toHaveLength(2);
+  expect(creationBodies[1]).toBe(creationBodies[0]);
+  expect(listRequests).toBe(2);
 });
 
 test("clears a one-time secret when its token is revoked", async () => {

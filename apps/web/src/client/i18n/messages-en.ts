@@ -126,8 +126,8 @@ export const en = {
   unableToLoadApiTokens: "Unable to load API tokens",
   unableToCreateApiToken: "Unable to create the API token",
   apiTokenCreationUncertain:
-    "The token request outcome is unknown. Reload API tokens before creating another.",
-  reloadApiTokens: "Reload API tokens",
+    "The token request outcome is unknown. Retry this request before creating another.",
+  retryApiTokenCreation: "Retry token creation",
   unableToRevokeApiToken: "Unable to revoke the API token",
   unableToCopyApiToken: "Unable to copy the API token",
   apiTokenRevoked: "API token revoked",

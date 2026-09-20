@@ -4,7 +4,8 @@ import type {
   CreateApiTokenResponse,
 } from "@narumitw/otter-contracts";
 import { test } from "vitest";
-import { hashApiSecret } from "./server-api-tokens.js";
+import { generateAccessToken, hashApiSecret } from "./server-api-tokens.js";
+import { makeId } from "./server-support.js";
 import {
   api,
   postgresTestOptions,
@@ -45,7 +46,11 @@ test(
         baseUrl,
         "/api/auth/tokens",
         {
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({
+            accessToken: generateAccessToken(),
+            id: makeId("token"),
+            name,
+          }),
           headers: { cookie },
           method: "POST",
         },
@@ -57,19 +62,25 @@ test(
       );
     }
 
+    const requestedAccessToken = generateAccessToken();
+    const request = {
+      accessToken: requestedAccessToken,
+      id: makeId("token"),
+      name: "  CI travel agent  ",
+    };
     const created = await api<CreateApiTokenResponse>(
       baseUrl,
       "/api/auth/tokens",
       {
-        body: JSON.stringify({ name: "  CI travel agent  " }),
+        body: JSON.stringify(request),
         headers: { cookie },
         method: "POST",
       },
     );
     assert.equal(created.response.status, 201);
-    assert.match(created.data.accessToken, /^otter_api_[A-Za-z0-9_-]{43}$/);
+    assert.equal(created.data.accessToken, requestedAccessToken);
     assert.equal(created.data.token.name, "CI travel agent");
-    assert.match(created.data.token.id, /^token_/);
+    assert.equal(created.data.token.id, request.id);
     assert.ok(new Date(created.data.token.expiresAt).getTime() > Date.now());
 
     const stored = await pool.query<{ token_hash: string }>(
@@ -81,6 +92,23 @@ test(
       hashApiSecret(created.data.accessToken),
     );
     assert.notEqual(stored.rows[0]?.token_hash, created.data.accessToken);
+
+    const replayed = await api<CreateApiTokenResponse>(
+      baseUrl,
+      "/api/auth/tokens",
+      {
+        body: JSON.stringify(request),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(replayed.response.status, 200);
+    assert.deepEqual(replayed.data, created.data);
+    const tokenCount = await pool.query<{ count: string }>(
+      "SELECT count(*) FROM api_tokens WHERE id = $1",
+      [request.id],
+    );
+    assert.equal(tokenCount.rows[0]?.count, "1");
 
     const listed = await api<ApiTokensResponse>(baseUrl, "/api/auth/tokens", {
       headers: { cookie },
