@@ -348,6 +348,52 @@ test("saves only edited custom overrides for an automatic-rate trip", async () =
   }
 });
 
+test("reinitializes rate drafts after the base currency changes", () => {
+  const automaticPayload: TripPayload = {
+    ...payload,
+    exchangeRateInfo: bankRateInfo,
+    trip: { ...payload.trip, exchangeRates: bankRates },
+  };
+  const rebasedPayload: TripPayload = {
+    ...automaticPayload,
+    trip: {
+      ...automaticPayload.trip,
+      baseCurrency: "USD",
+      exchangeRates: {
+        EUR: bankRates.EUR / bankRates.USD,
+        JPY: bankRates.JPY / bankRates.USD,
+        TWD: bankRates.TWD / bankRates.USD,
+        USD: 1,
+      },
+    },
+  };
+  const client = new QueryClient();
+  const settings = (current: TripPayload) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={current}
+        refreshCollection={async () => undefined}
+      >
+        <ExchangeRateSettings
+          key={`${current.trip.id}:${current.trip.baseCurrency}`}
+          payload={current}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(settings(automaticPayload));
+
+  view.rerender(settings(rebasedPayload));
+
+  expect(view.getByLabelText("USD → USD")).toHaveValue("1");
+  expect(view.getByLabelText("TWD → USD")).toHaveValue("");
+  expect(view.queryByLabelText("TWD → TWD")).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
+});
+
 test("previews a new base currency with automatic bank rates", async () => {
   const automaticPayload: TripPayload = {
     ...payload,
