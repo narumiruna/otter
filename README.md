@@ -138,6 +138,25 @@ otter settlements preview --input trip.json
 
 使用 `otter --help` 查看完整命令。開發時仍可執行 `npm run --silent otter -- --help`；production bundle 可執行 `npm run --silent otter:built -- --help`。發佈前以 `npm pack --dry-run --workspace @narumitw/otter-cli` 檢查 package 內容。給 AI agent 的工作流程位於 `skills/otter-manage-expenses/SKILL.md`。
 
+## 版本與發佈
+
+npm package 使用 [Changesets](https://github.com/changesets/changesets) 管理版本與 changelog。目前只有 `@narumitw/otter-cli` 會發佈到 npm；root、app、core 與 contracts workspace 都標記為 private。
+
+會影響 CLI 使用者的 pull request 應執行以下命令，選擇 `@narumitw/otter-cli` 的 SemVer 變更層級，並提交產生的 `.changeset/*.md`：
+
+```bash
+npm run changeset
+```
+
+合併到 `main` 後，GitHub Actions 會建立或更新 release pull request。合併該 pull request 後，workflow 會執行檢查、更新 npm package，並建立 Git tag；repository 必須設定具有 npm publish 權限的 `NPM_TOKEN` secret。
+
+本機也可執行相同的版本與發佈命令：
+
+```bash
+npm run version-packages
+npm run release
+```
+
 ## Pre-commit / Husky
 
 `npm install` 或 `npm ci` 會透過 `prepare` 安裝 `.husky/pre-commit`。

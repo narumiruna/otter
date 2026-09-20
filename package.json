@@ -1,7 +1,7 @@
 {
   "name": "otter",
   "version": "0.1.0",
-  "private": false,
+  "private": true,
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -14,6 +14,9 @@
     "build:packages": "npm run build --workspace @narumitw/otter-core && npm run build --workspace @narumitw/otter-contracts",
     "build": "npm run build:packages && npm run build --workspace @narumitw/otter-web && npm run build --workspace @narumitw/otter-api && npm run build --workspace @narumitw/otter-cli",
     "build:cli": "npm run build --workspace @narumitw/otter-cli",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run check && changeset publish",
     "start": "node apps/api/dist/scripts/migrate.js && npm run start --workspace @narumitw/otter-api",
     "migrate": "npm run migrate --workspace @narumitw/otter-api --",
     "otter": "npm run dev --workspace @narumitw/otter-cli --",
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
+    "@changesets/cli": "^2.31.1",
     "@types/node": "^25.0.2",
     "husky": "^9.1.7",
     "tsx": "^4.21.0",

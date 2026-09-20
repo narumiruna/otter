@@ -1,7 +1,7 @@
 {
   "name": "@narumitw/otter-api",
   "version": "0.1.0",
-  "private": false,
+  "private": true,
   "type": "module",
   "scripts": {
     "prebuild": "npm run build --workspace @narumitw/otter-contracts",
