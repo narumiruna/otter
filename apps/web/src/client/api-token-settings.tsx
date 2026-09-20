@@ -96,6 +96,9 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
       setTokens((current) =>
         current.filter((candidate) => candidate.id !== token.id),
       );
+      setCreatedToken((current) =>
+        current?.token.id === token.id ? null : current,
+      );
       setStatus(messages.apiTokenRevoked);
     } catch {
       setError(messages.unableToRevokeApiToken);
