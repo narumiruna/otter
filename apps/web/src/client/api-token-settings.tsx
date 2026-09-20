@@ -101,8 +101,8 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
       );
       setStatus(messages.apiTokenRevoked);
     } catch {
-      setError(messages.unableToRevokeApiToken);
       await loadTokens();
+      setError(messages.unableToRevokeApiToken);
     } finally {
       setBusy("");
     }

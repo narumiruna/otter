@@ -102,6 +102,33 @@ test("clears a one-time secret when its token is revoked", async () => {
   expect(view.queryByRole("button", { name: "複製 token" })).toBeNull();
 });
 
+test("preserves the revoke error after refreshing tokens", async () => {
+  let listRequests = 0;
+  vi.mocked(api).mockImplementation(async (url, init) => {
+    if (url === "/api/auth/tokens" && init?.method === undefined) {
+      listRequests += 1;
+      return { tokens: [token] };
+    }
+    if (url === "/api/auth/tokens/token-1" && init?.method === "DELETE") {
+      throw new Error("delete failed");
+    }
+    throw new Error(`Unexpected API request: ${url}`);
+  });
+  const user = userEvent.setup();
+  const view = render(<ApiTokenSettings offline={false} />);
+
+  expect(await view.findByText(token.name)).toBeVisible();
+  await user.click(
+    view.getByRole("button", { name: "撤銷 API token「Travel agent」" }),
+  );
+
+  expect(await view.findByRole("alert")).toHaveTextContent(
+    "無法撤銷 API token",
+  );
+  expect(view.getByText(token.name)).toBeVisible();
+  expect(listRequests).toBe(2);
+});
+
 test("lists and revokes an active token", async () => {
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {
