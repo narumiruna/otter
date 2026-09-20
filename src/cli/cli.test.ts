@@ -4,6 +4,7 @@ import {
   readFile,
   rm,
   stat,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -303,20 +304,22 @@ describe("credential locking", () => {
     const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
     const configPath = path.join(directory, "credentials.json");
     const lockDirectory = `${configPath}.lock`;
-    const replacementOwner = "replacement-owner";
+    const replacementOwner = `${process.pid}:replacement-owner`;
+    const replacementOwnerFile = path.join(
+      lockDirectory,
+      "owner-replacement-owner",
+    );
 
     await expect(
       withCredentialLock({ OTTER_CONFIG_PATH: configPath }, async () => {
         await rm(lockDirectory, { recursive: true });
         await mkdir(lockDirectory);
-        await writeFile(path.join(lockDirectory, "owner"), replacementOwner);
+        await writeFile(replacementOwnerFile, replacementOwner);
       }),
     ).rejects.toEqual(
       expect.objectContaining<CliError>({ code: "CONFIG_ERROR" }),
     );
-    expect(await readFile(path.join(lockDirectory, "owner"), "utf8")).toBe(
-      replacementOwner,
-    );
+    expect(await readFile(replacementOwnerFile, "utf8")).toBe(replacementOwner);
   });
 
   test("does not mask an operation failure with a release failure", async () => {
@@ -329,10 +332,40 @@ describe("credential locking", () => {
       withCredentialLock({ OTTER_CONFIG_PATH: configPath }, async () => {
         await rm(lockDirectory, { recursive: true });
         await mkdir(lockDirectory);
-        await writeFile(path.join(lockDirectory, "owner"), "replacement-owner");
+        await writeFile(
+          path.join(lockDirectory, "owner-replacement-owner"),
+          `${process.pid}:replacement-owner`,
+        );
         throw operationError;
       }),
     ).rejects.toBe(operationError);
+  });
+
+  test.each([
+    ["ownerless lock", undefined],
+    ["dead owner", "owner-abandoned"],
+    ["dead reclaimer", `reclaim-${2 ** 31 - 1}-abandoned`],
+  ])("recovers an abandoned %s", async (_description, marker) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "otter-cli-"));
+    const configPath = path.join(directory, "credentials.json");
+    const lockDirectory = `${configPath}.lock`;
+    await mkdir(lockDirectory);
+    if (marker) {
+      await writeFile(
+        path.join(lockDirectory, marker),
+        `${2 ** 31 - 1}:abandoned`,
+      );
+    }
+    const staleTime = new Date(Date.now() - 12 * 60 * 1000);
+    await utimes(lockDirectory, staleTime, staleTime);
+    const operation = vi.fn();
+
+    await withCredentialLock({ OTTER_CONFIG_PATH: configPath }, operation);
+
+    expect(operation).toHaveBeenCalledOnce();
+    await expect(stat(lockDirectory)).rejects.toEqual(
+      expect.objectContaining<NodeJS.ErrnoException>({ code: "ENOENT" }),
+    );
   });
 });
 
