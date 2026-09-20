@@ -5,6 +5,11 @@ import { defineConfig } from "vite";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
+export const apiProxy = {
+  changeOrigin: false,
+  target: process.env.OTTER_API_URL ?? "http://127.0.0.1:17464",
+};
+
 export default defineConfig({
   plugins: [tailwindcss()],
   resolve: {
@@ -14,7 +19,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": process.env.OTTER_API_URL ?? "http://127.0.0.1:17464",
+      "/api": apiProxy,
     },
   },
   build: {
