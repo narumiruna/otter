@@ -16,7 +16,13 @@ import { Input } from "@/components/ui/input";
 import { api } from "./client-support.js";
 import { useI18n } from "./i18n.js";
 
-export function ApiTokenSettings({ offline }: { offline: boolean }) {
+export function ApiTokenSettings({
+  offline,
+  onMutationChange = () => undefined,
+}: {
+  offline: boolean;
+  onMutationChange?: (active: boolean) => void;
+}) {
   const { locale, messages } = useI18n();
   const [tokens, setTokens] = useState<ApiToken[]>([]);
   const [name, setName] = useState("");
@@ -81,6 +87,7 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
 
   function beginMutation() {
     mutationActive.current = true;
+    onMutationChange(true);
     listGeneration.current += 1;
     listAbortController.current?.abort();
     setLoading(false);
@@ -88,6 +95,7 @@ export function ApiTokenSettings({ offline }: { offline: boolean }) {
 
   function endMutation() {
     mutationActive.current = false;
+    onMutationChange(false);
     listGeneration.current += 1;
     setLoading(false);
   }

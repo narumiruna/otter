@@ -69,6 +69,7 @@ export function AccountSettingsPage({
   const { messages } = useI18n();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
+  const [tokenMutationActive, setTokenMutationActive] = useState(false);
   const form = useForm<UsernameForm>({
     defaultValues: { username: user.username },
   });
@@ -78,6 +79,7 @@ export function AccountSettingsPage({
   }, []);
 
   async function update({ username }: UsernameForm) {
+    if (tokenMutationActive) return;
     setError("");
     try {
       await onUpdate(username);
@@ -151,10 +153,13 @@ export function AccountSettingsPage({
         <Separator />
         <PasskeySettings offline={offline} />
         <Separator />
-        <ApiTokenSettings offline={offline} />
+        <ApiTokenSettings
+          offline={offline}
+          onMutationChange={setTokenMutationActive}
+        />
         <footer className="account-settings-actions">
           <Button
-            disabled={form.formState.isSubmitting}
+            disabled={tokenMutationActive || form.formState.isSubmitting}
             onClick={onClose}
             type="button"
             variant="outline"
@@ -162,7 +167,9 @@ export function AccountSettingsPage({
             {messages.cancel}
           </Button>
           <Button
-            disabled={offline || form.formState.isSubmitting}
+            disabled={
+              offline || tokenMutationActive || form.formState.isSubmitting
+            }
             type="submit"
           >
             {form.formState.isSubmitting ? messages.saving : messages.save}
