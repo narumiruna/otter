@@ -78,7 +78,7 @@ describe("parseTripPayload", () => {
     ).toThrow("Otter returned an unexpected trip payload");
   });
 
-  test("accepts valid Bank of Taiwan metadata and rejects other providers", () => {
+  test("validates bank and custom exchange-rate metadata", () => {
     expect(
       parseTripPayload({
         ...validPayload,
@@ -90,6 +90,22 @@ describe("parseTripPayload", () => {
         },
       }).exchangeRateInfo?.source,
     ).toBe("bank");
+    expect(
+      parseTripPayload({
+        ...validPayload,
+        exchangeRateInfo: {
+          customRates: { USD: 30 },
+          defaults: {
+            fetchedAt: "2026-09-20T12:00:00.000Z",
+            provider: "BANK_OF_TAIWAN",
+            rates: { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 },
+            rateType: "spotMid",
+            source: "bank",
+          },
+          source: "custom",
+        },
+      }).exchangeRateInfo?.source,
+    ).toBe("custom");
     expect(() =>
       parseTripPayload({
         ...validPayload,
@@ -98,6 +114,19 @@ describe("parseTripPayload", () => {
           provider: "BANK_SINOPAC",
           rateType: "spotMid",
           source: "bank",
+        },
+      }),
+    ).toThrow("Otter returned an unexpected trip payload");
+    expect(() =>
+      parseTripPayload({
+        ...validPayload,
+        exchangeRateInfo: {
+          customRates: { USD: 30 },
+          defaults: {
+            rates: { JPY: 0.22, TWD: 1, USD: 32 },
+            source: "fixed",
+          },
+          source: "custom",
         },
       }),
     ).toThrow("Otter returned an unexpected trip payload");

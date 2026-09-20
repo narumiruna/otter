@@ -1,7 +1,12 @@
-import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
+import type {
+  ExchangeRateDefaults,
+  ExchangeRateSnapshot,
+} from "@narumitw/otter-contracts";
 import {
   type Currency,
   currencies,
+  type ExchangeRates,
+  fixedExchangeRates,
   isCurrency,
 } from "@narumitw/otter-core/money";
 import {
@@ -14,6 +19,7 @@ import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import {
   asyncHandler,
   type BuildTripPayload,
+  type LoadedTrip,
   sendError,
   tripPayload,
 } from "./server-support.js";
@@ -39,25 +45,64 @@ export function createExchangeRateService(
   return {
     getSnapshot,
     buildTripPayload: async (trip) => {
-      if (Object.keys(trip.exchangeRates ?? {}).length > 0) {
-        return tripPayload(trip, { source: "custom" });
-      }
+      const customRates = customExchangeRates(trip);
+      const hasCustomRates = Object.keys(customRates).length > 0;
+      let defaults: ExchangeRateDefaults;
       try {
         const snapshot = await getSnapshot(trip.baseCurrency);
-        return tripPayload(
-          { ...trip, exchangeRates: snapshot.rates },
-          {
-            fetchedAt: snapshot.fetchedAt,
-            provider: snapshot.source,
-            rateType: snapshot.rateType,
-            source: "bank",
-          },
-        );
+        defaults = {
+          fetchedAt: snapshot.fetchedAt,
+          provider: snapshot.source,
+          rates: snapshot.rates,
+          rateType: snapshot.rateType,
+          source: "bank",
+        };
       } catch {
+        if (!hasCustomRates) {
+          return tripPayload(trip, { source: "fixed" });
+        }
+        defaults = {
+          rates: fixedExchangeRates(trip.baseCurrency),
+          source: "fixed",
+        };
+      }
+
+      if (hasCustomRates) {
+        return tripPayload(
+          {
+            ...trip,
+            exchangeRates: {
+              ...defaults.rates,
+              ...customRates,
+              [trip.baseCurrency]: 1,
+            },
+          },
+          { customRates, defaults, source: "custom" },
+        );
+      }
+
+      if (defaults.source !== "bank") {
         return tripPayload(trip, { source: "fixed" });
       }
+      return tripPayload(
+        { ...trip, exchangeRates: defaults.rates },
+        {
+          fetchedAt: defaults.fetchedAt,
+          provider: defaults.provider,
+          rateType: defaults.rateType,
+          source: "bank",
+        },
+      );
     },
   };
+}
+
+function customExchangeRates(trip: LoadedTrip): ExchangeRates {
+  return Object.fromEntries(
+    Object.entries(trip.exchangeRates ?? {}).filter(
+      ([currency]) => currency !== trip.baseCurrency,
+    ),
+  ) as ExchangeRates;
 }
 
 export function registerExchangeRateRoutes(

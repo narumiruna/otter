@@ -153,21 +153,29 @@ export async function fetchRates(
 
 export function createCachedRateFetcher(
   fetcher: CachedRateFetcher = () => fetchRates(),
-  options: { now?: () => number; ttlMs?: number } = {},
+  options: { failureTtlMs?: number; now?: () => number; ttlMs?: number } = {},
 ): CachedRateFetcher {
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? 15 * 60 * 1000;
+  const failureTtlMs = options.failureTtlMs ?? 60 * 1000;
   if (!Number.isFinite(ttlMs) || ttlMs < 0) {
     throw new Error("Cache TTL must be a non-negative finite number");
   }
+  if (!Number.isFinite(failureTtlMs) || failureTtlMs < 0) {
+    throw new Error("Failure cache TTL must be a non-negative finite number");
+  }
 
   let cached: { expiresAt: number; rates: readonly Rate[] } | undefined;
+  let failed: { error: unknown; expiresAt: number } | undefined;
   let pending: Promise<readonly Rate[]> | undefined;
 
   return async () => {
     const currentTime = now();
     if (cached && currentTime < cached.expiresAt) {
       return cached.rates;
+    }
+    if (failed && currentTime < failed.expiresAt) {
+      throw failed.error;
     }
     if (pending) {
       return pending;
@@ -176,7 +184,12 @@ export function createCachedRateFetcher(
     pending = fetcher()
       .then((rates) => {
         cached = { expiresAt: now() + ttlMs, rates };
+        failed = undefined;
         return rates;
+      })
+      .catch((error: unknown) => {
+        failed = { error, expiresAt: now() + failureTtlMs };
+        throw error;
       })
       .finally(() => {
         pending = undefined;

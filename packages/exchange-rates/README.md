@@ -28,4 +28,4 @@ const usd = rates.find((rate) => rate.source === "USD");
 const usdToTwd = usd ? spotMid(usd) : undefined;
 ```
 
-Bank requests use a 10-second timeout. `createCachedRateFetcher` coalesces concurrent requests and defaults to a 15-minute in-memory cache.
+Bank requests use a 10-second timeout. `createCachedRateFetcher` coalesces concurrent requests, caches successful results for 15 minutes, and backs off for 1 minute after a failed request.

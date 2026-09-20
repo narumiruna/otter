@@ -3,6 +3,7 @@ import {
   type Currency,
   currencies,
   type ExchangeRates,
+  fixedExchangeRates,
 } from "@narumitw/otter-core/money";
 import {
   calculateBalances,
@@ -28,6 +29,88 @@ import {
   SectionHeading,
 } from "./workspace-ui.js";
 
+function automaticExchangeRates(
+  payload: TripPayload,
+): Record<Currency, number> {
+  if (payload.exchangeRateInfo?.source === "custom") {
+    return payload.exchangeRateInfo.defaults.rates;
+  }
+  if (
+    payload.exchangeRateInfo?.source === "bank" &&
+    hasCompleteExchangeRates(payload.trip.exchangeRates)
+  ) {
+    return payload.trip.exchangeRates;
+  }
+  return fixedExchangeRates(payload.trip.baseCurrency);
+}
+
+function hasCompleteExchangeRates(
+  rates: ExchangeRates | undefined,
+): rates is Record<Currency, number> {
+  return currencies.every((currency) => {
+    const rate = rates?.[currency];
+    return typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  });
+}
+
+function rebaseExchangeRates(
+  rates: Record<Currency, number>,
+  baseCurrency: Currency,
+): Record<Currency, number> {
+  const baseRate = rates[baseCurrency];
+  return Object.fromEntries(
+    currencies.map((currency) => [currency, rates[currency] / baseRate]),
+  ) as Record<Currency, number>;
+}
+
+function customRateValues(payload: TripPayload): Record<Currency, string> {
+  const customRates =
+    payload.exchangeRateInfo?.source === "custom"
+      ? payload.exchangeRateInfo.customRates
+      : {};
+  return Object.fromEntries(
+    currencies.map((currency) => [
+      currency,
+      currency === payload.trip.baseCurrency
+        ? "1"
+        : String(customRates[currency] ?? ""),
+    ]),
+  ) as Record<Currency, string>;
+}
+
+function customRatesFromValues(
+  values: Record<Currency, string>,
+  baseCurrency: Currency,
+): ExchangeRates {
+  const rates: ExchangeRates = {};
+  for (const currency of currencies) {
+    if (currency === baseCurrency || !values[currency].trim()) {
+      continue;
+    }
+    const rate = Number(values[currency]);
+    if (Number.isFinite(rate) && rate > 0) {
+      rates[currency] = rate;
+    }
+  }
+  return rates;
+}
+
+function customRateInputsFromValues(
+  values: Record<Currency, string>,
+  baseCurrency: Currency,
+): Partial<Record<Currency, number | string>> {
+  const rates: Partial<Record<Currency, number | string>> = {};
+  for (const currency of currencies) {
+    const input = values[currency].trim();
+    if (currency === baseCurrency || !input) {
+      continue;
+    }
+    const rate = Number(input);
+    rates[currency] = Number.isFinite(rate) ? rate : input;
+  }
+  return rates;
+}
+
 export function TripPreferences({ payload }: { payload: TripPayload }) {
   const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
@@ -46,9 +129,12 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
       exchangeRates:
         draft.baseCurrency === payload.trip.baseCurrency
           ? payload.trip.exchangeRates
-          : undefined,
+          : rebaseExchangeRates(
+              automaticExchangeRates(payload),
+              draft.baseCurrency,
+            ),
     }),
-    [draft.baseCurrency, payload.trip],
+    [draft.baseCurrency, payload],
   );
   const changedCurrency = draft.baseCurrency !== payload.trip.baseCurrency;
   async function save() {
@@ -164,33 +250,31 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
 export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
   const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
-  const original = Object.fromEntries(
-    currencies.map((currency) => [
-      currency,
-      currency === payload.trip.baseCurrency
-        ? "1"
-        : String(payload.trip.exchangeRates?.[currency] ?? ""),
-    ]),
-  ) as Record<Currency, string>;
+  const original = customRateValues(payload);
   const [values, setValues] = useState(original);
+  const [defaultRates, setDefaultRates] = useState(() =>
+    automaticExchangeRates(payload),
+  );
   const [error, setError] = useState("");
   const [loadedSnapshot, setLoadedSnapshot] = useState("");
   const [useBankDefault, setUseBankDefault] = useState(false);
   const [busy, setBusy] = useState<"apply" | "load" | null>(null);
-  const rates = useMemo(() => {
-    const next: ExchangeRates = {};
-    for (const currency of currencies) {
-      if (currency === payload.trip.baseCurrency) continue;
-      const value = Number(values[currency]);
-      if (values[currency].trim() && Number.isFinite(value) && value > 0)
-        next[currency] = value;
-    }
-    return next;
-  }, [payload.trip.baseCurrency, values]);
+  const customRates = useMemo(
+    () => customRatesFromValues(values, payload.trip.baseCurrency),
+    [payload.trip.baseCurrency, values],
+  );
+  const rates = useMemo(
+    () => ({
+      ...defaultRates,
+      ...customRates,
+      [payload.trip.baseCurrency]: 1,
+    }),
+    [customRates, defaultRates, payload.trip.baseCurrency],
+  );
   const previewTrip = { ...payload.trip, exchangeRates: rates };
   const changed =
-    currencies.some((currency) => values[currency] !== original[currency]) ||
-    (useBankDefault && payload.exchangeRateInfo?.source === "custom");
+    useBankDefault ||
+    currencies.some((currency) => values[currency] !== original[currency]);
   async function apply() {
     setBusy("apply");
     setError("");
@@ -199,7 +283,9 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
         `/api/trips/${payload.trip.id}`,
         {
           body: JSON.stringify({
-            exchangeRates: useBankDefault ? {} : values,
+            exchangeRates: useBankDefault
+              ? {}
+              : customRateInputsFromValues(values, payload.trip.baseCurrency),
           }),
           method: "PATCH",
         },
@@ -224,11 +310,12 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
       const snapshot = parseExchangeRateSnapshot(
         await api<unknown>(`/api/exchange-rates/${payload.trip.baseCurrency}`),
       );
+      setDefaultRates(snapshot.rates);
       setValues(
         Object.fromEntries(
           currencies.map((currency) => [
             currency,
-            String(snapshot.rates[currency]),
+            currency === payload.trip.baseCurrency ? "1" : "",
           ]),
         ) as Record<Currency, string>,
       );
@@ -258,7 +345,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
         <span className="summary-meta">
           {payload.exchangeRateInfo?.source === "custom"
             ? messages.countCustomRates({
-                count: Object.keys(payload.trip.exchangeRates ?? {}).length,
+                count: Object.keys(payload.exchangeRateInfo.customRates).length,
               })
             : payload.exchangeRateInfo?.source === "bank"
               ? messages.usingBankOfTaiwanExchangeRates
@@ -336,6 +423,7 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
             variant="outline"
             disabled={!changed || busy !== null}
             onClick={() => {
+              setDefaultRates(automaticExchangeRates(payload));
               setLoadedSnapshot("");
               setUseBankDefault(false);
               setValues(original);

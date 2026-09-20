@@ -52,7 +52,14 @@ test("payload builder applies bank defaults, preserves custom rates, and falls b
     exchangeRates: { TWD: 1, USD: 30 },
   });
   assert.equal(customPayload.exchangeRateInfo?.source, "custom");
+  assert.equal(customPayload.trip.exchangeRates?.EUR, 36.5);
+  assert.equal(customPayload.trip.exchangeRates?.JPY, 0.2);
   assert.equal(customPayload.trip.exchangeRates?.USD, 30);
+  if (customPayload.exchangeRateInfo?.source !== "custom") {
+    assert.fail("Expected custom exchange-rate metadata");
+  }
+  assert.deepEqual(customPayload.exchangeRateInfo.customRates, { USD: 30 });
+  assert.equal(customPayload.exchangeRateInfo.defaults.source, "bank");
 
   const fallbackService = createExchangeRateService({
     fetchRates: async () => {
@@ -62,6 +69,18 @@ test("payload builder applies bank defaults, preserves custom rates, and falls b
   const fallbackPayload = await fallbackService.buildTripPayload(trip);
   assert.equal(fallbackPayload.exchangeRateInfo?.source, "fixed");
   assert.equal(fallbackPayload.trip.exchangeRates, undefined);
+
+  const fallbackCustomPayload = await fallbackService.buildTripPayload({
+    ...trip,
+    exchangeRates: { TWD: 1, USD: 30 },
+  });
+  assert.equal(fallbackCustomPayload.trip.exchangeRates?.EUR, 35);
+  assert.equal(fallbackCustomPayload.trip.exchangeRates?.JPY, 0.22);
+  assert.equal(fallbackCustomPayload.trip.exchangeRates?.USD, 30);
+  if (fallbackCustomPayload.exchangeRateInfo?.source !== "custom") {
+    assert.fail("Expected custom exchange-rate metadata");
+  }
+  assert.equal(fallbackCustomPayload.exchangeRateInfo.defaults.source, "fixed");
 });
 
 test("exchange-rate endpoint returns injected rates and handles failures", async () => {

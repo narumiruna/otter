@@ -178,6 +178,26 @@ test("cached fetcher reuses fresh results and coalesces concurrent requests", as
   await refreshed;
 });
 
+test("cached fetcher backs off after sequential failures", async () => {
+  let now = 1_000;
+  const unavailable = new Error("upstream unavailable");
+  const fetcher = vi.fn(async () => {
+    throw unavailable;
+  });
+  const cached = createCachedRateFetcher(fetcher, {
+    failureTtlMs: 500,
+    now: () => now,
+  });
+
+  await expect(cached()).rejects.toBe(unavailable);
+  await expect(cached()).rejects.toBe(unavailable);
+  assert.equal(fetcher.mock.calls.length, 1);
+
+  now = 1_500;
+  await expect(cached()).rejects.toBe(unavailable);
+  assert.equal(fetcher.mock.calls.length, 2);
+});
+
 function sinopacPayload(rows: unknown[]) {
   return [{ Header: "SUCCESS", SubInfo: rows }];
 }
