@@ -25,6 +25,8 @@ import { ExpenseComposer } from "./expense-composer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 
+type ExpenseGrouping = "date" | "none" | "payer";
+
 export function ExpensesPage({
   filters,
   onAddExpense,
@@ -47,6 +49,7 @@ export function ExpensesPage({
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [grouping, setGrouping] = useState<ExpenseGrouping>("none");
   const expenses = useMemo(
     () => filterAndSortExpenses(trip, filters),
     [filters, trip],
@@ -82,8 +85,8 @@ export function ExpensesPage({
       </div>
       {trip.expenses.length > 0 ? (
         <div className="expense-tools">
-          <div className="grid gap-3 md:grid-cols-[1fr_13rem]">
-            <label className="relative">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_13rem]">
+            <label className="relative md:col-span-2 lg:col-span-1">
               <span className="sr-only">{messages.searchDescriptions}</span>
               <Search
                 className="pointer-events-none absolute top-3 left-3 size-5 text-muted-foreground"
@@ -117,6 +120,20 @@ export function ExpensesPage({
                 <option value="date-asc">{messages.dateOldestFirst}</option>
                 <option value="amount-desc">{messages.amountHighToLow}</option>
                 <option value="amount-asc">{messages.amountLowToHigh}</option>
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">{messages.groupBy}</span>
+              <select
+                className="form-control"
+                value={grouping}
+                onChange={(event) =>
+                  setGrouping(event.target.value as ExpenseGrouping)
+                }
+              >
+                <option value="none">{messages.noGrouping}</option>
+                <option value="date">{messages.groupByDate}</option>
+                <option value="payer">{messages.groupByPayer}</option>
               </select>
             </label>
           </div>
@@ -259,9 +276,11 @@ export function ExpensesPage({
       ) : null}
       <ExpenseList
         expenses={expenses}
+        grouping={grouping}
         onAddExpense={onAddExpense}
         onEdit={setEditing}
         readonly={readonly}
+        sort={filters.sort}
         trip={trip}
         filtered={activeFilters.length > 0 || !!filters.query}
         clear={() => setFilters({ ...defaultExpenseFilters })}
@@ -338,20 +357,24 @@ function ExpenseList({
   clear,
   expenses,
   filtered,
+  grouping,
   onAddExpense,
   onEdit,
   readonly,
+  sort,
   trip,
 }: {
   clear: () => void;
   expenses: Expense[];
   filtered: boolean;
+  grouping: ExpenseGrouping;
   onAddExpense: () => void;
   onEdit: (expense: Expense) => void;
   readonly: boolean;
+  sort: ExpenseFilters["sort"];
   trip: Trip;
 }) {
-  const { formatMoney, messages } = useI18n();
+  const { messages } = useI18n();
   if (!trip.expenses.length)
     return (
       <div className="empty-state expense-empty-state">
@@ -391,59 +414,145 @@ function ExpenseList({
   const names = new Map(
     trip.participants.map((person) => [person.id, person.name]),
   );
+  const listLabel = filtered ? messages.filteredExpenses : messages.allExpenses;
+  if (grouping === "none")
+    return (
+      <ul className="grid gap-3" aria-label={listLabel}>
+        {expenses.map((expense) => (
+          <ExpenseListItem
+            expense={expense}
+            key={expense.id}
+            names={names}
+            onEdit={onEdit}
+            readonly={readonly}
+            trip={trip}
+          />
+        ))}
+      </ul>
+    );
+  const groups = groupExpenses(
+    expenses,
+    grouping,
+    sort === "date-asc" ? "asc" : "desc",
+  );
+  if (grouping === "payer") {
+    const participantOrder = new Map(
+      trip.participants.map((person, index) => [person.id, index]),
+    );
+    groups.sort(
+      (left, right) =>
+        (participantOrder.get(left.key) ?? Number.MAX_SAFE_INTEGER) -
+          (participantOrder.get(right.key) ?? Number.MAX_SAFE_INTEGER) ||
+        left.key.localeCompare(right.key),
+    );
+  }
   return (
-    <ul
-      className="grid gap-3"
-      aria-label={filtered ? messages.filteredExpenses : messages.allExpenses}
-    >
-      {expenses.map((expense) => (
-        <li
-          className="expense-list-item rounded-xl border bg-card p-4"
-          key={expense.id}
-        >
-          <div className="flex flex-wrap items-start gap-3">
-            <ExpenseCategoryIcon category={expense.category} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap justify-between gap-2">
-                <strong className="break-anywhere">
-                  {expense.description}
-                </strong>
-                <strong className="tabular-nums">
-                  {formatMoney(expense.amountMinor, expense.currency)}
-                </strong>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {messages.datePaidByName({
-                  date: expense.expenseDate,
-                  name: names.get(expense.paidById) ?? messages.unknown,
-                })}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {localizeMessage(expense.category ?? "其他")}
-                {expense.tags?.length ? ` · ${expense.tags.join(", ")}` : ""} ·{" "}
-                {messages.splitWithSplit({
-                  split: expenseSplitLabel(trip, expense.participantIds),
-                })}
-              </p>
-            </div>
+    <section className="grid gap-5" aria-label={listLabel}>
+      {groups.map((group, index) => {
+        const headingId = `expense-group-${index}`;
+        return (
+          <section className="expense-group" key={group.key}>
+            <h3 className="expense-group-heading" id={headingId}>
+              {grouping === "date"
+                ? group.key
+                : (names.get(group.key) ?? messages.unknown)}
+            </h3>
+            <ul className="grid gap-3" aria-labelledby={headingId}>
+              {group.expenses.map((expense) => (
+                <ExpenseListItem
+                  expense={expense}
+                  key={expense.id}
+                  names={names}
+                  onEdit={onEdit}
+                  readonly={readonly}
+                  trip={trip}
+                />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </section>
+  );
+}
+
+function groupExpenses(
+  expenses: Expense[],
+  grouping: Exclude<ExpenseGrouping, "none">,
+  dateDirection: "asc" | "desc",
+): { expenses: Expense[]; key: string }[] {
+  const grouped = new Map<string, Expense[]>();
+  for (const expense of expenses) {
+    const key = grouping === "date" ? expense.expenseDate : expense.paidById;
+    const group = grouped.get(key) ?? [];
+    group.push(expense);
+    grouped.set(key, group);
+  }
+  const groups = [...grouped.entries()].map(([key, group]) => ({
+    expenses: group,
+    key,
+  }));
+  if (grouping === "date") {
+    groups.sort((left, right) =>
+      dateDirection === "asc"
+        ? left.key.localeCompare(right.key)
+        : right.key.localeCompare(left.key),
+    );
+  }
+  return groups;
+}
+
+function ExpenseListItem({
+  expense,
+  names,
+  onEdit,
+  readonly,
+  trip,
+}: {
+  expense: Expense;
+  names: Map<string, string>;
+  onEdit: (expense: Expense) => void;
+  readonly: boolean;
+  trip: Trip;
+}) {
+  const { formatMoney, messages } = useI18n();
+  return (
+    <li className="expense-list-item rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-start gap-3">
+        <ExpenseCategoryIcon category={expense.category} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap justify-between gap-2">
+            <strong className="break-anywhere">{expense.description}</strong>
+            <strong className="tabular-nums">
+              {formatMoney(expense.amountMinor, expense.currency)}
+            </strong>
           </div>
-          {!readonly ? (
-            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onEdit(expense)}
-              >
-                <Pencil aria-hidden="true" />
-                {messages.edit}
-              </Button>
-              <ReceiptControls expense={expense} trip={trip} />
-              <DeleteExpense expense={expense} trip={trip} />
-            </div>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {messages.datePaidByName({
+              date: expense.expenseDate,
+              name: names.get(expense.paidById) ?? messages.unknown,
+            })}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {localizeMessage(expense.category ?? "其他")}
+            {expense.tags?.length ? ` · ${expense.tags.join(", ")}` : ""} ·{" "}
+            {messages.splitWithSplit({
+              split: expenseSplitLabel(trip, expense.participantIds),
+            })}
+          </p>
+        </div>
+      </div>
+      {!readonly ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+          <Button size="sm" variant="outline" onClick={() => onEdit(expense)}>
+            <Pencil aria-hidden="true" />
+            {messages.edit}
+          </Button>
+          <ReceiptControls expense={expense} trip={trip} />
+          <DeleteExpense expense={expense} trip={trip} />
+        </div>
+      ) : null}
+    </li>
   );
 }
 

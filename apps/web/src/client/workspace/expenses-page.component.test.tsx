@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { Trip } from "@narumitw/otter-core/settlement";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
@@ -90,6 +90,82 @@ test("readonly empty expenses do not offer an add action", () => {
     screen.getByRole("heading", { name: "No expenses yet" }),
   ).toBeVisible();
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
+});
+
+test("expenses can be grouped by date or payer", async () => {
+  const user = userEvent.setup();
+  const groupedTrip: Trip = {
+    ...trip,
+    expenses: [
+      ...trip.expenses,
+      {
+        amountMinor: 200,
+        createdAt: "2026-09-20T10:00:00.000Z",
+        currency: "TWD",
+        description: "Lunch",
+        expenseDate: "2026-09-20",
+        id: "lunch",
+        paidById: "bob",
+        participantIds: ["alice", "bob"],
+      },
+      {
+        amountMinor: 100,
+        createdAt: "2026-09-19T10:00:00.000Z",
+        currency: "TWD",
+        description: "Coffee",
+        expenseDate: "2026-09-19",
+        id: "coffee",
+        paidById: "alice",
+        participantIds: ["alice", "bob"],
+      },
+    ],
+    participants: [...trip.participants, { id: "bob", name: "Bob" }],
+  };
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        onAddExpense={vi.fn()}
+        onFiltersChange={vi.fn()}
+        readonly
+        trip={groupedTrip}
+      />
+    </I18nProvider>,
+  );
+
+  const grouping = screen.getByRole("combobox", { name: "Group by" });
+  await user.selectOptions(grouping, "date");
+
+  const groupedExpenses = screen.getByRole("region", { name: "All expenses" });
+  expect(
+    within(groupedExpenses)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(["2026-09-20", "2026-09-19"]);
+  expect(
+    within(screen.getByRole("list", { name: "2026-09-19" })).getByText(
+      "Dinner",
+    ),
+  ).toBeVisible();
+  expect(
+    within(screen.getByRole("list", { name: "2026-09-19" })).getByText(
+      "Coffee",
+    ),
+  ).toBeVisible();
+
+  await user.selectOptions(grouping, "payer");
+
+  expect(
+    within(groupedExpenses)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(["Alice", "Bob"]);
+  expect(
+    within(screen.getByRole("list", { name: "Alice" })).getByText("Coffee"),
+  ).toBeVisible();
+  expect(
+    within(screen.getByRole("list", { name: "Bob" })).getByText("Lunch"),
+  ).toBeVisible();
 });
 
 test("category filter chips translate stored domain values", async () => {
