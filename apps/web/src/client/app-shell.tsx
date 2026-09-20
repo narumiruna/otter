@@ -84,7 +84,7 @@ export function AppShell() {
   );
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const restoreAccountFocus = useRef(accountSettingsOpen);
-  const [workspaceDraftDirty, setWorkspaceDraftDirty] = useState(false);
+  const workspaceDraftDirty = useRef(false);
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
@@ -113,6 +113,10 @@ export function AppShell() {
     requestAnimationFrame(() => setAnnouncement(message));
   }, []);
 
+  const setWorkspaceDraftDirty = useCallback((dirty: boolean) => {
+    workspaceDraftDirty.current = dirty;
+  }, []);
+
   useEffect(() => {
     if (bootstrap.data) setLastBootstrap(bootstrap.data);
   }, [bootstrap.data]);
@@ -134,13 +138,27 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    const sync = () =>
-      setAccountSettingsOpen(
-        isAccountSettingsLocation(new URL(window.location.href)),
-      );
+    const sync = () => {
+      const nextOpen = isAccountSettingsLocation(new URL(window.location.href));
+      if (
+        nextOpen &&
+        !accountSettingsOpen &&
+        workspaceDraftDirty.current &&
+        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
+      ) {
+        window.history.back();
+        return;
+      }
+      if (nextOpen) setWorkspaceDraftDirty(false);
+      setAccountSettingsOpen(nextOpen);
+    };
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
-  }, []);
+  }, [
+    accountSettingsOpen,
+    messages.unsavedChangesWillBeLostDiscardTheDraft,
+    setWorkspaceDraftDirty,
+  ]);
 
   useEffect(() => {
     if (accountSettingsOpen) {
@@ -159,7 +177,7 @@ export function AppShell() {
     const current = new URL(window.location.href);
     if (isAccountSettingsLocation(current)) return;
     if (
-      workspaceDraftDirty &&
+      workspaceDraftDirty.current &&
       !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
     ) {
       return;

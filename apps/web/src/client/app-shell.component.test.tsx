@@ -110,6 +110,50 @@ test("dirty expense drafts require confirmation before opening settings", async 
   expect(window.location.search).toContain("account=settings");
 });
 
+test("forward navigation to settings cannot discard a rejected dirty draft", async () => {
+  const user = userEvent.setup();
+  const view = renderApp();
+  const accountButton = await view.findByRole("button", {
+    name: "管理 Alice 的帳號",
+  });
+
+  await user.click(view.getByRole("button", { name: "記一筆" }));
+  await user.click(accountButton);
+  const settingsUrl = window.location.href;
+  const workspaceUrl = new URL(settingsUrl);
+  workspaceUrl.searchParams.delete("account");
+  act(() => {
+    window.history.replaceState(
+      {},
+      "",
+      `${workspaceUrl.pathname}${workspaceUrl.search}`,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await waitFor(() => expect(accountButton).toHaveFocus());
+
+  const description = await view.findByLabelText("描述");
+  await user.type(description, "仍要保留的草稿");
+
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const back = vi
+    .spyOn(window.history, "back")
+    .mockImplementation(() => undefined);
+  act(() => {
+    window.history.replaceState(
+      { otterAccountSettings: true },
+      "",
+      settingsUrl,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+
+  expect(confirm).toHaveBeenCalledOnce();
+  expect(back).toHaveBeenCalledOnce();
+  expect(view.queryByRole("region", { name: "帳號設定" })).toBeNull();
+  expect(description).toHaveValue("仍要保留的草稿");
+});
+
 test("account settings uses browser history and manages page focus", async () => {
   const user = userEvent.setup();
   const view = renderApp();

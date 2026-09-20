@@ -47,6 +47,17 @@ import { BusyButton, FormField } from "./workspace-ui.js";
 
 type TripCollection = { archivedTrips: TripSummary[]; trips: TripSummary[] };
 
+function isSameWorkspaceLocation(
+  first: WorkspaceLocation,
+  second: WorkspaceLocation,
+): boolean {
+  return (
+    first.mode === second.mode &&
+    first.tripId === second.tripId &&
+    first.view === second.view
+  );
+}
+
 export function AuthenticatedWorkspace({
   announce,
   bootstrap,
@@ -125,6 +136,8 @@ export function AuthenticatedWorkspace({
 
   useEffect(() => {
     const pop = () => {
+      const nextLocation = readWorkspaceLocation(new URL(window.location.href));
+      if (isSameWorkspaceLocation(location, nextLocation)) return;
       if (
         draftDirty &&
         !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
@@ -134,11 +147,11 @@ export function AuthenticatedWorkspace({
       }
       scrollPositions.current.set(pageKey, window.scrollY);
       setDraftDirty(false);
-      setLocation(readWorkspaceLocation(new URL(window.location.href)));
+      setLocation(nextLocation);
     };
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
-  }, [draftDirty, messages, pageKey]);
+  }, [draftDirty, location, messages, pageKey]);
 
   useEffect(() => {
     if (selectedTripId !== location.tripId) {
