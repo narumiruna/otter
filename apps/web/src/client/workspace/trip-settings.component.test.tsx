@@ -7,10 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TripPayload } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
-import {
-  ExchangeRateSettings,
-  LifecycleSettings,
-} from "./trip-settings.js";
+import { ExchangeRateSettings, LifecycleSettings } from "./trip-settings.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const payload: TripPayload = {
