@@ -15,7 +15,6 @@ import {
   safeFetch,
 } from "./http.js";
 import {
-  type AuthCredential,
   type CliConfig,
   type CliEnvironment,
   CliError,
@@ -248,24 +247,18 @@ export function configFromEnvironment(environment: CliEnvironment): CliConfig {
   return { baseUrl: url.toString().replace(/\/$/, "") };
 }
 
-export async function credentialFromEnvironment(
+export async function requiredTokenFromEnvironment(
   config: CliConfig,
   environment: CliEnvironment,
-): Promise<AuthCredential> {
-  const token = await tokenFromEnvironment(config, environment);
-  if (token) {
-    return { kind: "token", token: token.value };
-  }
+): Promise<string> {
+  const environmentToken = environment.OTTER_TOKEN?.trim();
+  if (environmentToken) return environmentToken;
+  const stored = await storedTokenFromEnvironment(environment, config.baseUrl);
+  if (stored) return stored.accessToken;
   throw new CliError(
     "CONFIG_ERROR",
     "Run 'otter auth login' or set OTTER_TOKEN before running a data command",
   );
-}
-
-export function authHeaders(
-  credential: AuthCredential,
-): Record<string, string> {
-  return { Authorization: `Bearer ${credential.token}` };
 }
 
 function deviceAuthorizationFromResponse(data: unknown): DeviceAuthorization {
@@ -306,23 +299,6 @@ function accessTokenFromResponse(data: unknown): {
     throw new CliError("RESPONSE_ERROR", "Otter returned an invalid API token");
   }
   return { accessToken: data.access_token, expiresAt: data.expires_at };
-}
-
-async function tokenFromEnvironment(
-  config: CliConfig,
-  environment: CliEnvironment,
-): Promise<{ source: "environment" | "stored"; value: string } | undefined> {
-  const environmentToken = environment.OTTER_TOKEN?.trim();
-  if (environmentToken) {
-    return { source: "environment", value: environmentToken };
-  }
-  const credential = await storedTokenFromEnvironment(
-    environment,
-    config.baseUrl,
-  );
-  return credential
-    ? { source: "stored", value: credential.accessToken }
-    : undefined;
 }
 
 async function storedTokenFromEnvironment(

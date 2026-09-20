@@ -1,8 +1,4 @@
-import {
-  authHeaders,
-  configFromEnvironment,
-  credentialFromEnvironment,
-} from "./auth.js";
+import { configFromEnvironment, requiredTokenFromEnvironment } from "./auth.js";
 import { isRecord, requestJson } from "./http.js";
 import {
   type CliCommand,
@@ -37,13 +33,13 @@ export async function executeCliCommand(
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
-  const credential = await credentialFromEnvironment(config, environment);
+  const token = await requiredTokenFromEnvironment(config, environment);
   const data = await requestJson(
     config,
     fetchImplementation,
     command.path,
     command.method,
-    authHeaders(credential),
+    { Authorization: `Bearer ${token}` },
     command.body,
   );
   if (
