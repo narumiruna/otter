@@ -1,6 +1,6 @@
 {
   "name": "@narumitw/otter-cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": false,
   "description": "Non-interactive CLI for managing Otter travel and shared expenses",
   "type": "module",
