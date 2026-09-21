@@ -14,7 +14,7 @@ import {
   nowIso,
   sendError,
 } from "./server-support.js";
-import { tripMutation } from "./server-trip-mutation.js";
+import { expenseMutation } from "./server-trip-mutation.js";
 
 const receiptMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -28,7 +28,7 @@ export function registerReceiptRoutes(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -115,7 +115,7 @@ export function registerReceiptRoutes(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,

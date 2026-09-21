@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { TripPayload } from "@narumitw/otter-contracts";
 import type { Rate } from "@narumitw/otter-exchange-rates";
+import type { PoolClient } from "pg";
 import { expect, test, vi } from "vitest";
 import { createSession } from "./server-support.js";
 import { api, postgresTestOptions, withTestApp } from "./server-test-utils.js";
@@ -71,7 +72,16 @@ async function setup() {
       body: JSON.stringify({ amount }),
     });
   fetchRates.mockClear();
-  return { pool, fetchRates, tripId, expenseId, patch };
+  return {
+    pool,
+    fetchRates,
+    tripId,
+    expenseId,
+    patch,
+    baseUrl,
+    cookie,
+    person,
+  };
 }
 
 for (const outcome of ["bank", "fallback"] as const) {
@@ -141,6 +151,86 @@ for (const outcome of ["bank", "fallback"] as const) {
     },
   );
 }
+
+test(
+  "only expense-affecting mutations capture before snapshots",
+  postgresTestOptions,
+  async () => {
+    const s = await setup();
+    await s.pool.query(
+      "INSERT INTO users (id,name,username,password_hash) VALUES ('editor','Editor','editor','unused')",
+    );
+    const observed = new WeakSet<PoolClient>();
+    const queries: (() => string[])[] = [];
+    const restore: (() => void)[] = [];
+    const observe = (client: PoolClient) => {
+      if (observed.has(client)) return;
+      observed.add(client);
+      const query = vi.spyOn(client, "query");
+      queries.push(() => query.mock.calls.map(([sql]) => String(sql)));
+      restore.push(() => query.mockRestore());
+    };
+    s.pool.on("acquire", observe);
+    const snapshots = () =>
+      queries
+        .flatMap((read) => read())
+        .filter(
+          (sql) =>
+            sql.includes("AS snapshot FROM expenses") &&
+            sql.endsWith("ORDER BY id"),
+        );
+    const mutate = async (
+      path: string,
+      method: string,
+      body?: Record<string, unknown>,
+    ) => {
+      const result = await api<TripPayload>(
+        s.baseUrl,
+        `/api/trips/${s.tripId}${path}`,
+        {
+          method,
+          headers: { cookie: s.cookie },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        },
+      );
+      expect(result.response.status).toBe(method === "POST" ? 201 : 200);
+      return result.data;
+    };
+    try {
+      await mutate("", "PATCH", { name: "Renamed trip" });
+      const added = await mutate("/participants", "POST", { name: "Other" });
+      const person = added.trip.participants.find((p) => p.name === "Other");
+      assert.ok(person);
+      await mutate(`/participants/${person.id}`, "PATCH", {
+        name: "Renamed person",
+      });
+      await mutate("/members", "POST", { username: "editor" });
+      await mutate("/members/editor", "DELETE");
+      const paid = await mutate("/settlement-payments", "POST", {
+        fromId: person.id,
+        toId: s.person,
+        amount: "10",
+        currency: "TWD",
+      });
+      const payment = paid.trip.settlementPayments?.[0];
+      assert.ok(payment);
+      await mutate(`/settlement-payments/${payment.id}`, "DELETE");
+      await mutate(`/participants/${person.id}`, "DELETE");
+      expect(snapshots()).toHaveLength(0);
+      expect(
+        (await s.pool.query("SELECT * FROM expense_revisions")).rowCount,
+      ).toBe(1);
+      expect((await s.patch("200")).response.status).toBe(200);
+      expect(snapshots()).toHaveLength(2); // Required before + after capture.
+      expect(
+        (await s.pool.query("SELECT * FROM expense_revisions")).rowCount,
+      ).toBe(2);
+    } finally {
+      s.pool.off("acquire", observe);
+      for (const reset of restore) reset();
+    }
+  },
+);
 
 for (const timing of ["write", "commit"] as const) {
   test(

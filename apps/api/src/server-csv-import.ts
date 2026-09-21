@@ -21,7 +21,7 @@ import {
   stringField,
   withTransaction,
 } from "./server-support.js";
-import { tripMutation } from "./server-trip-mutation.js";
+import { expenseMutation } from "./server-trip-mutation.js";
 
 export function registerCsvImportRoutes(
   app: OtterApp,
@@ -33,7 +33,7 @@ export function registerCsvImportRoutes(
     "/api/trips/:tripId/expenses/import",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,

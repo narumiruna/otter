@@ -19,7 +19,6 @@ export function tripMutation<Path extends string>(
   handler: (
     context: Context<OtterEnv, Path>,
     client: PoolClient,
-    before: CapturedExpense[],
   ) => Promise<MutationResult>,
 ) {
   return async (context: Context<OtterEnv, Path>): Promise<Response> => {
@@ -40,8 +39,7 @@ export function tripMutation<Path extends string>(
           return context.json({ error: "找不到旅行" }, 404);
         }
       }
-      const before = tripId ? await captureExpenses(client, tripId) : [];
-      result = await handler(context, client, before);
+      result = await handler(context, client);
       await client.query(
         typeof result === "function" || result.status < 400
           ? "COMMIT"
@@ -63,4 +61,21 @@ export function tripMutation<Path extends string>(
     // must not execute SQL against the released client in the catch above.
     return typeof result === "function" ? result() : result;
   };
+}
+
+// Opt in only when the handler can change expenses, splits, or receipts. Other
+// trip writers need the same lock, but do not need a before-expense snapshot.
+export function expenseMutation<Path extends string>(
+  pool: Pool,
+  handler: (
+    context: Context<OtterEnv, Path>,
+    client: PoolClient,
+    before: CapturedExpense[],
+  ) => Promise<MutationResult>,
+) {
+  return tripMutation<Path>(pool, async (context, client) => {
+    const tripId = context.req.param("tripId");
+    if (!tripId) throw new Error("Expense mutation requires a trip ID");
+    return handler(context, client, await captureExpenses(client, tripId));
+  });
 }

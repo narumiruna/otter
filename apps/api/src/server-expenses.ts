@@ -42,7 +42,7 @@ import {
   todayDate,
   withTransaction,
 } from "./server-support.js";
-import { tripMutation } from "./server-trip-mutation.js";
+import { expenseMutation } from "./server-trip-mutation.js";
 
 function expenseCategoryFromBody(value: unknown): ExpenseCategory {
   if (value == null || value === "") {
@@ -64,7 +64,7 @@ export function registerExpenseRoutes(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -190,7 +190,7 @@ export function registerExpenseRoutes(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -404,7 +404,7 @@ export function registerExpenseRoutes(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
     parseRequestBody,
-    tripMutation(pool, async (context, pool, before) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,

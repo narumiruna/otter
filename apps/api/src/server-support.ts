@@ -542,48 +542,51 @@ async function loadTrip(
     return undefined;
   }
 
-  // This reader also runs on transaction-owned clients. Await each query;
-  // queuing concurrent queries on a single pg client is unsupported in pg 9.
-  const participantsResult = await db.query<ParticipantRow>(
-    `SELECT id, name
+  const readParticipants = () =>
+    db.query<ParticipantRow>(
+      `SELECT id, name
        FROM participants
        WHERE trip_id = $1
        ORDER BY created_at, id`,
-    [tripId],
-  );
-  const expensesResult = await db.query<ExpenseRow>(
-    `SELECT id, version, expense_revision_snapshot(expenses) AS snapshot
+      [tripId],
+    );
+  const readExpenses = () =>
+    db.query<ExpenseRow>(
+      `SELECT id, version, expense_revision_snapshot(expenses) AS snapshot
        FROM expenses
        WHERE trip_id = $1
        ORDER BY created_at, id`,
-    [tripId],
-  );
-  const settlementPaymentsResult = await db.query<SettlementPaymentRow>(
-    `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, note, created_at
+      [tripId],
+    );
+  const readPayments = () =>
+    db.query<SettlementPaymentRow>(
+      `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, note, created_at
        FROM settlement_payments
        WHERE trip_id = $1
        ORDER BY paid_at, created_at, id`,
-    [tripId],
-  );
-  const exchangeRatesResult = await db.query<ExchangeRateRow>(
-    `SELECT currency, rate_to_base
+      [tripId],
+    );
+  const readExchangeRates = () =>
+    db.query<ExchangeRateRow>(
+      `SELECT currency, rate_to_base
        FROM trip_exchange_rates
        WHERE trip_id = $1`,
-    [tripId],
-  );
-  const tripMembersResult = userId
-    ? await db.query<TripMemberRow>(
-        `SELECT users.id AS user_id, users.name, users.username, trip_members.role, trip_members.created_at
+      [tripId],
+    );
+  const readMembers = async () =>
+    userId
+      ? db.query<TripMemberRow>(
+          `SELECT users.id AS user_id, users.name, users.username, trip_members.role, trip_members.created_at
            FROM trip_members
            JOIN users ON users.id = trip_members.user_id
            WHERE trip_members.trip_id = $1
            ORDER BY CASE trip_members.role WHEN 'owner' THEN 0 ELSE 1 END, trip_members.created_at`,
-        [tripId],
-      )
-    : { rows: [] };
-  const shareLinksResult =
+          [tripId],
+        )
+      : { rows: [] };
+  const readShareLinks = async () =>
     tripRow.current_user_role === "owner"
-      ? await db.query<TripShareLinkRow>(
+      ? db.query<TripShareLinkRow>(
           `SELECT id, created_at, revoked_at, expires_at
            FROM trip_share_links
            WHERE trip_id = $1
@@ -591,6 +594,34 @@ async function loadTrip(
           [tripId],
         )
       : { rows: [] };
+
+  // Independent Pool queries can use separate connections. A transaction client
+  // (or another single Queryable) must finish each query before starting another.
+  const [
+    participantsResult,
+    expensesResult,
+    settlementPaymentsResult,
+    exchangeRatesResult,
+    tripMembersResult,
+    shareLinksResult,
+  ] =
+    db instanceof Pool
+      ? await Promise.all([
+          readParticipants(),
+          readExpenses(),
+          readPayments(),
+          readExchangeRates(),
+          readMembers(),
+          readShareLinks(),
+        ])
+      : ([
+          await readParticipants(),
+          await readExpenses(),
+          await readPayments(),
+          await readExchangeRates(),
+          await readMembers(),
+          await readShareLinks(),
+        ] as const);
 
   const exchangeRates: Partial<Record<Currency, number>> = Object.fromEntries(
     exchangeRatesResult.rows.map((row) => [
