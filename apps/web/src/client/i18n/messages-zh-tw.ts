@@ -1,6 +1,39 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 
 export const zhTW = {
+  expenseHistory: "修改紀錄",
+  expenseHistoryDescription:
+    "查看支出的修改與刪除紀錄；這不是付款或歷史餘額紀錄。",
+  expenseHistoryEmpty: "尚無修改紀錄",
+  expenseHistoryMore: "載入更多紀錄",
+  expenseHistoryCreated: "新增",
+  expenseHistoryUpdated: "修改",
+  expenseHistoryDeleted: "已刪除",
+  expenseHistoryBaseline: "起始快照",
+  expenseHistorySystem: "系統",
+  expenseHistoryBaselineNotice:
+    "啟用版本紀錄時的狀態；更早的修改與原操作者未知。",
+  expenseHistoryReceiptNotice: "收據僅保留識別資訊，舊圖片無法查看。",
+  expenseHistoryShares: "分帳金額",
+  expenseHistoryBefore: "修改前",
+  expenseHistoryAfter: "修改後",
+  expenseHistorySourceExpense: "支出操作",
+  expenseHistorySourceCsv: "CSV 匯入",
+  expenseHistorySourceRestore: "備份還原",
+  expenseHistorySourceMerge: "成員合併",
+  expenseHistorySourceReceipt: "收據操作",
+  expenseHistorySourceSeed: "開發範例",
+  expenseHistorySourceMigration: "資料遷移",
+  expenseVersionConflict: "支出已被修改，請查看最新內容後重新確認",
+  expenseVersionMissing: "請提供支出版本，重新載入後再試",
+  expenseVersionInvalid: "支出版本格式錯誤",
+  reviewLatestExpense: "查看最新內容",
+  confirmLatestExpenseVersion: "已確認最新內容，保留草稿繼續編輯",
+  latestExpenseMissing: "此支出已刪除或無法存取。草稿仍保留，但無法儲存。",
+  deleteExpenseHistoryRetained:
+    "支出將移出目前帳目並重算餘額，修改紀錄仍保留。此版本尚不支援還原。",
+  expenseHistoryForName: (values: MessageValues) =>
+    interpolate("修改紀錄：{name}", values),
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:
     "Username 需為 3–32 個英文字母、數字、底線或連字號",
   travelTogetherSplitExpensesEasily: "一起旅行，輕鬆分帳",

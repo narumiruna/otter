@@ -4,7 +4,7 @@ import { serve as serveNode } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Currency, isCurrency } from "@narumitw/otter-core/money";
 import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
-import type { Participant, Trip } from "@narumitw/otter-core/settlement";
+import type { Participant } from "@narumitw/otter-core/settlement";
 import {
   isValidUsername,
   usernameValidationMessage,
@@ -26,6 +26,7 @@ import {
   type ExchangeRateRouteOptions,
   registerExchangeRateRoutes,
 } from "./server-exchange-rates.js";
+import { registerExpenseHistoryRoutes } from "./server-expense-history-routes.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
@@ -52,6 +53,7 @@ import {
   iso,
   isPgCode,
   isProduction,
+  type LoadedTrip,
   loadTripForUser,
   makeId,
   normalizeUsername,
@@ -72,6 +74,7 @@ import {
   verifyPassword,
   withTransaction,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 type TripSummaryRow = {
   id: string;
@@ -370,7 +373,7 @@ export function createApp(
       id: makeId("participant"),
       name: user.name,
     };
-    const trip: Trip = {
+    const trip: LoadedTrip = {
       baseCurrency,
       createdAt,
       expenses: [],
@@ -423,7 +426,7 @@ export function createApp(
     "/api/trips/:tripId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -535,7 +538,7 @@ export function createApp(
         throw new Error("Trip disappeared after rename");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 
   app.delete(
@@ -583,7 +586,7 @@ export function createApp(
     "/api/trips/:tripId/participants",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -615,14 +618,14 @@ export function createApp(
         throw new Error("Trip disappeared after participant insert");
       }
       return context.json(await buildTripPayload(updated), 201);
-    },
+    }),
   );
 
   app.patch(
     "/api/trips/:tripId/participants/:participantId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -662,7 +665,7 @@ export function createApp(
         throw new Error("Trip disappeared after participant rename");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 
   registerParticipantMergeRoute(app, pool, mustBeSignedIn, buildTripPayload);
@@ -671,7 +674,7 @@ export function createApp(
     "/api/trips/:tripId/participants/:participantId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -709,7 +712,7 @@ export function createApp(
         throw new Error("Trip disappeared after participant delete");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 
   registerCollaborationRoutes(
@@ -720,6 +723,7 @@ export function createApp(
   );
   registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);

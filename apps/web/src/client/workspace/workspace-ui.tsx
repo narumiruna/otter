@@ -101,6 +101,7 @@ export function ConfirmDialog({
   destructive = false,
   disabled,
   onConfirm,
+  onOpenChange,
   title,
   trigger,
 }: {
@@ -110,6 +111,7 @@ export function ConfirmDialog({
   destructive?: boolean;
   disabled?: boolean;
   onConfirm: () => unknown | Promise<unknown>;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   trigger: ReactElement<{ disabled?: boolean }>;
 }) {
@@ -137,7 +139,10 @@ export function ConfirmDialog({
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!busy) setOpen(nextOpen);
+        if (!busy) {
+          setOpen(nextOpen);
+          onOpenChange?.(nextOpen);
+        }
         if (nextOpen) setError("");
       }}
     >

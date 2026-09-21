@@ -1,3 +1,4 @@
+import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import {
   parseSplitMode,
@@ -11,7 +12,6 @@ import {
   isCurrency,
   parseAmountToMinor,
 } from "@narumitw/otter-core/money";
-import type { Expense, Trip } from "@narumitw/otter-core/settlement";
 import {
   ChevronLeftIcon as ChevronLeft,
   ReaderIcon as ReceiptText,
@@ -22,6 +22,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { todayDate } from "../client-support.js";
 import { localizeMessage, useI18n } from "../i18n.js";
+import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -84,7 +85,7 @@ export function ExpenseComposer({
   onCancel,
   onDirtyChange,
   onSaved,
-  trip,
+  trip: originalTrip,
 }: {
   expense?: Expense;
   onCancel: () => void;
@@ -94,6 +95,8 @@ export function ExpenseComposer({
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
+  const versionState = useExpenseVersion(expense, originalTrip.id);
+  const trip = versionState.latest?.trip ?? originalTrip;
   const [serverError, setServerError] = useState("");
   const form = useForm<ExpenseDraft>({
     defaultValues: defaults(trip, expense),
@@ -175,6 +178,7 @@ export function ExpenseComposer({
         {
           body: JSON.stringify(draft),
           method: expense ? "PATCH" : "POST",
+          ...(expense ? { headers: versionState.headers() } : {}),
         },
         expense ? messages.expenseChangesSaved : messages.expenseRecorded,
         true,
@@ -182,6 +186,7 @@ export function ExpenseComposer({
       form.reset(defaults(trip));
       onSaved?.();
     } catch (error) {
+      versionState.handleError(error);
       setServerError(
         error instanceof Error ? error.message : messages.unableToSaveExpense,
       );
@@ -234,6 +239,7 @@ export function ExpenseComposer({
 
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
+        <ExpenseConflictReview state={versionState} />
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label={messages.description}>
             <input
@@ -472,7 +478,12 @@ export function ExpenseComposer({
           <BusyButton
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
-            disabled={offline || !!preview?.error}
+            disabled={
+              offline ||
+              !!preview?.error ||
+              versionState.conflict ||
+              versionState.missing
+            }
             type="submit"
           >
             {expense ? messages.saveChanges : messages.recordExpense}

@@ -13,6 +13,10 @@ import {
 } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
 import {
+  recordExpenseChanges,
+  requireExpenseVersion,
+} from "./server-expense-history.js";
+import {
   insertExpense,
   insertExpenseParticipants,
 } from "./server-expense-store.js";
@@ -38,6 +42,7 @@ import {
   todayDate,
   withTransaction,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 function expenseCategoryFromBody(value: unknown): ExpenseCategory {
   if (value == null || value === "") {
@@ -59,7 +64,7 @@ export function registerExpenseRoutes(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -172,19 +177,20 @@ export function registerExpenseRoutes(
         }),
       );
 
+      await recordExpenseChanges(pool, trip.id, before, user, "expense");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after expense insert");
       }
       return context.json(await buildTripPayload(updated), 201);
-    },
+    }),
   );
 
   app.patch(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -204,6 +210,7 @@ export function registerExpenseRoutes(
       if (!expense) {
         return sendError(context, 404, "找不到支出");
       }
+      requireExpenseVersion(context.req.header("If-Match"), expense.version);
 
       const body = requestBody(context);
       const hasDescription = "description" in body;
@@ -384,19 +391,20 @@ export function registerExpenseRoutes(
         return sendError(context, 404, "找不到支出");
       }
 
+      await recordExpenseChanges(pool, trip.id, before, user, "expense");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after expense update");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 
   app.delete(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -410,6 +418,11 @@ export function registerExpenseRoutes(
         return archivedTripResponse(context);
       }
 
+      const expense = trip.expenses.find(
+        (e) => e.id === context.req.param("expenseId"),
+      );
+      if (!expense) return sendError(context, 404, "找不到支出");
+      requireExpenseVersion(context.req.header("If-Match"), expense.version);
       const deleted = await pool.query(
         "DELETE FROM expenses WHERE trip_id = $1 AND id = $2",
         [trip.id, context.req.param("expenseId")],
@@ -418,11 +431,12 @@ export function registerExpenseRoutes(
         return sendError(context, 404, "找不到支出");
       }
 
+      await recordExpenseChanges(pool, trip.id, before, user, "expense");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after expense delete");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 }

@@ -30,7 +30,7 @@ otter settlements list --trip <trip-id>
 ```
 
 `trips get` returns the complete trip payload.
-`expenses list` returns the complete expense array and does not impose a record-count limit.
+`expenses list` returns the complete expense array, including each expense's `version`, and does not impose a record-count limit.
 A terminal or agent tool may truncate how that JSON is displayed, so redirect large output to a temporary file and inspect it in bounded chunks.
 `balances get` returns current balances and suggested settlements.
 `settlements list` returns suggested settlements and recorded payments.
@@ -74,6 +74,7 @@ otter expenses add \
 otter expenses update \
   --trip <trip-id> \
   --expense <expense-id> \
+  --version <observed-version> \
   [--description <text>] \
   [--amount <major-unit-amount>] \
   [--currency <code>] \
@@ -83,13 +84,18 @@ otter expenses update \
   [--category <name>] \
   [--tags <tag,tag>]
 
-otter expenses delete --trip <trip-id> --expense <expense-id> --yes
+otter expenses delete --trip <trip-id> --expense <expense-id> --version <observed-version> --yes
 ```
 
 The available categories are `餐飲`, `交通`, `住宿`, `門票`, `購物`, and `其他`.
 Omit optional add fields to use server defaults.
 Pass `--tags ""` on update to clear all tags.
 The CLI creates equal splits and does not expose custom amounts, percentages, or shares.
+Updates and deletions require the version from the expense the user reviewed and send it as `If-Match`.
+Missing or invalid versions fail locally; older clients without this header receive HTTP 428 from the new API.
+A stale version returns HTTP 412 with `EXPENSE_VERSION_CONFLICT` without changing data.
+Reread, explain the intervening changes, and confirm intent before supplying a new version; do not silently refresh and retry.
+Deletion retains change history until the whole group is deleted, and restoring an expense is not supported.
 
 ## Settlement Commands
 

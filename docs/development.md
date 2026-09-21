@@ -81,6 +81,36 @@ Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/sc
 - Parser 保留既有政策：GET/HEAD 或未提供 Content-Type 時為空物件；JSON 上限為 1 MiB，`/api/trips/restore` 為 10 MiB；JPEG/PNG/WebP 為 5 MiB。其他 Content-Type 保留為原始 bytes，由 route 決定是否接受。這些限制在讀取完整 body 後檢查，並非 streaming limits。
 - 空 JSON body 視為空物件；無效 JSON 回傳 400，超過上述大小限制回傳 413，兩者都不計入 route-level rate limit。成功解析但欄位無效的驗證請求仍計入限制。Cookie 屬性、proxy 信任設定與 Bearer/session 權限不變。
 
+## 支出版本與 HTTP 契約
+
+`014_expense_revisions.sql` 新增目前支出的 `version` 與 append-only-by-application 的 `expense_revisions`。DB 管理者仍可修改歷史。`expense_revision_snapshot(expenses)` 在單一 SQL snapshot 中取得支出、有序分帳、當時名稱與收據 metadata，供 baseline、版本寫入與目前支出讀取共用；不保存舊圖片 bytes 或 URL。
+
+`server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。支出／收據／CSV／合併 route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；傳入 `withTransaction` 的 PoolClient 必須已由外層 transaction 管理。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。Restore 與開發 fixtures 各在自己的 transaction 記錄建立來源。
+
+單筆支出 PATCH／DELETE 與收據 PUT／DELETE 要求觀察到的版本，例如：
+
+```http
+PATCH /api/trips/trip-id/expenses/expense-id
+Content-Type: application/json
+If-Match: "3"
+
+{"amount":"1500"}
+```
+
+認證仍使用原有 session 或 Bearer token。版本來自 trip payload 的 `trip.expenses[].version`，不是整個 trip 的 ETag；收據也共用此 expense revision token。Server 不猜測版本、不接受 wildcard、weak tag 或多個 tags。正規化後無實際修改的 PATCH 仍檢查前置條件，但不增版。
+
+| Status | JSON `code` | Client 行為 |
+| --- | --- | --- |
+| 428 | `EXPENSE_VERSION_REQUIRED` | 升級 client，讀取支出版本後再操作。 |
+| 400 | `EXPENSE_VERSION_INVALID` | 修正格式；需單一帶雙引號的正安全整數。 |
+| 412 | `EXPENSE_VERSION_CONFLICT` | 保留草稿，重新閱讀並確認意圖；不可只換 token 自動 retry。 |
+
+錯誤仍包含 `error` 字串。未授權／不存在沿用原有 auth／404 邊界，封存維持 409。新增支出不需版本。Contracts 提供 `VersionedExpense`／`parseVersionedTripPayload` 給嚴格線上資料；`parseTripPayload` 保留舊離線 preview 的相容性，任何寫入都不得把缺少版本補成 1。
+
+`GET /api/trips/:tripId/expense-history?expenseId=expense-id&limit=20&cursor=revision-id` 回傳 `{ revisions, nextCursor }`。expenseId、cursor 可省略；limit 預設 20，上限 100。Cursor 須來自同群組／篩選結果，不存在或格式無效回傳 400。每筆含 snapshot、previousSnapshot 與 changedFields，跨頁也可顯示差異；依 recordedAt、id 倒序排列。只有目前 owner／editor 可讀，公開分享不包含此 endpoint 或歷史內容。
+
+API concurrency tests 用 DB lock waiters 控制交錯，避免以 sleep 推測時序。Migration suite 驗證 013 升級、10,000 筆 baseline、資料指紋與 migration 重跑；必須提供隔離的 `DATABASE_URL`，不能以 skipped 當作驗證通過。
+
 ## 技術選擇
 
 - Web：React、Vite、TypeScript、Radix、Tailwind CSS layout utilities。

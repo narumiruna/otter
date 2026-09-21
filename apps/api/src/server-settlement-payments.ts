@@ -16,6 +16,7 @@ import {
   stringField,
   todayDate,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 export function registerSettlementPaymentRoutes(
   app: OtterApp,
@@ -27,7 +28,7 @@ export function registerSettlementPaymentRoutes(
     "/api/trips/:tripId/settlement-payments",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -102,14 +103,14 @@ export function registerSettlementPaymentRoutes(
         throw new Error("Trip disappeared after settlement payment insert");
       }
       return context.json(await buildTripPayload(updated), 201);
-    },
+    }),
   );
 
   app.delete(
     "/api/trips/:tripId/settlement-payments/:paymentId",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -136,6 +137,6 @@ export function registerSettlementPaymentRoutes(
         throw new Error("Trip disappeared after settlement payment delete");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 }

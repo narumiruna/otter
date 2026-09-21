@@ -37,6 +37,9 @@ export function WorkspaceProvider({
   const value = useMemo<WorkspaceContextValue>(() => {
     const replacePayload = (next: TripPayload) => {
       queryClient.setQueryData(["trip", next.trip.id], next);
+      void queryClient.invalidateQueries({
+        queryKey: ["expense-history", next.trip.id],
+      });
     };
     return {
       announce,

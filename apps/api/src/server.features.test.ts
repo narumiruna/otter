@@ -104,7 +104,11 @@ test(
       `${baseUrl}/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}/receipt`,
       {
         body: Buffer.from("gif"),
-        headers: { "Content-Type": "image/gif", cookie: ownerCookie },
+        headers: {
+          "Content-Type": "image/gif",
+          cookie: ownerCookie,
+          "If-Match": '"1"',
+        },
         method: "PUT",
       },
     );
@@ -123,7 +127,11 @@ test(
       `${baseUrl}/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}/receipt`,
       {
         body: Buffer.from([1, 2, 3]),
-        headers: { "Content-Type": "image/png", cookie: ownerCookie },
+        headers: {
+          "Content-Type": "image/png",
+          cookie: ownerCookie,
+          "If-Match": '"1"',
+        },
         method: "PUT",
       },
     );
@@ -144,7 +152,7 @@ test(
     const receiptDelete = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}/receipt`,
-      { headers: { cookie: ownerCookie }, method: "DELETE" },
+      { headers: { cookie: ownerCookie, "If-Match": '"2"' }, method: "DELETE" },
     );
     assert.equal(receiptDelete.response.status, 200);
     assert.equal(receiptDelete.data.trip.expenses[0]?.receiptId, undefined);

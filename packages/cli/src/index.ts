@@ -39,7 +39,7 @@ export async function executeCliCommand(
     fetchImplementation,
     command.path,
     command.method,
-    { Authorization: `Bearer ${token}` },
+    { ...command.headers, Authorization: `Bearer ${token}` },
     command.body,
   );
   if (

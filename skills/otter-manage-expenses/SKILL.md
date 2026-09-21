@@ -15,7 +15,7 @@ Use Otter's non-interactive CLI instead of browser automation or direct database
 4. Never ask for an Otter username or password, never approve a device request on the user's behalf, and never expose a saved or environment-provided token.
 5. For ephemeral automation, accept `OTTER_TOKEN` only when the user or execution environment already provides it through a secret mechanism.
 6. Run `otter trips list` and use returned IDs instead of guessing IDs from names.
-7. Read the selected trip or its narrow resource list before a mutation so participant, expense, and payment IDs are current.
+7. Read the selected trip or its narrow resource list before a mutation so participant, expense, and payment IDs are current; for expense updates and deletions, retain the observed `version` and pass it as `--version`.
 8. When terminal output may be truncated, create a mode-0600 temporary file with `mktemp` under `umask 077`, register a cleanup trap before writing, then redirect the complete JSON response into it for bounded processing.
 9. Do not treat a truncated terminal display as an incomplete Otter response.
 10. When the user asks for all records or as many as possible, use a compact format, include the shown and total counts, and fit the largest safe ordered batch in each response.
@@ -27,6 +27,8 @@ Use Otter's non-interactive CLI instead of browser automation or direct database
 16. Run the mutation once, inspect its JSON result, and verify the changed resource with a narrow read command.
 17. After expense or settlement changes, run `balances get` and report updated balances or settlement suggestions relevant to the request.
 18. On a non-zero exit, read the JSON error from stderr, correct only clear input mistakes, and do not retry authentication, permission, conflict, or connection failures without resolving their cause.
+19. For `EXPENSE_VERSION_CONFLICT` (HTTP 412), reread the expense, explain the intervening changes, and confirm the intended update or deletion before using a new version; never silently replace the version and retry.
+20. Treat HTTP 428 as a client upgrade requirement, not permission to guess a version or bypass conditional writes.
 
 Read [the installation guide](references/installation.md) when the `otter` executable is unavailable.
 Read [the CLI command reference](references/cli.md) when choosing flags or interpreting output.

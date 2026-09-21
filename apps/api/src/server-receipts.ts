@@ -1,4 +1,8 @@
 import type { Pool as PgPool } from "pg";
+import {
+  recordExpenseChanges,
+  requireExpenseVersion,
+} from "./server-expense-history.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
@@ -10,6 +14,7 @@ import {
   nowIso,
   sendError,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 const receiptMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -23,7 +28,7 @@ export function registerReceiptRoutes(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -36,13 +41,11 @@ export function registerReceiptRoutes(
       if (trip.archivedAt) {
         return archivedTripResponse(context);
       }
-      if (
-        !trip.expenses.some(
-          (expense) => expense.id === context.req.param("expenseId"),
-        )
-      ) {
-        return sendError(context, 404, "找不到支出");
-      }
+      const expense = trip.expenses.find(
+        (e) => e.id === context.req.param("expenseId"),
+      );
+      if (!expense) return sendError(context, 404, "找不到支出");
+      requireExpenseVersion(context.req.header("If-Match"), expense.version);
 
       const mimeType = contentType(context.req.header("content-type"));
       if (!mimeType || !receiptMimeTypes.has(mimeType)) {
@@ -71,12 +74,13 @@ export function registerReceiptRoutes(
         ],
       );
 
+      await recordExpenseChanges(pool, trip.id, before, user, "receipt");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after receipt upload");
       }
       return context.json(await buildTripPayload(updated), 201);
-    },
+    }),
   );
 
   app.get(
@@ -111,7 +115,7 @@ export function registerReceiptRoutes(
     "/api/trips/:tripId/expenses/:expenseId/receipt",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -124,6 +128,11 @@ export function registerReceiptRoutes(
       if (trip.archivedAt) {
         return archivedTripResponse(context);
       }
+      const expense = trip.expenses.find(
+        (e) => e.id === context.req.param("expenseId"),
+      );
+      if (!expense) return sendError(context, 404, "找不到支出");
+      requireExpenseVersion(context.req.header("If-Match"), expense.version);
       const deleted = await pool.query(
         "DELETE FROM receipt_attachments WHERE trip_id = $1 AND expense_id = $2",
         [trip.id, context.req.param("expenseId")],
@@ -131,12 +140,13 @@ export function registerReceiptRoutes(
       if (deleted.rowCount === 0) {
         return sendError(context, 404, "找不到收據");
       }
+      await recordExpenseChanges(pool, trip.id, before, user, "receipt");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after receipt delete");
       }
       return context.json(await buildTripPayload(updated));
-    },
+    }),
   );
 }
 

@@ -1,6 +1,6 @@
+import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import { currencies } from "@narumitw/otter-core/money";
-import type { Expense, Trip } from "@narumitw/otter-core/settlement";
 import {
   ColumnsIcon,
   DotsHorizontalIcon,
@@ -11,8 +11,6 @@ import {
   FileTextIcon as Receipt,
   ResetIcon,
   MagnifyingGlassIcon as Search,
-  TrashIcon as Trash2,
-  UploadIcon as Upload,
 } from "@radix-ui/react-icons";
 import { Popover } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
@@ -23,10 +21,11 @@ import {
   filterAndSortExpenses,
 } from "../client-support.js";
 import { localizeMessage, type Messages, useI18n } from "../i18n.js";
+import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
-import { ActionError, useWorkspace } from "./workspace-context.js";
-import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
+import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
+import { SectionHeading } from "./workspace-ui.js";
 
 export type ExpenseGrouping = "date" | "none" | "payer";
 
@@ -113,6 +112,7 @@ export function ExpensesPage({
         >
           <span id="expenses-heading">{messages.expenses}</span>
         </SectionHeading>
+        <ExpenseHistoryDialog tripId={trip.id} />
         <span className="expenses-heading-icon" aria-hidden="true">
           <Receipt />
         </span>
@@ -747,6 +747,11 @@ function ExpenseTableRow({
             {expense.description}
           </button>
         )}
+        <ExpenseHistoryDialog
+          tripId={trip.id}
+          expenseId={expense.id}
+          name={expense.description}
+        />
       </th>
       {columns.map((column) => (
         <td className={`expense-${column}-cell`} key={column}>
@@ -801,138 +806,11 @@ function ExpenseTableRow({
                 {messages.edit}
               </Button>
               <ReceiptControls expense={expense} trip={trip} />
-              <DeleteExpense expense={expense} trip={trip} />
+              <DeleteExpenseAction expense={expense} trip={trip} />
             </Popover.Content>
           </Popover.Root>
         </td>
       ) : null}
     </tr>
-  );
-}
-
-function ReceiptControls({ expense, trip }: { expense: Expense; trip: Trip }) {
-  const { messages } = useI18n();
-  const { announce, offline, replacePayload } = useWorkspace();
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function upload(file: File | undefined) {
-    if (!file) return;
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/trips/${trip.id}/expenses/${expense.id}/receipt`,
-        {
-          body: file,
-          credentials: "same-origin",
-          headers: { "Content-Type": file.type },
-          method: "PUT",
-        },
-      );
-      const data = (await response.json()) as
-        | import("../client-support.js").TripPayload
-        | { error?: string };
-      if (!response.ok) {
-        const message =
-          "error" in data && data.error
-            ? localizeMessage(data.error)
-            : messages.receiptUploadFailed;
-        throw new Error(message);
-      }
-      replacePayload(data as import("../client-support.js").TripPayload);
-      announce(messages.receiptUploaded);
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : messages.receiptUploadFailed,
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <>
-      <label className="button-outline button-sm">
-        <Upload aria-hidden="true" />
-        <span>{busy ? messages.uploading : messages.uploadReceipt}</span>
-        <input
-          className="sr-only"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          disabled={busy || offline}
-          onChange={(event) => void upload(event.target.files?.[0])}
-        />
-      </label>
-      {expense.receiptUrl ? (
-        <a
-          className="button-outline button-sm"
-          href={expense.receiptUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <FileImage aria-hidden="true" />
-          {messages.viewReceipt}
-        </a>
-      ) : null}
-      <ActionError message={error} />
-      {expense.receiptUrl ? (
-        <DeleteReceipt expense={expense} trip={trip} />
-      ) : null}
-    </>
-  );
-}
-function DeleteReceipt({ expense, trip }: { expense: Expense; trip: Trip }) {
-  const { messages } = useI18n();
-  const { offline, requestPayload } = useWorkspace();
-  return (
-    <ConfirmDialog
-      confirmLabel={messages.deleteReceipt}
-      description={
-        messages.youCanUploadAnotherReceiptLaterTheExpenseWillNotBeDeleted
-      }
-      destructive
-      disabled={offline}
-      onConfirm={() =>
-        requestPayload(
-          `/api/trips/${trip.id}/expenses/${expense.id}/receipt`,
-          { method: "DELETE" },
-          messages.receiptDeleted,
-        )
-      }
-      title={messages.deleteThisReceipt}
-      trigger={
-        <Button size="sm" variant="ghost">
-          {messages.deleteReceipt}
-        </Button>
-      }
-    />
-  );
-}
-function DeleteExpense({ expense, trip }: { expense: Expense; trip: Trip }) {
-  const { messages } = useI18n();
-  const { offline, requestPayload } = useWorkspace();
-  return (
-    <ConfirmDialog
-      confirmLabel={messages.deleteName({ name: expense.description })}
-      description={
-        messages.thisCannotBeUndoneAllBalancesAndSettlementSuggestionsWillBeRecalculated
-      }
-      destructive
-      disabled={offline}
-      onConfirm={() =>
-        requestPayload(
-          `/api/trips/${trip.id}/expenses/${expense.id}`,
-          { method: "DELETE" },
-          messages.expenseDeleted,
-          true,
-        )
-      }
-      title={messages.deleteThisExpense}
-      trigger={
-        <Button size="sm" variant="ghost">
-          <Trash2 aria-hidden="true" />
-          {messages.delete}
-        </Button>
-      }
-    />
   );
 }

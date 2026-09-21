@@ -5,6 +5,7 @@ import {
 } from "@narumitw/otter-core/expense-metadata";
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
+import { recordExpenseChanges } from "./server-expense-history.js";
 import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -20,6 +21,7 @@ import {
   stringField,
   withTransaction,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 export function registerCsvImportRoutes(
   app: OtterApp,
@@ -31,7 +33,7 @@ export function registerCsvImportRoutes(
     "/api/trips/:tripId/expenses/import",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -128,11 +130,12 @@ export function registerCsvImportRoutes(
         }
       });
 
+      await recordExpenseChanges(pool, trip.id, before, user, "csv_import");
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after CSV import");
       }
       return context.json(await buildTripPayload(updated), 201);
-    },
+    }),
   );
 }

@@ -10,11 +10,33 @@ import {
   type ExchangeRates,
   isCurrency,
 } from "@narumitw/otter-core/money";
-import type {
-  Balance,
-  Settlement,
-  Trip,
-} from "@narumitw/otter-core/settlement";
+import type { Balance, Settlement } from "@narumitw/otter-core/settlement";
+import {
+  isExpenseVersion,
+  type Trip,
+  type VersionedTrip,
+} from "./expense-history.js";
+
+export {
+  changedExpenseFields,
+  type Expense,
+  type ExpenseChangeField,
+  type ExpenseHistoryPage,
+  type ExpenseRevision,
+  type ExpenseSnapshot,
+  type ExpenseVersionErrorCode,
+  expenseChangeFields,
+  expenseIfMatch,
+  isExpenseSnapshot,
+  isExpenseVersion,
+  parseExpenseHistoryPage,
+  parseExpenseIfMatch,
+  type RevisionSource,
+  revisionSources,
+  type Trip,
+  type VersionedExpense,
+  type VersionedTrip,
+} from "./expense-history.js";
 
 export type User = {
   id: string;
@@ -86,6 +108,7 @@ export type TripPayload = {
 
 export type ApiErrorResponse = {
   error: string;
+  code?: import("./expense-history.js").ExpenseVersionErrorCode;
   errors?: string[];
 };
 
@@ -192,6 +215,22 @@ export function parseTripPayload(value: unknown): TripPayload {
   return value as TripPayload;
 }
 
+export type VersionedTripPayload = Omit<TripPayload, "trip"> & {
+  trip: VersionedTrip;
+};
+
+export function parseVersionedTripPayload(
+  value: unknown,
+): VersionedTripPayload {
+  const payload = parseTripPayload(value);
+  if (
+    !payload.trip.expenses.every((expense) => isExpenseVersion(expense.version))
+  ) {
+    throw invalidTripPayload();
+  }
+  return payload as VersionedTripPayload;
+}
+
 export function parseExchangeRateSnapshot(
   value: unknown,
 ): ExchangeRateSnapshot {
@@ -246,6 +285,7 @@ function validateTrip(value: unknown): asserts value is Trip {
     if (
       !isRecord(expense) ||
       !isNonEmptyString(expense.id) ||
+      (expense.version !== undefined && !isExpenseVersion(expense.version)) ||
       !isNonEmptyString(expense.description) ||
       !isPositiveSafeInteger(expense.amountMinor) ||
       !isCurrency(expense.currency) ||

@@ -78,7 +78,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       expenses.getByRole("heading", { name: "還沒有支出" }),
     ).toBeVisible();
     await expect(expenses.getByRole("textbox")).toHaveCount(0);
-    await expect(expenses.getByRole("button")).toHaveCount(1);
+    // Deleted expenses remain discoverable even when the current ledger is empty.
+    await expect(
+      expenses.getByRole("button", { name: "修改紀錄", exact: true }),
+    ).toHaveCount(1);
+    await expect(expenses.getByRole("button")).toHaveCount(2);
 
     for (const width of [320, 375, 768, 901, 1440]) {
       await page.setViewportSize({ width, height: 900 });
