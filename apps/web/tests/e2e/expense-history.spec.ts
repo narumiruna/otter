@@ -4,6 +4,107 @@ import type { TripPayload, UserResponse } from "@narumitw/otter-contracts";
 import { expect, test } from "@playwright/test";
 import { expectNoOverflow } from "./layout-assertions.js";
 
+test("a merge conflict replaces unavailable participants only after review and saves the retained draft", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    locale: "zh-TW",
+    extraHTTPHeaders: { "X-Forwarded-For": "198.18.10.3" },
+  });
+  try {
+    const suffix = randomUUID().slice(0, 8);
+    const registered = await context.request.post("/api/auth/register", {
+      data: {
+        username: `merge-${suffix}`,
+        name: "Owner",
+        password: "password123",
+      },
+    });
+    expect(registered.status()).toBe(201);
+    const created = await context.request.post("/api/trips", {
+      data: { name: `Merge ${suffix}`, baseCurrency: "TWD" },
+    });
+    expect(created.status()).toBe(201);
+    const initial = (await created.json()) as TripPayload;
+    const root = `/api/trips/${initial.trip.id}`;
+    const source = initial.trip.participants[0].id;
+    const addedPerson = await context.request.post(`${root}/participants`, {
+      data: { name: "Other" },
+    });
+    expect(addedPerson.status()).toBe(201);
+    const people = (await addedPerson.json()) as TripPayload;
+    const target = people.trip.participants.find(
+      (person) => person.name === "Other",
+    );
+    expect(target).toBeDefined();
+    const added = await context.request.post(`${root}/expenses`, {
+      data: {
+        description: "Merge expense",
+        amount: "100",
+        currency: "TWD",
+        paidById: source,
+        participantIds: people.trip.participants.map((person) => person.id),
+      },
+    });
+    expect(added.status()).toBe(201);
+    const expenseId = ((await added.json()) as TripPayload).trip.expenses[0].id;
+    const page = await context.newPage();
+    await page.goto(`/?trip=${initial.trip.id}&view=expenses`);
+    await page
+      .getByRole("button", { name: "Merge expense", exact: true })
+      .click();
+    await page.getByLabel("描述", { exact: true }).fill("保留的草稿");
+    await page.getByLabel("金額", { exact: true }).fill("150");
+    const merged = await context.request.post(
+      `${root}/participants/${source}/merge`,
+      { data: { targetParticipantId: target?.id } },
+    );
+    expect(merged.status()).toBe(200);
+    const conflict = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/expenses/${expenseId}`) &&
+        response.request().method() === "PATCH",
+    );
+    await page.getByRole("button", { name: "儲存變更", exact: true }).click();
+    expect((await conflict).status()).toBe(412);
+    await page
+      .getByRole("button", { name: "查看最新內容", exact: true })
+      .click();
+    await expect(page.getByText(/已失效的付款人或分帳設定/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "儲存變更", exact: true }),
+    ).toBeDisabled();
+    await page
+      .getByRole("button", { name: "已確認最新內容，保留草稿繼續編輯" })
+      .click();
+    await expect(page.getByLabel("描述", { exact: true })).toHaveValue(
+      "保留的草稿",
+    );
+    await expect(page.getByLabel("金額", { exact: true })).toHaveValue("150");
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/expenses/${expenseId}`) &&
+        response.request().method() === "PATCH",
+    );
+    await page.getByRole("button", { name: "儲存變更", exact: true }).click();
+    expect((await saved).status()).toBe(200);
+    const current = (await (
+      await context.request.get(root)
+    ).json()) as TripPayload;
+    expect(current.trip.expenses[0]).toMatchObject({
+      version: 3,
+      description: "保留的草稿",
+      amountMinor: 150,
+      paidById: target?.id,
+      participantIds: [target?.id],
+    });
+  } finally {
+    await context.close();
+  }
+});
+
 test("two members resolve an expense conflict without losing a draft; history is private and accessible", async ({
   browser,
   baseURL,

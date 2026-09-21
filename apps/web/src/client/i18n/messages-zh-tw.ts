@@ -24,6 +24,8 @@ export const zhTW = {
   expenseHistorySourceReceipt: "收據操作",
   expenseHistorySourceSeed: "開發範例",
   expenseHistorySourceMigration: "資料遷移",
+  expenseConflictParticipantsChanged:
+    "參與者已變更。確認後，已失效的付款人或分帳設定會改用最新支出的設定，其他草稿欄位保留；儲存前請重新核對分帳金額。",
   expenseVersionConflict: "支出已被修改，請查看最新內容後重新確認",
   expenseVersionMissing: "請提供支出版本，重新載入後再試",
   expenseVersionInvalid: "支出版本格式錯誤",

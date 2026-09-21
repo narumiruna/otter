@@ -93,8 +93,12 @@ export function useExpenseVersion(
 }
 export function ExpenseConflictReview({
   state,
+  onConfirm = state.confirm,
+  confirmationNotice,
 }: {
   state: ReturnType<typeof useExpenseVersion>;
+  onConfirm?: () => void;
+  confirmationNotice?: string;
 }) {
   const { messages } = useI18n();
   if (!state.conflict && !state.missing) return null;
@@ -133,7 +137,8 @@ export function ExpenseConflictReview({
           <p className="break-anywhere">
             {messages.receipt}: {state.latest.expense.receiptId ?? "—"}
           </p>
-          <Button type="button" onClick={state.confirm}>
+          {confirmationNotice ? <p>{confirmationNotice}</p> : null}
+          <Button type="button" onClick={onConfirm}>
             {messages.confirmLatestExpenseVersion}
           </Button>
         </>

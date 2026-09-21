@@ -159,6 +159,137 @@ test("editor freezes version across background updates, keeps draft on conflict 
   expect(headers[1].get("If-Match")).toBe('"2"');
   expect(saved).toHaveBeenCalledTimes(1);
 });
+for (const split of ["equal", "amount", "valid-amount"] as const) {
+  test(`merge conflict reconciles missing participants without losing the ${split} draft`, async () => {
+    const user = userEvent.setup();
+    const explicit = split !== "equal";
+    const original: Expense = {
+      ...expense,
+      participantIds: split === "valid-amount" ? ["b"] : ["a", "b"],
+      participantShares: explicit
+        ? split === "valid-amount"
+          ? [{ participantId: "b", shareMinor: 100 }]
+          : [
+              { participantId: "a", shareMinor: 60 },
+              { participantId: "b", shareMinor: 40 },
+            ]
+        : undefined,
+    };
+    const latest: Expense = {
+      ...original,
+      version: 2,
+      paidById: "b",
+      participantIds: ["b"],
+      participantShares: explicit
+        ? [{ participantId: "b", shareMinor: 100 }]
+        : undefined,
+    };
+    const initial = {
+      ...payload,
+      trip: { ...payload.trip, expenses: [original] },
+    };
+    const updated = {
+      ...payload,
+      trip: {
+        ...payload.trip,
+        participants: [{ id: "b", name: "Bob" }],
+        expenses: [latest],
+      },
+    };
+    const writes: { headers: Headers; body: Record<string, unknown> }[] = [];
+    const saved = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_url, init) => {
+        if (init?.method === "PATCH") {
+          writes.push({
+            headers: new Headers(init.headers),
+            body: JSON.parse(String(init.body)),
+          });
+          return writes.length === 1
+            ? Response.json(
+                { error: "Changed", code: "EXPENSE_VERSION_CONFLICT" },
+                { status: 412 },
+              )
+            : Response.json(updated);
+        }
+        return Response.json(updated);
+      }),
+    );
+    const { wrap } = harness(initial);
+    const view = render(
+      wrap(
+        <ExpenseComposer
+          expense={original}
+          trip={initial.trip}
+          onCancel={() => {}}
+          onSaved={saved}
+        />,
+      ),
+    );
+    await user.clear(view.getByLabelText("Description"));
+    await user.type(view.getByLabelText("Description"), "Retained draft");
+    await user.clear(view.getByLabelText("Amount", { exact: true }));
+    await user.type(view.getByLabelText("Amount", { exact: true }), "150");
+    if (explicit) {
+      await user.click(view.getByText(/Change people and split method/));
+      if (split === "amount") {
+        await user.clear(view.getByLabelText("Alice's Amount"));
+        await user.type(view.getByLabelText("Alice's Amount"), "90");
+      }
+      await user.clear(view.getByLabelText("Bob's Amount"));
+      await user.type(
+        view.getByLabelText("Bob's Amount"),
+        split === "amount" ? "60" : "150",
+      );
+    }
+    expect(
+      view.getByRole("button", { name: "Save changes" }),
+      view.container.textContent ?? "",
+    ).toBeEnabled();
+    await user.click(view.getByRole("button", { name: "Save changes" }));
+    expect(writes).toHaveLength(1);
+    expect(writes[0].headers.get("If-Match")).toBe('"1"');
+    await user.click(
+      view.getByRole("button", { name: "Review latest expense" }),
+    );
+    expect(
+      await view.findByText(/Confirming replaces unavailable payer/),
+    ).toBeVisible();
+    if (split === "amount") {
+      expect(view.getByLabelText("Bob's Amount")).toHaveValue("60");
+    }
+    await user.click(
+      await view.findByRole("button", { name: /Reviewed latest version/ }),
+    );
+    expect(writes).toHaveLength(1); // Confirmation never submits automatically.
+    expect(view.getByLabelText("Description")).toHaveValue("Retained draft");
+    expect(view.getByLabelText("Amount", { exact: true })).toHaveValue("150");
+    if (split === "amount") {
+      // Latest explicit split totals 100, while the retained amount is 150.
+      // Keep the user's amount and require a deliberate split correction.
+      expect(view.getByLabelText("Bob's Amount")).toHaveValue("100");
+      expect(view.getByRole("button", { name: "Save changes" })).toBeDisabled();
+      await user.clear(view.getByLabelText("Bob's Amount"));
+      await user.type(view.getByLabelText("Bob's Amount"), "150");
+    } else if (explicit) {
+      expect(view.getByLabelText("Bob's Amount")).toHaveValue("150");
+    }
+    await user.click(view.getByRole("button", { name: "Save changes" }));
+    expect(writes).toHaveLength(2);
+    expect(writes[1].headers.get("If-Match")).toBe('"2"');
+    expect(writes[1].body).toMatchObject({
+      description: "Retained draft",
+      amount: "150",
+      paidById: "b",
+      participantIds: ["b"],
+    });
+    if (split === "amount")
+      expect(writes[1].body.splitValues).toEqual({ b: "150" });
+    expect(saved).toHaveBeenCalledTimes(1);
+  });
+}
+
 test("deleted expenses retain unsaved drafts and do not retry", async () => {
   const fetcher = vi
     .fn<typeof fetch>()

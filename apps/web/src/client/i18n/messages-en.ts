@@ -33,6 +33,8 @@ export const en = {
   expenseHistorySourceReceipt: "Receipt action",
   expenseHistorySourceSeed: "Development fixture",
   expenseHistorySourceMigration: "Migration",
+  expenseConflictParticipantsChanged:
+    "People have changed. Confirming replaces unavailable payer or split selections with the latest expense's settings. Other draft fields are kept; review split amounts before saving.",
   expenseVersionConflict:
     "This expense has changed. Review the latest version before confirming again.",
   expenseVersionMissing: "Provide the expense version. Reload and try again.",
