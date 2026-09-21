@@ -3,6 +3,7 @@ import {
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import type { Pool as PgPool, PoolClient } from "pg";
+import { recordExpenseChanges } from "./server-expense-history.js";
 import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -145,6 +146,13 @@ export function registerBackupRoutes(
           );
         }
 
+        await recordExpenseChanges(
+          client,
+          newTripId,
+          [],
+          user,
+          "backup_restore",
+        );
         return newTripId;
       });
 

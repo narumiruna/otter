@@ -1,18 +1,19 @@
 import crypto from "node:crypto";
 import type {
   ExchangeRateInfo,
+  ExpenseSnapshot,
   User as PublicUser,
+  Trip,
   TripCollaborator,
   TripPayload,
   TripRole,
   TripShareLink,
+  VersionedTrip,
 } from "@narumitw/otter-contracts";
-import { isExpenseCategory } from "@narumitw/otter-core/expense-metadata";
 import { type Currency, isCurrency } from "@narumitw/otter-core/money";
 import {
   calculateBalances,
   calculateSettlements,
-  type Trip,
 } from "@narumitw/otter-core/settlement";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type {
@@ -46,7 +47,7 @@ export type Session = {
 
 export type { TripRole } from "@narumitw/otter-contracts";
 
-export type LoadedTrip = Trip & {
+export type LoadedTrip = VersionedTrip & {
   currentUserRole?: TripRole;
   collaborators?: TripCollaborator[];
   shareLinks?: TripShareLink[];
@@ -83,21 +84,9 @@ type ParticipantRow = {
 };
 
 type ExpenseRow = {
+  version: number;
+  snapshot: ExpenseSnapshot;
   id: string;
-  description: string;
-  amount_minor: string | number;
-  currency: string;
-  category: string;
-  tags: string[] | null;
-  paid_by_id: string;
-  expense_date: Date | string;
-  created_at: Date | string;
-};
-
-type ExpenseParticipantRow = {
-  expense_id: string;
-  participant_id: string;
-  share_minor: string | number | null;
 };
 
 type SettlementPaymentRow = {
@@ -114,11 +103,6 @@ type SettlementPaymentRow = {
 type ExchangeRateRow = {
   currency: string;
   rate_to_base: string | number;
-};
-
-type ReceiptAttachmentRow = {
-  id: string;
-  expense_id: string;
 };
 
 type TripMemberRow = {
@@ -411,9 +395,11 @@ export function createPool(): PgPool {
 }
 
 export async function withTransaction<T>(
-  pool: PgPool,
+  pool: PgPool | PoolClient,
   callback: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
+  // A supplied client belongs to the surrounding tripMutation transaction.
+  if ("release" in pool) return callback(pool);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -556,56 +542,38 @@ async function loadTrip(
     return undefined;
   }
 
-  const [
-    participantsResult,
-    expensesResult,
-    splitsResult,
-    settlementPaymentsResult,
-    exchangeRatesResult,
-    receiptAttachmentsResult,
-    tripMembersResult,
-    shareLinksResult,
-  ] = await Promise.all([
+  const readParticipants = () =>
     db.query<ParticipantRow>(
       `SELECT id, name
        FROM participants
        WHERE trip_id = $1
        ORDER BY created_at, id`,
       [tripId],
-    ),
+    );
+  const readExpenses = () =>
     db.query<ExpenseRow>(
-      `SELECT id, description, amount_minor, currency, category, tags, paid_by_id, expense_date::text AS expense_date, created_at
+      `SELECT id, version, expense_revision_snapshot(expenses) AS snapshot
        FROM expenses
        WHERE trip_id = $1
        ORDER BY created_at, id`,
       [tripId],
-    ),
-    db.query<ExpenseParticipantRow>(
-      `SELECT expense_id, participant_id, share_minor
-       FROM expense_participants
-       WHERE trip_id = $1
-       ORDER BY expense_id, position`,
-      [tripId],
-    ),
+    );
+  const readPayments = () =>
     db.query<SettlementPaymentRow>(
       `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, note, created_at
        FROM settlement_payments
        WHERE trip_id = $1
        ORDER BY paid_at, created_at, id`,
       [tripId],
-    ),
+    );
+  const readExchangeRates = () =>
     db.query<ExchangeRateRow>(
       `SELECT currency, rate_to_base
        FROM trip_exchange_rates
        WHERE trip_id = $1`,
       [tripId],
-    ),
-    db.query<ReceiptAttachmentRow>(
-      `SELECT id, expense_id
-       FROM receipt_attachments
-       WHERE trip_id = $1`,
-      [tripId],
-    ),
+    );
+  const readMembers = async () =>
     userId
       ? db.query<TripMemberRow>(
           `SELECT users.id AS user_id, users.name, users.username, trip_members.role, trip_members.created_at
@@ -615,7 +583,8 @@ async function loadTrip(
            ORDER BY CASE trip_members.role WHEN 'owner' THEN 0 ELSE 1 END, trip_members.created_at`,
           [tripId],
         )
-      : Promise.resolve({ rows: [] } as unknown as QueryResult<TripMemberRow>),
+      : { rows: [] };
+  const readShareLinks = async () =>
     tripRow.current_user_role === "owner"
       ? db.query<TripShareLinkRow>(
           `SELECT id, created_at, revoked_at, expires_at
@@ -624,30 +593,36 @@ async function loadTrip(
            ORDER BY created_at DESC, id`,
           [tripId],
         )
-      : Promise.resolve({
-          rows: [],
-        } as unknown as QueryResult<TripShareLinkRow>),
-  ]);
+      : { rows: [] };
 
-  const splitsByExpense = new Map<
-    string,
-    { participantId: string; shareMinor: number | null }[]
-  >();
-  for (const split of splitsResult.rows) {
-    const splits = splitsByExpense.get(split.expense_id) ?? [];
-    splits.push({
-      participantId: split.participant_id,
-      shareMinor:
-        split.share_minor === null || split.share_minor === undefined
-          ? null
-          : Number(split.share_minor),
-    });
-    splitsByExpense.set(split.expense_id, splits);
-  }
+  // Independent Pool queries can use separate connections. A transaction client
+  // (or another single Queryable) must finish each query before starting another.
+  const [
+    participantsResult,
+    expensesResult,
+    settlementPaymentsResult,
+    exchangeRatesResult,
+    tripMembersResult,
+    shareLinksResult,
+  ] =
+    db instanceof Pool
+      ? await Promise.all([
+          readParticipants(),
+          readExpenses(),
+          readPayments(),
+          readExchangeRates(),
+          readMembers(),
+          readShareLinks(),
+        ])
+      : ([
+          await readParticipants(),
+          await readExpenses(),
+          await readPayments(),
+          await readExchangeRates(),
+          await readMembers(),
+          await readShareLinks(),
+        ] as const);
 
-  const receiptByExpense = new Map(
-    receiptAttachmentsResult.rows.map((row) => [row.expense_id, row.id]),
-  );
   const exchangeRates: Partial<Record<Currency, number>> = Object.fromEntries(
     exchangeRatesResult.rows.map((row) => [
       currencyFromDb(row.currency),
@@ -672,26 +647,11 @@ async function loadTrip(
       userId: row.user_id,
     })),
     expenses: expensesResult.rows.map((row) => {
-      const splits = splitsByExpense.get(row.id) ?? [];
-      const participantShares = splits
-        .filter((split) => split.shareMinor !== null)
-        .map((split) => ({
-          participantId: split.participantId,
-          shareMinor: split.shareMinor ?? 0,
-        }));
-      const receiptId = receiptByExpense.get(row.id);
+      const receiptId = row.snapshot.receipt?.id;
       return {
-        amountMinor: Number(row.amount_minor),
-        category: isExpenseCategory(row.category) ? row.category : "其他",
-        createdAt: iso(row.created_at),
-        currency: currencyFromDb(row.currency),
-        description: row.description,
-        expenseDate: dateOnly(row.expense_date),
-        tags: row.tags ?? [],
-        id: row.id,
-        paidById: row.paid_by_id,
-        participantIds: splits.map((split) => split.participantId),
-        ...(participantShares.length > 0 ? { participantShares } : {}),
+        ...row.snapshot.expense,
+        createdAt: iso(row.snapshot.expense.createdAt),
+        version: row.version,
         ...(receiptId
           ? {
               receiptId,

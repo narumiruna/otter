@@ -197,7 +197,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ expenseDate: "2026-06-25" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"1"' },
         method: "PATCH",
       },
     );
@@ -212,7 +212,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ expenseDate: "2026-02-30" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"2"' },
         method: "PATCH",
       },
     );
@@ -238,7 +238,7 @@ test(
           description: "Supper",
           tags: ["late", "taxi"],
         }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"2"' },
         method: "PATCH",
       },
     );
@@ -266,7 +266,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ amount: "200" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"3"' },
         method: "PATCH",
       },
     );
@@ -309,7 +309,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ paidById: bob.id }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"4"' },
         method: "PATCH",
       },
     );
@@ -349,7 +349,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ participantIds: [owner.id] }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"5"' },
         method: "PATCH",
       },
     );
@@ -392,7 +392,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ currency: "USD" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"6"' },
         method: "PATCH",
       },
     );
@@ -425,7 +425,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
       {
         body: JSON.stringify({ currency: "BTC" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"7"' },
         method: "PATCH",
       },
     );
@@ -485,7 +485,7 @@ test(
     const afterDelete = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
-      { headers: { cookie }, method: "DELETE" },
+      { headers: { cookie, "If-Match": '"7"' }, method: "DELETE" },
     );
     assert.equal(afterDelete.response.status, 200);
     assert.equal(afterDelete.data.trip.expenses.length, 0);

@@ -103,7 +103,7 @@ test(
       `/api/trips/${tripId}/expenses/${explicit.id}`,
       {
         body: JSON.stringify({ description: "Renamed" }),
-        headers,
+        headers: { ...headers, "If-Match": '"1"' },
         method: "PATCH",
       },
     );
@@ -114,7 +114,7 @@ test(
       `/api/trips/${tripId}/expenses/${explicit.id}`,
       {
         body: JSON.stringify({ amount: "200" }),
-        headers,
+        headers: { ...headers, "If-Match": '"2"' },
         method: "PATCH",
       },
     );
@@ -174,7 +174,8 @@ test(
         await pool.query(`SELECT
     (SELECT count(*) FROM trips) AS trips,
     (SELECT count(*) FROM expenses) AS expenses,
-    (SELECT count(*) FROM expense_participants) AS splits`)
+    (SELECT count(*) FROM expense_participants) AS splits,
+    (SELECT count(*) FROM expense_revisions) AS revisions`)
       ).rows;
     const beforeFailure = await counts();
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -202,7 +203,7 @@ test(
       `/api/trips/${tripId}/expenses/${explicit.id}`,
       {
         body: JSON.stringify({ amount: "300" }),
-        headers,
+        headers: { ...headers, "If-Match": '"3"' },
         method: "PATCH",
       },
     );

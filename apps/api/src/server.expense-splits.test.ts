@@ -108,7 +108,7 @@ test(
       `/api/trips/${createdTrip.data.trip.id}/expenses/${taxiExpense.id}`,
       {
         body: JSON.stringify({ amount: "200" }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"1"' },
         method: "PATCH",
       },
     );
@@ -158,7 +158,7 @@ test(
           splitMode: "shares",
           splitValues: { [owner.id]: "1", [bob.id]: "3" },
         }),
-        headers: { cookie },
+        headers: { cookie, "If-Match": '"1"' },
         method: "PATCH",
       },
     );

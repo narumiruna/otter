@@ -13,6 +13,7 @@ import {
   sendError,
   stringField,
 } from "./server-support.js";
+import { tripMutation } from "./server-trip-mutation.js";
 
 export function registerCollaborationRoutes(
   app: OtterApp,
@@ -24,7 +25,7 @@ export function registerCollaborationRoutes(
     "/api/trips/:tripId/members",
     mustHaveBrowserSession,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -69,15 +70,15 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator insert");
       }
-      return context.json(await buildTripPayload(updated), 201);
-    },
+      return async () => context.json(await buildTripPayload(updated), 201);
+    }),
   );
 
   app.delete(
     "/api/trips/:tripId/members/:userId",
     mustHaveBrowserSession,
     parseRequestBody,
-    async (context) => {
+    tripMutation(pool, async (context, pool) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -105,7 +106,7 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator delete");
       }
-      return context.json(await buildTripPayload(updated));
-    },
+      return async () => context.json(await buildTripPayload(updated));
+    }),
   );
 }

@@ -62,6 +62,43 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 - `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、sessions 與群組關聯。既有使用者可用原 Email 作為 Username 登入。
 - `012_passkeys.sql` 新增 Passkey credentials 與短效 challenges，不修改既有帳號、密碼或 sessions。
 
+## 支出歷史切換與回復
+
+`014_expense_revisions.sql` 是 additive migration，但新 API 的 If-Match 前置條件是 breaking change。每筆現存支出建立 version 1 baseline，操作者標為未知的系統起始快照；既有金額、分帳、收據與付款不改寫。歷史隨群組刪除，不隨單筆支出刪除，保存期與群組一致。
+
+### 合併／部署前置條件
+
+本功能以 PR 交付，尚未部署 production、發佈 npm package 或觸發 release workflow。交接由 repository maintainer `narumiruna` 負責；production 資料量、磁碟餘裕、維護窗口與外部 API client 清單仍須於切換前確認。
+
+1. 在 production 副本測量 migration、snapshot 查詢時間與所需空間，確認可接受的停止寫入窗口。單群組寫入會序列化；目前 snapshot 比對會讀取該群組所有支出，大群組須特別驗證延遲。
+2. 協調 `main` push 的自動 Deploy 與 Changesets Release workflows，確保舊 writer 已停止、DB 備份可還原，才允許 main 合併部署；不要讓一般自動部署跳過本次維護步驟。CLI 可用版本、Web reload 與 API 切換須排定順序。
+3. 先停止所有連到同 DB 的舊 API／其他 writer，保留 PostgreSQL 運行，取得完整 DB backup。不可只用產品 JSON 備份代替，也不可讓新舊 server 混合寫入。
+4. 在停止寫入期間執行 `npm run migrate`，驗證 baseline 筆數與目前支出筆數相同、version 均為 1、分帳與收據未變。再啟動新版 API／Web，升級 CLI／外部 clients 並重新載入瀏覽器。
+5. 抽查 owner／editor 可讀、非成員與公開分享不可讀歷史；以同一 version 送兩次不同修改，第二次須為 412 且無副作用。確認成功後恢復一般寫入。
+
+無 If-Match 的舊 client 收到 428，不能啟用無條件寫入作為相容性 fallback。CLI 改用 `--version`，詳見[CLI 文件](cli.md)。此功能不新增環境變數，不變更 cookie、安全連線或 session／Bearer 政策。
+
+### 備份與回復
+
+使用 PostgreSQL client 的 `pg_dump --format=custom` 備份完整 DB，檔案置於 repository 外、限制存取並加密保存。回復演練只可使用新建的隔離 DB；先由操作者核對 host 與 database name，絕不可把下列 recovery URL 指向 production 或現有使用者資料。
+
+```bash
+umask 077
+pg_dump --format=custom --file="$BACKUP_PATH" "$DATABASE_URL"
+# RECOVERY_DATABASE_URL 必須指向已建立、可清空的隔離 DB。
+pg_restore --dbname="$RECOVERY_DATABASE_URL" --clean --if-exists --exit-on-error "$BACKUP_PATH"
+```
+
+`--clean --if-exists` 會刪除目標 DB 中對應物件，僅供上述隔離回復用途；它也處理 dump 與空 DB 都有 public schema 的情況。驗證 expenses、expense_participants、receipt_attachments、settlement_payments、expense_revisions 與 trips 的排序後資料指紋一致，並確認 migration 重跑為零、API 能讀取目前資料與刪除歷史。演練後依備份政策清除臨時檔案；不得提交 dumps。
+
+Migration 中途失敗由 runner transaction rollback。新版若已接受寫入，先停止寫入並向前修復，保留目前帳目與歷史；不要退回不記錄 revision 的舊 writer。只有確定沒有切換後新資料，或已核准資料損失／完成資料銜接，才可回復切換前的完整 DB backup。不要以 DROP 歷史表作為一般 rollback。
+
+### 本機驗證紀錄（2026-09-21）
+
+- Disposable PostgreSQL 17，013 → 014：10,000 筆支出、20,000 筆分帳；migration 2,295 ms，history table 與索引合計 9,322,496 bytes（約 8.9 MiB）。支出、分帳、收據與付款的資料指紋不變；migration 重跑零筆。
+- 實際 `pg_dump`／`pg_restore` 到另一個隔離 DB：26 筆目前支出、34 筆 revisions（含 2 筆刪除）、3 筆付款；六個上述資料集合的指紋一致，回復後 `npm run migrate` 顯示 `No pending migrations`，實際 API 的 versioned trip 與刪除歷史讀取均為 200 且通過 contracts guards。
+- 以上是本機合成／E2E 資料，不是 production 容量或回復時間保證；production 切換前仍須執行副本演練。
+
 ## GitHub Deploy workflow
 
 `.github/workflows/deploy.yml` 在每次 push 到 `main` 時部署，也支援手動觸發。Runner 與 repository 必須設定：

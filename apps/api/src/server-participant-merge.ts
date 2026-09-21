@@ -1,4 +1,5 @@
 import type { Pool as PgPool } from "pg";
+import { recordExpenseChanges } from "./server-expense-history.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
@@ -12,6 +13,7 @@ import {
   stringField,
   withTransaction,
 } from "./server-support.js";
+import { expenseMutation } from "./server-trip-mutation.js";
 
 export function registerParticipantMergeRoute(
   app: OtterApp,
@@ -23,7 +25,7 @@ export function registerParticipantMergeRoute(
     "/api/trips/:tripId/participants/:participantId/merge",
     mustBeSignedIn,
     parseRequestBody,
-    async (context) => {
+    expenseMutation(pool, async (context, pool, before) => {
       const user = currentUser(context);
       const trip = await loadTripForUser(
         pool,
@@ -107,11 +109,18 @@ export function registerParticipantMergeRoute(
         );
       });
 
+      await recordExpenseChanges(
+        pool,
+        trip.id,
+        before,
+        user,
+        "participant_merge",
+      );
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
         throw new Error("Trip disappeared after participant merge");
       }
-      return context.json(await buildTripPayload(updated));
-    },
+      return async () => context.json(await buildTripPayload(updated));
+    }),
   );
 }

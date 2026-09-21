@@ -53,6 +53,19 @@ otter settlements preview --input trip.json
 
 Run `otter --help` for all commands and options. Successful data commands print JSON to stdout; errors print JSON to stderr and exit non-zero. `settlements preview` validates a saved trip payload and calculates balances locally without credentials or network access; use `--input -` to read JSON from stdin.
 
+## Expense concurrency (breaking change)
+
+`expenses list` and `trips get` include each expense's `version`. Updates and deletions require the version you reviewed:
+
+```bash
+otter expenses update --trip trip-id --expense expense-id --version 3 --amount 1500
+otter expenses delete --trip trip-id --expense expense-id --version 4 --yes
+```
+
+Use the actual returned version, not a guessed increment. The CLI sends `If-Match` without fetching a newer version or retrying. A stale write fails with HTTP 412 and JSON code `EXPENSE_VERSION_CONFLICT`; reread and review the changed expense before submitting again. Missing or invalid `--version` fails locally. Deletion still requires `--yes`.
+
+Older clients without the header receive HTTP 428 from the new API. Coordinate the CLI/API upgrade and reload existing browser tabs. Legacy versionless JSON remains supported for offline `settlements preview`, never for a conditional write. View change history in the Web app; history and restore commands are not provided by the CLI.
+
 ## Development
 
 ```bash

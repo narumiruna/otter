@@ -1,6 +1,9 @@
 import type { Messages } from "./messages.js";
 
 export const sourceMessageKeys = {
+  "支出已被修改，請查看最新內容後重新確認": "expenseVersionConflict",
+  "請提供支出版本，重新載入後再試": "expenseVersionMissing",
+  支出版本格式錯誤: "expenseVersionInvalid",
   "Username 需為 3–32 個英文字母、數字、底線或連字號":
     "usernameMustBe332LettersNumbersUnderscoresOrHyphens",
   "一起旅行，輕鬆分帳": "travelTogetherSplitExpensesEasily",

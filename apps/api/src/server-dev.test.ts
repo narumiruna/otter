@@ -53,7 +53,24 @@ test(
       prepare: async (pool) => {
         const userId = await ensureDevelopmentAdmin(pool, credentials);
         await ensureDevelopmentFixtures(pool, userId);
-        await ensureDevelopmentFixtures(pool, userId);
+        const before = (
+          await pool.query("SELECT * FROM expense_revisions ORDER BY id")
+        ).rows;
+        assert.ok(before.length > 0);
+        assert.ok(
+          before.every(
+            (row) => row.version === 1 && row.source === "development_seed",
+          ),
+        );
+        await Promise.all([
+          ensureDevelopmentFixtures(pool, userId),
+          ensureDevelopmentFixtures(pool, userId),
+        ]);
+        assert.deepEqual(
+          (await pool.query("SELECT * FROM expense_revisions ORDER BY id"))
+            .rows,
+          before,
+        );
       },
     });
 

@@ -1,3 +1,4 @@
+import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import {
   parseSplitMode,
@@ -11,17 +12,17 @@ import {
   isCurrency,
   parseAmountToMinor,
 } from "@narumitw/otter-core/money";
-import type { Expense, Trip } from "@narumitw/otter-core/settlement";
 import {
   ChevronLeftIcon as ChevronLeft,
   ReaderIcon as ReceiptText,
   GroupIcon as Users,
 } from "@radix-ui/react-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { todayDate } from "../client-support.js";
 import { localizeMessage, useI18n } from "../i18n.js";
+import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -84,7 +85,7 @@ export function ExpenseComposer({
   onCancel,
   onDirtyChange,
   onSaved,
-  trip,
+  trip: originalTrip,
 }: {
   expense?: Expense;
   onCancel: () => void;
@@ -94,6 +95,8 @@ export function ExpenseComposer({
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
+  const versionState = useExpenseVersion(expense, originalTrip.id);
+  const trip = versionState.latest?.trip ?? originalTrip;
   const [serverError, setServerError] = useState("");
   const form = useForm<ExpenseDraft>({
     defaultValues: defaults(trip, expense),
@@ -124,7 +127,38 @@ export function ExpenseComposer({
     return () => onDirtyChange?.(false);
   }, [isDirty, onDirtyChange]);
 
-  const preview = useMemo(() => {
+  const reviewed = versionState.latest;
+  const availablePeople = new Set(reviewed?.trip.participants.map((p) => p.id));
+  const replacePayer = !!reviewed && !availablePeople.has(values.paidById);
+  const replaceSplit =
+    !!reviewed && values.participantIds.some((id) => !availablePeople.has(id));
+  const confirmReviewedVersion = () => {
+    if (!reviewed || versionState.missing) return;
+    if (replacePayer || replaceSplit) {
+      const draft = form.getValues();
+      const latest = defaults(reviewed.trip, reviewed.expense);
+      form.reset(
+        {
+          ...draft,
+          paidById: replacePayer ? latest.paidById : draft.paidById,
+          ...(replaceSplit
+            ? {
+                participantIds: latest.participantIds,
+                splitMode: latest.splitMode,
+                splitValues: latest.splitValues,
+              }
+            : {}),
+        },
+        { keepDefaultValues: true },
+      );
+    }
+    setServerError("");
+    versionState.confirm();
+  };
+
+  // React Hook Form can mutate nested splitValues without changing its identity.
+  // Recompute so correcting shares after reconciliation updates save validity.
+  const preview = (() => {
     if (!values.amount.trim() || !isCurrency(values.currency)) return null;
     try {
       const amountMinor = parseAmountToMinor(values.amount, values.currency);
@@ -146,14 +180,7 @@ export function ExpenseComposer({
         shares: [],
       };
     }
-  }, [
-    messages.invalidSplitFormat,
-    values.amount,
-    values.currency,
-    values.participantIds,
-    values.splitMode,
-    values.splitValues,
-  ]);
+  })();
 
   const submit = form.handleSubmit(async (draft) => {
     setServerError("");
@@ -175,6 +202,7 @@ export function ExpenseComposer({
         {
           body: JSON.stringify(draft),
           method: expense ? "PATCH" : "POST",
+          ...(expense ? { headers: versionState.headers() } : {}),
         },
         expense ? messages.expenseChangesSaved : messages.expenseRecorded,
         true,
@@ -182,6 +210,7 @@ export function ExpenseComposer({
       form.reset(defaults(trip));
       onSaved?.();
     } catch (error) {
+      versionState.handleError(error);
       setServerError(
         error instanceof Error ? error.message : messages.unableToSaveExpense,
       );
@@ -234,6 +263,15 @@ export function ExpenseComposer({
 
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
+        <ExpenseConflictReview
+          state={versionState}
+          onConfirm={confirmReviewedVersion}
+          confirmationNotice={
+            replacePayer || replaceSplit
+              ? messages.expenseConflictParticipantsChanged
+              : undefined
+          }
+        />
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label={messages.description}>
             <input
@@ -472,7 +510,12 @@ export function ExpenseComposer({
           <BusyButton
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
-            disabled={offline || !!preview?.error}
+            disabled={
+              offline ||
+              !!preview?.error ||
+              versionState.conflict ||
+              versionState.missing
+            }
             type="submit"
           >
             {expense ? messages.saveChanges : messages.recordExpense}

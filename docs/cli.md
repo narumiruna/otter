@@ -69,6 +69,20 @@ otter settlements preview --input trip.json
 
 `settlements preview` 會以 `packages/contracts` 驗證保存的 trip payload，再以 `packages/core` 在本機計算餘額及結清建議，不需要 token 或網路。使用 `--input -` 可從 stdin 讀取。
 
+### 修改與刪除的版本條件
+
+先以 `expenses list` 或 `trips get` 閱讀目標支出與其 `version`，將觀察到的版本傳入必填的 `--version`：
+
+```bash
+otter expenses list --trip trip-id
+otter expenses update --trip trip-id --expense expense-id --version 3 --amount 1500
+otter expenses delete --trip trip-id --expense expense-id --version 4 --yes
+```
+
+範例假設第一個成功修改使 version 3 變成 4；應以實際回傳值為準。CLI 以 `If-Match` 傳送版本，不會替使用者先抓最新版。缺少／非法版本在發出 request 前失敗；版本過期回傳 HTTP 412 與 `EXPENSE_VERSION_CONFLICT`，寫入無副作用，CLI 不自動 retry。重新閱讀並確認新內容後，才可用新版本再次操作；刪除仍須 `--yes`。
+
+這是 breaking change：舊 CLI／API client 的無條件支出寫入會被 API 以 428 拒絕。更新 CLI 並重新載入 Web；切換順序見[部署文件](deployment.md#支出歷史切換與回復)。舊版離線 trip JSON 仍可用於 `settlements preview`，但不能當作有版本的寫入依據。修改紀錄目前透過 Web 查看，CLI 沒有歷史或還原命令。
+
 金額輸入使用主要貨幣單位，例如 USD `12.50`；JSON 的 `amountMinor` 使用最小貨幣單位。CLI 會先驗證貨幣、金額、日期、分類及分帳清單，API 仍是最終驗證權威。刪除命令必須明確加上 `--yes`。
 
 完整命令見 `otter --help`。Repository 內也可執行：

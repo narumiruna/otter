@@ -9,6 +9,45 @@ import type { zhTW } from "./messages-zh-tw.js";
 type Messages = CatalogShape<typeof zhTW>;
 
 export const en = {
+  expenseHistory: "Change history",
+  expenseHistoryDescription:
+    "Expense edits and deletions, not payment history or historical balances.",
+  expenseHistoryEmpty: "No changes recorded",
+  expenseHistoryMore: "Load more changes",
+  expenseHistoryCreated: "Created",
+  expenseHistoryUpdated: "Updated",
+  expenseHistoryDeleted: "Deleted",
+  expenseHistoryBaseline: "Initial snapshot",
+  expenseHistorySystem: "System",
+  expenseHistoryBaselineNotice:
+    "State when history was enabled; earlier changes and the original author are unknown.",
+  expenseHistoryReceiptNotice:
+    "Only receipt metadata is retained. Previous images are unavailable.",
+  expenseHistoryShares: "Split amounts",
+  expenseHistoryBefore: "Before",
+  expenseHistoryAfter: "After",
+  expenseHistorySourceExpense: "Expense action",
+  expenseHistorySourceCsv: "CSV import",
+  expenseHistorySourceRestore: "Backup restore",
+  expenseHistorySourceMerge: "Participant merge",
+  expenseHistorySourceReceipt: "Receipt action",
+  expenseHistorySourceSeed: "Development fixture",
+  expenseHistorySourceMigration: "Migration",
+  expenseConflictParticipantsChanged:
+    "People have changed. Confirming replaces unavailable payer or split selections with the latest expense's settings. Other draft fields are kept; review split amounts before saving.",
+  expenseVersionConflict:
+    "This expense has changed. Review the latest version before confirming again.",
+  expenseVersionMissing: "Provide the expense version. Reload and try again.",
+  expenseVersionInvalid: "Invalid expense version",
+  reviewLatestExpense: "Review latest expense",
+  confirmLatestExpenseVersion:
+    "Reviewed latest version; keep my draft and continue editing",
+  latestExpenseMissing:
+    "This expense was deleted or is no longer accessible. Your draft is retained but cannot be saved.",
+  deleteExpenseHistoryRetained:
+    "The expense will leave the current ledger and balances will be recalculated. Change history is retained. Restore is not supported yet.",
+  expenseHistoryForName: (values: MessageValues) =>
+    interpolate("Change history: {name}", values),
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:
     "Username must be 3–32 letters, numbers, underscores, or hyphens",
   travelTogetherSplitExpensesEasily: "Travel together, split expenses easily",

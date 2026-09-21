@@ -2,6 +2,10 @@ import type { ExpenseCategory } from "@narumitw/otter-core/expense-metadata";
 import type { Currency } from "@narumitw/otter-core/money";
 import type { Pool as PgPool, PoolClient } from "pg";
 import {
+  captureExpenses,
+  recordExpenseChanges,
+} from "./server-expense-history.js";
+import {
   hashPassword,
   makeId,
   normalizeUsername,
@@ -639,13 +643,16 @@ async function insertDevelopmentTrip(
       trip.archivedAt,
     ],
   );
+  await client.query("SELECT id FROM trips WHERE id = $1 FOR UPDATE", [
+    trip.id,
+  ]);
+  const before = await captureExpenses(client, trip.id);
   await client.query(
     `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
      VALUES ($1, $2, $3, 'owner', $4)
      ON CONFLICT (trip_id, user_id) DO NOTHING`,
     [`member_${trip.id}_${userId}`, trip.id, userId, trip.createdAt],
   );
-
   for (const participant of trip.participants) {
     await client.query(
       `INSERT INTO participants (id, trip_id, name, created_at)
@@ -665,6 +672,11 @@ async function insertDevelopmentTrip(
   }
 
   for (const expense of trip.expenses) {
+    const known = await client.query(
+      "SELECT 1 FROM expense_revisions WHERE trip_id = $1 AND expense_id = $2 LIMIT 1",
+      [trip.id, expense.id],
+    );
+    if (known.rowCount) continue;
     await client.query(
       `INSERT INTO expenses
          (id, trip_id, description, amount_minor, currency, paid_by_id,
@@ -701,6 +713,7 @@ async function insertDevelopmentTrip(
     }
   }
 
+  await recordExpenseChanges(client, trip.id, before, null, "development_seed");
   for (const payment of trip.settlementPayments) {
     await client.query(
       `INSERT INTO settlement_payments

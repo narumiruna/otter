@@ -1,3 +1,4 @@
+import { expenseIfMatch, isExpenseVersion } from "@narumitw/otter-contracts";
 import { isDateOnly } from "@narumitw/otter-core/date";
 import { isExpenseCategory } from "@narumitw/otter-core/expense-metadata";
 import {
@@ -29,8 +30,8 @@ Resources and actions:
                   --currency <code> --paid-by <participant id>
                   --split-with <comma-separated participant ids>
                   [--date YYYY-MM-DD] [--category <name>] [--tags <comma-separated>]
-  expenses update --trip <id> --expense <id> [expense fields]
-  expenses delete --trip <id> --expense <id> --yes
+  expenses update --trip <id> --expense <id> --version <number> [expense fields]
+  expenses delete --trip <id> --expense <id> --version <number> --yes
   balances get    --trip <id>
   settlements list   --trip <id>
   settlements preview --input <trip payload JSON file or ->
@@ -164,13 +165,14 @@ export function parseCliCommand(args: string[]): CliCommand {
     case "expenses:update":
       return expenseUpdateCommand(options);
     case "expenses:delete": {
-      assertAllowed(options, ["trip", "expense", "yes"]);
+      assertAllowed(options, ["trip", "expense", "version", "yes"]);
       requireConfirmation(options);
       const tripId = required(options, "trip");
       const expenseId = required(options, "expense");
       return {
         method: "DELETE",
         path: `/api/trips/${encodeURIComponent(tripId)}/expenses/${encodeURIComponent(expenseId)}`,
+        headers: { "If-Match": requiredExpenseVersion(options) },
       };
     }
     case "balances:get": {
@@ -233,10 +235,22 @@ function expenseAddCommand(options: ParsedOptions): CliCommand {
   };
 }
 
+function requiredExpenseVersion(options: ParsedOptions): string {
+  const input = required(options, "version");
+  const value = Number(input);
+  if (!/^[1-9]\d*$/.test(input) || !isExpenseVersion(value))
+    throw new CliError(
+      "USAGE",
+      "--version must be a positive safe integer from expenses list",
+    );
+  return expenseIfMatch(value);
+}
+
 function expenseUpdateCommand(options: ParsedOptions): CliCommand {
   assertAllowed(options, [
     "trip",
     "expense",
+    "version",
     "description",
     "amount",
     "currency",
@@ -268,6 +282,7 @@ function expenseUpdateCommand(options: ParsedOptions): CliCommand {
   requireChanges(body);
   return {
     body,
+    headers: { "If-Match": requiredExpenseVersion(options) },
     method: "PATCH",
     path: `/api/trips/${encodeURIComponent(tripId)}/expenses/${encodeURIComponent(expenseId)}`,
   };

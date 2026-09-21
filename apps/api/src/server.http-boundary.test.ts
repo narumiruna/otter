@@ -185,15 +185,21 @@ test(
       },
     );
     const url = `${baseUrl}/api/trips/${trip.id}/expenses/${expense.data.trip.expenses[0].id}/receipt`;
+    let version = 1;
     for (const mime of ["image/jpeg", "image/png", "image/webp"]) {
       const bytes = new Uint8Array(5 * mib).fill(255);
       bytes.set([0, 1, 127, 128, 254]);
       const upload = await fetch(url, {
         body: bytes,
-        headers: { cookie, "Content-Type": `${mime}; test=1` },
+        headers: {
+          cookie,
+          "Content-Type": `${mime}; test=1`,
+          "If-Match": `"${version}"`,
+        },
         method: "PUT",
       });
       expect(upload.status).toBe(201);
+      version += 1;
       const payload = (await upload.json()) as TripPayload;
       expect(payload.trip.expenses[0].receiptUrl).toBe(new URL(url).pathname);
       const downloaded = await fetch(url, { headers: { cookie } });
@@ -215,7 +221,11 @@ test(
     await expectError(
       await fetch(url, {
         body: new Uint8Array(),
-        headers: { cookie, "Content-Type": "image/png" },
+        headers: {
+          cookie,
+          "Content-Type": "image/png",
+          "If-Match": `"${version}"`,
+        },
         method: "PUT",
       }),
       400,
@@ -224,7 +234,11 @@ test(
     await expectError(
       await fetch(url, {
         body: new Uint8Array(5 * mib + 1),
-        headers: { cookie, "Content-Type": "image/gif" },
+        headers: {
+          cookie,
+          "Content-Type": "image/gif",
+          "If-Match": `"${version}"`,
+        },
         method: "PUT",
       }),
       415,

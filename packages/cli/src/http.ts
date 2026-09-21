@@ -88,7 +88,17 @@ export function apiError(status: number, data: unknown): CliError {
     isRecord(data) && typeof data.error === "string"
       ? data.error
       : `Otter request failed with HTTP ${status}`;
-  return new CliError("API_ERROR", message, status);
+  const code =
+    isRecord(data) &&
+    typeof data.code === "string" &&
+    [
+      "EXPENSE_VERSION_REQUIRED",
+      "EXPENSE_VERSION_INVALID",
+      "EXPENSE_VERSION_CONFLICT",
+    ].includes(data.code)
+      ? data.code
+      : "API_ERROR";
+  return new CliError(code, message, status);
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

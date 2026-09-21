@@ -147,6 +147,8 @@ describe("parseCliCommand", () => {
         "expense-1",
         "--split-with",
         "participant-a,participant-b",
+        "--version",
+        "1",
       ]).body,
     ).toEqual({
       participantIds: ["participant-a", "participant-b"],
@@ -165,6 +167,8 @@ describe("parseCliCommand", () => {
         "expense-1",
         "--tags",
         "",
+        "--version",
+        "1",
       ]).body,
     ).toEqual({ tags: [] });
   });

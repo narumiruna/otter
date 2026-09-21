@@ -1,6 +1,6 @@
+import type { Trip } from "@narumitw/otter-contracts";
 import { convertMinorWithRates } from "@narumitw/otter-core/money";
 import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
-import type { Trip } from "@narumitw/otter-core/settlement";
 import { currentLocale, localizeMessage } from "./i18n.js";
 
 export type {
@@ -35,6 +35,7 @@ export class ApiResponseError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = "ApiResponseError";
@@ -58,12 +59,15 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(url, {
       credentials: "same-origin",
-      headers: {
-        "Accept-Language": currentLocale(),
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
       ...init,
+      headers: (() => {
+        const headers = new Headers(init?.headers);
+        if (!headers.has("Accept-Language"))
+          headers.set("Accept-Language", currentLocale());
+        if (!headers.has("Content-Type"))
+          headers.set("Content-Type", "application/json");
+        return headers;
+      })(),
     });
   } catch {
     throw new Error(localizeMessage("連線失敗，請稍後再試"));
@@ -85,7 +89,14 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
       typeof data.error === "string"
         ? data.error
         : "Request failed";
-    throw new ApiResponseError(localizeMessage(error), response.status);
+    const code =
+      data &&
+      typeof data === "object" &&
+      "code" in data &&
+      typeof data.code === "string"
+        ? data.code
+        : undefined;
+    throw new ApiResponseError(localizeMessage(error), response.status, code);
   }
 
   if (!parsedJson) {
