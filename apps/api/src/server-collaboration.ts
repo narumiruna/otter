@@ -70,7 +70,7 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator insert");
       }
-      return context.json(await buildTripPayload(updated), 201);
+      return async () => context.json(await buildTripPayload(updated), 201);
     }),
   );
 
@@ -106,7 +106,7 @@ export function registerCollaborationRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after collaborator delete");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 }

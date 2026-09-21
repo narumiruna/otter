@@ -102,7 +102,7 @@ export function registerSettlementPaymentRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment insert");
       }
-      return context.json(await buildTripPayload(updated), 201);
+      return async () => context.json(await buildTripPayload(updated), 201);
     }),
   );
 
@@ -136,7 +136,7 @@ export function registerSettlementPaymentRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after settlement payment delete");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 }

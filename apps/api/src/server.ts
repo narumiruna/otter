@@ -537,7 +537,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after rename");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 
@@ -617,7 +617,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant insert");
       }
-      return context.json(await buildTripPayload(updated), 201);
+      return async () => context.json(await buildTripPayload(updated), 201);
     }),
   );
 
@@ -664,7 +664,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant rename");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 
@@ -711,7 +711,7 @@ export function createApp(
       if (!updated) {
         throw new Error("Trip disappeared after participant delete");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 

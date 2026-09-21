@@ -182,7 +182,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense insert");
       }
-      return context.json(await buildTripPayload(updated), 201);
+      return async () => context.json(await buildTripPayload(updated), 201);
     }),
   );
 
@@ -396,7 +396,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense update");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 
@@ -436,7 +436,7 @@ export function registerExpenseRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after expense delete");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 }

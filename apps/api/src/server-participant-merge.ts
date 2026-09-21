@@ -120,7 +120,7 @@ export function registerParticipantMergeRoute(
       if (!updated) {
         throw new Error("Trip disappeared after participant merge");
       }
-      return context.json(await buildTripPayload(updated));
+      return async () => context.json(await buildTripPayload(updated));
     }),
   );
 }

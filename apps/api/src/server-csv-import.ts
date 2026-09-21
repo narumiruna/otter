@@ -135,7 +135,7 @@ export function registerCsvImportRoutes(
       if (!updated) {
         throw new Error("Trip disappeared after CSV import");
       }
-      return context.json(await buildTripPayload(updated), 201);
+      return async () => context.json(await buildTripPayload(updated), 201);
     }),
   );
 }

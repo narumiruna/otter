@@ -8,18 +8,23 @@ import {
 import type { OtterEnv } from "./server-http.js";
 import { currentUser } from "./server-support.js";
 
+type MutationResult = Response | (() => Promise<Response>);
+
 // All same-trip writers lock the parent first. Nested withTransaction calls reuse
 // this client; only this boundary owns commit/rollback (including HTTP errors).
+// Return a function to enrich a successful response after commit AND release.
+// Capture its data in the transaction; never use this client in that function.
 export function tripMutation<Path extends string>(
   pool: Pool,
   handler: (
     context: Context<OtterEnv, Path>,
     client: PoolClient,
     before: CapturedExpense[],
-  ) => Promise<Response>,
+  ) => Promise<MutationResult>,
 ) {
   return async (context: Context<OtterEnv, Path>): Promise<Response> => {
     const client = await pool.connect();
+    let result: MutationResult;
     try {
       await client.query("BEGIN");
       const tripId = context.req.param("tripId");
@@ -36,9 +41,12 @@ export function tripMutation<Path extends string>(
         }
       }
       const before = tripId ? await captureExpenses(client, tripId) : [];
-      const response = await handler(context, client, before);
-      await client.query(response.status < 400 ? "COMMIT" : "ROLLBACK");
-      return response;
+      result = await handler(context, client, before);
+      await client.query(
+        typeof result === "function" || result.status < 400
+          ? "COMMIT"
+          : "ROLLBACK",
+      );
     } catch (error) {
       await client.query("ROLLBACK");
       if (error instanceof ExpenseVersionError) {
@@ -51,5 +59,8 @@ export function tripMutation<Path extends string>(
     } finally {
       client.release();
     }
+    // Enrichment errors cannot roll back an already committed mutation, and
+    // must not execute SQL against the released client in the catch above.
+    return typeof result === "function" ? result() : result;
   };
 }
