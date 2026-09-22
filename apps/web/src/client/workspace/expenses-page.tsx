@@ -3,7 +3,6 @@ import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import { currencies } from "@narumitw/otter-core/money";
 import {
   ColumnsIcon,
-  ImageIcon as FileImage,
   MixerHorizontalIcon,
   PlusIcon,
   FileTextIcon as Receipt,
@@ -27,6 +26,7 @@ import {
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
+import { ReceiptPreview } from "./receipt-preview.js";
 import { SectionHeading } from "./workspace-ui.js";
 
 export type ExpenseGrouping = "date" | "none" | "payer";
@@ -811,16 +811,11 @@ function ExpenseTableRow({
           ) : column === "tags" ? (
             expense.tags?.join(", ")
           ) : expense.receiptUrl ? (
-            <a
-              aria-label={messages.viewReceiptForName({
-                name: expense.description,
-              })}
-              href={expense.receiptUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <FileImage aria-hidden="true" />
-            </a>
+            <ReceiptPreview
+              compact
+              name={expense.description}
+              url={expense.receiptUrl}
+            />
           ) : null}
         </td>
       ))}

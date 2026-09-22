@@ -437,6 +437,13 @@ export const en = {
     ),
   viewReceiptForName: (values: MessageValues) =>
     interpolate("View receipt for {name}", values),
+  receiptPreviewForName: (values: MessageValues) =>
+    interpolate("Receipt for “{name}”", values),
+  receiptImageForName: (values: MessageValues) =>
+    interpolate("Receipt image for {name}", values),
+  closeReceiptPreviewHint: "Click the image or press Esc to close.",
+  closeReceiptPreview: "Close receipt preview",
+  openOriginalReceipt: "Open original image",
   moreActionsForName: (values: MessageValues) =>
     interpolate("More actions for {name}", values),
   datePaidByName: (values: MessageValues) =>
