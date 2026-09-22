@@ -321,6 +321,7 @@ export function ApiTokenSettings({
             <Input
               id="api-token-name"
               autoComplete="off"
+              data-1p-ignore="true"
               disabled={
                 offline || loading || creationUncertain || Boolean(busy)
               }

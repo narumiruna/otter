@@ -29,6 +29,14 @@ test("API token settings does not request data while offline", () => {
   expect(view.getByRole("button", { name: "建立 API token" })).toBeDisabled();
 });
 
+test("prevents 1Password from treating the token name as a credential", () => {
+  const view = render(<ApiTokenSettings offline />);
+  const tokenName = view.getByRole("textbox", { name: "Token 名稱" });
+
+  expect(tokenName).toHaveAttribute("autocomplete", "off");
+  expect(tokenName).toHaveAttribute("data-1p-ignore", "true");
+});
+
 test("creates a token, shows its secret once, and copies it", async () => {
   vi.mocked(api).mockImplementation(async (url, init) => {
     if (url === "/api/auth/tokens" && init?.method === undefined) {
