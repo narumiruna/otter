@@ -20,16 +20,20 @@ test("receipt preview opens in place and closes from the image or keyboard", asy
   await user.click(trigger);
 
   const dialog = screen.getByRole("dialog", { name: "Receipt for “Dinner”" });
-  expect(
-    within(dialog).getByRole("img", { name: "Receipt image for Dinner" }),
-  ).toHaveAttribute("src", "/receipt.png");
+  const image = within(dialog).getByRole("img", {
+    name: "Receipt image for Dinner",
+  });
+  expect(image).toHaveAttribute("src", "/receipt.png");
   expect(
     within(dialog).getByRole("link", { name: "Open original image" }),
   ).toHaveAttribute("href", "/receipt.png");
-
-  await user.click(
-    within(dialog).getByRole("button", { name: "Close receipt preview" }),
+  expect(dialog.querySelector(".radix-dialog-close")).toHaveAccessibleName(
+    "Close receipt preview",
   );
+
+  const imageClose = image.closest("button");
+  if (!imageClose) throw new Error("Receipt image must close the preview");
+  await user.click(imageClose);
   await waitFor(() => expect(dialog).not.toBeInTheDocument());
   expect(trigger).toHaveFocus();
 

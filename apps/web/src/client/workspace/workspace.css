@@ -532,7 +532,7 @@
   background: var(--muted);
   color: var(--foreground);
 }
-.receipt-preview-dialog {
+.radix-dialog-content.receipt-preview-dialog {
   width: min(48rem, calc(100% - 1rem));
   max-height: calc(100dvh - 1rem);
   gap: var(--space-3);

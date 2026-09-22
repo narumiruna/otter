@@ -43,7 +43,10 @@ export function ReceiptPreview({
           )
         }
       />
-      <DialogContent className="receipt-preview-dialog">
+      <DialogContent
+        className="receipt-preview-dialog"
+        closeLabel={messages.closeReceiptPreview}
+      >
         <DialogHeader>
           <DialogTitle>{messages.receiptPreviewForName({ name })}</DialogTitle>
           <DialogDescription>
