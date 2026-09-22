@@ -1,5 +1,5 @@
 import { isValidUsername } from "@narumitw/otter-core/username";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,38 +17,6 @@ import { useI18n } from "./i18n.js";
 import { PasskeySettings } from "./passkey-settings.js";
 
 type UsernameForm = { username: string };
-
-type AccountSettingsButtonProps = {
-  active: boolean;
-  onOpen: () => void;
-  user: User;
-};
-
-export const AccountSettingsButton = forwardRef<
-  HTMLButtonElement,
-  AccountSettingsButtonProps
->(function AccountSettingsButton({ active, onOpen, user }, forwardedRef) {
-  const { messages } = useI18n();
-
-  return (
-    <Button
-      ref={forwardedRef}
-      aria-current={active ? "page" : undefined}
-      aria-label={messages.manageNameSAccount({ name: user.name })}
-      className="user-account-button"
-      onClick={onOpen}
-      variant="ghost"
-    >
-      <span className="user-avatar" aria-hidden="true">
-        {user.name.trim().charAt(0).toLocaleUpperCase() || "O"}
-      </span>
-      <span className="user-identity">
-        <strong>{user.name}</strong>
-        {user.username !== user.name ? <small>@{user.username}</small> : null}
-      </span>
-    </Button>
-  );
-});
 
 export function AccountSettingsPage({
   offline,
@@ -72,7 +40,8 @@ export function AccountSettingsPage({
   });
 
   useEffect(() => {
-    headingRef.current?.focus();
+    const frame = requestAnimationFrame(() => headingRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   function changeTokenMutation(active: boolean) {

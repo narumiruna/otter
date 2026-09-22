@@ -208,15 +208,24 @@ for (const colorScheme of ["light", "dark"] as const) {
       path: testInfo.outputPath("expenses-recorded-desktop.png"),
       fullPage: true,
     });
-    await page.getByRole("button", { name: "管理 narumi 的帳號" }).click();
+    await page.getByRole("button", { name: "narumi 的帳號選單" }).click();
+    await page.getByRole("menuitem", { name: "帳號設定" }).click();
     await page.getByRole("combobox", { name: "語言" }).selectOption("en");
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(
       page.getByRole("region", { name: "Expenses", exact: true }),
     ).toBeVisible();
+    const accountTrigger = page.getByRole("button", {
+      name: "narumi's account menu",
+    });
+    const accountName = accountTrigger.locator(".account-menu-trigger-name");
     for (const width of [320, 375, 901]) {
       await page.setViewportSize({ width, height: 900 });
       await expectNoOverflow(page);
+      if (width <= 680) await expect(accountName).toBeHidden();
+      else await expect(accountName).toBeVisible();
+      const accountBounds = await accountTrigger.boundingBox();
+      expect(accountBounds?.height).toBeGreaterThanOrEqual(44);
       for (const button of await page.locator(".workspace-nav button").all()) {
         const bounds = await button.boundingBox();
         expect(bounds?.width).toBeGreaterThanOrEqual(44);

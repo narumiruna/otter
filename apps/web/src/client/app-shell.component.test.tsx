@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -49,11 +50,13 @@ function renderApp() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <I18nProvider initialLocale="zh-TW">
-      <QueryClientProvider client={queryClient}>
-        <AppShell />
-      </QueryClientProvider>
-    </I18nProvider>,
+    <Theme>
+      <I18nProvider initialLocale="zh-TW">
+        <QueryClientProvider client={queryClient}>
+          <AppShell />
+        </QueryClientProvider>
+      </I18nProvider>
+    </Theme>,
   );
 }
 
@@ -109,7 +112,7 @@ test("account settings preserves expense drafts across history navigation", asyn
   const user = userEvent.setup();
   const view = renderApp();
   const accountButton = await view.findByRole("button", {
-    name: "管理 Alice 的帳號",
+    name: "Alice 的帳號選單",
   });
 
   await user.click(view.getByRole("button", { name: "記一筆" }));
@@ -118,6 +121,7 @@ test("account settings preserves expense drafts across history navigation", asyn
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
 
   await user.click(accountButton);
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
 
   const settingsUrl = window.location.href;
   expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
@@ -163,8 +167,9 @@ test("account settings blocks browser history during token creation", async () =
   const user = userEvent.setup();
   const view = renderApp();
   await user.click(
-    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+    await view.findByRole("button", { name: "Alice 的帳號選單" }),
   );
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
   const tokenName = await view.findByRole("textbox", { name: "Token 名稱" });
   await waitFor(() => expect(tokenName).toBeEnabled());
   await user.type(tokenName, "Travel agent");
@@ -212,13 +217,14 @@ test("account settings preserves non-expense form drafts", async () => {
   const user = userEvent.setup();
   const view = renderApp();
   const accountButton = await view.findByRole("button", {
-    name: "管理 Alice 的帳號",
+    name: "Alice 的帳號選單",
   });
 
   await user.click(view.getByRole("button", { name: "成員" }));
   const name = await view.findByLabelText("成員名稱");
   await user.type(name, "尚未新增的朋友");
   await user.click(accountButton);
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
 
   const settingsUrl = window.location.href;
   expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
@@ -244,7 +250,7 @@ test("account settings uses browser history and manages page focus", async () =>
   const user = userEvent.setup();
   const view = renderApp();
   const accountButton = await view.findByRole("button", {
-    name: "管理 Alice 的帳號",
+    name: "Alice 的帳號選單",
   });
   Object.defineProperty(window, "scrollY", {
     configurable: true,
@@ -252,6 +258,7 @@ test("account settings uses browser history and manages page focus", async () =>
   });
 
   await user.click(accountButton);
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
 
   const settingsUrl = window.location.href;
   expect(settingsUrl).toContain("account=settings");

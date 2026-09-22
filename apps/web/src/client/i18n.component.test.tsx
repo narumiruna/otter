@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import assert from "node:assert/strict";
+import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -15,11 +16,13 @@ function renderApp(initialLocale?: "en" | "zh-TW") {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <I18nProvider initialLocale={initialLocale}>
-      <QueryClientProvider client={queryClient}>
-        <AppShell />
-      </QueryClientProvider>
-    </I18nProvider>,
+    <Theme>
+      <I18nProvider initialLocale={initialLocale}>
+        <QueryClientProvider client={queryClient}>
+          <AppShell />
+        </QueryClientProvider>
+      </I18nProvider>
+    </Theme>,
   );
 }
 
@@ -90,8 +93,9 @@ test("app switches between Traditional Chinese and English in account settings a
 
   expect(view.queryByRole("combobox", { name: "語言" })).toBeNull();
   await user.click(
-    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+    await view.findByRole("button", { name: "Alice 的帳號選單" }),
   );
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
   await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
 
   expect(view.getByRole("heading", { name: "Account settings" })).toBeVisible();
@@ -104,7 +108,7 @@ test("app switches between Traditional Chinese and English in account settings a
   view.unmount();
   const persisted = renderApp();
   expect(
-    await persisted.findByRole("button", { name: "Manage Alice's account" }),
+    await persisted.findByRole("button", { name: "Alice's account menu" }),
   ).toBeVisible();
 });
 
@@ -146,8 +150,9 @@ test("active locale survives unavailable browser storage", async () => {
   const view = renderApp("zh-TW");
 
   await user.click(
-    await view.findByRole("button", { name: "管理 Alice 的帳號" }),
+    await view.findByRole("button", { name: "Alice 的帳號選單" }),
   );
+  await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
   await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
 
   assert.equal(currentLocale(), "en");

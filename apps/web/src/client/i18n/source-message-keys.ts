@@ -23,7 +23,6 @@ export const sourceMessageKeys = {
   已登出: "signedOut",
   "登出失敗：{message}": "signOutFailedMessage",
   請稍後再試: "pleaseTryAgainLater",
-  "登出 {name}": "signOutName",
   "登出中…": "signingOut",
   登出: "signOut",
   "Device code not found or expired": "deviceCodeNotFoundOrExpired",
@@ -72,7 +71,7 @@ export const sourceMessageKeys = {
   "分帳成員不需帳號，也能一起記在群組裡。":
     "expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup",
   "修改 {name} 的 Username": "changeNameSUsername",
-  "管理 {name} 的帳號": "manageNameSAccount",
+  "{name} 的帳號選單": "nameSAccountMenu",
   "無法更新 Username": "unableToUpdateUsername",
   "修改 Username": "changeUsername",
   帳號設定: "accountSettings",
