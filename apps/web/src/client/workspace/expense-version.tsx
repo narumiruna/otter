@@ -73,7 +73,20 @@ export function useExpenseVersion(
       throw new Error(messages.expenseVersionMissing);
     return { "If-Match": expenseIfMatch(version) };
   };
+  const accept = (nextExpense: Expense) => {
+    if (
+      (expense && nextExpense.id !== expense.id) ||
+      !isExpenseVersion(nextExpense.version)
+    )
+      return;
+    setVersion(nextExpense.version);
+    setConflict(false);
+    setMissing(false);
+    setLatest(null);
+    setError("");
+  };
   return {
+    accept,
     begin,
     headers,
     handleError,
@@ -91,6 +104,9 @@ export function useExpenseVersion(
     },
   };
 }
+
+export type ExpenseVersionState = ReturnType<typeof useExpenseVersion>;
+
 export function ExpenseConflictReview({
   state,
   onConfirm = state.confirm,

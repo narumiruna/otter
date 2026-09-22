@@ -3,10 +3,8 @@ import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
 import { currencies } from "@narumitw/otter-core/money";
 import {
   ColumnsIcon,
-  DotsHorizontalIcon,
   ImageIcon as FileImage,
   MixerHorizontalIcon,
-  Pencil2Icon as Pencil,
   PlusIcon,
   FileTextIcon as Receipt,
   ResetIcon,
@@ -21,7 +19,6 @@ import {
   filterAndSortExpenses,
 } from "../client-support.js";
 import { localizeMessage, type Messages, useI18n } from "../i18n.js";
-import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
@@ -74,7 +71,7 @@ export function ExpensesPage({
   ) => {
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
-  const [editing, setEditing] = useState<Expense | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
     readExpenseColumns(userId),
   );
@@ -88,13 +85,16 @@ export function ExpensesPage({
     [filters, trip],
   );
   const activeFilters = activeFilterEntries(filters, messages);
+  const editing = trip.expenses.find(
+    (expense) => expense.id === editingExpenseId,
+  );
   if (editing)
     return (
       <ExpenseComposer
         expense={editing}
-        onCancel={() => setEditing(null)}
+        onCancel={() => setEditingExpenseId(null)}
         onDirtyChange={onDirtyChange}
-        onSaved={() => setEditing(null)}
+        onSaved={() => setEditingExpenseId(null)}
         trip={trip}
       />
     );
@@ -313,7 +313,7 @@ export function ExpensesPage({
         expenses={expenses}
         grouping={grouping}
         onAddExpense={onAddExpense}
-        onEdit={setEditing}
+        onEdit={(expense) => setEditingExpenseId(expense.id)}
         readonly={readonly}
         sort={filters.sort}
         trip={trip}
@@ -503,7 +503,7 @@ function ExpenseList({
         left.key.localeCompare(right.key),
     );
   }
-  const columnCount = visibleColumns.length + (readonly ? 2 : 3);
+  const columnCount = visibleColumns.length + 2;
 
   return (
     <section className="expense-table-region" aria-label={listLabel}>
@@ -530,11 +530,6 @@ function ExpenseList({
               <th className="expense-amount-column" scope="col">
                 {messages.amount}
               </th>
-              {!readonly ? (
-                <th className="expense-actions-column" scope="col">
-                  <span className="sr-only">{messages.actions}</span>
-                </th>
-              ) : null}
             </tr>
           </thead>
           {groups.map((group, index) => {
@@ -782,35 +777,6 @@ function ExpenseTableRow({
       <td className="expense-amount-cell">
         {formatMoney(expense.amountMinor, expense.currency)}
       </td>
-      {!readonly ? (
-        <td className="expense-actions-cell">
-          <Popover.Root>
-            <Popover.Trigger>
-              <Button
-                aria-label={messages.moreActionsForName({
-                  name: expense.description,
-                })}
-                size="icon-sm"
-                variant="ghost"
-              >
-                <DotsHorizontalIcon aria-hidden="true" />
-              </Button>
-            </Popover.Trigger>
-            <Popover.Content
-              align="end"
-              className="expense-row-popover"
-              sideOffset={4}
-            >
-              <Button size="sm" variant="ghost" onClick={() => onEdit(expense)}>
-                <Pencil aria-hidden="true" />
-                {messages.edit}
-              </Button>
-              <ReceiptControls expense={expense} trip={trip} />
-              <DeleteExpenseAction expense={expense} trip={trip} />
-            </Popover.Content>
-          </Popover.Root>
-        </td>
-      ) : null}
     </tr>
   );
 }

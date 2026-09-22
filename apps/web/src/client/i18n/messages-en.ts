@@ -448,6 +448,7 @@ export const en = {
   receiptUploaded: "Receipt uploaded",
   uploading: "Uploading…",
   uploadReceipt: "Upload receipt",
+  receiptFileRequirements: "JPEG, PNG, or WebP · Up to 5 MB",
   viewReceipt: "View receipt",
   noReceipt: "No receipt",
   deleteReceipt: "Delete receipt",

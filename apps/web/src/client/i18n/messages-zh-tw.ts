@@ -394,6 +394,7 @@ export const zhTW = {
   receiptUploaded: "已上傳收據",
   uploading: "上傳中…",
   uploadReceipt: "上傳收據",
+  receiptFileRequirements: "JPEG、PNG 或 WebP · 最大 5 MB",
   viewReceipt: "查看收據",
   noReceipt: "沒有收據",
   deleteReceipt: "刪除收據",
