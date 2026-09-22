@@ -20,7 +20,12 @@ import {
   type ExpenseFilters,
   filterAndSortExpenses,
 } from "../client-support.js";
-import { localizeMessage, type Messages, useI18n } from "../i18n.js";
+import {
+  type Locale,
+  localizeMessage,
+  type Messages,
+  useI18n,
+} from "../i18n.js";
 import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
@@ -703,19 +708,26 @@ function groupTotalLabel(
     .join(" + ");
 }
 
+const splitNamesWidthLimit = 10;
+
 function splitParticipantLabel(
-  trip: Trip,
   expense: Expense,
+  locale: Locale,
   messages: Messages,
-) {
-  if (
-    expense.participantIds.length === trip.participants.length &&
-    trip.participants.every((person) =>
-      expense.participantIds.includes(person.id),
-    )
-  )
-    return messages.everyone;
-  return messages.countPeople({ count: expense.participantIds.length });
+  names: Map<string, string>,
+): string {
+  const participantNames = expense.participantIds.map(
+    (participantId) => names.get(participantId) ?? messages.unknown,
+  );
+  const label = participantNames.join(locale === "zh-TW" ? "、" : ", ");
+  const estimatedWidth = [...label].reduce(
+    (width, character) =>
+      width + ((character.codePointAt(0) ?? 0) <= 0xff ? 0.5 : 1),
+    0,
+  );
+  return estimatedWidth <= splitNamesWidthLimit
+    ? label
+    : messages.countPeople({ count: expense.participantIds.length });
 }
 
 function ExpenseTableRow({
@@ -733,7 +745,7 @@ function ExpenseTableRow({
   readonly: boolean;
   trip: Trip;
 }) {
-  const { formatMoney, messages } = useI18n();
+  const { formatMoney, locale, messages } = useI18n();
   return (
     <tr className="expense-table-row">
       <th className="expense-description-cell" scope="row">
@@ -762,7 +774,7 @@ function ExpenseTableRow({
           ) : column === "date" ? (
             expense.expenseDate
           ) : column === "participants" ? (
-            splitParticipantLabel(trip, expense, messages)
+            splitParticipantLabel(expense, locale, messages, names)
           ) : column === "tags" ? (
             expense.tags?.join(", ")
           ) : expense.receiptUrl ? (
