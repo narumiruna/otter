@@ -61,63 +61,63 @@
 
 :root,
 .radix-themes {
-  --background: var(--sage-2);
-  --foreground: var(--sage-12);
+  --background: var(--gray-2);
+  --foreground: var(--gray-12);
   --card: var(--color-panel-solid);
-  --card-foreground: var(--sage-12);
+  --card-foreground: var(--gray-12);
   --popover: var(--color-panel-solid);
-  --popover-foreground: var(--sage-12);
-  --primary: var(--green-12);
-  --primary-foreground: var(--sage-1);
-  --secondary: var(--green-3);
-  --secondary-foreground: var(--green-12);
-  --muted: var(--sage-3);
-  --muted-foreground: var(--sage-11);
-  --accent: var(--green-3);
-  --accent-foreground: var(--green-12);
+  --popover-foreground: var(--gray-12);
+  --primary: var(--accent-12);
+  --primary-foreground: var(--gray-1);
+  --secondary: var(--accent-3);
+  --secondary-foreground: var(--accent-12);
+  --muted: var(--gray-3);
+  --muted-foreground: var(--gray-11);
+  --accent: var(--accent-3);
+  --accent-foreground: var(--accent-12);
   --destructive: var(--red-11);
-  --border: var(--sage-6);
-  --input: var(--sage-7);
-  --ring: var(--green-9);
-  --hero-background: var(--green-12);
-  --hero-foreground: var(--green-1);
-  --hero-muted: var(--green-5);
-  --hero-border: var(--green-11);
+  --border: var(--gray-6);
+  --input: var(--gray-7);
+  --ring: var(--accent-9);
+  --hero-background: var(--accent-12);
+  --hero-foreground: var(--accent-1);
+  --hero-muted: var(--accent-5);
+  --hero-border: var(--accent-11);
   --surface-shadow:
-    0 2px 8px color-mix(in srgb, var(--sage-12) 3%, transparent),
-    0 12px 32px color-mix(in srgb, var(--sage-12) 3%, transparent);
-  --chart-1: var(--green-9);
-  --chart-2: var(--green-7);
+    0 2px 8px color-mix(in srgb, var(--gray-12) 3%, transparent),
+    0 12px 32px color-mix(in srgb, var(--gray-12) 3%, transparent);
+  --chart-1: var(--accent-9);
+  --chart-2: var(--accent-7);
   --chart-3: var(--amber-9);
-  --chart-4: var(--sage-9);
+  --chart-4: var(--gray-9);
   --chart-5: var(--red-9);
   --radius: var(--radius-3);
-  --sidebar: var(--sage-2);
-  --sidebar-foreground: var(--sage-12);
-  --sidebar-primary: var(--green-12);
-  --sidebar-primary-foreground: var(--sage-1);
-  --sidebar-accent: var(--green-3);
-  --sidebar-accent-foreground: var(--green-12);
-  --sidebar-border: var(--sage-6);
-  --sidebar-ring: var(--green-8);
+  --sidebar: var(--gray-2);
+  --sidebar-foreground: var(--gray-12);
+  --sidebar-primary: var(--accent-12);
+  --sidebar-primary-foreground: var(--gray-1);
+  --sidebar-accent: var(--accent-3);
+  --sidebar-accent-foreground: var(--accent-12);
+  --sidebar-border: var(--gray-6);
+  --sidebar-ring: var(--accent-8);
 }
 
 .radix-themes {
-  --accent-9: var(--green-11);
-  --accent-10: var(--green-12);
+  --accent-9: var(--accent-11);
+  --accent-10: var(--accent-12);
 }
 
 .radix-themes:where(.dark, .dark-theme) {
-  --hero-background: var(--green-3);
-  --hero-foreground: var(--green-12);
-  --hero-muted: var(--green-11);
-  --hero-border: var(--green-7);
+  --hero-background: var(--accent-3);
+  --hero-foreground: var(--accent-12);
+  --hero-muted: var(--accent-11);
+  --hero-border: var(--accent-7);
   --surface-shadow: none;
-  --accent-contrast: var(--sage-1);
-  --primary: var(--green-11);
-  --primary-foreground: var(--sage-1);
-  --sidebar-primary: var(--green-11);
-  --sidebar-primary-foreground: var(--sage-1);
+  --accent-contrast: var(--gray-1);
+  --primary: var(--accent-11);
+  --primary-foreground: var(--gray-1);
+  --sidebar-primary: var(--accent-11);
+  --sidebar-primary-foreground: var(--gray-1);
 }
 
 @layer base {
@@ -237,7 +237,7 @@
   position: fixed;
   z-index: 80;
   inset: 0;
-  background: color-mix(in srgb, var(--sage-12) 52%, transparent);
+  background: color-mix(in srgb, var(--gray-12) 52%, transparent);
   backdrop-filter: blur(3px);
   animation: radix-overlay-in 180ms ease-out;
 }

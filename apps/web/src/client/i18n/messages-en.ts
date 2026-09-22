@@ -138,7 +138,20 @@ export const en = {
   changeUsername: "Change username",
   accountSettings: "Account settings",
   manageYourUsernameAndPasskeys:
-    "Manage your language, username, passkeys, and API tokens.",
+    "Manage your appearance, language, username, passkeys, and API tokens.",
+  appearance: "Appearance",
+  chooseHowOtterLooksOnThisBrowser:
+    "Choose how Otter looks. Changes apply immediately and are saved in this browser.",
+  colorTheme: "Color theme",
+  forestTheme: "Forest",
+  oceanTheme: "Ocean",
+  lavenderTheme: "Lavender",
+  sunsetTheme: "Sunset",
+  roseTheme: "Rose",
+  displayMode: "Display mode",
+  systemMode: "System",
+  lightMode: "Light",
+  darkMode: "Dark",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "Use the new username the next time you sign in. Your current session will continue.",
   passkeys: "Passkeys",

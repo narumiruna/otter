@@ -24,19 +24,19 @@
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 0.7rem;
-  background: var(--sage-2);
+  background: var(--gray-2);
   color: var(--muted-foreground);
 }
 .trip-switcher-item[data-active] .trip-list-icon {
-  border-color: var(--green-7);
-  background: var(--green-4);
-  color: var(--green-11);
+  border-color: var(--accent-7);
+  background: var(--accent-4);
+  color: var(--accent-11);
 }
 .overview-empty {
   display: grid;
   justify-items: start;
   gap: 1rem;
-  border-color: var(--green-7);
+  border-color: var(--accent-7);
   box-shadow: none;
 }
 .overview-empty h3 {
@@ -51,7 +51,7 @@
   line-height: 1.65;
 }
 .overview-empty .overview-empty-status {
-  color: var(--green-11);
+  color: var(--accent-11);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -108,7 +108,7 @@
   line-height: 1.6;
 }
 .summary-card-primary .summary-card-value {
-  color: var(--green-11);
+  color: var(--accent-11);
 }
 .overview-grid > .surface {
   box-shadow: none;
@@ -136,9 +136,9 @@
 }
 .settlement-item {
   min-width: 0;
-  border: 1px solid var(--green-6);
+  border: 1px solid var(--accent-6);
   border-radius: 0.85rem;
-  background: var(--green-2);
+  background: var(--accent-2);
   padding: 1rem;
   font-size: 0.9rem;
 }
@@ -182,8 +182,8 @@
   flex-shrink: 0;
   place-items: center;
   border-radius: 50%;
-  background: var(--green-4);
-  color: var(--green-12);
+  background: var(--accent-4);
+  color: var(--accent-12);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -192,8 +192,8 @@
   color: var(--amber-12);
 }
 .balance-row:nth-child(3n) .person-avatar {
-  background: var(--sage-4);
-  color: var(--sage-12);
+  background: var(--gray-4);
+  color: var(--gray-12);
 }
 .balance-amount {
   display: grid;
@@ -225,8 +225,8 @@
   flex-shrink: 0;
   place-items: center;
   border-radius: 0.85rem;
-  background: var(--green-3);
-  color: var(--green-11);
+  background: var(--accent-3);
+  color: var(--accent-11);
 }
 .expense-category-icon svg {
   width: 1.25rem;
@@ -238,8 +238,8 @@
   color: var(--amber-11);
 }
 .expense-category-icon[data-category="其他"] {
-  background: var(--sage-3);
-  color: var(--sage-11);
+  background: var(--gray-3);
+  color: var(--gray-11);
 }
 .recent-expense-info {
   display: grid;
@@ -281,10 +281,10 @@
   height: 2.75rem;
   flex-shrink: 0;
   place-items: center;
-  border: 1px solid var(--green-6);
+  border: 1px solid var(--accent-6);
   border-radius: 0.85rem;
-  background: var(--green-2);
-  color: var(--green-11);
+  background: var(--accent-2);
+  color: var(--accent-11);
 }
 .expenses-heading-icon svg {
   width: 1.2rem;
@@ -296,7 +296,7 @@
   gap: 0.85rem;
 }
 .expense-filters {
-  background: var(--sage-2);
+  background: var(--gray-2);
 }
 .expense-filters > summary {
   font-size: 0.85rem;
@@ -316,7 +316,7 @@
   border-radius: 0.85rem;
   background: radial-gradient(
     ellipse at 50% 35%,
-    var(--green-2),
+    var(--accent-2),
     transparent 70%
   );
   padding: 2rem 1rem;
@@ -341,9 +341,9 @@
   height: 7rem;
   place-items: center;
   margin-bottom: 0.5rem;
-  border: 1px solid var(--green-5);
+  border: 1px solid var(--accent-5);
   border-radius: 50%;
-  background: var(--green-3);
+  background: var(--accent-3);
 }
 .expense-empty-receipt {
   display: grid;
@@ -351,11 +351,11 @@
   height: 4.5rem;
   transform: rotate(-10deg);
   place-items: center;
-  border: 1px solid var(--green-7);
+  border: 1px solid var(--accent-7);
   border-radius: 0.7rem;
   background: var(--card);
-  color: var(--green-11);
-  box-shadow: 0 5px 0 var(--green-5);
+  color: var(--accent-11);
+  box-shadow: 0 5px 0 var(--accent-5);
 }
 .expense-empty-receipt svg {
   width: 2rem;
@@ -371,8 +371,8 @@
   place-items: center;
   border: 3px solid var(--card);
   border-radius: 50%;
-  background: var(--green-11);
-  color: var(--green-1);
+  background: var(--accent-11);
+  color: var(--accent-1);
 }
 .expense-table-region {
   display: grid;
@@ -551,12 +551,12 @@
   overflow: hidden;
   border: 0;
   border-radius: var(--radius-4);
-  background: var(--sage-2);
+  background: var(--gray-2);
   padding: 0;
   cursor: zoom-out;
 }
 .receipt-preview-image:hover {
-  background: var(--sage-3);
+  background: var(--gray-3);
 }
 .receipt-preview-image img {
   display: block;
@@ -592,7 +592,7 @@
 .expense-table .expense-group-row th {
   height: auto;
   border-top: 1px solid var(--border);
-  background: var(--sage-2);
+  background: var(--gray-2);
   padding-block: 0.6rem;
 }
 .expense-table .expense-group-row:first-child th {
