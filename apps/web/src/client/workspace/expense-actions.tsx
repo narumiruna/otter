@@ -9,6 +9,7 @@ import {
   type ExpenseVersionState,
   useExpenseVersion,
 } from "./expense-version.js";
+import { ReceiptPreview } from "./receipt-preview.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog } from "./workspace-ui.js";
 
@@ -76,14 +77,7 @@ export function ReceiptControls({
           />
         </label>
         {expense.receiptUrl ? (
-          <a
-            className="button-outline button-sm"
-            href={expense.receiptUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {messages.viewReceipt}
-          </a>
+          <ReceiptPreview name={expense.description} url={expense.receiptUrl} />
         ) : null}
         {expense.receiptUrl ? (
           <DeleteExpenseAction

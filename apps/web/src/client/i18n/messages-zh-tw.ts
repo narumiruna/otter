@@ -383,6 +383,13 @@ export const zhTW = {
   countPeople: (values: MessageValues) => interpolate("{count} 人", values),
   viewReceiptForName: (values: MessageValues) =>
     interpolate("查看「{name}」的收據", values),
+  receiptPreviewForName: (values: MessageValues) =>
+    interpolate("「{name}」的收據", values),
+  receiptImageForName: (values: MessageValues) =>
+    interpolate("「{name}」的收據圖片", values),
+  closeReceiptPreviewHint: "點一下圖片或按 Esc 即可關閉。",
+  closeReceiptPreview: "關閉收據預覽",
+  openOriginalReceipt: "開啟原圖",
   moreActionsForName: (values: MessageValues) =>
     interpolate("「{name}」的更多操作", values),
   datePaidByName: (values: MessageValues) =>

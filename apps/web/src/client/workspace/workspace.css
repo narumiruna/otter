@@ -517,17 +517,67 @@
 .expense-receipt-column {
   width: 4.5rem;
 }
-.expense-receipt-cell a {
+.receipt-preview-trigger {
   display: inline-grid;
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   place-items: center;
+  border: 0;
   border-radius: 0.45rem;
+  background: transparent;
   color: var(--muted-foreground);
+  cursor: pointer;
 }
-.expense-receipt-cell a:hover {
+.receipt-preview-trigger:hover {
   background: var(--muted);
   color: var(--foreground);
+}
+.radix-dialog-content.receipt-preview-dialog {
+  width: min(48rem, calc(100% - 1rem));
+  max-height: calc(100dvh - 1rem);
+  gap: var(--space-3);
+  overflow: hidden;
+  padding: var(--space-3);
+}
+.receipt-preview-dialog .radix-dialog-header {
+  padding: var(--space-1) var(--space-8) 0 var(--space-1);
+}
+.receipt-preview-image {
+  display: flex;
+  min-height: 0;
+  max-height: calc(100dvh - 11rem);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: var(--sage-2);
+  padding: 0;
+  cursor: zoom-out;
+}
+.receipt-preview-image:hover {
+  background: var(--sage-3);
+}
+.receipt-preview-image img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 11rem);
+  object-fit: contain;
+}
+.receipt-preview-original {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: var(--space-1);
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.receipt-preview-original:hover {
+  text-decoration: underline;
 }
 .expense-table .expense-amount-column,
 .expense-table .expense-amount-cell {

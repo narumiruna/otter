@@ -61,9 +61,11 @@ function DialogClose({ children, render, ...props }: CloseProps) {
 function DialogContent({
   children,
   className,
+  closeLabel = "關閉",
   showCloseButton = true,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
+  closeLabel?: string;
   showCloseButton?: boolean;
 }) {
   return (
@@ -78,7 +80,7 @@ function DialogContent({
           {showCloseButton ? (
             <DialogPrimitive.Close asChild>
               <Button
-                aria-label="關閉"
+                aria-label={closeLabel}
                 className="radix-dialog-close"
                 size="icon"
                 variant="ghost"
