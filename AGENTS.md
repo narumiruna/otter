@@ -42,6 +42,10 @@ Run commands from the repository root.
 - [UNREVIEWED] Build visual components with Radix Themes first, use Radix Primitives for behavior not covered by Themes, map custom colors through Radix Colors semantic tokens, and use Radix Icons for product icons.
 - [UNREVIEWED] Use Vitest APIs for unit and component suites, Testing Library for user-visible React behavior, and Playwright for browser workflows and accessibility.
 
+## Git and Pull Requests
+
+- Every pull request must include a Changesets file under `.changeset/`; create it with `npm run changeset`.
+
 ## Security and Data
 
 - Do not commit secrets, `.env*`, database dumps, or local data.
