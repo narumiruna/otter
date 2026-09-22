@@ -134,6 +134,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       paidById: "owner-person",
       participantIds: ["owner-person", "friend"],
     });
+    trip.participants[0].name = "WWWWWWWWWWWWWWWWWWWW";
     await page.goto("/?trip=hokkaido&view=expenses");
     await expect(expenses.getByText("午餐", { exact: true })).toBeVisible();
     await expect(page.getByRole("combobox", { name: "分組方式" })).toHaveValue(
@@ -160,6 +161,15 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       expenses.getByRole("columnheader", { name: "付款人" }),
     ).toHaveCount(0);
+    const splitCell = expenses.locator(".expense-participants-cell");
+    await expect(
+      splitCell.locator(".expense-participant-label-value"),
+    ).toHaveText("2 人");
+    expect(
+      await splitCell.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
 
     await page.reload();
     await expect(
