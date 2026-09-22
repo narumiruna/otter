@@ -269,6 +269,49 @@ test("expense columns can be customized, persisted per user, and reset", async (
   ).not.toBeInTheDocument();
 });
 
+test("split column shows names and falls back to a count for a long list", async () => {
+  const user = userEvent.setup();
+  const namedTrip: Trip = {
+    ...trip,
+    expenses: [
+      {
+        ...trip.expenses[0],
+        participantIds: ["alice", "bob"],
+      },
+    ],
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+    ],
+  };
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness currentTrip={namedTrip} />
+    </I18nProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Columns" }));
+  await user.click(screen.getByRole("checkbox", { name: "Split" }));
+
+  expect(screen.getByText("Alice, Bob")).toBeVisible();
+  expect(screen.queryByText("Everyone")).not.toBeInTheDocument();
+
+  view.rerender(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness
+        currentTrip={{
+          ...namedTrip,
+          participants: [
+            { id: "alice", name: "Alexandria" },
+            { id: "bob", name: "Christopher" },
+          ],
+        }}
+      />
+    </I18nProvider>,
+  );
+  expect(screen.getByText("2 people")).toBeVisible();
+});
+
 test("category filter chips translate stored domain values", async () => {
   const user = userEvent.setup();
   render(
