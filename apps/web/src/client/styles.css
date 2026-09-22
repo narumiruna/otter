@@ -172,7 +172,7 @@ select:disabled {
   color: var(--green-12);
 }
 .account-menu-content {
-  min-width: 14rem;
+  width: min(17.5rem, calc(100vw - 1.25rem));
 }
 .account-menu-identity {
   display: grid;
@@ -182,7 +182,7 @@ select:disabled {
 }
 .account-menu-identity strong,
 .account-menu-identity small {
-  max-width: 12rem;
+  max-width: 15rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

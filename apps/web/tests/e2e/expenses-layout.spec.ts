@@ -208,7 +208,30 @@ for (const colorScheme of ["light", "dark"] as const) {
       path: testInfo.outputPath("expenses-recorded-desktop.png"),
       fullPage: true,
     });
-    await page.getByRole("button", { name: "narumi 的帳號選單" }).click();
+    const accountMenuTrigger = page.getByRole("button", {
+      name: "narumi 的帳號選單",
+    });
+    const accountMenuTriggerBounds = await accountMenuTrigger.boundingBox();
+    await accountMenuTrigger.click();
+    const accountMenu = page.getByRole("menu", {
+      name: "narumi 的帳號選單",
+    });
+    await expect(accountMenu).toBeVisible();
+    const accountMenuBounds = await accountMenu.boundingBox();
+    expect(accountMenuBounds?.width).toBeCloseTo(280, 0);
+    expect(accountMenuBounds?.height).toBeLessThanOrEqual(320);
+    expect(accountMenuBounds?.x).toBeCloseTo(
+      (accountMenuTriggerBounds?.x ?? 0) +
+        (accountMenuTriggerBounds?.width ?? 0) -
+        (accountMenuBounds?.width ?? 0),
+      0,
+    );
+    expect(accountMenuBounds?.y).toBeCloseTo(
+      (accountMenuTriggerBounds?.y ?? 0) +
+        (accountMenuTriggerBounds?.height ?? 0) +
+        8,
+      0,
+    );
     await page.getByRole("menuitem", { name: "帳號設定" }).click();
     await page.getByRole("combobox", { name: "語言" }).selectOption("en");
     await page.getByRole("button", { name: "Cancel" }).click();
