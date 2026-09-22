@@ -44,7 +44,7 @@ Run commands from the repository root.
 
 ## Git and Pull Requests
 
-- Every pull request must include a Changesets file under `.changeset/`; create it with `npm run changeset`.
+- Every pull request must include a Changesets file under `.changeset/`. Run `npm run changeset` for package changes, or `npm run changeset -- --empty` when no package version bump is required.
 
 ## Security and Data
 
