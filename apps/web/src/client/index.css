@@ -137,10 +137,13 @@
 }
 
 .radix-themes {
-  min-height: 100dvh;
   color: var(--foreground);
   background: var(--background);
   font-family: var(--font-sans);
+}
+
+.radix-themes:where([data-is-root-theme="true"]) {
+  min-height: 100dvh;
 }
 
 .otter-button {
