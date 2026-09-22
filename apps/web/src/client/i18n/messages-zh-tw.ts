@@ -56,7 +56,6 @@ export const zhTW = {
   signOutFailedMessage: (values: MessageValues) =>
     interpolate("登出失敗：{message}", values),
   pleaseTryAgainLater: "請稍後再試",
-  signOutName: (values: MessageValues) => interpolate("登出 {name}", values),
   signingOut: "登出中…",
   signOut: "登出",
   authorizeCli: "連結 CLI",
@@ -117,8 +116,8 @@ export const zhTW = {
     "分帳成員不需帳號，也能一起記在群組裡。",
   changeNameSUsername: (values: MessageValues) =>
     interpolate("修改 {name} 的 Username", values),
-  manageNameSAccount: (values: MessageValues) =>
-    interpolate("管理 {name} 的帳號", values),
+  nameSAccountMenu: (values: MessageValues) =>
+    interpolate("{name} 的帳號選單", values),
   unableToUpdateUsername: "無法更新 Username",
   changeUsername: "修改 Username",
   accountSettings: "帳號設定",

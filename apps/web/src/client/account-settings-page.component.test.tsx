@@ -4,10 +4,7 @@ import { usernameValidationMessage } from "@narumitw/otter-core/username";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
-import {
-  AccountSettingsButton,
-  AccountSettingsPage,
-} from "./account-settings-page.js";
+import { AccountSettingsPage } from "./account-settings-page.js";
 import { I18nProvider } from "./i18n.js";
 
 vi.mock("./api-token-settings.js", () => ({
@@ -115,31 +112,6 @@ test("blocks closing and username submission during a token mutation", async () 
   );
   expect(cancel).toBeEnabled();
   expect(save).toBeEnabled();
-});
-
-test("shows an identical display name and username only once", () => {
-  render(
-    <AccountSettingsButton
-      active={false}
-      onOpen={vi.fn()}
-      user={{ ...account, name: "alice" }}
-    />,
-  );
-  expect(screen.getAllByText("alice")).toHaveLength(1);
-  expect(screen.queryByText("@alice")).not.toBeInTheDocument();
-});
-
-test("marks a distinct username with @ and opens account settings", async () => {
-  const user = userEvent.setup();
-  const onOpen = vi.fn();
-  render(
-    <AccountSettingsButton active={false} onOpen={onOpen} user={account} />,
-  );
-
-  expect(screen.getByText("Alice")).toBeVisible();
-  expect(screen.getByText("@alice")).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "管理 Alice 的帳號" }));
-  expect(onOpen).toHaveBeenCalledOnce();
 });
 
 test("changes the language from account settings", async () => {

@@ -1,7 +1,4 @@
-import {
-  ExitIcon as LogOut,
-  GlobeIcon as WifiOff,
-} from "@radix-ui/react-icons";
+import { GlobeIcon as WifiOff } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ReactNode,
@@ -12,10 +9,8 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AccountSettingsButton,
-  AccountSettingsPage,
-} from "./account-settings-page.js";
+import { AccountMenu } from "./account-menu.js";
+import { AccountSettingsPage } from "./account-settings-page.js";
 import { type AppBootstrap, fetchAppBootstrap } from "./app-bootstrap.js";
 import {
   AuthScreen,
@@ -418,31 +413,19 @@ export function AppShell() {
           </a>
           <div className="user-menu">
             {appData?.user ? (
-              <>
-                <AccountSettingsButton
-                  ref={accountButtonRef}
-                  active={accountSettingsOpen}
-                  onOpen={openAccountSettings}
-                  user={appData.user}
-                />
-                <Button
-                  aria-label={messages.signOutName({ name: appData.user.name })}
-                  disabled={
-                    offline ||
-                    accountSettingsMutationActive ||
-                    authAction === "logout"
-                  }
-                  onClick={() => void logout()}
-                  variant="outline"
-                >
-                  <LogOut aria-hidden="true" />
-                  <span className="desktop-only">
-                    {authAction === "logout"
-                      ? messages.signingOut
-                      : messages.signOut}
-                  </span>
-                </Button>
-              </>
+              <AccountMenu
+                ref={accountButtonRef}
+                accountSettingsActive={accountSettingsOpen}
+                onOpenAccountSettings={openAccountSettings}
+                onSignOut={logout}
+                signOutDisabled={
+                  offline ||
+                  accountSettingsMutationActive ||
+                  authAction === "logout"
+                }
+                signingOut={authAction === "logout"}
+                user={appData.user}
+              />
             ) : (
               <span className="header-note">
                 {messages.goodFriendsSplitExpensesWell}

@@ -68,8 +68,6 @@ export const en = {
   signOutFailedMessage: (values: MessageValues) =>
     interpolate("Sign out failed: {message}", values),
   pleaseTryAgainLater: "Please try again later",
-  signOutName: (values: MessageValues) =>
-    interpolate("Sign out {name}", values),
   signingOut: "Signing out…",
   signOut: "Sign out",
   authorizeCli: "Connect CLI",
@@ -134,8 +132,8 @@ export const en = {
     "Expense participants do not need accounts to be included in a group.",
   changeNameSUsername: (values: MessageValues) =>
     interpolate("Change {name}'s username", values),
-  manageNameSAccount: (values: MessageValues) =>
-    interpolate("Manage {name}'s account", values),
+  nameSAccountMenu: (values: MessageValues) =>
+    interpolate("{name}'s account menu", values),
   unableToUpdateUsername: "Unable to update username",
   changeUsername: "Change username",
   accountSettings: "Account settings",
