@@ -13,7 +13,7 @@ import {
   MagnifyingGlassIcon as Search,
 } from "@radix-ui/react-icons";
 import { Popover } from "@radix-ui/themes";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   defaultExpenseFilters,
@@ -708,26 +708,59 @@ function groupTotalLabel(
     .join(" + ");
 }
 
-const splitNamesWidthLimit = 10;
+function SplitParticipantLabel({
+  expense,
+  locale,
+  messages,
+  names,
+}: {
+  expense: Expense;
+  locale: Locale;
+  messages: Messages;
+  names: Map<string, string>;
+}) {
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [showCount, setShowCount] = useState(false);
+  const namesLabel = expense.participantIds
+    .map((participantId) => names.get(participantId) ?? messages.unknown)
+    .join(locale === "zh-TW" ? "、" : ", ");
+  const countLabel = messages.countPeople({
+    count: expense.participantIds.length,
+  });
 
-function splitParticipantLabel(
-  expense: Expense,
-  locale: Locale,
-  messages: Messages,
-  names: Map<string, string>,
-): string {
-  const participantNames = expense.participantIds.map(
-    (participantId) => names.get(participantId) ?? messages.unknown,
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure || measure.textContent !== namesLabel) return;
+    const update = () =>
+      setShowCount(measure.scrollWidth > container.clientWidth);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    observer.observe(measure);
+    return () => observer.disconnect();
+  }, [namesLabel]);
+
+  return (
+    <span
+      className="expense-participant-label"
+      ref={containerRef}
+      title={showCount ? namesLabel : undefined}
+    >
+      <span
+        aria-hidden="true"
+        className="expense-participant-label-measure"
+        ref={measureRef}
+      >
+        {namesLabel}
+      </span>
+      <span className="expense-participant-label-value">
+        {showCount ? countLabel : namesLabel}
+      </span>
+    </span>
   );
-  const label = participantNames.join(locale === "zh-TW" ? "、" : ", ");
-  const estimatedWidth = [...label].reduce(
-    (width, character) =>
-      width + ((character.codePointAt(0) ?? 0) <= 0xff ? 0.5 : 1),
-    0,
-  );
-  return estimatedWidth <= splitNamesWidthLimit
-    ? label
-    : messages.countPeople({ count: expense.participantIds.length });
 }
 
 function ExpenseTableRow({
@@ -774,7 +807,12 @@ function ExpenseTableRow({
           ) : column === "date" ? (
             expense.expenseDate
           ) : column === "participants" ? (
-            splitParticipantLabel(expense, locale, messages, names)
+            <SplitParticipantLabel
+              expense={expense}
+              locale={locale}
+              messages={messages}
+              names={names}
+            />
           ) : column === "tags" ? (
             expense.tags?.join(", ")
           ) : expense.receiptUrl ? (

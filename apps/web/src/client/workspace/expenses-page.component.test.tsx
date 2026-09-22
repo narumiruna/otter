@@ -248,6 +248,18 @@ test("expense columns can be customized, persisted per user, and reset", async (
 
 test("split column shows names and falls back to a count for a long list", async () => {
   const user = userEvent.setup();
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.classList.contains("expense-participant-label") ? 100 : 0;
+    },
+  );
+  vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      if (!this.classList.contains("expense-participant-label-measure"))
+        return 0;
+      return this.textContent?.includes("Alexandria") ? 200 : 80;
+    },
+  );
   const namedTrip: Trip = {
     ...trip,
     expenses: [
@@ -270,7 +282,11 @@ test("split column shows names and falls back to a count for a long list", async
   await user.click(screen.getByRole("button", { name: "Columns" }));
   await user.click(screen.getByRole("checkbox", { name: "Split" }));
 
-  expect(screen.getByText("Alice, Bob")).toBeVisible();
+  expect(
+    screen.getByText("Alice, Bob", {
+      selector: ".expense-participant-label-value",
+    }),
+  ).toBeVisible();
   expect(screen.queryByText("Everyone")).not.toBeInTheDocument();
 
   view.rerender(

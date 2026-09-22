@@ -502,6 +502,18 @@
 .expense-tags-column {
   width: 10rem;
 }
+.expense-participant-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+}
+.expense-participant-label-measure {
+  position: absolute;
+  width: max-content;
+  visibility: hidden;
+}
 .expense-receipt-column {
   width: 4.5rem;
 }
