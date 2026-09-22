@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ApiTokenSettings } from "./api-token-settings.js";
+import { AppearanceSettings } from "./appearance-settings.js";
 import type { User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
 import { PasskeySettings } from "./passkey-settings.js";
@@ -99,6 +100,8 @@ export function AccountSettingsPage({
             <option value="zh-TW">{messages.traditionalChinese}</option>
           </select>
         </section>
+        <Separator />
+        <AppearanceSettings />
         <Separator />
         <section
           className="account-settings-section"

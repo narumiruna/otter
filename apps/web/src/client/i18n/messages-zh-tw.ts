@@ -122,7 +122,20 @@ export const zhTW = {
   changeUsername: "修改 Username",
   accountSettings: "帳號設定",
   manageYourUsernameAndPasskeys:
-    "管理你的語言、Username、Passkey 與 API token。",
+    "管理你的外觀、語言、Username、Passkey 與 API token。",
+  appearance: "外觀",
+  chooseHowOtterLooksOnThisBrowser:
+    "選擇 Otter 的外觀。變更會立即套用並儲存在這個瀏覽器。",
+  colorTheme: "色彩主題",
+  forestTheme: "森林",
+  oceanTheme: "海洋",
+  lavenderTheme: "薰衣草",
+  sunsetTheme: "夕陽",
+  roseTheme: "玫瑰",
+  displayMode: "顯示模式",
+  systemMode: "跟隨系統",
+  lightMode: "淺色",
+  darkMode: "深色",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
     "更新後請使用新的 Username 登入；目前的登入狀態不會中斷。",
   passkeys: "Passkey",

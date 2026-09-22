@@ -66,12 +66,12 @@
 }
 .auth-example {
   margin-block: 0.5rem;
-  border: 1px solid var(--green-7);
+  border: 1px solid var(--accent-7);
   border-radius: 1rem;
-  background: var(--green-2);
+  background: var(--accent-2);
   color: var(--foreground);
   padding: 1.35rem;
-  box-shadow: 0 16px 32px color-mix(in srgb, var(--sage-12) 12%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--gray-12) 12%, transparent);
 }
 .auth-example-heading,
 .auth-example-heading > span,
@@ -89,8 +89,8 @@
 }
 .auth-example-label {
   border-radius: 999px;
-  background: var(--green-4);
-  color: var(--green-12);
+  background: var(--accent-4);
+  color: var(--accent-12);
   padding: 0.2rem 0.55rem;
   font-size: 0.75rem;
 }
@@ -120,7 +120,7 @@
 .auth-example-split {
   flex-wrap: wrap;
   justify-content: space-between;
-  border-top: 1px dashed var(--green-7);
+  border-top: 1px dashed var(--accent-7);
   padding-top: 1rem;
   font-size: 0.8rem;
 }
@@ -134,10 +134,10 @@
   height: 2rem;
   margin-left: -0.25rem;
   place-items: center;
-  border: 2px solid var(--green-2);
+  border: 2px solid var(--accent-2);
   border-radius: 50%;
-  background: var(--green-5);
-  color: var(--green-12);
+  background: var(--accent-5);
+  color: var(--accent-12);
   font-size: 0.7rem;
   font-weight: 650;
 }
@@ -146,8 +146,8 @@
   color: var(--amber-12);
 }
 .example-avatars span:nth-child(3) {
-  background: var(--sage-5);
-  color: var(--sage-12);
+  background: var(--gray-5);
+  color: var(--gray-12);
 }
 .otter-card.auth-card {
   gap: 1.75rem;
@@ -165,7 +165,7 @@
   gap: 0.75rem;
 }
 .auth-card-eyebrow {
-  color: var(--green-11);
+  color: var(--accent-11);
   font-size: 0.7rem;
   font-weight: 650;
   letter-spacing: 0.13em;
@@ -177,7 +177,7 @@
 }
 .auth-card .otter-input {
   min-height: 3rem;
-  background: var(--sage-2);
+  background: var(--gray-2);
   font-size: 1rem;
 }
 .auth-card button[type="submit"] {
