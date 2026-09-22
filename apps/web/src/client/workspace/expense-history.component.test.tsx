@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { I18nProvider } from "../i18n.js";
-import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
+import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { WorkspaceProvider } from "./workspace-context.js";
@@ -349,38 +349,73 @@ test("delete confirmation captures its opening version, not a subsequent refresh
     await view.findByRole("button", { name: "Review latest expense" }),
   ).toBeVisible();
 });
-test("receipt upload uses an explicit version and invalidates history on success", async () => {
-  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-    Response.json({
-      ...payload,
-      trip: {
-        ...payload.trip,
-        expenses: [{ ...expense, version: 2, receiptId: "receipt" }],
-      },
-    }),
-  );
+test("expense editor uploads a receipt and saves its draft with the returned version", async () => {
+  const withReceipt = {
+    ...payload,
+    trip: {
+      ...payload.trip,
+      expenses: [{ ...expense, version: 2, receiptId: "receipt" }],
+    },
+  };
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json(withReceipt))
+    .mockResolvedValueOnce(
+      Response.json({
+        ...withReceipt,
+        trip: {
+          ...withReceipt.trip,
+          expenses: [
+            {
+              ...withReceipt.trip.expenses[0],
+              description: "Dinner with receipt",
+              version: 3,
+            },
+          ],
+        },
+      }),
+    );
   vi.stubGlobal("fetch", fetcher);
   const { wrap, client } = harness();
   client.setQueryData(["expense-history", "t", "all"], page);
+  const saved = vi.fn();
   const view = render(
-    wrap(<ReceiptControls expense={expense} trip={payload.trip} />),
+    wrap(
+      <ExpenseComposer
+        expense={expense}
+        onCancel={() => {}}
+        onSaved={saved}
+        trip={payload.trip}
+      />,
+    ),
   );
   const user = userEvent.setup();
+  expect(view.getByRole("heading", { name: "Receipt" })).toBeVisible();
+  expect(view.getByRole("button", { name: "Delete" })).toBeVisible();
+
   await user.upload(
     view.getByLabelText("Upload receipt"),
     new File(["image"], "receipt.png", { type: "image/png" }),
   );
-  expect(new Headers(fetcher.mock.calls[0][1]?.headers).get("If-Match")).toBe(
-    '"1"',
-  );
-  expect(
-    new Headers(fetcher.mock.calls[0][1]?.headers).get("Content-Type"),
-  ).toBe("image/png");
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  const uploadHeaders = new Headers(fetcher.mock.calls[0][1]?.headers);
+  expect(fetcher.mock.calls[0][1]?.method).toBe("PUT");
+  expect(uploadHeaders.get("If-Match")).toBe('"1"');
+  expect(uploadHeaders.get("Content-Type")).toBe("image/png");
   await waitFor(() =>
     expect(
       client.getQueryState(["expense-history", "t", "all"])?.isInvalidated,
     ).toBe(true),
   );
+
+  await user.clear(view.getByLabelText("Description"));
+  await user.type(view.getByLabelText("Description"), "Dinner with receipt");
+  await user.click(view.getByRole("button", { name: "Save changes" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  const saveHeaders = new Headers(fetcher.mock.calls[1][1]?.headers);
+  expect(fetcher.mock.calls[1][1]?.method).toBe("PATCH");
+  expect(saveHeaders.get("If-Match")).toBe('"2"');
+  expect(saved).toHaveBeenCalledOnce();
 });
 test("history is lazy, paginated, shows deletions and differences, and restores trigger focus", async () => {
   const fetcher = vi

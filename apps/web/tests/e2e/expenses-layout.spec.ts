@@ -148,7 +148,6 @@ for (const colorScheme of ["light", "dark"] as const) {
       "付款人",
       "分類",
       "金額",
-      "操作",
     ]);
 
     await expenses.getByRole("button", { name: "欄位" }).click();
@@ -166,10 +165,24 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       expenses.getByRole("columnheader", { name: "分攤對象" }),
     ).toBeVisible();
-    await expenses.getByRole("button", { name: "「午餐」的更多操作" }).click();
-    await expect(page.getByRole("button", { name: "編輯" })).toBeVisible();
-    await expect(page.getByText("沒有收據")).toHaveCount(0);
-    await page.keyboard.press("Escape");
+    await expect(
+      expenses.getByRole("button", { name: "「午餐」的更多操作" }),
+    ).toHaveCount(0);
+    await expenses.getByRole("button", { name: "午餐", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "編輯支出", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "收據", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("上傳收據")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "刪除", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "取消", exact: true })
+      .first()
+      .click();
 
     await page.getByRole("textbox", { name: "搜尋描述" }).fill("missing");
     await expect(

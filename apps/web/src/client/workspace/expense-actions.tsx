@@ -4,20 +4,29 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "../client-support.js";
 import { useI18n } from "../i18n.js";
-import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
+import {
+  ExpenseConflictReview,
+  type ExpenseVersionState,
+  useExpenseVersion,
+} from "./expense-version.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog } from "./workspace-ui.js";
 
 export function ReceiptControls({
   expense,
+  onVersionConfirm,
   trip,
+  versionState,
 }: {
   expense: Expense;
+  onVersionConfirm?: () => void;
   trip: Trip;
+  versionState?: ExpenseVersionState;
 }) {
   const { messages } = useI18n();
   const { announce, offline, replacePayload } = useWorkspace();
-  const version = useExpenseVersion(expense, trip.id);
+  const ownVersionState = useExpenseVersion(expense, trip.id);
+  const version = versionState ?? ownVersionState;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File>();
@@ -36,6 +45,10 @@ export function ReceiptControls({
         },
       );
       replacePayload(payload);
+      const updatedExpense = payload.trip.expenses.find(
+        (candidate) => candidate.id === expense.id,
+      );
+      if (updatedExpense) version.accept(updatedExpense);
       announce(messages.receiptUploaded);
       setFile(undefined);
     } catch (caught) {
@@ -48,54 +61,73 @@ export function ReceiptControls({
     }
   }
   return (
-    <>
-      <label className="button-outline button-sm">
-        <UploadIcon aria-hidden="true" />
-        <span>{busy ? messages.uploading : messages.uploadReceipt}</span>
-        <input
-          className="sr-only"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          disabled={busy || offline}
-          onClick={version.begin}
-          onChange={(event) => void upload(event.target.files?.[0])}
-        />
-      </label>
-      {expense.receiptUrl ? (
-        <a
-          className="button-outline button-sm"
-          href={expense.receiptUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {messages.viewReceipt}
-        </a>
-      ) : null}
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="button-outline button-sm">
+          <UploadIcon aria-hidden="true" />
+          <span>{busy ? messages.uploading : messages.uploadReceipt}</span>
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={busy || offline}
+            onClick={versionState ? undefined : version.begin}
+            onChange={(event) => void upload(event.target.files?.[0])}
+          />
+        </label>
+        {expense.receiptUrl ? (
+          <a
+            className="button-outline button-sm"
+            href={expense.receiptUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {messages.viewReceipt}
+          </a>
+        ) : null}
+        {expense.receiptUrl ? (
+          <DeleteExpenseAction
+            expense={expense}
+            onVersionConfirm={onVersionConfirm}
+            trip={trip}
+            receipt
+            versionState={version}
+          />
+        ) : null}
+      </div>
       <ActionError message={error} />
-      <ExpenseConflictReview state={version} />
+      {versionState ? null : <ExpenseConflictReview state={version} />}
       {file && !version.conflict && !version.missing ? (
-        <Button disabled={busy || offline} onClick={() => void upload(file)}>
+        <Button
+          disabled={busy || offline}
+          onClick={() => void upload(file)}
+          type="button"
+        >
           {messages.uploadReceipt}
         </Button>
       ) : null}
-      {expense.receiptUrl ? (
-        <DeleteExpenseAction expense={expense} trip={trip} receipt />
-      ) : null}
-    </>
+    </div>
   );
 }
 export function DeleteExpenseAction({
   expense,
+  onDeleted,
+  onVersionConfirm,
   trip,
   receipt = false,
+  versionState,
 }: {
   expense: Expense;
+  onDeleted?: () => void;
+  onVersionConfirm?: () => void;
   trip: Trip;
   receipt?: boolean;
+  versionState?: ExpenseVersionState;
 }) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
-  const version = useExpenseVersion(expense, trip.id);
+  const ownVersionState = useExpenseVersion(expense, trip.id);
+  const version = versionState ?? ownVersionState;
   return (
     <ConfirmDialog
       confirmLabel={
@@ -110,22 +142,30 @@ export function DeleteExpenseAction({
               ? messages.youCanUploadAnotherReceiptLaterTheExpenseWillNotBeDeleted
               : messages.deleteExpenseHistoryRetained}
           </p>
-          <ExpenseConflictReview state={version} />
+          <ExpenseConflictReview state={version} onConfirm={onVersionConfirm} />
         </>
       }
       destructive
       disabled={offline}
       onOpenChange={(open) => {
-        if (open) version.begin();
+        if (open && !versionState) version.begin();
       }}
       onConfirm={async () => {
         try {
-          await requestPayload(
+          const payload = await requestPayload(
             `/api/trips/${trip.id}/expenses/${expense.id}${receipt ? "/receipt" : ""}`,
             { method: "DELETE", headers: version.headers() },
             receipt ? messages.receiptDeleted : messages.expenseDeleted,
             !receipt,
           );
+          if (receipt) {
+            const updatedExpense = payload.trip.expenses.find(
+              (candidate) => candidate.id === expense.id,
+            );
+            if (updatedExpense) version.accept(updatedExpense);
+          } else {
+            onDeleted?.();
+          }
         } catch (error) {
           version.handleError(error);
           throw error;
@@ -133,7 +173,11 @@ export function DeleteExpenseAction({
       }}
       title={receipt ? messages.deleteThisReceipt : messages.deleteThisExpense}
       trigger={
-        <Button size="sm" variant="ghost">
+        <Button
+          size="sm"
+          type="button"
+          variant={receipt ? "ghost" : "destructive"}
+        >
           <TrashIcon aria-hidden="true" />
           {receipt ? messages.deleteReceipt : messages.delete}
         </Button>

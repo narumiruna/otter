@@ -118,6 +118,29 @@ test("readonly empty expenses do not offer an add action", () => {
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
+test("writable expense rows open from their description without an action menu", () => {
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        grouping="none"
+        onAddExpense={vi.fn()}
+        onFiltersChange={vi.fn()}
+        onGroupingChange={vi.fn()}
+        trip={trip}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("button", { name: "Dinner" })).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "More actions for Dinner" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getAllByRole("columnheader").map((header) => header.textContent),
+  ).toEqual(["Expense", "Paid by", "Category", "Date", "Amount"]);
+});
+
 test("expenses can be grouped by date or payer", async () => {
   const user = userEvent.setup();
   const groupedTrip: Trip = {

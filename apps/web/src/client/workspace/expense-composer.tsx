@@ -22,6 +22,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { todayDate } from "../client-support.js";
 import { localizeMessage, useI18n } from "../i18n.js";
+import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
@@ -493,6 +494,40 @@ export function ExpenseComposer({
             </FormField>
           </div>
         </details>
+
+        {expense ? (
+          <section
+            aria-labelledby="expense-receipt-heading"
+            className="grid gap-3 rounded-xl border bg-muted/50 p-4"
+          >
+            <div className="grid gap-1">
+              <h3 className="font-semibold" id="expense-receipt-heading">
+                {messages.receipt}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {messages.receiptFileRequirements}
+              </p>
+            </div>
+            <ReceiptControls
+              expense={expense}
+              onVersionConfirm={confirmReviewedVersion}
+              trip={trip}
+              versionState={versionState}
+            />
+          </section>
+        ) : null}
+
+        {expense ? (
+          <div className="flex justify-start">
+            <DeleteExpenseAction
+              expense={expense}
+              onDeleted={onSaved ?? onCancel}
+              onVersionConfirm={confirmReviewedVersion}
+              trip={trip}
+              versionState={versionState}
+            />
+          </div>
+        ) : null}
 
         <div className="sticky-submit flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {isDirty ? (
