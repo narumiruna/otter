@@ -42,6 +42,7 @@ import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 import { MorePage } from "./more-page.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
+import { WebMcpTools } from "./webmcp-tools.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 import { BusyButton, FormField } from "./workspace-ui.js";
 
@@ -62,10 +63,12 @@ export function AuthenticatedWorkspace({
   announce,
   bootstrap,
   offline,
+  webMcpEnabled = true,
 }: {
   announce: (message: string) => void;
   bootstrap: AppBootstrap;
   offline: boolean;
+  webMcpEnabled?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
@@ -247,6 +250,7 @@ export function AuthenticatedWorkspace({
       payload={payload}
       refreshCollection={refreshCollection}
     >
+      {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
         <aside
           className="workspace-sidebar"

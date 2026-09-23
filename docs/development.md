@@ -58,6 +58,20 @@ npm run migrate -- --help
 
 `npm install` 或 `npm ci` 會透過 `prepare` 安裝 Husky。Pre-commit hook 執行 `npm run check`。
 
+## WebMCP 唯讀試點
+
+otter 在登入並載入群組後，若瀏覽器支援 `document.modelContext`，會註冊查詢**目前群組**餘額與建議結算的兩個工具；分享頁、登入頁、裝置授權頁和帳號設定頁都不提供工具。切換群組或登出會移除舊工具；工具名稱含當頁唯一序號，agent 應在狀態改變後重新發現工具。工具不接受群組 ID 或 URL，不寫入資料，也不會提供整份群組 payload。回傳 JSON 以 `amountMinor`（minor currency units）和 `currency` 表示金額，最多八筆，並附 `total`／`truncated`；姓名等使用者資料標為不可信內容。權限仍由既有 `GET /api/trips/:tripId` 的登入及成員資格檢查控制；工具註解不是安全邊界，未設定跨來源 `exposedTo`。
+
+WebMCP 尚屬試驗功能，Chrome 官方文件列為 [origin trial](https://developer.chrome.com/docs/ai/webmcp)；部署時需要 HTTPS、有效 trial 設定和未停用 `tools` Permissions Policy／origin isolation。未支援的瀏覽器不受影響。在本機 Chrome for Testing 153.0.8010.12，使用 `--enable-features=WebMCP,WebMCPTesting --enable-webmcp-testing`，於 `http://127.0.0.1:17463/` 測得 `window.originAgentCluster === true`、`document.featurePolicy.allowsFeature("tools") === true`。目前該版本的 `executeTool` 測試呼叫需要 JSON 字串 `"{}"`，與文件的物件範例不同；此差異只用於 E2E 測試，應隨 Chrome 更新複查。
+
+在遷移後的 PostgreSQL 上，以 Playwright 原生 WebMCP API 驗證登入、兩個查詢、群組切換、分享頁、裝置頁與登出（不支援時測試會失敗而非假通過）：
+
+```bash
+DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run test:e2e -- --grep WebMCP
+```
+
+若有安全或相容性問題，移除 `AuthenticatedWorkspace` 中的 `WebMcpTools` 註冊元件並重新部署，即可停用；無資料庫變更或資料回復需求。正式上線前應確認目標 Chrome 版本與 origin trial 狀態。
+
 ## 專案結構
 
 ```text

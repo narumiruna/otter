@@ -85,6 +85,7 @@ export function AppShell() {
   const [lastBootstrap, setLastBootstrap] = useState<AppBootstrap | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [authAction, setAuthAction] = useState("");
+  const [sessionEnded, setSessionEnded] = useState(false);
   const [authError, setAuthError] = useState<{
     login?: string;
     register?: string;
@@ -234,7 +235,8 @@ export function AppShell() {
         method: "POST",
       });
       queryClient.clear();
-      await bootstrap.refetch();
+      const result = await bootstrap.refetch();
+      if (result.data?.user) setSessionEnded(false);
       announce(
         target === "login" ? messages.signedIn : messages.accountCreated,
       );
@@ -256,7 +258,8 @@ export function AppShell() {
     try {
       await authenticateWithPasskey();
       queryClient.clear();
-      await bootstrap.refetch();
+      const result = await bootstrap.refetch();
+      if (result.data?.user) setSessionEnded(false);
       announce(messages.signedIn);
     } catch {
       setAuthError({ login: messages.unableToSignInWithAPasskey });
@@ -297,6 +300,7 @@ export function AppShell() {
     setAuthAction("logout");
     try {
       await api<{ ok: true }>("/api/auth/logout", { method: "POST" });
+      setSessionEnded(true);
       restoreAccountFocus.current = false;
       setAccountSettingsOpen(false);
       queryClient.clear();
@@ -349,6 +353,9 @@ export function AppShell() {
           announce={announce}
           bootstrap={appData}
           offline={offline}
+          webMcpEnabled={
+            !sessionEnded && !accountSettingsOpen && authAction !== "logout"
+          }
         />
       );
     body = (

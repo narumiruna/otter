@@ -220,18 +220,23 @@ for (const colorScheme of ["light", "dark"] as const) {
     const accountMenuBounds = await accountMenu.boundingBox();
     expect(accountMenuBounds?.width).toBeCloseTo(280, 0);
     expect(accountMenuBounds?.height).toBeLessThanOrEqual(320);
-    expect(accountMenuBounds?.x).toBeCloseTo(
-      (accountMenuTriggerBounds?.x ?? 0) +
-        (accountMenuTriggerBounds?.width ?? 0) -
-        (accountMenuBounds?.width ?? 0),
-      0,
-    );
-    expect(accountMenuBounds?.y).toBeCloseTo(
-      (accountMenuTriggerBounds?.y ?? 0) +
-        (accountMenuTriggerBounds?.height ?? 0) +
-        8,
-      0,
-    );
+    // Radix positions its portal on a later frame after it becomes visible.
+    await expect
+      .poll(async () => (await accountMenu.boundingBox())?.x)
+      .toBeCloseTo(
+        (accountMenuTriggerBounds?.x ?? 0) +
+          (accountMenuTriggerBounds?.width ?? 0) -
+          (accountMenuBounds?.width ?? 0),
+        0,
+      );
+    await expect
+      .poll(async () => (await accountMenu.boundingBox())?.y)
+      .toBeCloseTo(
+        (accountMenuTriggerBounds?.y ?? 0) +
+          (accountMenuTriggerBounds?.height ?? 0) +
+          8,
+        0,
+      );
     await page.getByRole("menuitem", { name: "帳號設定" }).click();
     await page.getByRole("combobox", { name: "語言" }).selectOption("en");
     await page.getByRole("button", { name: "Cancel" }).click();
