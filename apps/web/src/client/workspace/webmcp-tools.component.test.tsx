@@ -19,6 +19,7 @@ type Tool = {
 type Registration = { tool: Tool; signal: AbortSignal };
 const registrations: Registration[] = [];
 let signedIn = true;
+let failAfterLogout = false;
 let failRead = false;
 let deferredRead: Promise<Response> | null = null;
 const payload = (id: string): TripPayload => ({
@@ -73,6 +74,7 @@ function renderApp() {
 beforeEach(() => {
   registrations.length = 0;
   signedIn = true;
+  failAfterLogout = false;
   failRead = false;
   deferredRead = null;
   window.history.replaceState({}, "", "/?trip=trip_1");
@@ -93,15 +95,27 @@ beforeEach(() => {
       const path = new URL(String(input), window.location.origin).pathname;
       if (path === "/api/config")
         return Response.json({ devLoginCredentials: null });
-      if (path === "/api/me")
+      if (path === "/api/me") {
+        if (failAfterLogout && !signedIn)
+          return Response.json(
+            { error: "Bootstrap unavailable" },
+            { status: 503 },
+          );
         return Response.json({
           user: signedIn
             ? { id: "user_1", name: "Alice", username: "alice" }
             : null,
         });
+      }
       if (path === "/api/auth/logout" && init?.method === "POST") {
         signedIn = false;
         return Response.json({ ok: true });
+      }
+      if (path === "/api/auth/login" && init?.method === "POST") {
+        signedIn = true;
+        return Response.json({
+          user: { id: "user_1", name: "Alice", username: "alice" },
+        });
       }
       if (path === "/api/trips")
         return Response.json({
@@ -201,6 +215,40 @@ test("does nothing in browsers without WebMCP", () => {
   expect(registrations).toHaveLength(0);
 });
 
+test.each([0, 1])(
+  "cleans up when registration %i throws synchronously",
+  async (throwAt) => {
+    let calls = 0;
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool: vi.fn(
+          (tool: Tool, { signal }: { signal: AbortSignal }) => {
+            registrations.push({ tool, signal });
+            if (calls++ === throwAt)
+              throw new DOMException("Not allowed", "NotAllowedError");
+            return Promise.resolve();
+          },
+        ),
+      },
+    });
+    const view = render(<WebMcpTools tripId="trip_1" />);
+    await waitFor(() => expect(registrations).toHaveLength(2));
+    await waitFor(() => expect(registrations[0].signal.aborted).toBe(true));
+    await expect(registrations[0].tool.execute()).rejects.toThrow(
+      "Group has changed",
+    );
+    view.unmount();
+  },
+);
+
+test("does not register after unmounting before the registration microtask", async () => {
+  const view = render(<WebMcpTools tripId="trip_1" />);
+  view.unmount();
+  await Promise.resolve();
+  expect(registrations).toHaveLength(0);
+});
+
 test("cleans up when permissions policy rejects registration", async () => {
   Object.defineProperty(document, "modelContext", {
     configurable: true,
@@ -229,6 +277,42 @@ test("only exposes tools in a loaded signed-in workspace and removes them on log
     "Group has changed",
   );
   expect(view.getByRole("button", { name: /Sign in/i })).toBeVisible();
+});
+
+test("registers new tools after a confirmed sign-in following logout", async () => {
+  const user = userEvent.setup();
+  const view = renderApp();
+  await waitFor(() => expect(registrations).toHaveLength(2));
+  await user.click(view.getByRole("button", { name: /Alice.*account menu/i }));
+  await user.click(await view.findByRole("menuitem", { name: "Sign out" }));
+  await view.findByRole("button", { name: "Sign in" });
+  expect(registrations.every(({ signal }) => signal.aborted)).toBe(true);
+  await user.type(view.getByLabelText("Username"), "alice");
+  await user.type(view.getByLabelText("Password"), "password");
+  await user.click(view.getByRole("button", { name: "Sign in" }));
+  await waitFor(() => expect(registrations).toHaveLength(4));
+  expect(registrations.slice(2).every(({ signal }) => !signal.aborted)).toBe(
+    true,
+  );
+});
+
+test("keeps tools unregistered after logout when bootstrap fails", async () => {
+  failAfterLogout = true;
+  const user = userEvent.setup();
+  const view = renderApp();
+  await waitFor(() => expect(registrations).toHaveLength(2));
+  await user.click(view.getByRole("button", { name: /Alice.*account menu/i }));
+  await user.click(await view.findByRole("menuitem", { name: "Sign out" }));
+  await view.findByText("Signed out");
+  // The old signed-in bootstrap is still rendered as a fallback after the 503.
+  expect(
+    view.getByRole("button", { name: /Alice.*account menu/i }),
+  ).toBeVisible();
+  expect(registrations).toHaveLength(2);
+  expect(registrations.every(({ signal }) => signal.aborted)).toBe(true);
+  await expect(registrations[0].tool.execute()).rejects.toThrow(
+    "Group has changed",
+  );
 });
 
 test.each(["/share/token", "/device"])(

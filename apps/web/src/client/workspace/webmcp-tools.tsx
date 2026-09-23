@@ -104,28 +104,30 @@ export function WebMcpTools({ tripId }: { tripId: string }) {
         untrustedContentHint: true as const,
       },
     };
-    void Promise.all([
-      modelContext.registerTool(
-        {
-          ...common,
-          name: `trip_balances_${registrationId}`,
-          description:
-            "Read the current group's participant balances. Amounts are signed minor currency units. No changes are made.",
-          execute: async () => balanceToolResult(await readCurrentTrip()),
-        },
-        { signal: controller.signal },
+    const tools: ReadonlyTool[] = [
+      {
+        ...common,
+        name: `trip_balances_${registrationId}`,
+        description:
+          "Read the current group's participant balances. Amounts are signed minor currency units. No changes are made.",
+        execute: async () => balanceToolResult(await readCurrentTrip()),
+      },
+      {
+        ...common,
+        name: `trip_settlements_${registrationId}`,
+        description:
+          "Read suggested payments for the current group. Amounts are minor currency units; no payment is recorded.",
+        execute: async () => settlementToolResult(await readCurrentTrip()),
+      },
+    ];
+    void Promise.all(
+      tools.map((tool) =>
+        Promise.resolve().then(() => {
+          if (controller.signal.aborted) return;
+          return modelContext.registerTool(tool, { signal: controller.signal });
+        }),
       ),
-      modelContext.registerTool(
-        {
-          ...common,
-          name: `trip_settlements_${registrationId}`,
-          description:
-            "Read suggested payments for the current group. Amounts are minor currency units; no payment is recorded.",
-          execute: async () => settlementToolResult(await readCurrentTrip()),
-        },
-        { signal: controller.signal },
-      ),
-    ]).catch(() => controller.abort());
+    ).catch(() => controller.abort());
 
     return () => controller.abort();
   }, [tripId]);
