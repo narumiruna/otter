@@ -349,6 +349,7 @@ export function AppShell() {
           announce={announce}
           bootstrap={appData}
           offline={offline}
+          webMcpEnabled={!accountSettingsOpen && authAction !== "logout"}
         />
       );
     body = (
