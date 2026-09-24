@@ -13,18 +13,70 @@ type CeremonyOptions<Options> = {
   options: Options;
 };
 
-let pendingSignup: { username: string; challengeId: string } | undefined;
+const pendingSignupKey = "otter.passkeySignup";
+const signupLifetimeMs = 5 * 60 * 1000;
+type PendingSignup = {
+  username: string;
+  challengeId: string;
+  expiresAt: number;
+};
+let pendingSignup: PendingSignup | undefined;
+
+function isPendingSignup(value: unknown): value is PendingSignup {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "username" in value &&
+    typeof value.username === "string" &&
+    "challengeId" in value &&
+    typeof value.challengeId === "string" &&
+    "expiresAt" in value &&
+    typeof value.expiresAt === "number" &&
+    Number.isFinite(value.expiresAt)
+  );
+}
+
+function storePendingSignup(value: PendingSignup | undefined): void {
+  pendingSignup = value;
+  try {
+    if (value) sessionStorage.setItem(pendingSignupKey, JSON.stringify(value));
+    else sessionStorage.removeItem(pendingSignupKey);
+  } catch {
+    // Keep the token in memory when browser storage is unavailable.
+  }
+}
+
+function getPendingSignup(): PendingSignup | undefined {
+  try {
+    const stored = sessionStorage.getItem(pendingSignupKey);
+    if (stored) {
+      const value: unknown = JSON.parse(stored);
+      if (isPendingSignup(value)) {
+        pendingSignup = value;
+      } else {
+        storePendingSignup(undefined);
+      }
+    }
+  } catch {
+    // Fall back to the current tab's in-memory token.
+  }
+  if (pendingSignup && pendingSignup.expiresAt <= Date.now()) {
+    storePendingSignup(undefined);
+  }
+  return pendingSignup;
+}
 
 export function pendingPasskeySignupChallengeId(
   username: string,
 ): string | undefined {
-  return pendingSignup?.username === normalizeUsername(username)
-    ? pendingSignup.challengeId
+  const pending = getPendingSignup();
+  return pending?.username === normalizeUsername(username)
+    ? pending.challengeId
     : undefined;
 }
 
 export function clearPendingPasskeySignup(username: string): void {
-  if (pendingPasskeySignupChallengeId(username)) pendingSignup = undefined;
+  if (pendingPasskeySignupChallengeId(username)) storePendingSignup(undefined);
 }
 
 export type PasskeySummary = {
@@ -60,10 +112,11 @@ export async function createAccountWithPasskey(
     body: JSON.stringify({ username, ...(challengeId ? { challengeId } : {}) }),
     method: "POST",
   });
-  pendingSignup = {
+  storePendingSignup({
     username: normalizeUsername(username),
     challengeId: ceremony.challengeId,
-  };
+    expiresAt: Date.now() + signupLifetimeMs,
+  });
   const response = await startRegistration({ optionsJSON: ceremony.options });
   await api("/api/auth/passkey/register/verify", {
     body: JSON.stringify({ challengeId: ceremony.challengeId, response }),
