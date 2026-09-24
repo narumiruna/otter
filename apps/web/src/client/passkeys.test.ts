@@ -19,6 +19,7 @@ vi.mock("./client-support.js", () => ({ api: vi.fn() }));
 beforeEach(() => {
   sessionStorage.clear();
   clearPendingPasskeySignup("alice_123");
+  clearPendingPasskeySignup("bob_123");
   vi.mocked(api).mockReset();
   vi.mocked(startRegistration).mockReset();
 });
@@ -61,6 +62,30 @@ test("a cancelled passkey ceremony retries with its reservation token across equ
   expect(sessionStorage.getItem("otter.passkeySignup")).toBeNull();
 });
 
+test("switching usernames preserves both pending signup tokens", async () => {
+  vi.mocked(api)
+    .mockResolvedValueOnce({ challengeId: "alice-token", options: {} })
+    .mockResolvedValueOnce({ challengeId: "bob-token", options: {} })
+    .mockResolvedValueOnce({ challengeId: "alice-token", options: {} });
+  vi.mocked(startRegistration).mockRejectedValue(new Error("cancelled"));
+  await expect(createAccountWithPasskey("Alice_123")).rejects.toThrow();
+  await expect(createAccountWithPasskey("Bob_123")).rejects.toThrow();
+  expect(pendingPasskeySignupChallengeId("alice_123")).toBe("alice-token");
+  expect(pendingPasskeySignupChallengeId("bob_123")).toBe("bob-token");
+  await expect(createAccountWithPasskey("alice_123")).rejects.toThrow();
+  expect(api).toHaveBeenLastCalledWith("/api/auth/passkey/register/options", {
+    method: "POST",
+    body: JSON.stringify({ username: "alice_123", challengeId: "alice-token" }),
+  });
+  clearPendingPasskeySignup("alice_123");
+  expect(pendingPasskeySignupChallengeId("bob_123")).toBe("bob-token");
+  vi.resetModules();
+  const reloaded = await import("./passkeys.js");
+  expect(reloaded.pendingPasskeySignupChallengeId("bob_123")).toBe("bob-token");
+  reloaded.clearPendingPasskeySignup("bob_123");
+  expect(sessionStorage.getItem("otter.passkeySignup")).toBeNull();
+});
+
 test("a cancelled signup can retry or fall back after a page reload", async () => {
   const ceremony = {
     challengeId: "pending-123",
@@ -99,13 +124,22 @@ test("a cancelled signup can retry or fall back after a page reload", async () =
 test("expired signup tokens are removed and not used by the password fallback", () => {
   sessionStorage.setItem(
     "otter.passkeySignup",
-    JSON.stringify({
-      username: "alice_123",
-      challengeId: "pending-123",
-      expiresAt: Date.now() - 1,
-    }),
+    JSON.stringify([
+      {
+        username: "alice_123",
+        challengeId: "pending-123",
+        expiresAt: Date.now() - 1,
+      },
+      {
+        username: "bob_123",
+        challengeId: "bob-token",
+        expiresAt: Date.now() + 60_000,
+      },
+    ]),
   );
   expect(pendingPasskeySignupChallengeId("alice_123")).toBeUndefined();
+  expect(pendingPasskeySignupChallengeId("bob_123")).toBe("bob-token");
+  clearPendingPasskeySignup("bob_123");
   expect(sessionStorage.getItem("otter.passkeySignup")).toBeNull();
 });
 

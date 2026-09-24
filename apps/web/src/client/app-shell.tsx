@@ -17,7 +17,12 @@ import {
   type LoginCredentials,
   type RegisterCredentials,
 } from "./auth-screen.js";
-import { api, type TripPayload, type User } from "./client-support.js";
+import {
+  ApiResponseError,
+  api,
+  type TripPayload,
+  type User,
+} from "./client-support.js";
 import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
 import {
@@ -301,7 +306,7 @@ export function AppShell() {
     } catch (error) {
       setAuthError({
         register:
-          error instanceof Error
+          error instanceof ApiResponseError
             ? error.message
             : messages.unableToCreateAccountWithAPasskey,
       });

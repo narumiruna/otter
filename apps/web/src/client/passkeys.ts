@@ -20,7 +20,7 @@ type PendingSignup = {
   challengeId: string;
   expiresAt: number;
 };
-let pendingSignup: PendingSignup | undefined;
+let pendingSignups: PendingSignup[] = [];
 
 function isPendingSignup(value: unknown): value is PendingSignup {
   return (
@@ -36,47 +36,52 @@ function isPendingSignup(value: unknown): value is PendingSignup {
   );
 }
 
-function storePendingSignup(value: PendingSignup | undefined): void {
-  pendingSignup = value;
+function storePendingSignups(value: PendingSignup[]): void {
+  pendingSignups = value;
   try {
-    if (value) sessionStorage.setItem(pendingSignupKey, JSON.stringify(value));
+    if (value.length)
+      sessionStorage.setItem(pendingSignupKey, JSON.stringify(value));
     else sessionStorage.removeItem(pendingSignupKey);
   } catch {
-    // Keep the token in memory when browser storage is unavailable.
+    // Keep the tokens in memory when browser storage is unavailable.
   }
 }
 
-function getPendingSignup(): PendingSignup | undefined {
+function getPendingSignups(): PendingSignup[] {
   try {
     const stored = sessionStorage.getItem(pendingSignupKey);
     if (stored) {
       const value: unknown = JSON.parse(stored);
-      if (isPendingSignup(value)) {
-        pendingSignup = value;
+      if (Array.isArray(value) && value.every(isPendingSignup)) {
+        pendingSignups = value;
       } else {
-        storePendingSignup(undefined);
+        storePendingSignups([]);
       }
     }
   } catch {
-    // Fall back to the current tab's in-memory token.
+    // Fall back to the current tab's in-memory tokens.
   }
-  if (pendingSignup && pendingSignup.expiresAt <= Date.now()) {
-    storePendingSignup(undefined);
-  }
-  return pendingSignup;
+  const active = pendingSignups.filter(
+    (pending) => pending.expiresAt > Date.now(),
+  );
+  if (active.length !== pendingSignups.length) storePendingSignups(active);
+  return active;
 }
 
 export function pendingPasskeySignupChallengeId(
   username: string,
 ): string | undefined {
-  const pending = getPendingSignup();
-  return pending?.username === normalizeUsername(username)
-    ? pending.challengeId
-    : undefined;
+  return getPendingSignups().find(
+    (pending) => pending.username === normalizeUsername(username),
+  )?.challengeId;
 }
 
 export function clearPendingPasskeySignup(username: string): void {
-  if (pendingPasskeySignupChallengeId(username)) storePendingSignup(undefined);
+  const active = getPendingSignups();
+  const remaining = active.filter(
+    (pending) => pending.username !== normalizeUsername(username),
+  );
+  if (remaining.length !== active.length) storePendingSignups(remaining);
 }
 
 export type PasskeySummary = {
@@ -112,11 +117,16 @@ export async function createAccountWithPasskey(
     body: JSON.stringify({ username, ...(challengeId ? { challengeId } : {}) }),
     method: "POST",
   });
-  storePendingSignup({
-    username: normalizeUsername(username),
-    challengeId: ceremony.challengeId,
-    expiresAt: Date.now() + signupLifetimeMs,
-  });
+  storePendingSignups([
+    ...getPendingSignups().filter(
+      (pending) => pending.username !== normalizeUsername(username),
+    ),
+    {
+      username: normalizeUsername(username),
+      challengeId: ceremony.challengeId,
+      expiresAt: Date.now() + signupLifetimeMs,
+    },
+  ]);
   const response = await startRegistration({ optionsJSON: ceremony.options });
   await api("/api/auth/passkey/register/verify", {
     body: JSON.stringify({ challengeId: ceremony.challengeId, response }),

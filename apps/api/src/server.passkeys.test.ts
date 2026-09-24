@@ -467,6 +467,114 @@ test(
 );
 
 test(
+  "signup replaces a reservation that expires after the initial cleanup",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl, pool } = await withTestApp({
+      appOptions: {
+        passkeys: {
+          relyingParty: {
+            origin: "http://localhost",
+            rpID: "localhost",
+            rpName: "otter test",
+          },
+        },
+      },
+    });
+    const username = `late_expiry_${Date.now()}`;
+    const optionsPath = "/api/auth/passkey/register/options";
+    const first = await api<{ challengeId: string }>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username }),
+      method: "POST",
+    });
+    expect(first.response.status).toBe(200);
+
+    const query = pool.query.bind(pool);
+    const cleanup = vi
+      .spyOn(pool, "query")
+      .mockImplementation(async (text: string, values?: unknown[]) => {
+        const result = await query(text, values);
+        if (
+          text ===
+          "DELETE FROM passkey_signup_challenges WHERE expires_at <= now()"
+        ) {
+          await query(
+            "UPDATE passkey_signup_challenges SET expires_at = now() - interval '1 second' WHERE id = $1",
+            [first.data.challengeId],
+          );
+        }
+        return result;
+      });
+    try {
+      const replacement = await api<{ challengeId: string }>(
+        baseUrl,
+        optionsPath,
+        { body: JSON.stringify({ username }), method: "POST" },
+      );
+      expect(replacement.response.status).toBe(200);
+      expect(replacement.data.challengeId).not.toBe(first.data.challengeId);
+      const rows = await pool.query(
+        "SELECT id FROM passkey_signup_challenges WHERE username = $1",
+        [username],
+      );
+      expect(rows.rows).toEqual([{ id: replacement.data.challengeId }]);
+    } finally {
+      cleanup.mockRestore();
+    }
+  },
+);
+
+test(
+  "public signup rate limits cannot block an authenticated passkey enrollment",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl } = await withTestApp({
+      appOptions: {
+        passkeys: {
+          relyingParty: {
+            origin: "http://localhost",
+            rpID: "localhost",
+            rpName: "otter test",
+          },
+        },
+      },
+    });
+    const account = await api(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: `enroll_${Date.now()}`,
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    expect(account.response.status).toBe(201);
+    const cookie = account.response.headers.get("set-cookie")?.split(";", 1)[0];
+    assert.ok(cookie);
+    const optionsPath = "/api/auth/passkey/register/options";
+    for (let index = 0; index < 10; index += 1) {
+      const options = await api(baseUrl, optionsPath, {
+        body: JSON.stringify({ username: `signup_${Date.now()}_${index}` }),
+        method: "POST",
+      });
+      expect(options.response.status).toBe(200);
+    }
+    const denied = await api(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: `signup_${Date.now()}_limited` }),
+      method: "POST",
+    });
+    expect(denied.response.status).toBe(429);
+    const enrollment = await api(
+      baseUrl,
+      "/api/passkeys/registration/options",
+      {
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    expect(enrollment.response.status).toBe(200);
+  },
+);
+
+test(
   "reservation owner can switch to password signup without exposing another reservation",
   postgresTestOptions,
   async () => {

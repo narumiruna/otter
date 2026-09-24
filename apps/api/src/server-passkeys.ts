@@ -258,6 +258,7 @@ export function registerPasskeyRoutes(
   };
   const limitAuthenticationOptions =
     createFixedWindowRateLimiter(rateLimitOptions);
+  const limitSignupOptions = createFixedWindowRateLimiter(rateLimitOptions);
   const limitRegistrationOptions =
     createFixedWindowRateLimiter(rateLimitOptions);
 
@@ -265,7 +266,7 @@ export function registerPasskeyRoutes(
     "/api/auth/passkey/register/options",
     parseRequestBody,
     async (context) => {
-      const retryAfter = limitRegistrationOptions(
+      const retryAfter = limitSignupOptions(
         context.req.raw,
         requestRemoteAddress(context),
       );
@@ -288,6 +289,11 @@ export function registerPasskeyRoutes(
       );
       const ceremony = await withTransaction(pool, async (client) => {
         await lockUsernameClaim(client, normalizedUsername);
+        await client.query(
+          `DELETE FROM passkey_signup_challenges
+           WHERE username = $1 AND expires_at <= now()`,
+          [normalizedUsername],
+        );
         if (await findUserByUsername(client, normalizedUsername))
           return undefined;
         const existing = await client.query<SignupChallengeRow>(

@@ -6,6 +6,7 @@ import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { AppShell } from "./app-shell.js";
+import { ApiResponseError } from "./client-support.js";
 import { I18nProvider } from "./i18n.js";
 import {
   clearPendingPasskeySignup,
@@ -23,7 +24,63 @@ vi.mock("./passkeys.js", () => ({
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.mocked(createAccountWithPasskey).mockReset();
 });
+
+test.each([
+  {
+    locale: "zh-TW" as const,
+    failure: new Error("The operation timed out"),
+    expected: "無法使用 Passkey 建立帳號，請重新嘗試",
+    create: "建立帳號",
+    passkey: "使用 Passkey 建立帳號",
+    username: "使用者名稱",
+  },
+  {
+    locale: "en" as const,
+    failure: new ApiResponseError("This username is being registered", 409),
+    expected: "This username is being registered",
+    create: "Create account",
+    passkey: "Create account with a passkey",
+    username: "Username",
+  },
+])(
+  "passkey registration errors stay localized in $locale",
+  async ({ locale, failure, expected, create, passkey, username }) => {
+    window.history.replaceState({}, "", "/");
+    vi.mocked(createAccountWithPasskey).mockRejectedValue(failure);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const path = new URL(String(input), window.location.origin).pathname;
+        if (path === "/api/config")
+          return Response.json({ devLoginCredentials: null });
+        if (path === "/api/me") return Response.json({ user: null });
+        throw new Error(`Unexpected request: ${path}`);
+      }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const view = render(
+      <Theme>
+        <I18nProvider initialLocale={locale}>
+          <QueryClientProvider client={queryClient}>
+            <AppShell />
+          </QueryClientProvider>
+        </I18nProvider>
+      </Theme>,
+    );
+    const user = userEvent.setup();
+    await user.click(await view.findByRole("button", { name: create }));
+    await user.type(view.getByRole("textbox", { name: username }), "Alice");
+    await user.click(view.getByRole("button", { name: passkey }));
+    expect(await view.findByText(expected)).toBeVisible();
+    if (locale === "zh-TW")
+      expect(view.queryByText("The operation timed out")).toBeNull();
+    view.unmount();
+  },
+);
 
 test("password signup can fall back after a cancelled passkey prompt", async () => {
   window.history.replaceState({}, "", "/");
