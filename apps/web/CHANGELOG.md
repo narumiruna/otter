@@ -1,5 +1,12 @@
 # @narumitw/otter-web
 
+## 0.1.3
+
+### Patch Changes
+
+- 048218f: Correct the WebMCP demo's TWD amount display and enforce Chinese document language on the public demo route.
+- 7f8d680: Add a public, API-independent WebMCP demo page with fixed sample balances and settlements for browser assistant testing.
+
 ## 0.1.2
 
 ### Patch Changes

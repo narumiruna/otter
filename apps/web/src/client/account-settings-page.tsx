@@ -108,7 +108,7 @@ export function AccountSettingsPage({
           aria-labelledby="username-settings-heading"
         >
           <div className="account-settings-section-heading">
-            <h3 id="username-settings-heading">Username</h3>
+            <h3 id="username-settings-heading">{messages.username}</h3>
             <p>
               {
                 messages.useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue
@@ -119,7 +119,7 @@ export function AccountSettingsPage({
             {error ? <FieldError>{error}</FieldError> : null}
             <Field data-invalid={Boolean(form.formState.errors.username)}>
               <FieldLabel className="sr-only" htmlFor="account-username">
-                Username
+                {messages.username}
               </FieldLabel>
               <Input
                 id="account-username"

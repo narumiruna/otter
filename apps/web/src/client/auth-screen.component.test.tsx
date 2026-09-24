@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
 import assert from "node:assert/strict";
-import { usernameValidationMessage } from "@narumitw/otter-core/username";
 import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AuthScreen } from "./auth-screen.js";
+import { I18nProvider } from "./i18n.js";
 
 test("auth screen progressively discloses registration and returns to login", async () => {
   const user = userEvent.setup();
@@ -36,7 +36,7 @@ test("registration only validates and submits username and password", async () =
     <AuthScreen onLogin={() => undefined} onRegister={onRegister} />,
   );
   await user.click(view.getByRole("button", { name: "建立帳號" }));
-  const username = view.getByLabelText("Username");
+  const username = view.getByLabelText("使用者名稱");
   expect(username).toHaveAttribute("type", "text");
   expect(username).toHaveAttribute("autocomplete", "username");
   expect(view.queryByLabelText(/email/i)).toBeNull();
@@ -45,7 +45,12 @@ test("registration only validates and submits username and password", async () =
   await user.type(username, "alice@example.com");
   await user.click(view.getByRole("button", { name: "建立帳號" }));
   expect(
-    await view.findByText(usernameValidationMessage, { exact: true }),
+    await view.findByText(
+      "使用者名稱需為 3–32 個英文字母、數字、底線或連字號",
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   expect(onRegister).not.toHaveBeenCalled();
   await user.clear(username);
@@ -76,11 +81,11 @@ test("passkey signup needs only a valid username when supported", async () => {
   });
   await user.click(passkeyButton);
   expect(onPasskeyRegister).not.toHaveBeenCalled();
-  await user.type(view.getByLabelText("Username"), "invalid name");
+  await user.type(view.getByLabelText("使用者名稱"), "invalid name");
   await user.click(passkeyButton);
   expect(onPasskeyRegister).not.toHaveBeenCalled();
-  await user.clear(view.getByLabelText("Username"));
-  await user.type(view.getByLabelText("Username"), "Alice_123");
+  await user.clear(view.getByLabelText("使用者名稱"));
+  await user.type(view.getByLabelText("使用者名稱"), "Alice_123");
   await user.click(passkeyButton);
   await waitFor(() =>
     expect(onPasskeyRegister).toHaveBeenCalledWith("Alice_123"),
@@ -108,6 +113,34 @@ test("passkey signup needs only a valid username when supported", async () => {
   expect(
     view.queryByRole("button", { name: "使用 Passkey 建立帳號" }),
   ).toBeNull();
+  view.unmount();
+});
+
+test("language can be changed from login and registration without losing entered values", async () => {
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <AuthScreen onLogin={() => undefined} onRegister={() => undefined} />
+    </I18nProvider>,
+  );
+
+  const language = view.getByRole("combobox", { name: "語言" });
+  expect(language).toHaveValue("zh-TW");
+  await user.type(view.getByLabelText("使用者名稱"), "alice");
+  await user.selectOptions(language, "en");
+  expect(document.documentElement.lang).toBe("en");
+  expect(view.getByRole("combobox", { name: "Language" })).toHaveValue("en");
+  expect(view.getByLabelText("Username")).toHaveValue("alice");
+  expect(view.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await user.click(view.getByRole("button", { name: "Create account" }));
+  await user.type(view.getByLabelText("Username"), "new-alice");
+  await user.selectOptions(
+    view.getByRole("combobox", { name: "Language" }),
+    "zh-TW",
+  );
+  expect(view.getByLabelText("使用者名稱")).toHaveValue("new-alice");
+  expect(view.getByRole("heading", { name: "建立帳號" })).toBeVisible();
   view.unmount();
 });
 
@@ -171,7 +204,7 @@ test.each(["alice_123", "legacy@example.com"])(
     const view = render(
       <AuthScreen onLogin={onLogin} onRegister={() => undefined} />,
     );
-    await user.type(view.getByLabelText("Username"), username);
+    await user.type(view.getByLabelText("使用者名稱"), username);
     await user.type(view.getByLabelText("密碼"), "password123");
     await user.click(view.getByRole("button", { name: "登入" }));
     await waitFor(() => expect(onLogin).toHaveBeenCalled());
