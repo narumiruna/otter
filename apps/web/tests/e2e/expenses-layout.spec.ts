@@ -124,6 +124,35 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expenses.getByRole("button", { name: "記錄第一筆支出" }).click();
     await expect(page).toHaveURL(/mode=add-expense/);
 
+    const moreDetails = page.locator(".expense-more-details > summary");
+    await page.setViewportSize({ width: 320, height: 812 });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await expect(moreDetails).toContainText("更多資料");
+    expect(
+      await moreDetails.evaluate(
+        (summary) => summary.scrollWidth <= summary.clientWidth,
+      ),
+    ).toBe(true);
+    await page.evaluate(() =>
+      window.localStorage.setItem("otter.locale", "en"),
+    );
+    await page.reload();
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await expect(moreDetails).toContainText("More details");
+    expect(
+      await moreDetails.evaluate(
+        (summary) => summary.scrollWidth <= summary.clientWidth,
+      ),
+    ).toBe(true);
+    await page.evaluate(() =>
+      window.localStorage.setItem("otter.locale", "zh-TW"),
+    );
+    await page.reload();
+
     trip.expenses.push({
       id: "lunch",
       description: "午餐",

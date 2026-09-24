@@ -854,6 +854,9 @@ select:disabled {
     background-color 160ms ease,
     color 160ms ease;
 }
+.expense-more-details > summary {
+  gap: 0.75rem;
+}
 .surface.disclosure > summary {
   padding: 1rem 1.25rem;
 }
@@ -881,6 +884,9 @@ select:disabled {
   font-size: 1.05rem;
   font-weight: 500;
 }
+.expense-more-details > summary::after {
+  margin-left: 0;
+}
 .disclosure[open] > summary::after {
   content: "−";
 }
@@ -902,6 +908,16 @@ select:disabled {
   font-size: 0.75rem;
   font-weight: 500;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expense-more-details > summary > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expense-more-details > summary .summary-meta {
+  flex: 0 1 auto;
   white-space: nowrap;
 }
 .choice-grid {

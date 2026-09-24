@@ -467,9 +467,9 @@ export function ExpenseComposer({
           </div>
         </details>
 
-        <details className="disclosure">
+        <details className="disclosure expense-more-details">
           <summary>
-            {messages.moreDetails}{" "}
+            <span>{messages.moreDetails}</span>
             <span className="summary-meta">{messages.categoryAndTags}</span>
           </summary>
           <div className="grid gap-4 pt-4 sm:grid-cols-2">
