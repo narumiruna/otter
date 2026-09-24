@@ -1,5 +1,6 @@
 import { configFromEnvironment, requiredTokenFromEnvironment } from "./auth.js";
-import { isRecord, requestJson } from "./http.js";
+import { isRecord, requestJson, requestReceipt } from "./http.js";
+import { readReceipt } from "./receipt.js";
 import {
   type CliCommand,
   type CliEnvironment,
@@ -34,14 +35,28 @@ export async function executeCliCommand(
 ): Promise<unknown> {
   const config = configFromEnvironment(environment);
   const token = await requiredTokenFromEnvironment(config, environment);
-  const data = await requestJson(
-    config,
-    fetchImplementation,
-    command.path,
-    command.method,
-    { ...command.headers, Authorization: `Bearer ${token}` },
-    command.body,
-  );
+  const headers = { ...command.headers, Authorization: `Bearer ${token}` };
+  let data: unknown;
+  if (command.file) {
+    const { bytes, mimeType } = await readReceipt(command.file);
+    data = await requestReceipt(
+      config,
+      fetchImplementation,
+      command.path,
+      headers,
+      bytes,
+      mimeType,
+    );
+  } else {
+    data = await requestJson(
+      config,
+      fetchImplementation,
+      command.path,
+      command.method,
+      headers,
+      command.body,
+    );
+  }
   if (
     command.authenticatedUserRequired &&
     (!isRecord(data) || !isRecord(data.user))

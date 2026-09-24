@@ -31,6 +31,7 @@ Resources and actions:
                   --split-with <comma-separated participant ids>
                   [--date YYYY-MM-DD] [--category <name>] [--tags <comma-separated>]
   expenses update --trip <id> --expense <id> --version <number> [expense fields]
+  expenses upload-receipt --trip <id> --expense <id> --version <number> --file <image path>
   expenses delete --trip <id> --expense <id> --version <number> --yes
   balances get    --trip <id>
   settlements list   --trip <id>
@@ -164,6 +165,17 @@ export function parseCliCommand(args: string[]): CliCommand {
       return expenseAddCommand(options);
     case "expenses:update":
       return expenseUpdateCommand(options);
+    case "expenses:upload-receipt": {
+      assertAllowed(options, ["trip", "expense", "version", "file"]);
+      const tripId = required(options, "trip");
+      const expenseId = required(options, "expense");
+      return {
+        file: required(options, "file"),
+        headers: { "If-Match": requiredExpenseVersion(options) },
+        method: "PUT",
+        path: `/api/trips/${encodeURIComponent(tripId)}/expenses/${encodeURIComponent(expenseId)}/receipt`,
+      };
+    }
     case "expenses:delete": {
       assertAllowed(options, ["trip", "expense", "version", "yes"]);
       requireConfirmation(options);

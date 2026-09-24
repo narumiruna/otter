@@ -59,10 +59,13 @@ Run `otter --help` for all commands and options. Successful data commands print 
 
 ```bash
 otter expenses update --trip trip-id --expense expense-id --version 3 --amount 1500
-otter expenses delete --trip trip-id --expense expense-id --version 4 --yes
+otter expenses upload-receipt --trip trip-id --expense expense-id --version 4 --file ./receipt.png
+otter expenses delete --trip trip-id --expense expense-id --version 5 --yes
 ```
 
 Use the actual returned version, not a guessed increment. The CLI sends `If-Match` without fetching a newer version or retrying. A stale write fails with HTTP 412 and JSON code `EXPENSE_VERSION_CONFLICT`; reread and review the changed expense before submitting again. Missing or invalid `--version` fails locally. Deletion still requires `--yes`.
+
+Receipt upload accepts a local JPEG, PNG, or WebP image up to 5 MiB, detects MIME from its bytes, and replaces any existing receipt on that expense. Obtain approval before replacing one. The response includes the updated trip with the new `receiptId` and `version`; uploading does not change balances.
 
 Older clients without the header receive HTTP 428 from the new API. Coordinate the CLI/API upgrade and reload existing browser tabs. Legacy versionless JSON remains supported for offline `settlements preview`, never for a conditional write. View change history in the Web app; history and restore commands are not provided by the CLI.
 
