@@ -325,39 +325,6 @@ test(
       "otter_session=",
     );
 
-    const takenUsername = `taken_${Date.now()}`;
-    const pending = await api<typeof options.data>(baseUrl, optionsPath, {
-      body: JSON.stringify({ username: takenUsername }),
-      method: "POST",
-    });
-    expect(pending.response.status).toBe(200);
-    const passwordRegistration = await api(baseUrl, "/api/auth/register", {
-      body: JSON.stringify({
-        username: takenUsername,
-        password: "password123",
-      }),
-      method: "POST",
-    });
-    expect(passwordRegistration.response.status).toBe(201);
-    const collision = await api(baseUrl, verifyPath, {
-      body: JSON.stringify({
-        challengeId: pending.data.challengeId,
-        response: fakeRegistrationResponse,
-      }),
-      method: "POST",
-    });
-    expect(collision.response.status).toBe(409);
-    expect(
-      (
-        await pool.query("SELECT id FROM users WHERE username = $1", [
-          takenUsername,
-        ])
-      ).rowCount,
-    ).toBe(1);
-    expect(
-      (await pool.query("SELECT credential_id FROM passkeys")).rowCount,
-    ).toBe(1);
-
     const expired = await api<typeof options.data>(baseUrl, optionsPath, {
       body: JSON.stringify({ username: `expired_${Date.now()}` }),
       method: "POST",
@@ -374,6 +341,128 @@ test(
       method: "POST",
     });
     expect(expiredAttempt.response.status).toBe(400);
+  },
+);
+
+test(
+  "pending passkey signup reserves username against signup and rename until verified or expired",
+  postgresTestOptions,
+  async () => {
+    const verifiers = mockedVerifiers();
+    const { baseUrl, pool } = await withTestApp({
+      appOptions: {
+        passkeys: {
+          relyingParty: {
+            origin: "http://localhost",
+            rpID: "localhost",
+            rpName: "otter test",
+          },
+          verifiers,
+        },
+      },
+    });
+    const optionsPath = "/api/auth/passkey/register/options";
+    const username = `reserved_${Date.now()}`;
+    const options = await api<{
+      challengeId: string;
+      options: { challenge: string; user: { id: string } };
+    }>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username }),
+      method: "POST",
+    });
+    expect(options.response.status).toBe(200);
+    const secondSignup = await api(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: username.toUpperCase() }),
+      method: "POST",
+    });
+    expect(secondSignup.response.status).toBe(409);
+
+    const owner = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: `owner_${Date.now()}`,
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    const ownerCookie = owner.response.headers
+      .get("set-cookie")
+      ?.split(";", 1)[0];
+    assert.ok(ownerCookie);
+    const registration = await api(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({ username, password: "password123" }),
+      method: "POST",
+    });
+    expect(registration.response.status).toBe(409);
+    const rename = await api(baseUrl, "/api/me", {
+      body: JSON.stringify({ username }),
+      headers: { cookie: ownerCookie },
+      method: "PATCH",
+    });
+    expect(rename.response.status).toBe(409);
+    expect(
+      (await pool.query("SELECT id FROM users WHERE username = $1", [username]))
+        .rowCount,
+    ).toBe(0);
+
+    // A browser retry can continue the same ceremony without losing its reservation.
+    const retry = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username, challengeId: options.data.challengeId }),
+      method: "POST",
+    });
+    expect(retry.response.status).toBe(200);
+    expect(retry.data.challengeId).toBe(options.data.challengeId);
+    expect(retry.data.options.challenge).toBe(options.data.options.challenge);
+    expect(retry.data.options.user.id).toBe(options.data.options.user.id);
+    const verified = await api(baseUrl, "/api/auth/passkey/register/verify", {
+      body: JSON.stringify({
+        challengeId: retry.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(verified.response.status).toBe(201);
+    const stored = await pool.query(
+      "SELECT id FROM users WHERE username = $1",
+      [username],
+    );
+    expect(stored.rowCount).toBe(1);
+    expect(
+      (
+        await pool.query(
+          "SELECT user_id FROM passkeys WHERE credential_id = $1",
+          [credentialId],
+        )
+      ).rows[0]?.user_id,
+    ).toBe(stored.rows[0]?.id);
+
+    const expiredUsername = `expired_${Date.now()}`;
+    const expired = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: expiredUsername }),
+      method: "POST",
+    });
+    await pool.query(
+      "UPDATE passkey_signup_challenges SET expires_at = now() - interval '1 second' WHERE id = $1",
+      [expired.data.challengeId],
+    );
+    const reused = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: expiredUsername }),
+      method: "POST",
+    });
+    expect(reused.response.status).toBe(200);
+    expect(reused.data.challengeId).not.toBe(expired.data.challengeId);
+    expect(reused.data.options.user.id).not.toBe(expired.data.options.user.id);
+    await pool.query(
+      "UPDATE passkey_signup_challenges SET expires_at = now() - interval '1 second' WHERE id = $1",
+      [reused.data.challengeId],
+    );
+    const afterExpiry = await api(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: expiredUsername,
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    expect(afterExpiry.response.status).toBe(201);
   },
 );
 

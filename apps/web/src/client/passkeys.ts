@@ -12,6 +12,8 @@ type CeremonyOptions<Options> = {
   options: Options;
 };
 
+let pendingSignup: { username: string; challengeId: string } | undefined;
+
 export type PasskeySummary = {
   backedUp: boolean;
   createdAt: string;
@@ -41,14 +43,21 @@ export async function createAccountWithPasskey(
   const ceremony = await api<
     CeremonyOptions<PublicKeyCredentialCreationOptionsJSON>
   >("/api/auth/passkey/register/options", {
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({
+      username,
+      ...(pendingSignup?.username === username
+        ? { challengeId: pendingSignup.challengeId }
+        : {}),
+    }),
     method: "POST",
   });
+  pendingSignup = { username, challengeId: ceremony.challengeId };
   const response = await startRegistration({ optionsJSON: ceremony.options });
   await api("/api/auth/passkey/register/verify", {
     body: JSON.stringify({ challengeId: ceremony.challengeId, response }),
     method: "POST",
   });
+  pendingSignup = undefined;
 }
 
 export async function authenticateWithPasskey(): Promise<void> {

@@ -75,6 +75,10 @@ import {
   withTransaction,
 } from "./server-support.js";
 import { tripMutation } from "./server-trip-mutation.js";
+import {
+  isUsernameReserved,
+  lockUsernameClaim,
+} from "./server-username-reservations.js";
 
 type TripSummaryRow = {
   id: string;
@@ -192,17 +196,25 @@ export function createApp(
       ) {
         return sendError(context, 409, "開發環境預設帳號不能修改 Username");
       }
+      let updated: boolean;
       try {
-        await pool.query("UPDATE users SET username = $1 WHERE id = $2", [
-          normalizedUsername,
-          user.id,
-        ]);
+        updated = await withTransaction(pool, async (client) => {
+          await lockUsernameClaim(client, normalizedUsername);
+          if (await isUsernameReserved(client, normalizedUsername))
+            return false;
+          await client.query("UPDATE users SET username = $1 WHERE id = $2", [
+            normalizedUsername,
+            user.id,
+          ]);
+          return true;
+        });
       } catch (error) {
         if (isPgCode(error, "23505")) {
           return sendError(context, 409, "這個 Username 已經註冊");
         }
         throw error;
       }
+      if (!updated) return sendError(context, 409, "這個 Username 正在註冊中");
 
       return context.json({
         user: publicUser({ ...user, username: normalizedUsername }),
@@ -248,9 +260,12 @@ export function createApp(
       passwordHash: await hashPassword(password),
     };
 
-    let session: Session;
+    let session: Session | undefined;
     try {
       session = await withTransaction(pool, async (client) => {
+        await lockUsernameClaim(client, normalizedUsername);
+        if (await isUsernameReserved(client, normalizedUsername))
+          return undefined;
         await client.query(
           `INSERT INTO users (id, name, username, password_hash, created_at)
              VALUES ($1, $2, $3, $4, $5)`,
@@ -271,6 +286,7 @@ export function createApp(
       throw error;
     }
 
+    if (!session) return sendError(context, 409, "這個 Username 正在註冊中");
     setSessionCookie(context, session.id);
     return context.json({ user: publicUser(user) }, 201);
   });

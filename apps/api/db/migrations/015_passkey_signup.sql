@@ -11,3 +11,5 @@ CREATE TABLE passkey_signup_challenges (
 );
 CREATE INDEX passkey_signup_challenges_expires_at_idx
   ON passkey_signup_challenges(expires_at);
+CREATE UNIQUE INDEX passkey_signup_challenges_username_idx
+  ON passkey_signup_challenges(username);

@@ -61,7 +61,7 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 
 - `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、sessions 與群組關聯。既有使用者可用原 Email 作為 Username 登入。
 - `012_passkeys.sql` 新增 Passkey credentials 與短效 challenges，不修改既有帳號、密碼或 sessions。
-- `015_passkey_signup.sql` 允許 `users.password_hash` 為 NULL（僅 Passkey 帳號），新增五分鐘有效的 pending signup challenge table。驗證成功才以同一 transaction 建立 user、Passkey 與 session；原有帳號及密碼不變。無密碼帳號不可刪除最後一組 Passkey。
+- `015_passkey_signup.sql` 允許 `users.password_hash` 為 NULL（僅 Passkey 帳號），新增五分鐘有效的 pending signup challenge table；在驗證完成或過期前保留該 Username，阻止密碼註冊或修改 Username 搶先使用。持有 challenge ID 的瀏覽器可在取消 Passkey 提示後重試。驗證成功才以同一 transaction 建立 user、Passkey 與 session；原有帳號及密碼不變。無密碼帳號不可刪除最後一組 Passkey。
 
 ## 支出歷史切換與回復
 

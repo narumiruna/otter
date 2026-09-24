@@ -29,6 +29,7 @@ import {
   stringField,
   withTransaction,
 } from "./server-support.js";
+import { lockUsernameClaim } from "./server-username-reservations.js";
 
 const challengeLifetimeMs = 5 * 60 * 1000;
 const authenticationOptionsRateLimitWindowMs = 60 * 1000;
@@ -76,6 +77,7 @@ type PublicPasskeyRow = Pick<
 >;
 
 type SignupChallengeRow = {
+  id: string;
   challenge: string;
   username: string;
   user_id: string;
@@ -276,42 +278,64 @@ export function registerPasskeyRoutes(
         return sendError(context, 400, usernameValidationMessage);
       }
       const normalizedUsername = normalizeUsername(username);
-      if (await findUserByUsername(pool, normalizedUsername)) {
-        return sendError(context, 409, "這個 Username 已經註冊");
-      }
-      const userId = makeId("user");
+      const retryChallengeId = stringField(requestBody(context), "challengeId");
       const relyingParty = resolvePasskeyRelyingParty(
         context.req.raw,
         routeOptions.relyingParty,
       );
-      const options = await generateRegistrationOptions({
-        attestationType: "none",
-        authenticatorSelection: {
-          residentKey: "required",
-          userVerification: "required",
-        },
-        rpID: relyingParty.rpID,
-        rpName: relyingParty.rpName,
-        userDisplayName: normalizedUsername,
-        userID: new TextEncoder().encode(userId),
-        userName: normalizedUsername,
-      });
-      const challengeId = makeId("passkey_signup");
       await pool.query(
         "DELETE FROM passkey_signup_challenges WHERE expires_at <= now()",
       );
-      await pool.query(
-        `INSERT INTO passkey_signup_challenges (id, challenge, username, user_id, expires_at)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          challengeId,
-          options.challenge,
-          normalizedUsername,
-          userId,
-          new Date(Date.now() + challengeLifetimeMs).toISOString(),
-        ],
-      );
-      return context.json({ challengeId, options });
+      const ceremony = await withTransaction(pool, async (client) => {
+        await lockUsernameClaim(client, normalizedUsername);
+        if (await findUserByUsername(client, normalizedUsername))
+          return undefined;
+        const existing = await client.query<SignupChallengeRow>(
+          `SELECT id, challenge, username, user_id FROM passkey_signup_challenges
+           WHERE username = $1 AND expires_at > now()`,
+          [normalizedUsername],
+        );
+        const pending = existing.rows[0];
+        if (pending && pending.id !== retryChallengeId) return undefined;
+        const userId = pending?.user_id ?? makeId("user");
+        const options = await generateRegistrationOptions({
+          attestationType: "none",
+          authenticatorSelection: {
+            residentKey: "required",
+            userVerification: "required",
+          },
+          ...(pending
+            ? {
+                challenge: new Uint8Array(
+                  Buffer.from(pending.challenge, "base64url"),
+                ),
+              }
+            : {}),
+          rpID: relyingParty.rpID,
+          rpName: relyingParty.rpName,
+          userDisplayName: normalizedUsername,
+          userID: new TextEncoder().encode(userId),
+          userName: normalizedUsername,
+        });
+        const challengeId = pending?.id ?? makeId("passkey_signup");
+        if (!pending) {
+          await client.query(
+            `INSERT INTO passkey_signup_challenges (id, challenge, username, user_id, expires_at)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              challengeId,
+              options.challenge,
+              normalizedUsername,
+              userId,
+              new Date(Date.now() + challengeLifetimeMs).toISOString(),
+            ],
+          );
+        }
+        return { challengeId, options };
+      });
+      if (!ceremony)
+        return sendError(context, 409, "這個 Username 正在註冊中或已註冊");
+      return context.json(ceremony);
     },
   );
 
@@ -324,38 +348,46 @@ export function registerPasskeyRoutes(
       );
       if (!submitted)
         return sendError(context, 400, "Passkey 註冊回應格式錯誤");
-      const result = await pool.query<SignupChallengeRow>(
-        `DELETE FROM passkey_signup_challenges
-         WHERE id = $1 AND expires_at > now()
-         RETURNING challenge, username, user_id`,
+      const existing = await pool.query<Pick<SignupChallengeRow, "username">>(
+        `SELECT username FROM passkey_signup_challenges
+         WHERE id = $1 AND expires_at > now()`,
         [submitted.challengeId],
       );
-      const pending = result.rows[0];
-      if (!pending) {
+      const username = existing.rows[0]?.username;
+      if (!username) {
         return sendError(context, 400, "Passkey 註冊要求已失效，請重新嘗試");
       }
       const relyingParty = resolvePasskeyRelyingParty(
         context.req.raw,
         routeOptions.relyingParty,
       );
-      let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>;
       try {
-        verification = await verifiers.verifyRegistration({
-          expectedChallenge: pending.challenge,
-          expectedOrigin: relyingParty.origin,
-          expectedRPID: relyingParty.rpID,
-          requireUserVerification: true,
-          response: submitted.response,
-        });
-      } catch {
-        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
-      }
-      if (!verification.verified) {
-        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
-      }
-      const { registrationInfo } = verification;
-      try {
-        const session = await withTransaction(pool, async (client) => {
+        const outcome = await withTransaction(pool, async (client) => {
+          await lockUsernameClaim(client, username);
+          const result = await client.query<SignupChallengeRow>(
+            `DELETE FROM passkey_signup_challenges
+             WHERE id = $1 AND expires_at > now()
+             RETURNING id, challenge, username, user_id`,
+            [submitted.challengeId],
+          );
+          const pending = result.rows[0];
+          if (!pending) return { status: "expired" as const };
+          let verification: Awaited<
+            ReturnType<typeof verifyRegistrationResponse>
+          >;
+          try {
+            verification = await verifiers.verifyRegistration({
+              expectedChallenge: pending.challenge,
+              expectedOrigin: relyingParty.origin,
+              expectedRPID: relyingParty.rpID,
+              requireUserVerification: true,
+              response: submitted.response,
+            });
+          } catch {
+            return { status: "invalid" as const };
+          }
+          if (!verification.verified) return { status: "invalid" as const };
+          const { registrationInfo } = verification;
           await client.query(
             `INSERT INTO users (id, name, username, password_hash)
              VALUES ($1, $2, $2, NULL)`,
@@ -376,25 +408,32 @@ export function registerPasskeyRoutes(
               registrationInfo.credentialBackedUp,
             ],
           );
-          return createSession(client, pending.user_id);
+          const session = await createSession(client, pending.user_id);
+          return { status: "success" as const, session, user: pending };
         });
-        setSessionCookie(context, session.id);
+        if (outcome.status === "expired") {
+          return sendError(context, 400, "Passkey 註冊要求已失效，請重新嘗試");
+        }
+        if (outcome.status === "invalid") {
+          return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
+        }
+        setSessionCookie(context, outcome.session.id);
+        return context.json(
+          {
+            user: {
+              id: outcome.user.user_id,
+              name: outcome.user.username,
+              username: outcome.user.username,
+            },
+          },
+          201,
+        );
       } catch (error) {
         if (isPgCode(error, "23505")) {
           return sendError(context, 409, "Username 或 Passkey 已經註冊");
         }
         throw error;
       }
-      return context.json(
-        {
-          user: {
-            id: pending.user_id,
-            name: pending.username,
-            username: pending.username,
-          },
-        },
-        201,
-      );
     },
   );
 
