@@ -12,6 +12,8 @@ if (!rootElement) {
   throw new Error("Missing #app");
 }
 
+const isWebMcpTestPage = window.location.pathname === "/webmcp-test";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,14 +23,10 @@ const queryClient = new QueryClient({
 });
 
 createRoot(rootElement).render(
-  <I18nProvider>
+  <I18nProvider initialLocale={isWebMcpTestPage ? "zh-TW" : undefined}>
     <RadixTheme>
       <QueryClientProvider client={queryClient}>
-        {window.location.pathname === "/webmcp-test" ? (
-          <WebMcpTestPage />
-        ) : (
-          <AppShell />
-        )}
+        {isWebMcpTestPage ? <WebMcpTestPage /> : <AppShell />}
       </QueryClientProvider>
     </RadixTheme>
   </I18nProvider>,

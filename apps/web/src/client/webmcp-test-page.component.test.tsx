@@ -66,6 +66,7 @@ test("offers only fixed public demo data without fetching a private group", asyn
   expect(JSON.parse(await registrations[1].tool.execute())).toMatchObject({
     settlements: [{ from: "Alice", to: "Bob", amountMinor: 500 }],
   });
+  expect(view.getByText(/500 = NT\$500/)).toBeVisible();
   expect(fetch).not.toHaveBeenCalled();
   view.unmount();
   expect(registrations.every(({ signal }) => signal.aborted)).toBe(true);

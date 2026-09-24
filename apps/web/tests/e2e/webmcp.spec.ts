@@ -63,6 +63,19 @@ test("WebMCP public demo works without login or trip data", async ({
   await expect.poll(() => browserTools(page)).toEqual([]);
 });
 
+test("WebMCP public demo keeps Chinese document language with an English preference", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("otter.locale", "en"));
+  await page.goto("/webmcp-test");
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-TW");
+  await expect(
+    page.getByRole("heading", { name: "WebMCP 測試頁" }),
+  ).toBeVisible();
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+});
+
 test("WebMCP reads only the selected group and unregisters on switch and logout", async ({
   page,
 }) => {
