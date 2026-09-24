@@ -37,7 +37,7 @@ npm run build
 npm run check
 ```
 
-`npm run check` 依序執行 Biome、TypeScript typecheck、Vitest 與 production build，且不需要資料庫。執行 DB-backed API tests 時提供已遷移的測試資料庫：
+`npm test` 先建置共用 packages，再執行所有 workspace 測試；只在這次 workspace 測試中跳過重複的 npm lifecycle 建置。單獨執行 workspace 測試時仍會自行建置依賴。Web 測試最多同時執行四個檔案；API 測試維持循序執行。`npm run check` 依序執行 Biome、TypeScript typecheck、Vitest 與 production build，且不需要資料庫。執行 DB-backed API tests 時提供已遷移的測試資料庫：
 
 ```bash
 DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
