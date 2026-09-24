@@ -227,6 +227,29 @@ test(
       headers: { cookie: owner },
     });
     assert.equal(listed.data.collaborators?.length, 2);
+    const guestRow = await pool.query<{ guest_user_id: string }>(
+      "SELECT guest_user_id FROM trip_share_links WHERE id = $1",
+      [anon.id],
+    );
+    const guestId = guestRow.rows[0]?.guest_user_id;
+    assert.ok(guestId);
+    for (const id of [tripId, other.data.trip.id]) {
+      const attempted = await api(baseUrl, `/api/trips/${id}/members`, {
+        method: "POST",
+        headers: { cookie: owner },
+        body: JSON.stringify({ username: guestId }),
+      });
+      assert.equal(attempted.response.status, 404);
+    }
+    assert.equal(
+      (
+        await pool.query(
+          "SELECT id FROM trip_members WHERE trip_id = $1 AND user_id = $2",
+          [other.data.trip.id, guestId],
+        )
+      ).rowCount,
+      0,
+    );
     await pool.query(
       "UPDATE trip_share_links SET expires_at = now() - interval '1 second' WHERE id = $1",
       [anon.id],

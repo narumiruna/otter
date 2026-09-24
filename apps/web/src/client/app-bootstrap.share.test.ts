@@ -46,6 +46,40 @@ test("anonymous editing sends the share capability only to trip APIs", async () 
   ).toBe(false);
 });
 
+test.each(["preview", "join"])(
+  "revoked %s after sign-in falls back to the authenticated home",
+  async (revokedAt) => {
+    window.history.replaceState({}, "", `/share/${token}`);
+    const paths: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        paths.push(path);
+        if (path === `/api/share/${token}`)
+          return revokedAt === "preview"
+            ? Response.json({ error: "Revoked" }, { status: 404 })
+            : Response.json({ mode: "signed-in-edit", tripName: "Trip" });
+        if (path === `/api/share/${token}/join`)
+          return Response.json({ error: "Revoked" }, { status: 404 });
+        if (path === "/api/config")
+          return Response.json({ devLoginCredentials: null });
+        if (path === "/api/me")
+          return Response.json({
+            user: { id: "editor", name: "Editor", username: "editor" },
+          });
+        if (path === "/api/trips")
+          return Response.json({ trips: [], archivedTrips: [] });
+        throw new Error(`Unexpected request: ${path}`);
+      }),
+    );
+    const bootstrap = await fetchAppBootstrap(window.location.pathname);
+    expect(bootstrap.user?.id).toBe("editor");
+    expect(bootstrap.pendingShare).toBeUndefined();
+    expect(window.location.pathname).toBe("/");
+    expect(paths).toContain("/api/trips");
+  },
+);
+
 test("signed-in invite waits for login and then joins once before opening the trip", async () => {
   window.history.replaceState({}, "", `/share/${token}`);
   let loggedIn = false;

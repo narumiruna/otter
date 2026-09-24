@@ -422,7 +422,8 @@ export async function findUserByUsername(
   const result = await db.query<UserRow>(
     `SELECT id, name, username, password_hash, created_at
      FROM users
-     WHERE username = $1`,
+     WHERE username = $1
+       AND NOT EXISTS (SELECT 1 FROM trip_share_links WHERE guest_user_id = users.id)`,
     [username],
   );
   const row = result.rows[0];

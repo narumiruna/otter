@@ -1,5 +1,6 @@
 import type { LoginCredentials } from "./auth-screen.js";
 import {
+  ApiResponseError,
   api,
   type TripPayload,
   type TripSummary,
@@ -28,19 +29,38 @@ export async function fetchAppBootstrap(
 ): Promise<AppBootstrap> {
   const shareToken = pathname.match(/^\/share\/([^/]+)$/)?.[1];
   if (shareToken) {
-    const share = await api<
-      TripPayload | { mode: "signed-in-edit"; tripName: string }
-    >(`/api/share/${encodeURIComponent(shareToken)}`);
+    const sharePath = `/api/share/${encodeURIComponent(shareToken)}`;
+    let share: TripPayload | { mode: "signed-in-edit"; tripName: string };
+    try {
+      share = await api<
+        TripPayload | { mode: "signed-in-edit"; tripName: string }
+      >(sharePath);
+    } catch (error) {
+      if (!(error instanceof ApiResponseError) || error.status !== 404)
+        throw error;
+      // A revoked invite must not strand an already authenticated visitor.
+      const me = await api<{ user: User | null }>("/api/me");
+      if (!me.user) throw error;
+      window.history.replaceState({}, "", "/");
+      return fetchAppBootstrap("/");
+    }
     if ("mode" in share && share.mode === "signed-in-edit") {
       const [config, me] = await Promise.all([
         api<{ devLoginCredentials: LoginCredentials | null }>("/api/config"),
         api<{ user: User | null }>("/api/me"),
       ]);
       if (me.user) {
-        const joined = await api<{ tripId: string }>(
-          `/api/share/${encodeURIComponent(shareToken)}/join`,
-          { method: "POST" },
-        );
+        let joined: { tripId: string };
+        try {
+          joined = await api<{ tripId: string }>(`${sharePath}/join`, {
+            method: "POST",
+          });
+        } catch (error) {
+          if (!(error instanceof ApiResponseError) || error.status !== 404)
+            throw error;
+          window.history.replaceState({}, "", "/");
+          return fetchAppBootstrap("/");
+        }
         const destination = `/?trip=${encodeURIComponent(joined.tripId)}`;
         window.history.replaceState({}, "", destination);
         return fetchAppBootstrap(

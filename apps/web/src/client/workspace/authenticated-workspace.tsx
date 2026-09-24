@@ -95,7 +95,9 @@ export function AuthenticatedWorkspace({
     enabled: !guestShare,
     initialData: initialCollection,
     queryFn: () => api<TripCollection>("/api/trips"),
-    queryKey: ["trips"],
+    queryKey: guestShare
+      ? ["trips", "share", bootstrap.selected?.trip.id]
+      : ["trips"],
     refetchOnWindowFocus: false,
   });
   const allTrips = [
@@ -117,7 +119,9 @@ export function AuthenticatedWorkspace({
         ? bootstrap.selected
         : undefined,
     queryFn: () => api<TripPayload>(`/api/trips/${selectedTripId}`),
-    queryKey: ["trip", selectedTripId],
+    queryKey: guestShare
+      ? ["trip", selectedTripId, "share"]
+      : ["trip", selectedTripId],
     refetchOnWindowFocus: false,
   });
 
@@ -170,6 +174,29 @@ export function AuthenticatedWorkspace({
   const refreshCollection = useCallback(async () => {
     if (!guestShare) await collectionQuery.refetch();
   }, [collectionQuery, guestShare]);
+
+  const updateGuestSummary = useCallback(
+    (next: TripPayload) => {
+      if (!guestShare) return;
+      queryClient.setQueryData<TripCollection>(
+        ["trips", "share", bootstrap.selected?.trip.id],
+        (current) =>
+          current && {
+            ...current,
+            trips: current.trips.map((trip) =>
+              trip.id === next.trip.id
+                ? {
+                    ...trip,
+                    participantCount: next.trip.participants.length,
+                    expenseCount: next.trip.expenses.length,
+                  }
+                : trip,
+            ),
+          },
+      );
+    },
+    [bootstrap.selected?.trip.id, guestShare, queryClient],
+  );
 
   useEffect(() => {
     window.history.scrollRestoration = "manual";
@@ -259,6 +286,8 @@ export function AuthenticatedWorkspace({
       offline={offline}
       payload={payload}
       refreshCollection={refreshCollection}
+      onPayload={updateGuestSummary}
+      tripQueryKey={guestShare ? ["trip", selectedTripId, "share"] : undefined}
     >
       {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
@@ -399,6 +428,7 @@ export function AuthenticatedWorkspace({
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (
               <MorePage
+                guestShare={guestShare}
                 onDeleted={afterDelete}
                 onRestored={(restored) =>
                   navigate({
