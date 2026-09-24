@@ -36,6 +36,7 @@ type AuthScreenProps = {
   busyAction?: string;
   onLogin: (credentials: LoginCredentials) => Promise<void> | void;
   onPasskeyLogin?: () => Promise<void> | void;
+  onPasskeyRegister?: (username: string) => Promise<void> | void;
   onRegister: (credentials: RegisterCredentials) => Promise<void> | void;
   passkeySupported?: boolean;
 };
@@ -46,6 +47,7 @@ export function AuthScreen({
   loginError,
   onLogin,
   onPasskeyLogin,
+  onPasskeyRegister,
   onRegister,
   passkeySupported = false,
   registerError,
@@ -289,6 +291,30 @@ export function AuthScreen({
                   </FieldDescription>
                   <FieldError errors={[register.formState.errors.username]} />
                 </Field>
+                {passkeySupported && onPasskeyRegister ? (
+                  <>
+                    <Button
+                      className="min-h-11 w-full"
+                      disabled={Boolean(busyAction)}
+                      onClick={async () => {
+                        if (await register.trigger("username")) {
+                          await onPasskeyRegister(
+                            register.getValues("username"),
+                          );
+                        }
+                      }}
+                      type="button"
+                    >
+                      <KeyIcon aria-hidden="true" />
+                      {busyAction === "passkey-register"
+                        ? messages.creatingAccountWithAPasskey
+                        : messages.createAccountWithAPasskey}
+                    </Button>
+                    <div className="auth-divider">
+                      <span>{messages.or}</span>
+                    </div>
+                  </>
+                ) : null}
                 <Field
                   data-invalid={Boolean(register.formState.errors.password)}
                 >
@@ -317,6 +343,11 @@ export function AuthScreen({
                   className="min-h-11 w-full"
                   disabled={Boolean(busyAction)}
                   type="submit"
+                  variant={
+                    passkeySupported && onPasskeyRegister
+                      ? "outline"
+                      : "default"
+                  }
                 >
                   {busyAction === "register"
                     ? messages.creating

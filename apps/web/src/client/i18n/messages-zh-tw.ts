@@ -111,6 +111,9 @@ export const zhTW = {
   passwordMustBeAtLeast8Characters: "密碼至少 8 個字",
   passwordMustBeAtLeast8Characters2: "密碼至少 8 個字。",
   creating: "建立中…",
+  createAccountWithAPasskey: "使用 Passkey 建立帳號",
+  creatingAccountWithAPasskey: "正在使用 Passkey 建立帳號…",
+  unableToCreateAccountWithAPasskey: "無法使用 Passkey 建立帳號，請重新嘗試",
   alreadyHaveAnAccount: "已有帳號？",
   backToSignIn: "返回登入",
   expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup:
@@ -186,11 +189,14 @@ export const zhTW = {
   noActiveApiTokens: "沒有有效的 API token。",
   apiTokensExpireAfter90Days:
     "Token 會在 90 天後到期；若要在 CLI 使用，請將它設為",
+  passkeyRegistrationRequestsTooFrequent:
+    "Passkey 註冊要求過於頻繁，請稍後再試",
   passkeyRegistrationResponseIsInvalid: "Passkey 註冊回應格式錯誤",
   passkeyRegistrationRequestExpired: "Passkey 註冊要求已失效，請重新嘗試",
   unableToVerifyPasskey: "無法驗證 Passkey，請重新嘗試",
   passkeyAlreadyRegistered: "這組 Passkey 已經註冊",
   passkeyNotFound: "找不到 Passkey",
+  cannotRemoveOnlyPasskey: "無法移除唯一的 Passkey，否則帳號將無法登入",
   passkeyLoginResponseIsInvalid: "Passkey 登入回應格式錯誤",
   passkeyLoginRequestExpired: "Passkey 登入要求已失效，請重新嘗試",
   unableToUsePasskeyToSignIn: "無法使用這組 Passkey 登入",
@@ -809,6 +815,10 @@ export const zhTW = {
   chooseAReceiptImage: "請選擇收據圖片",
   thisUserIsAlreadyACollaborator: "這位使用者已是協作者",
   thisUsernameIsAlreadyRegistered: "這個使用者名稱已經註冊",
+  usernameIsBeingRegisteredOrAlreadyRegistered:
+    "這個使用者名稱正在註冊中或已註冊",
+  usernameIsBeingRegistered: "這個使用者名稱正在註冊中",
+  usernameOrPasskeyAlreadyRegistered: "使用者名稱或 Passkey 已經註冊",
   invalidAmount: "金額格式錯誤",
   theDefaultDevelopmentAccountsUsernameCannotBeChanged:
     "開發環境預設帳號不能修改使用者名稱",

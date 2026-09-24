@@ -17,10 +17,21 @@ import {
   type LoginCredentials,
   type RegisterCredentials,
 } from "./auth-screen.js";
-import { api, type TripPayload, type User } from "./client-support.js";
+import {
+  ApiResponseError,
+  api,
+  type TripPayload,
+  type User,
+} from "./client-support.js";
 import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
-import { authenticateWithPasskey, supportsPasskeys } from "./passkeys.js";
+import {
+  authenticateWithPasskey,
+  clearPendingPasskeySignup,
+  createAccountWithPasskey,
+  pendingPasskeySignupChallengeId,
+  supportsPasskeys,
+} from "./passkeys.js";
 import {
   isAccountSettingsLocation,
   withoutAccountSettingsLocation,
@@ -234,13 +245,21 @@ export function AppShell() {
     credentials: LoginCredentials | RegisterCredentials,
   ) {
     const target = path.endsWith("login") ? "login" : "register";
+    const challengeId =
+      target === "register"
+        ? pendingPasskeySignupChallengeId(credentials.username)
+        : undefined;
     setAuthAction(target);
     setAuthError({});
     try {
       await api<{ user: User }>(path, {
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(
+          challengeId ? { ...credentials, challengeId } : credentials,
+        ),
         method: "POST",
       });
+      if (target === "register")
+        clearPendingPasskeySignup(credentials.username);
       queryClient.clear();
       const result = await bootstrap.refetch();
       if (result.data?.user) setSessionEnded(false);
@@ -270,6 +289,27 @@ export function AppShell() {
       announce(messages.signedIn);
     } catch {
       setAuthError({ login: messages.unableToSignInWithAPasskey });
+    } finally {
+      setAuthAction("");
+    }
+  }
+
+  async function completePasskeyRegistration(username: string) {
+    setAuthAction("passkey-register");
+    setAuthError({});
+    try {
+      await createAccountWithPasskey(username);
+      queryClient.clear();
+      const result = await bootstrap.refetch();
+      if (result.data?.user) setSessionEnded(false);
+      announce(messages.accountCreated);
+    } catch (error) {
+      setAuthError({
+        register:
+          error instanceof ApiResponseError
+            ? error.message
+            : messages.unableToCreateAccountWithAPasskey,
+      });
     } finally {
       setAuthAction("");
     }
@@ -387,6 +427,7 @@ export function AppShell() {
         loginError={authError.login}
         onLogin={(credentials) => completeAuth("/api/auth/login", credentials)}
         onPasskeyLogin={completePasskeyLogin}
+        onPasskeyRegister={completePasskeyRegistration}
         onRegister={(credentials) =>
           completeAuth("/api/auth/register", credentials)
         }
