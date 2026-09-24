@@ -1,3 +1,8 @@
+import {
+  isValidUsername,
+  normalizeUsername,
+  usernameValidationMessage,
+} from "@narumitw/otter-core/username";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -15,10 +20,13 @@ import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import {
   createSession,
   currentUser,
+  findUserByUsername,
   isPgCode,
   makeId,
+  requestBody,
   sendError,
   setSessionCookie,
+  stringField,
   withTransaction,
 } from "./server-support.js";
 
@@ -66,6 +74,12 @@ type PublicPasskeyRow = Pick<
   PasskeyRow,
   "backed_up" | "created_at" | "credential_id" | "device_type" | "last_used_at"
 >;
+
+type SignupChallengeRow = {
+  challenge: string;
+  username: string;
+  user_id: string;
+};
 
 type ChallengeRow = {
   ceremony: "authentication" | "registration";
@@ -245,6 +259,145 @@ export function registerPasskeyRoutes(
   const limitRegistrationOptions =
     createFixedWindowRateLimiter(rateLimitOptions);
 
+  app.post(
+    "/api/auth/passkey/register/options",
+    parseRequestBody,
+    async (context) => {
+      const retryAfter = limitRegistrationOptions(
+        context.req.raw,
+        requestRemoteAddress(context),
+      );
+      if (retryAfter !== undefined) {
+        context.header("Retry-After", String(retryAfter));
+        return sendError(context, 429, "Passkey 註冊要求過於頻繁，請稍後再試");
+      }
+      const username = stringField(requestBody(context), "username");
+      if (!username || !isValidUsername(username)) {
+        return sendError(context, 400, usernameValidationMessage);
+      }
+      const normalizedUsername = normalizeUsername(username);
+      if (await findUserByUsername(pool, normalizedUsername)) {
+        return sendError(context, 409, "這個 Username 已經註冊");
+      }
+      const userId = makeId("user");
+      const relyingParty = resolvePasskeyRelyingParty(
+        context.req.raw,
+        routeOptions.relyingParty,
+      );
+      const options = await generateRegistrationOptions({
+        attestationType: "none",
+        authenticatorSelection: {
+          residentKey: "required",
+          userVerification: "required",
+        },
+        rpID: relyingParty.rpID,
+        rpName: relyingParty.rpName,
+        userDisplayName: normalizedUsername,
+        userID: new TextEncoder().encode(userId),
+        userName: normalizedUsername,
+      });
+      const challengeId = makeId("passkey_signup");
+      await pool.query(
+        "DELETE FROM passkey_signup_challenges WHERE expires_at <= now()",
+      );
+      await pool.query(
+        `INSERT INTO passkey_signup_challenges (id, challenge, username, user_id, expires_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          challengeId,
+          options.challenge,
+          normalizedUsername,
+          userId,
+          new Date(Date.now() + challengeLifetimeMs).toISOString(),
+        ],
+      );
+      return context.json({ challengeId, options });
+    },
+  );
+
+  app.post(
+    "/api/auth/passkey/register/verify",
+    parseRequestBody,
+    async (context) => {
+      const submitted = responseFromBody<RegistrationResponseJSON>(
+        context.get("requestBody"),
+      );
+      if (!submitted)
+        return sendError(context, 400, "Passkey 註冊回應格式錯誤");
+      const result = await pool.query<SignupChallengeRow>(
+        `DELETE FROM passkey_signup_challenges
+         WHERE id = $1 AND expires_at > now()
+         RETURNING challenge, username, user_id`,
+        [submitted.challengeId],
+      );
+      const pending = result.rows[0];
+      if (!pending) {
+        return sendError(context, 400, "Passkey 註冊要求已失效，請重新嘗試");
+      }
+      const relyingParty = resolvePasskeyRelyingParty(
+        context.req.raw,
+        routeOptions.relyingParty,
+      );
+      let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>;
+      try {
+        verification = await verifiers.verifyRegistration({
+          expectedChallenge: pending.challenge,
+          expectedOrigin: relyingParty.origin,
+          expectedRPID: relyingParty.rpID,
+          requireUserVerification: true,
+          response: submitted.response,
+        });
+      } catch {
+        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
+      }
+      if (!verification.verified) {
+        return sendError(context, 400, "無法驗證 Passkey，請重新嘗試");
+      }
+      const { registrationInfo } = verification;
+      try {
+        const session = await withTransaction(pool, async (client) => {
+          await client.query(
+            `INSERT INTO users (id, name, username, password_hash)
+             VALUES ($1, $2, $2, NULL)`,
+            [pending.user_id, pending.username],
+          );
+          await client.query(
+            `INSERT INTO passkeys (
+               credential_id, user_id, public_key, counter, transports,
+               device_type, backed_up
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              registrationInfo.credential.id,
+              pending.user_id,
+              Buffer.from(registrationInfo.credential.publicKey),
+              registrationInfo.credential.counter,
+              registrationInfo.credential.transports ?? [],
+              registrationInfo.credentialDeviceType,
+              registrationInfo.credentialBackedUp,
+            ],
+          );
+          return createSession(client, pending.user_id);
+        });
+        setSessionCookie(context, session.id);
+      } catch (error) {
+        if (isPgCode(error, "23505")) {
+          return sendError(context, 409, "Username 或 Passkey 已經註冊");
+        }
+        throw error;
+      }
+      return context.json(
+        {
+          user: {
+            id: pending.user_id,
+            name: pending.username,
+            username: pending.username,
+          },
+        },
+        201,
+      );
+    },
+  );
+
   app.get(
     "/api/passkeys",
     mustHaveBrowserSession,
@@ -387,14 +540,35 @@ export function registerPasskeyRoutes(
     parseRequestBody,
     async (context) => {
       const user = currentUser(context);
-      const result = await pool.query(
-        `DELETE FROM passkeys WHERE credential_id = $1 AND user_id = $2`,
-        [context.req.param("credentialId"), user.id],
-      );
-      if (result.rowCount === 0) {
-        return sendError(context, 404, "找不到 Passkey");
-      }
-      return context.json({ ok: true });
+      return withTransaction(pool, async (client) => {
+        // Serialize removals so a passwordless account cannot lose its last key.
+        await client.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [
+          user.id,
+        ]);
+        const keys = await client.query<Pick<PasskeyRow, "credential_id">>(
+          "SELECT credential_id FROM passkeys WHERE user_id = $1",
+          [user.id],
+        );
+        if (
+          !keys.rows.some(
+            (row) => row.credential_id === context.req.param("credentialId"),
+          )
+        ) {
+          return sendError(context, 404, "找不到 Passkey");
+        }
+        if (user.passwordHash === null && keys.rows.length === 1) {
+          return sendError(
+            context,
+            409,
+            "無法移除唯一的 Passkey，否則帳號將無法登入",
+          );
+        }
+        await client.query(
+          "DELETE FROM passkeys WHERE credential_id = $1 AND user_id = $2",
+          [context.req.param("credentialId"), user.id],
+        );
+        return context.json({ ok: true });
+      });
     },
   );
 

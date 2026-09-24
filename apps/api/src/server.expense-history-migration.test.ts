@@ -56,10 +56,18 @@ test("014 upgrades 10,000 legacy expenses without changing ledger data and recor
       (SELECT md5(string_agg(to_jsonb(p)::text, '' ORDER BY id)) FROM settlement_payments p) AS payments`)
       ).rows[0];
     const original = await fingerprint();
+    await cp(
+      path.join(migrationsDirectory(), "014_expense_revisions.sql"),
+      path.join(directory, "014_expense_revisions.sql"),
+    );
     const start = performance.now();
-    expect(await runMigrations(pool, { logger })).toBe(1);
+    expect(
+      await runMigrations(pool, { migrationsDir: directory, logger }),
+    ).toBe(1);
     const milliseconds = performance.now() - start;
-    expect(await runMigrations(pool, { logger })).toBe(0);
+    expect(
+      await runMigrations(pool, { migrationsDir: directory, logger }),
+    ).toBe(0);
     expect(await fingerprint()).toEqual(original);
     const rows = await pool.query("SELECT * FROM expense_revisions");
     expect(rows.rowCount).toBe(10000);

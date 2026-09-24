@@ -53,7 +53,7 @@ Limiter state 會在 process restart 後重置，且不會在多個 app instance
 
 ## Passkey 與 proxy
 
-Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 使用 `PASSKEY_ORIGIN` 的 hostname。變更網域後，舊 Passkey 不會在新的 relying party 生效；使用者須以密碼登入並重新新增。
+Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 使用 `PASSKEY_ORIGIN` 的 hostname。變更網域後，舊 Passkey 不會在新的 relying party 生效；使用者須以密碼（若有）登入並重新新增。只有 Passkey 的帳號沒有密碼可回復登入；變更網域前須先協助這些使用者移轉或提供帳號回復方案。
 
 只有在可信任的 reverse proxy 會覆寫 `X-Forwarded-For` 或 `X-Real-IP`，且 app port 無法由外部直接存取時，才可啟用 `PASSKEY_TRUST_PROXY`、`DEVICE_AUTH_TRUST_PROXY` 或 `PASSWORD_AUTH_TRUST_PROXY`。否則 client 可偽造 headers 繞過限流。
 
@@ -61,6 +61,7 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 
 - `011_username_auth.sql` 將 `users.email` 改名為 `users.username`，保留既有帳號值、密碼、sessions 與群組關聯。既有使用者可用原 Email 作為 Username 登入。
 - `012_passkeys.sql` 新增 Passkey credentials 與短效 challenges，不修改既有帳號、密碼或 sessions。
+- `015_passkey_signup.sql` 允許 `users.password_hash` 為 NULL（僅 Passkey 帳號），新增五分鐘有效的 pending signup challenge table。驗證成功才以同一 transaction 建立 user、Passkey 與 session；原有帳號及密碼不變。無密碼帳號不可刪除最後一組 Passkey。
 
 ## 支出歷史切換與回復
 

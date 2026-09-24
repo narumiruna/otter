@@ -152,6 +152,232 @@ test("passkey origin resolution retains forwarded headers and configured-origin 
 });
 
 test(
+  "username and passkey signup creates an account only after verification",
+  postgresTestOptions,
+  async () => {
+    const verifiers = mockedVerifiers();
+    const { baseUrl, pool } = await withTestApp({
+      appOptions: {
+        passkeys: {
+          relyingParty: {
+            origin: "http://localhost",
+            rpID: "localhost",
+            rpName: "otter test",
+          },
+          verifiers,
+        },
+      },
+    });
+    const optionsPath = "/api/auth/passkey/register/options";
+    const verifyPath = "/api/auth/passkey/register/verify";
+    const username = `Signup_${Date.now()}`;
+    for (const invalid of ["bad name", "a", "legacy@example.com"]) {
+      const invalidOptions = await api(baseUrl, optionsPath, {
+        body: JSON.stringify({ username: invalid }),
+        method: "POST",
+      });
+      expect(invalidOptions.response.status).toBe(400);
+    }
+    const options = await api<{
+      challengeId: string;
+      options: {
+        challenge: string;
+        user: { name: string; displayName: string };
+        authenticatorSelection: {
+          residentKey: string;
+          userVerification: string;
+        };
+      };
+    }>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username }),
+      method: "POST",
+    });
+    expect(options.response.status).toBe(200);
+    expect(options.data.options.user).toMatchObject({
+      name: username.toLowerCase(),
+      displayName: username.toLowerCase(),
+    });
+    expect(options.data.options.authenticatorSelection).toMatchObject({
+      residentKey: "required",
+      userVerification: "required",
+    });
+    const before = await pool.query(
+      "SELECT id FROM users WHERE username = $1",
+      [username.toLowerCase()],
+    );
+    expect(before.rowCount).toBe(0);
+    expect((await api<UserResponse>(baseUrl, "/api/me")).data.user).toBeNull();
+
+    const bad = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: {},
+      }),
+      method: "POST",
+    });
+    expect(bad.response.status).toBe(400);
+    verifiers.verifyRegistration.mockRejectedValueOnce(
+      new Error("invalid attestation"),
+    );
+    const rejected = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(rejected.response.status).toBe(400);
+    expect(
+      (
+        await pool.query("SELECT id FROM users WHERE username = $1", [
+          username.toLowerCase(),
+        ])
+      ).rowCount,
+    ).toBe(0);
+    const rejectedReplay = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(rejectedReplay.response.status).toBe(400);
+    const replacement = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username }),
+      method: "POST",
+    });
+    const verified = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: replacement.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(verified.response.status).toBe(201);
+    expect(verifiers.verifyRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedChallenge: replacement.data.options.challenge,
+        expectedOrigin: "http://localhost",
+        expectedRPID: "localhost",
+        requireUserVerification: true,
+      }),
+    );
+    const cookie = verified.response.headers
+      .get("set-cookie")
+      ?.split(";", 1)[0];
+    assert.ok(cookie);
+    const me = await api<UserResponse>(baseUrl, "/api/me", {
+      headers: { cookie },
+    });
+    expect(me.data.user).toMatchObject({
+      username: username.toLowerCase(),
+      name: username.toLowerCase(),
+    });
+    const stored = await pool.query<{ password_hash: string | null }>(
+      "SELECT password_hash FROM users WHERE username = $1",
+      [username.toLowerCase()],
+    );
+    expect(stored.rows[0]?.password_hash).toBeNull();
+    const replay = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(replay.response.status).toBe(400);
+    const duplicate = await api(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: username.toUpperCase() }),
+      method: "POST",
+    });
+    expect(duplicate.response.status).toBe(409);
+    const passwordLogin = await api(baseUrl, "/api/auth/login", {
+      body: JSON.stringify({ username, password: "any-password" }),
+      method: "POST",
+    });
+    expect(passwordLogin.response.status).toBe(401);
+    const lastKey = await api(baseUrl, `/api/passkeys/${credentialId}`, {
+      headers: { cookie },
+      method: "DELETE",
+    });
+    expect(lastKey.response.status).toBe(409);
+    const listed = await api<{ passkeys: unknown[] }>(
+      baseUrl,
+      "/api/passkeys",
+      { headers: { cookie } },
+    );
+    expect(listed.data.passkeys).toHaveLength(1);
+
+    const loginOptions = await api<{ challengeId: string }>(
+      baseUrl,
+      "/api/auth/passkey/options",
+      { method: "POST" },
+    );
+    const login = await api(baseUrl, "/api/auth/passkey/verify", {
+      body: JSON.stringify({
+        challengeId: loginOptions.data.challengeId,
+        response: fakeAuthenticationResponse,
+      }),
+      method: "POST",
+    });
+    expect(login.response.status).toBe(200);
+    expect(login.response.headers.get("set-cookie")).toContain(
+      "otter_session=",
+    );
+
+    const takenUsername = `taken_${Date.now()}`;
+    const pending = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: takenUsername }),
+      method: "POST",
+    });
+    expect(pending.response.status).toBe(200);
+    const passwordRegistration = await api(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: takenUsername,
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    expect(passwordRegistration.response.status).toBe(201);
+    const collision = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: pending.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(collision.response.status).toBe(409);
+    expect(
+      (
+        await pool.query("SELECT id FROM users WHERE username = $1", [
+          takenUsername,
+        ])
+      ).rowCount,
+    ).toBe(1);
+    expect(
+      (await pool.query("SELECT credential_id FROM passkeys")).rowCount,
+    ).toBe(1);
+
+    const expired = await api<typeof options.data>(baseUrl, optionsPath, {
+      body: JSON.stringify({ username: `expired_${Date.now()}` }),
+      method: "POST",
+    });
+    await pool.query(
+      "UPDATE passkey_signup_challenges SET expires_at = now() - interval '1 second' WHERE id = $1",
+      [expired.data.challengeId],
+    );
+    const expiredAttempt = await api(baseUrl, verifyPath, {
+      body: JSON.stringify({
+        challengeId: expired.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(expiredAttempt.response.status).toBe(400);
+  },
+);
+
+test(
   "users can enroll, use, list, and remove a passkey with one-time challenges",
   postgresTestOptions,
   async () => {

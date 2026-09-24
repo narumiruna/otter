@@ -66,6 +66,9 @@ export const sourceMessageKeys = {
   "密碼至少 8 個字": "passwordMustBeAtLeast8Characters",
   "密碼至少 8 個字。": "passwordMustBeAtLeast8Characters2",
   "建立中…": "creating",
+  "使用 Passkey 建立帳號": "createAccountWithAPasskey",
+  "正在使用 Passkey 建立帳號…": "creatingAccountWithAPasskey",
+  "無法使用 Passkey 建立帳號，請重新嘗試": "unableToCreateAccountWithAPasskey",
   "已有帳號？": "alreadyHaveAnAccount",
   返回登入: "backToSignIn",
   "分帳成員不需帳號，也能一起記在群組裡。":

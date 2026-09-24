@@ -20,7 +20,11 @@ import {
 import { api, type TripPayload, type User } from "./client-support.js";
 import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
-import { authenticateWithPasskey, supportsPasskeys } from "./passkeys.js";
+import {
+  authenticateWithPasskey,
+  createAccountWithPasskey,
+  supportsPasskeys,
+} from "./passkeys.js";
 import {
   isAccountSettingsLocation,
   withoutAccountSettingsLocation,
@@ -268,6 +272,27 @@ export function AppShell() {
     }
   }
 
+  async function completePasskeyRegistration(username: string) {
+    setAuthAction("passkey-register");
+    setAuthError({});
+    try {
+      await createAccountWithPasskey(username);
+      queryClient.clear();
+      const result = await bootstrap.refetch();
+      if (result.data?.user) setSessionEnded(false);
+      announce(messages.accountCreated);
+    } catch (error) {
+      setAuthError({
+        register:
+          error instanceof Error
+            ? error.message
+            : messages.unableToCreateAccountWithAPasskey,
+      });
+    } finally {
+      setAuthAction("");
+    }
+  }
+
   async function updateUsername(username: string) {
     const response = await api<{ user: User }>("/api/me", {
       body: JSON.stringify({ username }),
@@ -380,6 +405,7 @@ export function AppShell() {
         loginError={authError.login}
         onLogin={(credentials) => completeAuth("/api/auth/login", credentials)}
         onPasskeyLogin={completePasskeyLogin}
+        onPasskeyRegister={completePasskeyRegistration}
         onRegister={(credentials) =>
           completeAuth("/api/auth/register", credentials)
         }

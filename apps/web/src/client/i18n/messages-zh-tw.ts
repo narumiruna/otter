@@ -110,6 +110,9 @@ export const zhTW = {
   passwordMustBeAtLeast8Characters: "密碼至少 8 個字",
   passwordMustBeAtLeast8Characters2: "密碼至少 8 個字。",
   creating: "建立中…",
+  createAccountWithAPasskey: "使用 Passkey 建立帳號",
+  creatingAccountWithAPasskey: "正在使用 Passkey 建立帳號…",
+  unableToCreateAccountWithAPasskey: "無法使用 Passkey 建立帳號，請重新嘗試",
   alreadyHaveAnAccount: "已有帳號？",
   backToSignIn: "返回登入",
   expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup:

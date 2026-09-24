@@ -59,6 +59,58 @@ test("registration only validates and submits username and password", async () =
   view.unmount();
 });
 
+test("passkey signup needs only a valid username when supported", async () => {
+  const user = userEvent.setup();
+  const onPasskeyRegister = vi.fn();
+  const view = render(
+    <AuthScreen
+      onLogin={() => undefined}
+      onRegister={() => undefined}
+      onPasskeyRegister={onPasskeyRegister}
+      passkeySupported
+    />,
+  );
+  await user.click(view.getByRole("button", { name: "建立帳號" }));
+  const passkeyButton = view.getByRole("button", {
+    name: "使用 Passkey 建立帳號",
+  });
+  await user.click(passkeyButton);
+  expect(onPasskeyRegister).not.toHaveBeenCalled();
+  await user.type(view.getByLabelText("Username"), "invalid name");
+  await user.click(passkeyButton);
+  expect(onPasskeyRegister).not.toHaveBeenCalled();
+  await user.clear(view.getByLabelText("Username"));
+  await user.type(view.getByLabelText("Username"), "Alice_123");
+  await user.click(passkeyButton);
+  await waitFor(() =>
+    expect(onPasskeyRegister).toHaveBeenCalledWith("Alice_123"),
+  );
+  expect(view.getByLabelText("密碼")).toHaveValue("");
+  view.rerender(
+    <AuthScreen
+      busyAction="passkey-register"
+      onLogin={() => undefined}
+      onRegister={() => undefined}
+      onPasskeyRegister={onPasskeyRegister}
+      passkeySupported
+    />,
+  );
+  expect(
+    view.getByRole("button", { name: "正在使用 Passkey 建立帳號…" }),
+  ).toBeDisabled();
+  view.rerender(
+    <AuthScreen
+      onLogin={() => undefined}
+      onRegister={() => undefined}
+      passkeySupported={false}
+    />,
+  );
+  expect(
+    view.queryByRole("button", { name: "使用 Passkey 建立帳號" }),
+  ).toBeNull();
+  view.unmount();
+});
+
 test("passkey login is offered only when supported and invokes its callback", async () => {
   const user = userEvent.setup();
   const onPasskeyLogin = vi.fn();

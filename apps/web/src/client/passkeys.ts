@@ -35,6 +35,22 @@ export async function registerPasskey(): Promise<void> {
   });
 }
 
+export async function createAccountWithPasskey(
+  username: string,
+): Promise<void> {
+  const ceremony = await api<
+    CeremonyOptions<PublicKeyCredentialCreationOptionsJSON>
+  >("/api/auth/passkey/register/options", {
+    body: JSON.stringify({ username }),
+    method: "POST",
+  });
+  const response = await startRegistration({ optionsJSON: ceremony.options });
+  await api("/api/auth/passkey/register/verify", {
+    body: JSON.stringify({ challengeId: ceremony.challengeId, response }),
+    method: "POST",
+  });
+}
+
 export async function authenticateWithPasskey(): Promise<void> {
   const ceremony = await api<
     CeremonyOptions<PublicKeyCredentialRequestOptionsJSON>

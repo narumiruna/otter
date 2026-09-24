@@ -35,7 +35,7 @@ export type User = {
   id: string;
   name: string;
   username: string;
-  passwordHash: string;
+  passwordHash: string | null;
   createdAt: string;
 };
 
@@ -64,7 +64,7 @@ type UserRow = {
   id: string;
   name: string;
   username: string;
-  password_hash: string;
+  password_hash: string | null;
   created_at: Date | string;
 };
 

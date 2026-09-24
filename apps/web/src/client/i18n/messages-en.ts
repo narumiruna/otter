@@ -126,6 +126,10 @@ export const en = {
   passwordMustBeAtLeast8Characters: "Password must be at least 8 characters",
   passwordMustBeAtLeast8Characters2: "Password must be at least 8 characters.",
   creating: "Creating…",
+  createAccountWithAPasskey: "Create account with a passkey",
+  creatingAccountWithAPasskey: "Creating account with a passkey…",
+  unableToCreateAccountWithAPasskey:
+    "Unable to create account with a passkey. Try again.",
   alreadyHaveAnAccount: "Already have an account?",
   backToSignIn: "Back to sign in",
   expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup:
