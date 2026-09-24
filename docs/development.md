@@ -60,7 +60,9 @@ npm run migrate -- --help
 
 ## WebMCP 唯讀試點
 
-公開測試頁：<http://localhost:17463/webmcp-test>（部署後為 `/webmcp-test`）。不需登入，頁面本身不呼叫 API 或資料庫；直接開啟後可查看 WebMCP 註冊狀態、兩個示範工具 `otter_demo_balances` 和 `otter_demo_settlements` 及預期 JSON。工具只回傳固定假資料，不會讀取帳號或真實群組。測試頁可用於確認瀏覽器助理能否在該頁發現並執行 WebMCP；若顯示沒有 `document.modelContext`，須先確認瀏覽器、旗標或 origin trial 設定，無法靠頁面程式碼啟用 API。
+公開測試頁：<http://localhost:17463/webmcp-test>（部署後為 `/webmcp-test`）。不需登入，頁面本身不呼叫 API 或資料庫；直接開啟後可查看 WebMCP 註冊狀態、兩個示範工具 `otter_demo_balances` 和 `otter_demo_settlements` 及預期 JSON。工具只回傳固定假資料，不會讀取帳號或真實群組。
+
+本機手動測試前，請在支援 WebMCP 的 Chrome 開啟 `chrome://flags/#enable-webmcp-testing`，將 **WebMCP Testing** 設為 **Enabled**，重新啟動 Chrome，然後重新載入測試頁；未啟用測試旗標、也沒有有效 origin trial 時，頁面可能沒有 `document.modelContext`，無法使用 WebMCP。測試頁可用於確認瀏覽器助理能否發現並執行工具；瀏覽器旗標不會取代正式部署的 HTTPS、origin trial 和 Permissions Policy 要求。
 
 otter 在登入並載入群組後，若瀏覽器支援 `document.modelContext`，會註冊查詢**目前群組**餘額與建議結算的兩個工具；分享頁、登入頁、裝置授權頁和帳號設定頁都不提供工具。切換群組或登出會移除舊工具；工具名稱含當頁唯一序號，agent 應在狀態改變後重新發現工具。工具不接受群組 ID 或 URL，不寫入資料，也不會提供整份群組 payload。回傳 JSON 以 `amountMinor`（minor currency units）和 `currency` 表示金額，最多八筆，並附 `total`／`truncated`；姓名等使用者資料標為不可信內容。權限仍由既有 `GET /api/trips/:tripId` 的登入及成員資格檢查控制；工具註解不是安全邊界，未設定跨來源 `exposedTo`。
 
