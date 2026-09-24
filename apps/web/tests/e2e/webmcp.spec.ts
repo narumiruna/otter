@@ -35,6 +35,34 @@ async function runTool(page: import("@playwright/test").Page, name: string) {
   }, name);
 }
 
+test("WebMCP public demo works without login or trip data", async ({
+  page,
+}) => {
+  await page.goto("/webmcp-test");
+  await expect(
+    page.getByRole("heading", { name: "WebMCP 測試頁" }),
+  ).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(
+    "已註冊 2 個唯讀示範工具。",
+  );
+  await expect
+    .poll(() => browserTools(page))
+    .toEqual(["otter_demo_balances", "otter_demo_settlements"]);
+  expect(await runTool(page, "otter_demo_balances")).toMatchObject({
+    trip: "WebMCP 示範群組",
+    currency: "TWD",
+    balances: [
+      { name: "Alice", amountMinor: -500, currency: "TWD" },
+      { name: "Bob", amountMinor: 500, currency: "TWD" },
+    ],
+  });
+  expect(await runTool(page, "otter_demo_settlements")).toMatchObject({
+    settlements: [{ from: "Alice", to: "Bob", amountMinor: 500 }],
+  });
+  await page.goto("/");
+  await expect.poll(() => browserTools(page)).toEqual([]);
+});
+
 test("WebMCP reads only the selected group and unregisters on switch and logout", async ({
   page,
 }) => {
