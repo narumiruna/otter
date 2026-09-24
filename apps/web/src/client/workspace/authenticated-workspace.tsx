@@ -64,11 +64,13 @@ export function AuthenticatedWorkspace({
   bootstrap,
   offline,
   webMcpEnabled = true,
+  guestShare = false,
 }: {
   announce: (message: string) => void;
   bootstrap: AppBootstrap;
   offline: boolean;
   webMcpEnabled?: boolean;
+  guestShare?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
@@ -90,6 +92,7 @@ export function AuthenticatedWorkspace({
     [bootstrap.archivedTrips, bootstrap.trips],
   );
   const collectionQuery = useQuery({
+    enabled: !guestShare,
     initialData: initialCollection,
     queryFn: () => api<TripCollection>("/api/trips"),
     queryKey: ["trips"],
@@ -153,13 +156,20 @@ export function AuthenticatedWorkspace({
 
   useEffect(() => {
     if (selectedTripId !== location.tripId) {
-      navigate({ mode: null, tripId: selectedTripId, view: "overview" }, true);
+      navigate(
+        {
+          mode: null,
+          tripId: selectedTripId,
+          view: guestShare ? location.view : "overview",
+        },
+        true,
+      );
     }
-  }, [location.tripId, navigate, selectedTripId]);
+  }, [guestShare, location.tripId, location.view, navigate, selectedTripId]);
 
   const refreshCollection = useCallback(async () => {
-    await collectionQuery.refetch();
-  }, [collectionQuery]);
+    if (!guestShare) await collectionQuery.refetch();
+  }, [collectionQuery, guestShare]);
 
   useEffect(() => {
     window.history.scrollRestoration = "manual";
@@ -274,14 +284,20 @@ export function AuthenticatedWorkspace({
             selectTrip={selectTrip}
             trips={collectionQuery.data.trips}
           />
-          <CreateTrip
-            onCreated={async (created) => {
-              queryClient.setQueryData(["trip", created.trip.id], created);
-              await refreshCollection();
-              navigate({ mode: null, tripId: created.trip.id, view: "people" });
-            }}
-            offline={offline}
-          />
+          {!guestShare ? (
+            <CreateTrip
+              onCreated={async (created) => {
+                queryClient.setQueryData(["trip", created.trip.id], created);
+                await refreshCollection();
+                navigate({
+                  mode: null,
+                  tripId: created.trip.id,
+                  view: "people",
+                });
+              }}
+              offline={offline}
+            />
+          ) : null}
           {switchError ? (
             <p className="field-error" role="alert">
               {switchError}

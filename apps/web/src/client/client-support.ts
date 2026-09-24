@@ -66,6 +66,15 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
           headers.set("Accept-Language", currentLocale());
         if (!headers.has("Content-Type"))
           headers.set("Content-Type", "application/json");
+        // Capabilities are scoped to trip APIs, never sent to account or other URLs.
+        const shareToken =
+          typeof window === "undefined"
+            ? undefined
+            : window.location.pathname.match(
+                /^\/share\/([A-Za-z0-9_-]{43})$/,
+              )?.[1];
+        if (shareToken && /^\/api\/trips\/[^/]+(?:\/|$)/.test(url))
+          headers.set("X-Otter-Share-Token", shareToken);
         return headers;
       })(),
     });

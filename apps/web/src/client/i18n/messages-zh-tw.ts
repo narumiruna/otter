@@ -536,6 +536,22 @@ export const zhTW = {
   sharingAndAccess: "分享與權限",
   linksActiveLinksCollaboratorsCollaborators: (values: MessageValues) =>
     interpolate("{links} 個有效連結 · {collaborators} 位協作者", values),
+  shareLinkCreated: "已建立分享連結",
+  shareLinkCreatedAndCopied: "已建立並複製分享連結",
+  shareLinks: "分享連結",
+  chooseWhoCanEditThroughTheShareLink: "選擇連結的查看或編輯權限。",
+  linkPermission: "連結權限",
+  readOnlyLink: "唯讀（不需登入）",
+  signedInEditLink: "登入後編輯",
+  anyoneEditLink: "持有連結即可編輯",
+  signedInEditLinkDescription:
+    "使用者登入或註冊後點開連結，會成為此群組的協作者。撤銷連結不會移除已加入的人。",
+  anyoneEditLinkDescription:
+    "任何持有連結的人，不需登入就能編輯支出與分帳成員。請只傳給信任的人；撤銷後立即失效。",
+  revokingSignedInLinkDoesNotRemoveExistingCollaborators:
+    "撤銷後無法再用此連結加入；已加入的協作者仍可編輯，請另外移除其權限。",
+  signInToEditSharedGroup: (values: MessageValues) =>
+    interpolate("登入或建立帳號以編輯 {name}。", values),
   readOnlyShareLinkCreated: "已建立唯讀分享連結",
   readOnlyShareLinkCreatedAndCopied: "已建立並複製唯讀分享連結",
   shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually:

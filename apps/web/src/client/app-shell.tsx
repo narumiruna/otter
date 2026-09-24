@@ -387,6 +387,16 @@ export function AppShell() {
     );
   } else if (appData?.readonlyShare && appData.selected) {
     body = <ReadonlyWorkspace payload={appData.selected} />;
+  } else if (appData?.guestShare && appData.selected) {
+    body = (
+      <AuthenticatedWorkspace
+        announce={announce}
+        bootstrap={appData}
+        guestShare
+        offline={offline}
+        webMcpEnabled={false}
+      />
+    );
   } else if (appData?.user) {
     const authenticatedBody =
       window.location.pathname === "/device" ? (
@@ -421,19 +431,28 @@ export function AppShell() {
     );
   } else {
     body = (
-      <AuthScreen
-        busyAction={authAction}
-        devLoginCredentials={appData?.devLoginCredentials}
-        loginError={authError.login}
-        onLogin={(credentials) => completeAuth("/api/auth/login", credentials)}
-        onPasskeyLogin={completePasskeyLogin}
-        onPasskeyRegister={completePasskeyRegistration}
-        onRegister={(credentials) =>
-          completeAuth("/api/auth/register", credentials)
-        }
-        passkeySupported={supportsPasskeys()}
-        registerError={authError.register}
-      />
+      <>
+        {appData?.pendingShare ? (
+          <p className="surface mb-4 p-4" role="status">
+            {messages.signInToEditSharedGroup({ name: appData.pendingShare })}
+          </p>
+        ) : null}
+        <AuthScreen
+          busyAction={authAction}
+          devLoginCredentials={appData?.devLoginCredentials}
+          loginError={authError.login}
+          onLogin={(credentials) =>
+            completeAuth("/api/auth/login", credentials)
+          }
+          onPasskeyLogin={completePasskeyLogin}
+          onPasskeyRegister={completePasskeyRegistration}
+          onRegister={(credentials) =>
+            completeAuth("/api/auth/register", credentials)
+          }
+          passkeySupported={supportsPasskeys()}
+          registerError={authError.register}
+        />
+      </>
     );
   }
 

@@ -396,6 +396,21 @@ export const sourceMessageKeys = {
   分享與權限: "sharingAndAccess",
   "{links} 個有效連結 · {collaborators} 位協作者":
     "linksActiveLinksCollaboratorsCollaborators",
+  已建立分享連結: "shareLinkCreated",
+  已建立並複製分享連結: "shareLinkCreatedAndCopied",
+  分享連結: "shareLinks",
+  "選擇連結的查看或編輯權限。": "chooseWhoCanEditThroughTheShareLink",
+  連結權限: "linkPermission",
+  "唯讀（不需登入）": "readOnlyLink",
+  登入後編輯: "signedInEditLink",
+  持有連結即可編輯: "anyoneEditLink",
+  "使用者登入或註冊後點開連結，會成為此群組的協作者。撤銷連結不會移除已加入的人。":
+    "signedInEditLinkDescription",
+  "任何持有連結的人，不需登入就能編輯支出與分帳成員。請只傳給信任的人；撤銷後立即失效。":
+    "anyoneEditLinkDescription",
+  "撤銷後無法再用此連結加入；已加入的協作者仍可編輯，請另外移除其權限。":
+    "revokingSignedInLinkDoesNotRemoveExistingCollaborators",
+  "登入或建立帳號以編輯 {name}。": "signInToEditSharedGroup",
   已建立唯讀分享連結: "readOnlyShareLinkCreated",
   已建立並複製唯讀分享連結: "readOnlyShareLinkCreatedAndCopied",
   "已建立分享連結；瀏覽器未允許自動複製，請手動複製":

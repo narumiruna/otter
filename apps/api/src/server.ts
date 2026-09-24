@@ -39,7 +39,7 @@ import { registerPersonalApiTokenRoutes } from "./server-personal-api-tokens.js"
 import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
-import { registerShareRoutes } from "./server-sharing.js";
+import { registerShareRoutes, requireUserOrShare } from "./server-sharing.js";
 import {
   archivedTripResponse,
   clearSessionCookie,
@@ -63,7 +63,6 @@ import {
   publicUser,
   requestBody,
   requireSessionUser,
-  requireUser,
   type Session,
   sendError,
   setSessionCookie,
@@ -137,7 +136,7 @@ export function createApp(
   options: CreateAppOptions = {},
 ): OtterApp {
   const app = new Hono<OtterEnv>();
-  const mustBeSignedIn = requireUser(pool);
+  const mustBeSignedIn = requireUserOrShare(pool);
   const mustHaveBrowserSession = requireSessionUser(pool);
   const exchangeRateService = createExchangeRateService(options.exchangeRates);
   const { buildTripPayload } = exchangeRateService;
@@ -594,6 +593,12 @@ export function createApp(
         await client.query("DELETE FROM participants WHERE trip_id = $1", [
           context.req.param("tripId"),
         ]);
+        // Remove capability-only users before cascading the trip's share links.
+        await client.query(
+          `DELETE FROM users WHERE id IN
+           (SELECT guest_user_id FROM trip_share_links WHERE trip_id = $1 AND guest_user_id IS NOT NULL)`,
+          [context.req.param("tripId")],
+        );
         return client.query("DELETE FROM trips WHERE id = $1", [
           context.req.param("tripId"),
         ]);
