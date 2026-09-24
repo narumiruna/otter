@@ -1,5 +1,11 @@
 # @narumitw/otter-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 314d15c: Add conditional JPEG, PNG, and WebP receipt uploads from local files.
+
 ## 0.2.0
 
 ### Minor Changes
