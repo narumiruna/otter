@@ -50,7 +50,7 @@ export function AuthScreen({
   passkeySupported = false,
   registerError,
 }: AuthScreenProps) {
-  const { locale, messages } = useI18n();
+  const { locale, messages, setLocale } = useI18n();
   const [mode, setMode] = useState<"login" | "register">("login");
   const login = useForm<LoginCredentials>({
     defaultValues: devLoginCredentials ?? { username: "", password: "" },
@@ -131,6 +131,20 @@ export function AuthScreen({
       </article>
       <Card className="auth-card">
         <CardHeader>
+          <div className="auth-language">
+            <label htmlFor="auth-language">{messages.language}</label>
+            <select
+              id="auth-language"
+              className="form-control"
+              value={locale}
+              onChange={(event) =>
+                setLocale(event.target.value as "en" | "zh-TW")
+              }
+            >
+              <option value="zh-TW">{messages.traditionalChinese}</option>
+              <option value="en">{messages.english}</option>
+            </select>
+          </div>
           <span className="auth-card-eyebrow" lang="en">
             {mode === "login" ? "WELCOME BACK" : "START A NEW JOURNEY"}
           </span>
@@ -155,7 +169,9 @@ export function AuthScreen({
               <FieldGroup>
                 {loginError ? <FieldError>{loginError}</FieldError> : null}
                 <Field data-invalid={Boolean(login.formState.errors.username)}>
-                  <FieldLabel htmlFor="login-username">Username</FieldLabel>
+                  <FieldLabel htmlFor="login-username">
+                    {messages.username}
+                  </FieldLabel>
                   <Input
                     id="login-username"
                     type="text"
@@ -247,7 +263,9 @@ export function AuthScreen({
                 <Field
                   data-invalid={Boolean(register.formState.errors.username)}
                 >
-                  <FieldLabel htmlFor="register-username">Username</FieldLabel>
+                  <FieldLabel htmlFor="register-username">
+                    {messages.username}
+                  </FieldLabel>
                   <Input
                     id="register-username"
                     type="text"

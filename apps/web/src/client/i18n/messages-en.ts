@@ -110,6 +110,7 @@ export const en = {
   welcomeBackContinueYourJourney: "Welcome back. Continue your journey.",
   createYourFirstGroupAndStartSplittingWithEase:
     "Create your first group and start splitting with ease.",
+  username: "Username",
   enterAUsername: "Enter a username",
   password: "Password",
   enterAPassword: "Enter a password",
