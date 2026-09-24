@@ -1,5 +1,15 @@
 # @narumitw/otter-web
 
+## 0.2.0
+
+### Minor Changes
+
+- 0a88f74: Allow creating a passwordless account with a username and passkey.
+
+### Patch Changes
+
+- ce6fd82: Translate username in Traditional Chinese and allow language selection on the sign-in screen.
+
 ## 0.1.3
 
 ### Patch Changes
