@@ -783,6 +783,13 @@ export const en = {
     "All totals, balances, and settlement suggestions will be recalculated with these rates.",
   applyCustomExchangeRates: "Apply custom exchange rates?",
   restoreBankOfTaiwanDefaultRates: "Restore Bank of Taiwan default rates?",
+  apiWriteSettings: "API write access",
+  apiWritesAllowed: "Allowed",
+  apiWritesBlocked: "Not allowed",
+  apiWriteSettingsDescription:
+    "API tokens and the CLI cannot change this group by default. When enabled, members with API tokens can edit according to their permissions. Browser actions are unaffected.",
+  allowApiWrites: "Allow changes via API token",
+  apiWriteSettingSaved: "API write access updated",
   groupLifecycle: "Group lifecycle",
   archivedReadOnly: "Archived · read-only",
   active2: "Active",
@@ -886,6 +893,11 @@ export const en = {
   namesCanBeUpTo80Characters: "Names can be up to 80 characters",
   passwordMustBeAtLeast8Characters3: "Password must be at least 8 characters",
   invalidArchiveStatus: "Invalid archive status",
+  invalidApiWriteSetting: "Invalid API write access setting",
+  onlyBrowserSessionsCanManageApiWrites:
+    "Only browser sessions can manage API write access",
+  apiWritesDisabledForThisGroup:
+    "This group does not allow changes via API token",
   apiEndpointNotFound: "API endpoint not found",
   paymentRecordNotFound: "Payment record not found",
   collaboratorNotFound: "Collaborator not found",

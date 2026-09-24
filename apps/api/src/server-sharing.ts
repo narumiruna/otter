@@ -4,6 +4,7 @@ import type { Pool as PgPool, PoolClient } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
+  apiWritesDisabledMessage,
   type BuildTripPayload,
   currentUser,
   type LoadedTrip,
@@ -90,6 +91,21 @@ export function requireUserOrShare(pool: PgPool): OtterMiddleware {
     }
     const user = await userFromRequest(pool, context.req.raw);
     if (!user) return sendError(context, 401, "請先登入");
+    if (
+      context.req.header("authorization") &&
+      tripId &&
+      !["GET", "HEAD", "OPTIONS"].includes(context.req.method)
+    ) {
+      const access = await pool.query<{ allow_api_writes: boolean }>(
+        `SELECT trips.allow_api_writes FROM trips
+         JOIN trip_members ON trip_members.trip_id = trips.id
+         WHERE trips.id = $1 AND trip_members.user_id = $2`,
+        [tripId, user.id],
+      );
+      if (access.rows[0]?.allow_api_writes === false) {
+        return sendError(context, 403, apiWritesDisabledMessage);
+      }
+    }
     context.set("user", user);
     await next();
   };

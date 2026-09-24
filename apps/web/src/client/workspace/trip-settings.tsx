@@ -12,6 +12,7 @@ import {
 import {
   ArchiveIcon as Archive,
   TokensIcon as Calculator,
+  LockClosedIcon as Lock,
   GearIcon as Settings2,
   TrashIcon as Trash2,
 } from "@radix-ui/react-icons";
@@ -242,6 +243,57 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
             trigger={<Button>{messages.applyChanges}</Button>}
           />
         </div>
+      </div>
+    </details>
+  );
+}
+
+export function ApiWriteSettings({ payload }: { payload: TripPayload }) {
+  const { messages } = useI18n();
+  const { offline, requestPayload } = useWorkspace();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const allowed = payload.trip.allowApiWrites === true;
+
+  async function setAllowed(next: boolean) {
+    setBusy(true);
+    setError("");
+    try {
+      await requestPayload(
+        `/api/trips/${payload.trip.id}`,
+        { method: "PATCH", body: JSON.stringify({ allowApiWrites: next }) },
+        messages.apiWriteSettingSaved,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : messages.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="surface disclosure" name="trip-settings">
+      <summary>
+        <Lock aria-hidden="true" />
+        <span>{messages.apiWriteSettings}</span>
+        <span className="summary-meta">
+          {allowed ? messages.apiWritesAllowed : messages.apiWritesBlocked}
+        </span>
+      </summary>
+      <div className="grid gap-4 pt-5">
+        <p className="text-sm text-muted-foreground">
+          {messages.apiWriteSettingsDescription}
+        </p>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={allowed}
+            disabled={offline || busy}
+            onChange={(event) => void setAllowed(event.target.checked)}
+          />
+          {messages.allowApiWrites}
+        </label>
+        <ActionError message={error} />
       </div>
     </details>
   );

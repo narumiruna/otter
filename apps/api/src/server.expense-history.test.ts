@@ -244,6 +244,12 @@ test(
       "INSERT INTO api_tokens (id,user_id,token_hash,name,expires_at) VALUES ('history-token','editor',$1,'History',now()+interval '1 day')",
       [hashApiSecret(bearer)],
     );
+    const enabled = await api<TripPayload>(s.baseUrl, s.tripUrl, {
+      method: "PATCH",
+      headers: { cookie: s.cookies.owner },
+      body: JSON.stringify({ allowApiWrites: true }),
+    });
+    expect(enabled.response.status).toBe(200);
     const tokenEdit = await api(s.baseUrl, s.url, {
       method: "PATCH",
       headers: { authorization: `Bearer ${bearer}`, "If-Match": '"2"' },
@@ -525,7 +531,7 @@ async function waitForWaiters(
 ) {
   for (let attempt = 0; attempt < 1000; attempt++) {
     const result = await s.pool.query<{ count: string }>(
-      "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'SELECT t.id FROM trips t%'",
+      "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'SELECT t.id, t.allow_api_writes FROM trips t%'",
     );
     if (Number(result.rows[0].count) >= count) return;
     await setImmediate();

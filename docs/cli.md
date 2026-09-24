@@ -50,6 +50,8 @@ OTTER_TOKEN='otter_api_…' otter trips list
 
 明文 token 只顯示一次。帳號、Passkey、協作者、分享連結、token 管理及 device approval 仍要求 browser session；Bearer token 不能執行這些操作。
 
+群組預設不允許使用 Bearer token 修改（包含 CLI 的新增、編輯與刪除）；讀取不受影響。群組擁有者須先在 Web app 的「群組設定 → API 修改權限」開啟「允許透過 API Token 修改群組」。既有群組在資料庫遷移後也預設關閉；關閉後 API 寫入會回傳 HTTP 403。此設定只能由擁有者透過瀏覽器登入修改，分享連結與瀏覽器操作不受影響。
+
 ## 常用命令
 
 ```bash
