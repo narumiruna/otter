@@ -97,6 +97,48 @@ test("guest can choose a language before signing in and keep it on reload", asyn
   );
 });
 
+test("guest language changes clear localized login and registration errors", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/config"))
+        return Response.json({ devLoginCredentials: null });
+      if (url.endsWith("/api/me")) return Response.json({ user: null });
+      if (url.endsWith("/api/auth/login"))
+        return Response.json({ error: "Username 或密碼錯誤" }, { status: 401 });
+      if (url.endsWith("/api/auth/register"))
+        return Response.json(
+          { error: "這個 Username 已經註冊" },
+          { status: 409 },
+        );
+      return Response.json({ error: "找不到 API" }, { status: 404 });
+    }),
+  );
+  const user = userEvent.setup();
+  const view = renderApp("zh-TW");
+
+  await user.type(await view.findByLabelText("使用者名稱"), "alice");
+  await user.type(view.getByLabelText("密碼"), "password123");
+  await user.click(view.getByRole("button", { name: "登入" }));
+  expect(await view.findByText("使用者名稱或密碼錯誤")).toBeVisible();
+  await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
+  expect(view.queryByText("使用者名稱或密碼錯誤")).toBeNull();
+
+  await user.click(view.getByRole("button", { name: "Create account" }));
+  await user.type(view.getByLabelText("Username"), "new-alice");
+  await user.type(view.getByLabelText("Password"), "password123");
+  await user.click(view.getByRole("button", { name: "Create account" }));
+  expect(
+    await view.findByText("This username is already registered"),
+  ).toBeVisible();
+  await user.selectOptions(
+    view.getByRole("combobox", { name: "Language" }),
+    "zh-TW",
+  );
+  expect(view.queryByText("This username is already registered")).toBeNull();
+});
+
 test("app switches between Traditional Chinese and English in account settings and persists the choice", async () => {
   vi.stubGlobal(
     "fetch",

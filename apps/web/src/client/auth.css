@@ -173,8 +173,8 @@
   font-size: 0.875rem;
 }
 .auth-language select {
-  width: auto;
-  min-width: 9rem;
+  width: min(9rem, 100%);
+  min-width: 0;
 }
 .auth-card-eyebrow {
   color: var(--accent-11);

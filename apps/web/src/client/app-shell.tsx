@@ -72,7 +72,8 @@ function LoadingScreen() {
 
 export function AppShell() {
   const queryClient = useQueryClient();
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
+  const previousLocale = useRef(locale);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(() =>
     isAccountSettingsLocation(new URL(window.location.href)),
@@ -90,6 +91,12 @@ export function AppShell() {
     login?: string;
     register?: string;
   }>({});
+
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    setAuthError({});
+  }, [locale]);
   const bootstrapLocation = withoutAccountSettingsLocation(
     new URL(window.location.href),
   );
