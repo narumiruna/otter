@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { AppShell } from "./app-shell.js";
 import { I18nProvider } from "./i18n.js";
 import { RadixTheme } from "./radix-theme.js";
+import { WebMcpTestPage } from "./webmcp-test-page.js";
 
 const rootElement = document.querySelector<HTMLDivElement>("#app");
 if (!rootElement) {
@@ -23,7 +24,11 @@ createRoot(rootElement).render(
   <I18nProvider>
     <RadixTheme>
       <QueryClientProvider client={queryClient}>
-        <AppShell />
+        {window.location.pathname === "/webmcp-test" ? (
+          <WebMcpTestPage />
+        ) : (
+          <AppShell />
+        )}
       </QueryClientProvider>
     </RadixTheme>
   </I18nProvider>,
