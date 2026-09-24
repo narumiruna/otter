@@ -84,6 +84,7 @@ otter expenses update \
   [--category <name>] \
   [--tags <tag,tag>]
 
+otter expenses upload-receipt --trip <trip-id> --expense <expense-id> --version <observed-version> --file <local-image-path>
 otter expenses delete --trip <trip-id> --expense <expense-id> --version <observed-version> --yes
 ```
 
@@ -91,7 +92,10 @@ The available categories are `餐飲`, `交通`, `住宿`, `門票`, `購物`, a
 Omit optional add fields to use server defaults.
 Pass `--tags ""` on update to clear all tags.
 The CLI creates equal splits and does not expose custom amounts, percentages, or shares.
-Updates and deletions require the version from the expense the user reviewed and send it as `If-Match`.
+Updates, deletions, and receipt uploads require the version from the expense the user reviewed and send it as `If-Match`.
+Receipt uploads accept local JPEG, PNG, or WebP files up to 5 MiB; the CLI detects the format from file bytes, not the filename, and sends the binary image rather than JSON.
+Uploading replaces any existing receipt on that expense; confirm with the user before replacing it.
+Successful uploads return the updated trip payload (including the new `receiptId` and expense `version`); uploads do not alter balances.
 Missing or invalid versions fail locally; older clients without this header receive HTTP 428 from the new API.
 A stale version returns HTTP 412 with `EXPENSE_VERSION_CONFLICT` without changing data.
 Reread, explain the intervening changes, and confirm intent before supplying a new version; do not silently refresh and retry.

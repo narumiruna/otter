@@ -71,15 +71,16 @@ otter settlements preview --input trip.json
 
 ### 修改與刪除的版本條件
 
-先以 `expenses list` 或 `trips get` 閱讀目標支出與其 `version`，將觀察到的版本傳入必填的 `--version`：
+先以 `expenses list` 或 `trips get` 閱讀目標支出與其 `version`，將觀察到的版本傳入修改、刪除或上傳收據所需的 `--version`：
 
 ```bash
 otter expenses list --trip trip-id
 otter expenses update --trip trip-id --expense expense-id --version 3 --amount 1500
-otter expenses delete --trip trip-id --expense expense-id --version 4 --yes
+otter expenses upload-receipt --trip trip-id --expense expense-id --version 4 --file ./receipt.png
+otter expenses delete --trip trip-id --expense expense-id --version 5 --yes
 ```
 
-範例假設第一個成功修改使 version 3 變成 4；應以實際回傳值為準。CLI 以 `If-Match` 傳送版本，不會替使用者先抓最新版。缺少／非法版本在發出 request 前失敗；版本過期回傳 HTTP 412 與 `EXPENSE_VERSION_CONFLICT`，寫入無副作用，CLI 不自動 retry。重新閱讀並確認新內容後，才可用新版本再次操作；刪除仍須 `--yes`。
+範例假設每次成功修改使 version 加一；應以實際回傳值為準。上傳收據接受本機 JPEG、PNG 或 WebP 圖片，最多 5 MiB；CLI 依檔案內容判斷格式並以二進位資料上傳。若原本已有收據，上傳會取代它，請先取得使用者同意。成功回傳更新後的 trip 與支出的 `receiptId`、`version`，餘額不受影響。CLI 以 `If-Match` 傳送版本，不會替使用者先抓最新版。缺少／非法版本在發出 request 前失敗；版本過期回傳 HTTP 412 與 `EXPENSE_VERSION_CONFLICT`，寫入無副作用，CLI 不自動 retry。重新閱讀並確認新內容後，才可用新版本再次操作；刪除仍須 `--yes`。
 
 這是 breaking change：舊 CLI／API client 的無條件支出寫入會被 API 以 428 拒絕。更新 CLI 並重新載入 Web；切換順序見[部署文件](deployment.md#支出歷史切換與回復)。舊版離線 trip JSON 仍可用於 `settlements preview`，但不能當作有版本的寫入依據。修改紀錄目前透過 Web 查看，CLI 沒有歷史或還原命令。
 

@@ -5,8 +5,9 @@ export type CliEnvironment = Record<string, string | undefined>;
 export type CliCommand = {
   authenticatedUserRequired?: true;
   body?: Record<string, unknown>;
+  file?: string;
   headers?: { "If-Match": string };
-  method: "DELETE" | "GET" | "PATCH" | "POST";
+  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   path: string;
   select?: "balances" | "expenses" | "participants" | "settlements";
 };

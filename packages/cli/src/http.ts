@@ -13,14 +13,42 @@ export async function requestJson(
   authorizationHeaders: Record<string, string>,
   body?: Record<string, unknown>,
 ): Promise<unknown> {
+  return requestData(config, fetchImplementation, requestPath, {
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    headers: { ...jsonHeaders(), ...authorizationHeaders },
+    method,
+  });
+}
+
+export async function requestReceipt(
+  config: CliConfig,
+  fetchImplementation: FetchImplementation,
+  requestPath: string,
+  authorizationHeaders: Record<string, string>,
+  bytes: Buffer,
+  mimeType: string,
+): Promise<unknown> {
+  return requestData(config, fetchImplementation, requestPath, {
+    body: new Uint8Array(bytes),
+    headers: {
+      Accept: "application/json",
+      "Content-Type": mimeType,
+      ...authorizationHeaders,
+    },
+    method: "PUT",
+  });
+}
+
+async function requestData(
+  config: CliConfig,
+  fetchImplementation: FetchImplementation,
+  requestPath: string,
+  init: RequestInit,
+): Promise<unknown> {
   const response = await safeFetch(
     fetchImplementation,
     apiUrl(config, requestPath),
-    {
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      headers: { ...jsonHeaders(), ...authorizationHeaders },
-      method,
-    },
+    init,
   );
   const data = await responseData(response);
   if (!response.ok) {
