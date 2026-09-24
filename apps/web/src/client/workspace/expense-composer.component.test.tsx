@@ -77,6 +77,41 @@ test("expense composer previews the default equal split without a mutation", asy
   globalThis.fetch = originalFetch;
 });
 
+test("more details toggles category and tags without changing its summary", async () => {
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={payload}
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseComposer onCancel={() => undefined} trip={payload.trip} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+
+  const summary = view.getByText("更多資料").closest("summary");
+  const details = summary?.closest("details");
+  assert.ok(summary);
+  assert.ok(details);
+  expect(summary).toHaveTextContent("更多資料分類、標籤");
+  expect(details.open).toBe(false);
+
+  await user.click(summary);
+  expect(details.open).toBe(true);
+  expect(view.getByLabelText("分類")).toBeVisible();
+  expect(view.getByLabelText(/標籤/)).toBeVisible();
+
+  await user.click(summary);
+  expect(details.open).toBe(false);
+
+  view.unmount();
+  client.clear();
+});
+
 test("switching locale clears expense validation from the previous locale", async () => {
   const user = userEvent.setup();
   const client = new QueryClient();
