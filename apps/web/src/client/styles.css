@@ -911,7 +911,10 @@ select:disabled {
   white-space: nowrap;
 }
 .expense-more-details > summary > span:first-child {
-  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .expense-more-details > summary .summary-meta {
   flex: 0 1 auto;
