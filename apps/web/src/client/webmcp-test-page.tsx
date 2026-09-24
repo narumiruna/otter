@@ -1,3 +1,4 @@
+import { toMajor } from "@narumitw/otter-core/money";
 import { useEffect, useState } from "react";
 
 // Public demo data only. Never read the signed-in workspace or call an API here.
@@ -126,7 +127,9 @@ export function WebMcpTestPage() {
         </section>
         <section className="surface grid gap-4">
           <h2>示範工具與預期結果</h2>
-          <p>金額單位為 TWD 的 minor units（500 = NT$5.00）。</p>
+          <p>
+            金額單位為 TWD 的 minor units（500 = NT${toMajor(500, "TWD")}）。
+          </p>
           {tools.map((tool, index) => (
             <div key={tool.name}>
               <h3>
