@@ -63,6 +63,40 @@ test("browser language detection honors the user's preference order", () => {
   expect(view.getByText("en")).toBeVisible();
 });
 
+test("guest can choose a language before signing in and keep it on reload", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/config")) {
+        return Response.json({ devLoginCredentials: null });
+      }
+      if (url.endsWith("/api/me")) return Response.json({ user: null });
+      return Response.json({ error: "找不到 API" }, { status: 404 });
+    }),
+  );
+  const user = userEvent.setup();
+  const view = renderApp("zh-TW");
+
+  await user.selectOptions(
+    await view.findByRole("combobox", { name: "語言" }),
+    "en",
+  );
+  expect(view.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  expect(view.getByLabelText("Username")).toBeVisible();
+  assert.equal(document.documentElement.lang, "en");
+  assert.equal(window.localStorage.getItem("otter.locale"), "en");
+
+  view.unmount();
+  const persisted = renderApp();
+  expect(
+    await persisted.findByRole("heading", { name: "Sign in" }),
+  ).toBeVisible();
+  expect(persisted.getByRole("combobox", { name: "Language" })).toHaveValue(
+    "en",
+  );
+});
+
 test("app switches between Traditional Chinese and English in account settings and persists the choice", async () => {
   vi.stubGlobal(
     "fetch",
@@ -204,6 +238,14 @@ test("message translation interpolates values and preserves Traditional Chinese"
     "Showing 2 of 5 expenses",
   );
   assert.equal(translate("zh-TW", "登入"), "登入");
+  assert.equal(
+    translate("zh-TW", "Username 或密碼錯誤"),
+    "使用者名稱或密碼錯誤",
+  );
+  assert.equal(
+    translate("zh-TW", "Username 需為 3–32 個英文字母、數字、底線或連字號"),
+    "使用者名稱需為 3–32 個英文字母、數字、底線或連字號",
+  );
   assert.equal(translate("en", "找不到旅行"), "Trip not found");
   assert.equal(
     translate("en", "驗證要求過於頻繁，請稍後再試"),

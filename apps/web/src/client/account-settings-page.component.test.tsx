@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { usernameValidationMessage } from "@narumitw/otter-core/username";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
@@ -46,13 +45,17 @@ test("renders account settings as a page and submits a username change", async (
       screen.getByRole("heading", { level: 2, name: "帳號設定" }),
     ).toHaveFocus(),
   );
-  const input = screen.getByRole("textbox", { name: "Username" });
+  const input = screen.getByRole("textbox", { name: "使用者名稱" });
   expect(input).toHaveValue("alice");
 
   await user.clear(input);
   await user.type(input, "invalid username");
   await user.click(screen.getByRole("button", { name: "儲存" }));
-  expect(await screen.findByText(usernameValidationMessage)).toBeVisible();
+  expect(
+    await screen.findByText(
+      "使用者名稱需為 3–32 個英文字母、數字、底線或連字號",
+    ),
+  ).toBeVisible();
   expect(onUpdate).not.toHaveBeenCalled();
 
   await user.clear(input);

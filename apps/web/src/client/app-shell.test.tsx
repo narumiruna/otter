@@ -16,7 +16,10 @@ test("React auth screen renders accessible RHF forms with development credential
   );
 
   assert.match(html, /<form[^>]*id="login-form"/);
-  assert.match(html, /<label[^>]*for="login-username"[^>]*>Username<\/label>/);
+  assert.match(
+    html,
+    /<label[^>]*for="login-username"[^>]*>使用者名稱<\/label>/,
+  );
   assert.match(html, /value="admin"/);
   assert.doesNotMatch(html, /<form[^>]*id="register-form"/);
   assert.match(html, />建立帳號<\/button>/);

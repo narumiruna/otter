@@ -37,7 +37,7 @@ export const zhTW = {
   expenseHistoryForName: (values: MessageValues) =>
     interpolate("修改紀錄：{name}", values),
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:
-    "Username 需為 3–32 個英文字母、數字、底線或連字號",
+    "使用者名稱需為 3–32 個英文字母、數字、底線或連字號",
   travelTogetherSplitExpensesEasily: "一起旅行，輕鬆分帳",
   goodFriendsSplitExpensesWell: "好朋友，好好分帳。",
   skipToMainContent: "跳到主要內容",
@@ -51,7 +51,7 @@ export const zhTW = {
   unableToAuthenticate: "無法完成驗證",
   authenticationRequestsTooFrequentTryAgainLater:
     "驗證要求過於頻繁，請稍後再試",
-  usernameUpdated: "Username 已更新",
+  usernameUpdated: "使用者名稱已更新",
   signedOut: "已登出",
   signOutFailedMessage: (values: MessageValues) =>
     interpolate("登出失敗：{message}", values),
@@ -96,7 +96,8 @@ export const zhTW = {
   createAccount: "建立帳號",
   welcomeBackContinueYourJourney: "歡迎回來，繼續你們的旅程。",
   createYourFirstGroupAndStartSplittingWithEase: "從第一個群組，開始輕鬆分帳。",
-  enterAUsername: "請輸入 Username",
+  username: "使用者名稱",
+  enterAUsername: "請輸入使用者名稱",
   password: "密碼",
   enterAPassword: "請輸入密碼",
   developmentCredentialsHaveBeenFilledIn: "開發環境測試帳號已預先填入。",
@@ -115,14 +116,14 @@ export const zhTW = {
   expenseParticipantsDoNotNeedAccountsToBeIncludedInAGroup:
     "分帳成員不需帳號，也能一起記在群組裡。",
   changeNameSUsername: (values: MessageValues) =>
-    interpolate("修改 {name} 的 Username", values),
+    interpolate("修改 {name} 的使用者名稱", values),
   nameSAccountMenu: (values: MessageValues) =>
     interpolate("{name} 的帳號選單", values),
-  unableToUpdateUsername: "無法更新 Username",
-  changeUsername: "修改 Username",
+  unableToUpdateUsername: "無法更新使用者名稱",
+  changeUsername: "修改使用者名稱",
   accountSettings: "帳號設定",
   manageYourUsernameAndPasskeys:
-    "管理你的外觀、語言、Username、Passkey 與 API token。",
+    "管理你的外觀、語言、使用者名稱、Passkey 與 API token。",
   appearance: "外觀",
   chooseHowOtterLooksOnThisBrowser:
     "選擇 Otter 的外觀。變更會立即套用並儲存在這個瀏覽器。",
@@ -137,7 +138,7 @@ export const zhTW = {
   lightMode: "淺色",
   darkMode: "深色",
   useTheNewUsernameTheNextTimeYouSignInYourCurrentSessionWillContinue:
-    "更新後請使用新的 Username 登入；目前的登入狀態不會中斷。",
+    "更新後請使用新的使用者名稱登入；目前的登入狀態不會中斷。",
   passkeys: "Passkey",
   useAPasskeyToSignInWithoutYourPassword:
     "使用裝置解鎖，不必輸入密碼即可登入。",
@@ -560,7 +561,7 @@ export const zhTW = {
   unableToAddCollaborator: "加入失敗",
   collaboratorsMustBeExistingUsersTheyCanManageExpensesAndParticipantsButNotOwnerSettings:
     "協作者必須是既有使用者，可維護支出與分帳成員，但不能管理擁有者設定。",
-  existingUsersUsername: "既有使用者 Username",
+  existingUsersUsername: "既有使用者的使用者名稱",
   addCollaborator: "加入協作者",
   removeName: (values: MessageValues) => interpolate("移除 {name}", values),
   thisAccountWillNoLongerBeAbleToManageTheGroupExistingExpenseDataWillRemain:
@@ -718,7 +719,7 @@ export const zhTW = {
   participantNotFoundName: (values: MessageValues) =>
     interpolate("找不到參與者：{name}", values),
   invalidJsonFormat: "JSON 格式錯誤",
-  incorrectUsernameOrPassword: "Username 或密碼錯誤",
+  incorrectUsernameOrPassword: "使用者名稱或密碼錯誤",
   everyPersonNeedsAnAmountForACustomSplit: "不平均分帳需每位成員都有金額",
   unsupportedBackupVersion: "不支援的備份版本",
   unsupportedSplitMethod: "不支援的分帳模式",
@@ -796,7 +797,7 @@ export const zhTW = {
   enterATripNameOf1100Characters: "請輸入 1-100 字的旅行名稱",
   enterAnExpenseDescriptionOf1120Characters: "請輸入 1-120 字的支出描述",
   enterAParticipantNameOf180Characters: "請輸入 1-80 字的參與者名稱",
-  enterAUsernameAndPassword: "請輸入 Username 和密碼",
+  enterAUsernameAndPassword: "請輸入使用者名稱和密碼",
   enterSplitValues: "請輸入分帳值",
   enterAValidPaymentDate: "請輸入有效付款日期",
   enterValidSplitShares: "請輸入有效分帳份數",
@@ -807,10 +808,10 @@ export const zhTW = {
   selectSplitParticipants: "請選擇分帳參與者",
   chooseAReceiptImage: "請選擇收據圖片",
   thisUserIsAlreadyACollaborator: "這位使用者已是協作者",
-  thisUsernameIsAlreadyRegistered: "這個 Username 已經註冊",
+  thisUsernameIsAlreadyRegistered: "這個使用者名稱已經註冊",
   invalidAmount: "金額格式錯誤",
   theDefaultDevelopmentAccountsUsernameCannotBeChanged:
-    "開發環境預設帳號不能修改 Username",
+    "開發環境預設帳號不能修改使用者名稱",
   language: "語言",
   english: "English",
   traditionalChinese: "正體中文",

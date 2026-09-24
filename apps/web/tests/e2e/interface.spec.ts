@@ -43,7 +43,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
     await page.getByRole("button", { name: "建立帳號" }).click();
     const registration = page.locator("#register-form");
-    await expect(registration.getByLabel("Username")).toBeVisible();
+    await expect(registration.getByLabel("使用者名稱")).toBeVisible();
     await expect(registration.getByLabel("密碼")).toBeVisible();
     await expect(registration.getByLabel("名稱")).toHaveCount(0);
     await expect(
@@ -58,6 +58,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       page.getByRole("heading", { name: "登入", exact: true }),
     ).toBeVisible();
+    await page.getByRole("combobox", { name: "語言" }).selectOption("en");
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page.reload();
+    await expect(page.getByRole("combobox", { name: "Language" })).toHaveValue(
+      "en",
+    );
+    await expect(page.getByLabel("Username")).toBeVisible();
   });
 
   test(`${colorScheme} summary and mobile navigation remain readable and operable`, async ({
