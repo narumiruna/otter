@@ -244,6 +244,7 @@ export function createApp(
     }
 
     const normalizedUsername = normalizeUsername(username);
+    const signupChallengeId = stringField(body, "challengeId");
     const legacyName = stringField(body, "name");
     if (legacyName && legacyName.length > 80) {
       return sendError(context, 400, "名稱最多 80 字");
@@ -264,8 +265,15 @@ export function createApp(
     try {
       session = await withTransaction(pool, async (client) => {
         await lockUsernameClaim(client, normalizedUsername);
-        if (await isUsernameReserved(client, normalizedUsername))
-          return undefined;
+        if (await isUsernameReserved(client, normalizedUsername)) {
+          if (!signupChallengeId) return undefined;
+          const released = await client.query(
+            `DELETE FROM passkey_signup_challenges
+             WHERE username = $1 AND id = $2 AND expires_at > now()`,
+            [normalizedUsername, signupChallengeId],
+          );
+          if (released.rowCount === 0) return undefined;
+        }
         await client.query(
           `INSERT INTO users (id, name, username, password_hash, created_at)
              VALUES ($1, $2, $3, $4, $5)`,

@@ -467,6 +467,97 @@ test(
 );
 
 test(
+  "reservation owner can switch to password signup without exposing another reservation",
+  postgresTestOptions,
+  async () => {
+    const verifiers = mockedVerifiers();
+    const { baseUrl, pool } = await withTestApp({
+      appOptions: {
+        passkeys: {
+          relyingParty: {
+            origin: "http://localhost",
+            rpID: "localhost",
+            rpName: "otter test",
+          },
+          verifiers,
+        },
+      },
+    });
+    const username = `fallback_${Date.now()}`;
+    const options = await api<{ challengeId: string }>(
+      baseUrl,
+      "/api/auth/passkey/register/options",
+      { body: JSON.stringify({ username }), method: "POST" },
+    );
+    const otherUsername = `other_${Date.now()}`;
+    const otherOptions = await api<{ challengeId: string }>(
+      baseUrl,
+      "/api/auth/passkey/register/options",
+      { body: JSON.stringify({ username: otherUsername }), method: "POST" },
+    );
+    expect(options.response.status).toBe(200);
+    expect(otherOptions.response.status).toBe(200);
+    const register = (name: string, challengeId: string) =>
+      api(baseUrl, "/api/auth/register", {
+        body: JSON.stringify({
+          username: name,
+          password: "password123",
+          challengeId,
+        }),
+        method: "POST",
+      });
+    expect((await register(username, "wrong-id")).response.status).toBe(409);
+    expect(
+      (await register(otherUsername, options.data.challengeId)).response.status,
+    ).toBe(409);
+    expect(
+      (await register(username, otherOptions.data.challengeId)).response.status,
+    ).toBe(409);
+    const fallback = await register(
+      username.toUpperCase(),
+      options.data.challengeId,
+    );
+    expect(fallback.response.status).toBe(201);
+    expect(fallback.response.headers.get("set-cookie")).toContain(
+      "otter_session=",
+    );
+    const stored = await pool.query<{ password_hash: string | null }>(
+      "SELECT password_hash FROM users WHERE username = $1",
+      [username],
+    );
+    expect(stored.rows[0]?.password_hash).toMatch(/^pbkdf2:/);
+    expect(
+      (
+        await pool.query(
+          "SELECT id FROM passkey_signup_challenges WHERE id = $1",
+          [options.data.challengeId],
+        )
+      ).rowCount,
+    ).toBe(0);
+    expect(
+      (
+        await pool.query(
+          "SELECT id FROM passkey_signup_challenges WHERE id = $1",
+          [otherOptions.data.challengeId],
+        )
+      ).rowCount,
+    ).toBe(1);
+    expect(
+      (await pool.query("SELECT credential_id FROM passkeys")).rowCount,
+    ).toBe(0);
+    const stale = await api(baseUrl, "/api/auth/passkey/register/verify", {
+      body: JSON.stringify({
+        challengeId: options.data.challengeId,
+        response: fakeRegistrationResponse,
+      }),
+      method: "POST",
+    });
+    expect(stale.response.status).toBe(400);
+    expect(verifiers.verifyRegistration).not.toHaveBeenCalled();
+  },
+);
+
+test(
   "users can enroll, use, list, and remove a passkey with one-time challenges",
   postgresTestOptions,
   async () => {

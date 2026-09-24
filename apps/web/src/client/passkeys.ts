@@ -1,3 +1,4 @@
+import { normalizeUsername } from "@narumitw/otter-core/username";
 import {
   browserSupportsWebAuthn,
   type PublicKeyCredentialCreationOptionsJSON,
@@ -13,6 +14,18 @@ type CeremonyOptions<Options> = {
 };
 
 let pendingSignup: { username: string; challengeId: string } | undefined;
+
+export function pendingPasskeySignupChallengeId(
+  username: string,
+): string | undefined {
+  return pendingSignup?.username === normalizeUsername(username)
+    ? pendingSignup.challengeId
+    : undefined;
+}
+
+export function clearPendingPasskeySignup(username: string): void {
+  if (pendingPasskeySignupChallengeId(username)) pendingSignup = undefined;
+}
 
 export type PasskeySummary = {
   backedUp: boolean;
@@ -40,24 +53,23 @@ export async function registerPasskey(): Promise<void> {
 export async function createAccountWithPasskey(
   username: string,
 ): Promise<void> {
+  const challengeId = pendingPasskeySignupChallengeId(username);
   const ceremony = await api<
     CeremonyOptions<PublicKeyCredentialCreationOptionsJSON>
   >("/api/auth/passkey/register/options", {
-    body: JSON.stringify({
-      username,
-      ...(pendingSignup?.username === username
-        ? { challengeId: pendingSignup.challengeId }
-        : {}),
-    }),
+    body: JSON.stringify({ username, ...(challengeId ? { challengeId } : {}) }),
     method: "POST",
   });
-  pendingSignup = { username, challengeId: ceremony.challengeId };
+  pendingSignup = {
+    username: normalizeUsername(username),
+    challengeId: ceremony.challengeId,
+  };
   const response = await startRegistration({ optionsJSON: ceremony.options });
   await api("/api/auth/passkey/register/verify", {
     body: JSON.stringify({ challengeId: ceremony.challengeId, response }),
     method: "POST",
   });
-  pendingSignup = undefined;
+  clearPendingPasskeySignup(username);
 }
 
 export async function authenticateWithPasskey(): Promise<void> {

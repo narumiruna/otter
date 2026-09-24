@@ -22,7 +22,9 @@ import { DeviceAuthorization } from "./device-authorization.js";
 import { useI18n } from "./i18n.js";
 import {
   authenticateWithPasskey,
+  clearPendingPasskeySignup,
   createAccountWithPasskey,
+  pendingPasskeySignupChallengeId,
   supportsPasskeys,
 } from "./passkeys.js";
 import {
@@ -231,13 +233,21 @@ export function AppShell() {
     credentials: LoginCredentials | RegisterCredentials,
   ) {
     const target = path.endsWith("login") ? "login" : "register";
+    const challengeId =
+      target === "register"
+        ? pendingPasskeySignupChallengeId(credentials.username)
+        : undefined;
     setAuthAction(target);
     setAuthError({});
     try {
       await api<{ user: User }>(path, {
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(
+          challengeId ? { ...credentials, challengeId } : credentials,
+        ),
         method: "POST",
       });
+      if (target === "register")
+        clearPendingPasskeySignup(credentials.username);
       queryClient.clear();
       const result = await bootstrap.refetch();
       if (result.data?.user) setSessionEnded(false);

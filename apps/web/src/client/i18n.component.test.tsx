@@ -205,6 +205,29 @@ test("message translation interpolates values and preserves Traditional Chinese"
   );
   assert.equal(translate("zh-TW", "登入"), "登入");
   assert.equal(translate("en", "找不到旅行"), "Trip not found");
+  for (const [source, expected] of [
+    ["這個 Username 已經註冊", "This username is already registered"],
+    [
+      "這個 Username 正在註冊中或已註冊",
+      "This username is being registered or is already taken",
+    ],
+    ["這個 Username 正在註冊中", "This username is being registered"],
+    [
+      "Username 或 Passkey 已經註冊",
+      "This username or passkey is already registered",
+    ],
+    [
+      "Passkey 註冊要求過於頻繁，請稍後再試",
+      "Too many passkey registration requests. Try again later.",
+    ],
+    [
+      "無法移除唯一的 Passkey，否則帳號將無法登入",
+      "You cannot remove your only passkey without losing account access",
+    ],
+  ]) {
+    assert.equal(translate("en", source), expected);
+    assert.equal(translate("zh-TW", source), source);
+  }
   assert.equal(
     translate("en", "驗證要求過於頻繁，請稍後再試"),
     "Too many authentication requests. Try again later.",

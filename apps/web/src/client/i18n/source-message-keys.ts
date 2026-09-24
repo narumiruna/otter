@@ -96,11 +96,14 @@ export const sourceMessageKeys = {
   "正在新增 Passkey…": "addingPasskey",
   "新增 Passkey": "addPasskey",
   "這個瀏覽器不支援 Passkey。": "thisBrowserDoesNotSupportPasskeys",
+  "Passkey 註冊要求過於頻繁，請稍後再試":
+    "passkeyRegistrationRequestsTooFrequent",
   "Passkey 註冊回應格式錯誤": "passkeyRegistrationResponseIsInvalid",
   "Passkey 註冊要求已失效，請重新嘗試": "passkeyRegistrationRequestExpired",
   "無法驗證 Passkey，請重新嘗試": "unableToVerifyPasskey",
   "這組 Passkey 已經註冊": "passkeyAlreadyRegistered",
   "找不到 Passkey": "passkeyNotFound",
+  "無法移除唯一的 Passkey，否則帳號將無法登入": "cannotRemoveOnlyPasskey",
   "Passkey 登入回應格式錯誤": "passkeyLoginResponseIsInvalid",
   "Passkey 登入要求已失效，請重新嘗試": "passkeyLoginRequestExpired",
   "無法使用這組 Passkey 登入": "unableToUsePasskeyToSignIn",
@@ -638,6 +641,10 @@ export const sourceMessageKeys = {
   請選擇收據圖片: "chooseAReceiptImage",
   這位使用者已是協作者: "thisUserIsAlreadyACollaborator",
   "這個 Username 已經註冊": "thisUsernameIsAlreadyRegistered",
+  "這個 Username 正在註冊中或已註冊":
+    "usernameIsBeingRegisteredOrAlreadyRegistered",
+  "這個 Username 正在註冊中": "usernameIsBeingRegistered",
+  "Username 或 Passkey 已經註冊": "usernameOrPasskeyAlreadyRegistered",
   金額格式錯誤: "invalidAmount",
   "開發環境預設帳號不能修改 Username":
     "theDefaultDevelopmentAccountsUsernameCannotBeChanged",

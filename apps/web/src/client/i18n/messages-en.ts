@@ -206,6 +206,8 @@ export const en = {
   noActiveApiTokens: "No active API tokens.",
   apiTokensExpireAfter90Days:
     "Tokens expire after 90 days. To use one with the CLI, set it as",
+  passkeyRegistrationRequestsTooFrequent:
+    "Too many passkey registration requests. Try again later.",
   passkeyRegistrationResponseIsInvalid:
     "The passkey registration response is invalid",
   passkeyRegistrationRequestExpired:
@@ -213,6 +215,8 @@ export const en = {
   unableToVerifyPasskey: "Unable to verify the passkey. Try again.",
   passkeyAlreadyRegistered: "This passkey is already registered",
   passkeyNotFound: "Passkey not found",
+  cannotRemoveOnlyPasskey:
+    "You cannot remove your only passkey without losing account access",
   passkeyLoginResponseIsInvalid: "The passkey sign-in response is invalid",
   passkeyLoginRequestExpired: "The passkey sign-in request expired. Try again.",
   unableToUsePasskeyToSignIn: "Unable to sign in with this passkey",
@@ -910,6 +914,11 @@ export const en = {
   chooseAReceiptImage: "Choose a receipt image",
   thisUserIsAlreadyACollaborator: "This user is already a collaborator",
   thisUsernameIsAlreadyRegistered: "This username is already registered",
+  usernameIsBeingRegisteredOrAlreadyRegistered:
+    "This username is being registered or is already taken",
+  usernameIsBeingRegistered: "This username is being registered",
+  usernameOrPasskeyAlreadyRegistered:
+    "This username or passkey is already registered",
   invalidAmount: "Invalid amount",
   theDefaultDevelopmentAccountsUsernameCannotBeChanged:
     "The default development account's username cannot be changed",
