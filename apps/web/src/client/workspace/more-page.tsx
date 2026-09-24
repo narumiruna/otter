@@ -13,10 +13,12 @@ export function MorePage({
   onDeleted,
   onRestored,
   payload,
+  guestShare = false,
 }: {
   onDeleted: () => void;
   onRestored: (payload: TripPayload) => void;
   payload: TripPayload;
+  guestShare?: boolean;
 }) {
   const { messages } = useI18n();
   const isOwner = payload.currentUserRole !== "editor";
@@ -37,7 +39,11 @@ export function MorePage({
       {isOwner && !payload.trip.archivedAt ? (
         <TripPreferences payload={payload} />
       ) : null}
-      <DataSettings onRestored={onRestored} payload={payload} />
+      <DataSettings
+        guestShare={guestShare}
+        onRestored={onRestored}
+        payload={payload}
+      />
       {isOwner && !payload.trip.archivedAt ? (
         <ExchangeRateSettings
           key={`${payload.trip.id}:${payload.trip.baseCurrency}`}

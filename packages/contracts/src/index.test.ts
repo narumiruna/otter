@@ -55,6 +55,23 @@ const validPayload: TripPayload = {
   },
 };
 
+test("share link modes must be explicit and valid", () => {
+  expect(
+    parseTripPayload({ ...validPayload, shareMode: "anyone-edit" }).shareMode,
+  ).toBe("anyone-edit");
+  expect(() =>
+    parseTripPayload({ ...validPayload, shareMode: "owner" }),
+  ).toThrow();
+  expect(() =>
+    parseTripPayload({
+      ...validPayload,
+      shareLinks: [
+        { id: "link", createdAt: "now", revokedAt: null, expiresAt: null },
+      ],
+    }),
+  ).toThrow();
+});
+
 const completeRates = { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 };
 test.each([
   { name: "absent", rates: undefined, trip: true, snapshot: false },

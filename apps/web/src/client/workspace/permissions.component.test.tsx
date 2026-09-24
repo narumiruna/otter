@@ -25,6 +25,34 @@ const editorPayload: TripPayload = {
   },
 };
 
+test("guest More view retains trip data tools but hides account and owner backup actions", () => {
+  window.history.replaceState({}, "", "/?view=more");
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={editorPayload}
+        refreshCollection={async () => undefined}
+      >
+        <MorePage
+          guestShare
+          onDeleted={() => undefined}
+          onRestored={() => undefined}
+          payload={editorPayload}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  view.getByText("資料與匯出").click();
+  assert.ok(view.getByText("匯出支出 CSV"));
+  assert.equal(view.queryByText("下載完整備份"), null);
+  assert.equal(view.queryByText("還原 JSON 備份"), null);
+  view.unmount();
+  client.clear();
+});
+
 test("editor More view omits every owner-only mutation surface", () => {
   window.history.replaceState({}, "", "/?view=more");
   const client = new QueryClient();

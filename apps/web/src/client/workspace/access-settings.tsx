@@ -1,3 +1,4 @@
+import type { ShareMode } from "@narumitw/otter-contracts";
 import {
   CopyIcon as Copy,
   Link2Icon as Link,
@@ -48,20 +49,21 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
   const { announce, offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<ShareMode>("readonly");
   async function create() {
     setBusy(true);
     setError("");
     try {
       const next = await requestPayload(
         `/api/trips/${payload.trip.id}/share-links`,
-        { method: "POST" },
-        messages.readOnlyShareLinkCreated,
+        { method: "POST", body: JSON.stringify({ mode }) },
+        messages.shareLinkCreated,
       );
       const url = next.shareLinks?.find((item) => item.url)?.url;
       if (url) {
         try {
           await navigator.clipboard.writeText(url);
-          announce(messages.readOnlyShareLinkCreatedAndCopied);
+          announce(messages.shareLinkCreatedAndCopied);
         } catch {
           announce(
             messages.shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually,
@@ -90,18 +92,39 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
   return (
     <section className="settings-panel grid gap-4">
       <SectionHeading
-        description={
-          messages.anyoneWithTheLinkCanViewExpensesBalancesAndSettlementsWithoutSigningInButCannotEdit
-        }
+        description={messages.chooseWhoCanEditThroughTheShareLink}
       >
-        {messages.readOnlyShareLinks}
+        {messages.shareLinks}
       </SectionHeading>
       <ActionError message={error} />
+      <label className="grid gap-2 text-sm">
+        {messages.linkPermission}
+        <select
+          className="form-control"
+          value={mode}
+          onChange={(event) => setMode(event.target.value as ShareMode)}
+        >
+          <option value="readonly">{messages.readOnlyLink}</option>
+          <option value="signed-in-edit">{messages.signedInEditLink}</option>
+          <option value="anyone-edit">{messages.anyoneEditLink}</option>
+        </select>
+      </label>
+      <p className="text-sm text-muted-foreground">
+        {mode === "readonly"
+          ? messages.anyoneWithTheLinkCanViewThisGroupsExpensesBalancesAndSettlementSuggestionsButCannotAddOrChangeData
+          : mode === "signed-in-edit"
+            ? messages.signedInEditLinkDescription
+            : messages.anyoneEditLinkDescription}
+      </p>
       <ConfirmDialog
-        confirmLabel={messages.createReadOnlyLink}
+        confirmLabel={messages.createShareLink}
         disabled={offline}
         description={
-          messages.anyoneWithTheLinkCanViewThisGroupsExpensesBalancesAndSettlementSuggestionsButCannotAddOrChangeData
+          mode === "anyone-edit"
+            ? messages.anyoneEditLinkDescription
+            : mode === "signed-in-edit"
+              ? messages.signedInEditLinkDescription
+              : messages.anyoneWithTheLinkCanViewThisGroupsExpensesBalancesAndSettlementSuggestionsButCannotAddOrChangeData
         }
         onConfirm={create}
         title={messages.createAShareLink}
@@ -121,7 +144,12 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
             >
               <span>
                 {link.createdAt.slice(0, 10)} ·{" "}
-                {link.revokedAt ? messages.revoked : messages.active}
+                {link.mode === "anyone-edit"
+                  ? messages.anyoneEditLink
+                  : link.mode === "signed-in-edit"
+                    ? messages.signedInEditLink
+                    : messages.readOnlyLink}{" "}
+                · {link.revokedAt ? messages.revoked : messages.active}
               </span>
               {link.url ? (
                 <>
@@ -148,7 +176,9 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
                   confirmLabel={messages.revokeLink}
                   disabled={offline}
                   description={
-                    messages.afterRevocationTheOldLinkWillImmediatelyStopWorking
+                    link.mode === "signed-in-edit"
+                      ? messages.revokingSignedInLinkDoesNotRemoveExistingCollaborators
+                      : messages.afterRevocationTheOldLinkWillImmediatelyStopWorking
                   }
                   destructive
                   onConfirm={() =>

@@ -63,8 +63,11 @@ export type TripCollaborator = {
   createdAt: string;
 };
 
+export type ShareMode = "readonly" | "signed-in-edit" | "anyone-edit";
+
 export type TripShareLink = {
   id: string;
+  mode: ShareMode;
   createdAt: string;
   revokedAt: string | null;
   expiresAt: string | null;
@@ -104,6 +107,7 @@ export type TripPayload = {
   collaborators?: TripCollaborator[];
   shareLinks?: TripShareLink[];
   readonly?: boolean;
+  shareMode?: ShareMode;
 };
 
 export type ApiErrorResponse = {
@@ -209,6 +213,9 @@ export function parseTripPayload(value: unknown): TripPayload {
   validateRole(value.currentUserRole);
   validateCollaborators(value.collaborators);
   validateShareLinks(value.shareLinks);
+  if (value.shareMode !== undefined && !isShareMode(value.shareMode)) {
+    throw invalidTripPayload();
+  }
   if (value.readonly !== undefined && typeof value.readonly !== "boolean") {
     throw invalidTripPayload();
   }
@@ -469,6 +476,14 @@ function validateCollaborators(value: unknown): void {
   }
 }
 
+function isShareMode(value: unknown): value is ShareMode {
+  return (
+    value === "readonly" ||
+    value === "signed-in-edit" ||
+    value === "anyone-edit"
+  );
+}
+
 function validateShareLinks(value: unknown): void {
   if (value === undefined) {
     return;
@@ -480,6 +495,7 @@ function validateShareLinks(value: unknown): void {
     if (
       !isRecord(link) ||
       !isNonEmptyString(link.id) ||
+      !isShareMode(link.mode) ||
       !isNonEmptyString(link.createdAt) ||
       !isOptionalString(link.revokedAt, true) ||
       !isOptionalString(link.expiresAt, true) ||

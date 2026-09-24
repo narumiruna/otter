@@ -599,6 +599,23 @@ export const en = {
       `{links} active ${pluralize(values.links, "link")} · {collaborators} ${pluralize(values.collaborators, "collaborator")}`,
       values,
     ),
+  shareLinkCreated: "Share link created",
+  shareLinkCreatedAndCopied: "Share link created and copied",
+  shareLinks: "Share links",
+  chooseWhoCanEditThroughTheShareLink:
+    "Choose who can view or edit using this link.",
+  linkPermission: "Link permission",
+  readOnlyLink: "Read-only (no sign-in)",
+  signedInEditLink: "Edit after signing in",
+  anyoneEditLink: "Anyone with the link can edit",
+  signedInEditLinkDescription:
+    "After signing in or registering, visitors become collaborators. Revoking the link does not remove people who already joined.",
+  anyoneEditLinkDescription:
+    "Anyone with the link can edit expenses and participants without signing in. Share it only with people you trust; revocation takes effect immediately.",
+  revokingSignedInLinkDoesNotRemoveExistingCollaborators:
+    "Revoking prevents new joins. Existing collaborators can still edit; remove their access separately.",
+  signInToEditSharedGroup: (values: MessageValues) =>
+    interpolate("Sign in or create an account to edit {name}.", values),
   readOnlyShareLinkCreated: "Read-only share link created",
   readOnlyShareLinkCreatedAndCopied: "Read-only share link created and copied",
   shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually:

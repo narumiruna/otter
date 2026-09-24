@@ -6,7 +6,13 @@ const payload: TripPayload = {
   balances: [],
   settlements: [],
   shareLinks: [
-    { id: "secret", createdAt: "now", revokedAt: null, expiresAt: null },
+    {
+      id: "secret",
+      mode: "readonly",
+      createdAt: "now",
+      revokedAt: null,
+      expiresAt: null,
+    },
   ],
   trip: {
     id: "trip_1",

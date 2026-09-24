@@ -63,6 +63,10 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 - `012_passkeys.sql` 新增 Passkey credentials 與短效 challenges，不修改既有帳號、密碼或 sessions。
 - `015_passkey_signup.sql` 允許 `users.password_hash` 為 NULL（僅 Passkey 帳號），新增五分鐘有效的 pending signup challenge table；在驗證完成或過期前保留該 Username，阻止密碼註冊或修改 Username 搶先使用。持有 challenge ID 的瀏覽器可在取消 Passkey 提示後重試，或將同一 challenge ID 隨密碼註冊要求送出，在同一 transaction 內解除自己的保留並建立密碼帳號；其他人不能用不同 ID 解除保留。驗證成功才以同一 transaction 建立 user、Passkey 與 session；原有帳號及密碼不變。無密碼帳號不可刪除最後一組 Passkey。
 
+## 可編輯分享連結
+
+`016_edit_share_links.sql` 為既有唯讀連結補上 `readonly` 權限，並加入兩種可編輯模式；不修改 session cookie、Bearer token 或環境變數。登入後編輯連結需要一般瀏覽器 session，成功加入後會建立長期協作者關係；撤銷連結不會移除既有成員。免登入編輯連結使用每個群組專用的高熵 token，僅在同群組 API 的 `X-Otter-Share-Token` header 驗證，不能取得帳號權限或修改擁有者設定。資料庫只儲存 token hash；不在 cookie 或本機儲存連結憑證。請用 HTTPS 發送連結；撤銷連結會刪除對應的無密碼客體帳號與編輯權限，資料庫過期時間同樣在每次請求檢查。已瀏覽或下載的資料無法因撤銷而收回。
+
 ## 支出歷史切換與回復
 
 `014_expense_revisions.sql` 是 additive migration，但新 API 的 If-Match 前置條件是 breaking change。每筆現存支出建立 version 1 baseline，操作者標為未知的系統起始快照；既有金額、分帳、收據與付款不改寫。歷史隨群組刪除，不隨單筆支出刪除，保存期與群組一致。

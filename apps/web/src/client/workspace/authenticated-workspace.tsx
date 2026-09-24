@@ -64,11 +64,13 @@ export function AuthenticatedWorkspace({
   bootstrap,
   offline,
   webMcpEnabled = true,
+  guestShare = false,
 }: {
   announce: (message: string) => void;
   bootstrap: AppBootstrap;
   offline: boolean;
   webMcpEnabled?: boolean;
+  guestShare?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
@@ -90,9 +92,12 @@ export function AuthenticatedWorkspace({
     [bootstrap.archivedTrips, bootstrap.trips],
   );
   const collectionQuery = useQuery({
+    enabled: !guestShare,
     initialData: initialCollection,
     queryFn: () => api<TripCollection>("/api/trips"),
-    queryKey: ["trips"],
+    queryKey: guestShare
+      ? ["trips", "share", bootstrap.selected?.trip.id]
+      : ["trips"],
     refetchOnWindowFocus: false,
   });
   const allTrips = [
@@ -114,7 +119,9 @@ export function AuthenticatedWorkspace({
         ? bootstrap.selected
         : undefined,
     queryFn: () => api<TripPayload>(`/api/trips/${selectedTripId}`),
-    queryKey: ["trip", selectedTripId],
+    queryKey: guestShare
+      ? ["trip", selectedTripId, "share"]
+      : ["trip", selectedTripId],
     refetchOnWindowFocus: false,
   });
 
@@ -153,13 +160,43 @@ export function AuthenticatedWorkspace({
 
   useEffect(() => {
     if (selectedTripId !== location.tripId) {
-      navigate({ mode: null, tripId: selectedTripId, view: "overview" }, true);
+      navigate(
+        {
+          mode: null,
+          tripId: selectedTripId,
+          view: guestShare ? location.view : "overview",
+        },
+        true,
+      );
     }
-  }, [location.tripId, navigate, selectedTripId]);
+  }, [guestShare, location.tripId, location.view, navigate, selectedTripId]);
 
   const refreshCollection = useCallback(async () => {
-    await collectionQuery.refetch();
-  }, [collectionQuery]);
+    if (!guestShare) await collectionQuery.refetch();
+  }, [collectionQuery, guestShare]);
+
+  const updateGuestSummary = useCallback(
+    (next: TripPayload) => {
+      if (!guestShare) return;
+      queryClient.setQueryData<TripCollection>(
+        ["trips", "share", bootstrap.selected?.trip.id],
+        (current) =>
+          current && {
+            ...current,
+            trips: current.trips.map((trip) =>
+              trip.id === next.trip.id
+                ? {
+                    ...trip,
+                    participantCount: next.trip.participants.length,
+                    expenseCount: next.trip.expenses.length,
+                  }
+                : trip,
+            ),
+          },
+      );
+    },
+    [bootstrap.selected?.trip.id, guestShare, queryClient],
+  );
 
   useEffect(() => {
     window.history.scrollRestoration = "manual";
@@ -249,6 +286,8 @@ export function AuthenticatedWorkspace({
       offline={offline}
       payload={payload}
       refreshCollection={refreshCollection}
+      onPayload={updateGuestSummary}
+      tripQueryKey={guestShare ? ["trip", selectedTripId, "share"] : undefined}
     >
       {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
@@ -274,14 +313,20 @@ export function AuthenticatedWorkspace({
             selectTrip={selectTrip}
             trips={collectionQuery.data.trips}
           />
-          <CreateTrip
-            onCreated={async (created) => {
-              queryClient.setQueryData(["trip", created.trip.id], created);
-              await refreshCollection();
-              navigate({ mode: null, tripId: created.trip.id, view: "people" });
-            }}
-            offline={offline}
-          />
+          {!guestShare ? (
+            <CreateTrip
+              onCreated={async (created) => {
+                queryClient.setQueryData(["trip", created.trip.id], created);
+                await refreshCollection();
+                navigate({
+                  mode: null,
+                  tripId: created.trip.id,
+                  view: "people",
+                });
+              }}
+              offline={offline}
+            />
+          ) : null}
           {switchError ? (
             <p className="field-error" role="alert">
               {switchError}
@@ -383,6 +428,7 @@ export function AuthenticatedWorkspace({
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (
               <MorePage
+                guestShare={guestShare}
                 onDeleted={afterDelete}
                 onRestored={(restored) =>
                   navigate({

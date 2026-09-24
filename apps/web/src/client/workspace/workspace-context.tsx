@@ -25,18 +25,23 @@ export function WorkspaceProvider({
   offline,
   payload,
   refreshCollection,
+  onPayload,
+  tripQueryKey,
 }: {
   announce: (message: string) => void;
   children: ReactNode;
   offline: boolean;
   payload: TripPayload;
   refreshCollection: () => Promise<void>;
+  onPayload?: (payload: TripPayload) => void;
+  tripQueryKey?: readonly string[];
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
   const value = useMemo<WorkspaceContextValue>(() => {
     const replacePayload = (next: TripPayload) => {
-      queryClient.setQueryData(["trip", next.trip.id], next);
+      queryClient.setQueryData(tripQueryKey ?? ["trip", next.trip.id], next);
+      onPayload?.(next);
       void queryClient.invalidateQueries({
         queryKey: ["expense-history", next.trip.id],
       });
@@ -57,7 +62,16 @@ export function WorkspaceProvider({
         return next;
       },
     };
-  }, [announce, messages, offline, payload, queryClient, refreshCollection]);
+  }, [
+    announce,
+    messages,
+    offline,
+    onPayload,
+    payload,
+    queryClient,
+    refreshCollection,
+    tripQueryKey,
+  ]);
   return (
     <WorkspaceContext.Provider value={value}>
       {children}

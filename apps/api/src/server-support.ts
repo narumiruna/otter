@@ -115,6 +115,7 @@ type TripMemberRow = {
 
 type TripShareLinkRow = {
   id: string;
+  mode: TripShareLink["mode"];
   created_at: Date | string;
   revoked_at: Date | string | null;
   expires_at: Date | string | null;
@@ -421,7 +422,8 @@ export async function findUserByUsername(
   const result = await db.query<UserRow>(
     `SELECT id, name, username, password_hash, created_at
      FROM users
-     WHERE username = $1`,
+     WHERE username = $1
+       AND NOT EXISTS (SELECT 1 FROM trip_share_links WHERE guest_user_id = users.id)`,
     [username],
   );
   const row = result.rows[0];
@@ -574,12 +576,13 @@ async function loadTrip(
       [tripId],
     );
   const readMembers = async () =>
-    userId
+    tripRow.current_user_role === "owner"
       ? db.query<TripMemberRow>(
           `SELECT users.id AS user_id, users.name, users.username, trip_members.role, trip_members.created_at
            FROM trip_members
            JOIN users ON users.id = trip_members.user_id
            WHERE trip_members.trip_id = $1
+             AND NOT EXISTS (SELECT 1 FROM trip_share_links WHERE guest_user_id = users.id)
            ORDER BY CASE trip_members.role WHEN 'owner' THEN 0 ELSE 1 END, trip_members.created_at`,
           [tripId],
         )
@@ -587,7 +590,7 @@ async function loadTrip(
   const readShareLinks = async () =>
     tripRow.current_user_role === "owner"
       ? db.query<TripShareLinkRow>(
-          `SELECT id, created_at, revoked_at, expires_at
+          `SELECT id, mode, created_at, revoked_at, expires_at
            FROM trip_share_links
            WHERE trip_id = $1
            ORDER BY created_at DESC, id`,
@@ -675,6 +678,7 @@ async function loadTrip(
       toId: row.to_id,
     })),
     shareLinks: shareLinksResult.rows.map((row) => ({
+      mode: row.mode,
       createdAt: iso(row.created_at),
       expiresAt: row.expires_at ? iso(row.expires_at) : null,
       id: row.id,

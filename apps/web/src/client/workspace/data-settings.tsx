@@ -32,9 +32,11 @@ import { BusyButton, ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 export function DataSettings({
   onRestored,
   payload,
+  guestShare = false,
 }: {
   onRestored: (payload: TripPayload) => void;
   payload: TripPayload;
+  guestShare?: boolean;
 }) {
   const { messages } = useI18n();
   const { announce } = useWorkspace();
@@ -89,11 +91,13 @@ export function DataSettings({
               <Printer aria-hidden="true" />
               {messages.print}
             </Button>
-            <BackupDownload tripId={trip.id} name={trip.name} />
+            {!guestShare ? (
+              <BackupDownload tripId={trip.id} name={trip.name} />
+            ) : null}
           </div>
         </section>
         {!trip.archivedAt ? <CsvImport payload={payload} /> : null}
-        <RestoreBackup onRestored={onRestored} />
+        {!guestShare ? <RestoreBackup onRestored={onRestored} /> : null}
       </div>
     </details>
   );

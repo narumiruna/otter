@@ -1,5 +1,6 @@
 import type { LoginCredentials } from "./auth-screen.js";
 import {
+  ApiResponseError,
   api,
   type TripPayload,
   type TripSummary,
@@ -15,6 +16,8 @@ export type AppBootstrap = {
   archivedTrips: TripSummary[];
   devLoginCredentials?: LoginCredentials;
   readonlyShare: boolean;
+  guestShare?: boolean;
+  pendingShare?: string;
   selected: TripPayload | null;
   trips: TripSummary[];
   user: User | null;
@@ -26,13 +29,74 @@ export async function fetchAppBootstrap(
 ): Promise<AppBootstrap> {
   const shareToken = pathname.match(/^\/share\/([^/]+)$/)?.[1];
   if (shareToken) {
+    const sharePath = `/api/share/${encodeURIComponent(shareToken)}`;
+    let share: TripPayload | { mode: "signed-in-edit"; tripName: string };
+    try {
+      share = await api<
+        TripPayload | { mode: "signed-in-edit"; tripName: string }
+      >(sharePath);
+    } catch (error) {
+      if (!(error instanceof ApiResponseError) || error.status !== 404)
+        throw error;
+      // A revoked invite must not strand an already authenticated visitor.
+      const me = await api<{ user: User | null }>("/api/me");
+      if (!me.user) throw error;
+      window.history.replaceState({}, "", "/");
+      return fetchAppBootstrap("/");
+    }
+    if ("mode" in share && share.mode === "signed-in-edit") {
+      const [config, me] = await Promise.all([
+        api<{ devLoginCredentials: LoginCredentials | null }>("/api/config"),
+        api<{ user: User | null }>("/api/me"),
+      ]);
+      if (me.user) {
+        let joined: { tripId: string };
+        try {
+          joined = await api<{ tripId: string }>(`${sharePath}/join`, {
+            method: "POST",
+          });
+        } catch (error) {
+          if (!(error instanceof ApiResponseError) || error.status !== 404)
+            throw error;
+          window.history.replaceState({}, "", "/");
+          return fetchAppBootstrap("/");
+        }
+        const destination = `/?trip=${encodeURIComponent(joined.tripId)}`;
+        window.history.replaceState({}, "", destination);
+        return fetchAppBootstrap(
+          "/",
+          `?trip=${encodeURIComponent(joined.tripId)}`,
+        );
+      }
+      return {
+        archivedTrips: [],
+        devLoginCredentials: config.devLoginCredentials ?? undefined,
+        pendingShare: share.tripName,
+        readonlyShare: false,
+        selected: null,
+        trips: [],
+        user: null,
+      };
+    }
+    const selected = share as TripPayload;
+    const guestShare = selected.shareMode === "anyone-edit";
     return {
       archivedTrips: [],
-      readonlyShare: true,
-      selected: await api<TripPayload>(
-        `/api/share/${encodeURIComponent(shareToken)}`,
-      ),
-      trips: [],
+      guestShare,
+      readonlyShare: !guestShare,
+      selected,
+      trips: guestShare
+        ? [
+            {
+              id: selected.trip.id,
+              name: selected.trip.name,
+              baseCurrency: selected.trip.baseCurrency,
+              archivedAt: selected.trip.archivedAt,
+              participantCount: selected.trip.participants.length,
+              expenseCount: selected.trip.expenses.length,
+            },
+          ]
+        : [],
       user: null,
     };
   }
