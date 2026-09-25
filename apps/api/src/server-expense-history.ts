@@ -82,8 +82,19 @@ export async function recordExpenseChanges(
       continue;
     const snapshot = next?.snapshot ?? old?.snapshot;
     if (!snapshot) continue;
-    const version = old ? old.version + 1 : 1;
-    if (next && old)
+    // An expense may have been deleted and restored with its original ID.
+    // Continue its history instead of colliding with the old version 1.
+    const last =
+      !old && next
+        ? (
+            await client.query<{ version: number }>(
+              "SELECT version FROM expense_revisions WHERE trip_id = $1 AND expense_id = $2 ORDER BY version DESC LIMIT 1",
+              [tripId, id],
+            )
+          ).rows[0]
+        : undefined;
+    const version = (old?.version ?? last?.version ?? 0) + 1;
+    if (next && version !== next.version)
       await client.query(
         "UPDATE expenses SET version = $3 WHERE trip_id = $1 AND id = $2",
         [tripId, id, version],
@@ -96,7 +107,7 @@ export async function recordExpenseChanges(
         tripId,
         id,
         version,
-        !next ? "deleted" : old ? "updated" : "created",
+        !next ? "deleted" : old ? "updated" : last ? "restored" : "created",
         source,
         actor ? JSON.stringify({ id: actor.id, name: actor.name }) : null,
         JSON.stringify(snapshot),

@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ApiResponseError, api } from "../client-support.js";
 import { useI18n } from "../i18n.js";
-import { ExpenseSnapshotDetails } from "./expense-history-dialog.js";
+import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
 import { ActionError } from "./workspace-context.js";
 
 export function useExpenseVersion(

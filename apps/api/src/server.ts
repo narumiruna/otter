@@ -27,6 +27,7 @@ import {
   registerExchangeRateRoutes,
 } from "./server-exchange-rates.js";
 import { registerExpenseHistoryRoutes } from "./server-expense-history-routes.js";
+import { registerExpenseRestoreRoute } from "./server-expense-restore.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
@@ -789,6 +790,7 @@ export function createApp(
   registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
+  registerExpenseRestoreRoute(app, pool, mustBeSignedIn, buildTripPayload);
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);

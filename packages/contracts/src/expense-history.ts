@@ -28,6 +28,7 @@ export const revisionSources = [
   "receipt",
   "development_seed",
   "migration",
+  "version_restore",
 ] as const;
 export type RevisionSource = (typeof revisionSources)[number];
 export const expenseChangeFields = [
@@ -47,7 +48,7 @@ export type ExpenseRevision = {
   id: string;
   expenseId: string;
   version: number;
-  action: "baseline" | "created" | "updated" | "deleted";
+  action: "baseline" | "created" | "updated" | "deleted" | "restored";
   source: RevisionSource;
   actor: { id: string; name: string } | null;
   recordedAt: string;
@@ -58,6 +59,8 @@ export type ExpenseRevision = {
 export type ExpenseHistoryPage = {
   revisions: ExpenseRevision[];
   nextCursor: string | null;
+  // Present for expenseId-filtered reads, even when timestamps tie.
+  latestRevision?: Pick<ExpenseRevision, "version" | "action"> | null;
 };
 export type ExpenseVersionErrorCode =
   | "EXPENSE_VERSION_REQUIRED"
@@ -163,7 +166,14 @@ export function parseExpenseHistoryPage(value: unknown): ExpenseHistoryPage {
   if (
     !record(value) ||
     !Array.isArray(value.revisions) ||
-    !(value.nextCursor === null || text(value.nextCursor))
+    !(value.nextCursor === null || text(value.nextCursor)) ||
+    (value.latestRevision !== undefined &&
+      value.latestRevision !== null &&
+      (!record(value.latestRevision) ||
+        !isExpenseVersion(value.latestRevision.version) ||
+        !["baseline", "created", "updated", "deleted", "restored"].includes(
+          String(value.latestRevision.action),
+        )))
   )
     throw new Error("Invalid expense history");
   for (const r of value.revisions) {
@@ -172,7 +182,7 @@ export function parseExpenseHistoryPage(value: unknown): ExpenseHistoryPage {
       !text(r.id) ||
       !text(r.expenseId) ||
       !isExpenseVersion(r.version) ||
-      !["baseline", "created", "updated", "deleted"].includes(
+      !["baseline", "created", "updated", "deleted", "restored"].includes(
         String(r.action),
       ) ||
       !revisionSources.some((s) => s === r.source) ||

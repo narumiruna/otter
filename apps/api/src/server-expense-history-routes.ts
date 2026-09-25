@@ -64,6 +64,17 @@ export function registerExpenseHistoryRoutes(
        ORDER BY r.recorded_at DESC, r.id DESC LIMIT $5`,
         [tripId, userId, expenseId ?? null, cursor ?? null, limit + 1],
       );
+      const latest = expenseId
+        ? ((
+            await pool.query<Pick<ExpenseRevision, "version" | "action">>(
+              `SELECT r.version, r.action FROM expense_revisions r
+               WHERE r.trip_id = $1 AND r.expense_id = $2
+                 AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = r.trip_id AND m.user_id = $3)
+               ORDER BY r.version DESC LIMIT 1`,
+              [tripId, expenseId, userId],
+            )
+          ).rows[0] ?? null)
+        : undefined;
       const rows = result.rows.slice(0, limit);
       const revisions: ExpenseRevision[] = rows.map((row) => ({
         id: row.id,
@@ -84,6 +95,7 @@ export function registerExpenseHistoryRoutes(
         revisions,
         nextCursor:
           result.rows.length > limit ? (rows.at(-1)?.id ?? null) : null,
+        ...(expenseId ? { latestRevision: latest } : {}),
       });
     },
   );

@@ -254,6 +254,40 @@ test("two members resolve an expense conflict without losing a draft; history is
     await expect(
       ownerPage.getByRole("dialog").getByText(/已刪除 · v4/),
     ).toBeVisible();
+    await ownerPage.getByRole("button", { name: "還原版本 1" }).click();
+    const restoreDialog = ownerPage.getByRole("region", {
+      name: "還原支出版本",
+    });
+    await expect(restoreDialog.getByText(/沒有收據的狀態下還原/)).toBeVisible();
+    await expect(
+      restoreDialog.getByText("已刪除", { exact: true }),
+    ).toBeVisible();
+    await ownerPage.setViewportSize({ width: 375, height: 900 });
+    await expectNoOverflow(ownerPage);
+    const restoreAccessibility = await new AxeBuilder({ page: ownerPage })
+      .include('[role="dialog"]')
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(restoreAccessibility.violations).toEqual([]);
+    const restoredResponse = ownerPage.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/expenses/${expenseId}/restore`) &&
+        response.request().method() === "POST",
+    );
+    await restoreDialog.getByRole("button", { name: "還原此版本" }).click();
+    expect((await restoredResponse).status()).toBe(200);
+    const restored = (await (
+      await owner.request.get(root)
+    ).json()) as TripPayload;
+    expect(restored.trip.expenses[0]).toMatchObject({
+      id: expenseId,
+      version: 5,
+      amountMinor: 100,
+    });
+    expect(restored.trip.expenses[0].receiptId).toBeUndefined();
+    await expect(
+      ownerPage.getByRole("dialog").getByText(/已還原 · v5/),
+    ).toBeVisible();
     const shared = (await (
       await owner.request.post(`${root}/share-links`)
     ).json()) as TripPayload;

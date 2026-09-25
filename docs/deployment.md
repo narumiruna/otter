@@ -71,6 +71,8 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 
 `014_expense_revisions.sql` 是 additive migration，但新 API 的 If-Match 前置條件是 breaking change。每筆現存支出建立 version 1 baseline，操作者標為未知的系統起始快照；既有金額、分帳、收據與付款不改寫。歷史隨群組刪除，不隨單筆支出刪除，保存期與群組一致。
 
+`018_expense_version_restore.sql` 僅擴充 `expense_revisions` 的 action／source CHECK constraints，不更動現有支出、收據、付款或歷史列。須先套用 migration 再部署可寫入 `version_restore` 的 API／Web；舊讀取端若使用嚴格 revision guards，須同步升級以辨識 `restored` 與 `version_restore`。新還原功能要求與 PATCH 相同的 `If-Match`，已刪支出使用最新刪除版號；不提供無條件寫入。舊收據圖片無法還原：現有支出保留目前圖片，已刪支出不帶收據。部署驗證應涵蓋已刪支出連續版號、舊資料可讀、支付紀錄不變及衝突回傳 412。若已接受新 action／source 的寫入，停止寫入並向前修復，不要退回無法辨識新歷史的舊 API 或直接 DROP constraint／歷史資料。
+
 ### 合併／部署前置條件
 
 本功能以 PR 交付，尚未部署 production、發佈 npm package 或觸發 release workflow。交接由 repository maintainer `narumiruna` 負責；production 資料量、磁碟餘裕、維護窗口與外部 API client 清單仍須於切換前確認。

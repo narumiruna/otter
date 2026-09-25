@@ -11,12 +11,13 @@ type Messages = CatalogShape<typeof zhTW>;
 export const en = {
   expenseHistory: "Change history",
   expenseHistoryDescription:
-    "Expense edits and deletions, not payment history or historical balances.",
+    "Expense edits, deletions, and restores; not payment history or historical balances.",
   expenseHistoryEmpty: "No changes recorded",
   expenseHistoryMore: "Load more changes",
   expenseHistoryCreated: "Created",
   expenseHistoryUpdated: "Updated",
   expenseHistoryDeleted: "Deleted",
+  expenseHistoryRestored: "Restored",
   expenseHistoryBaseline: "Initial snapshot",
   expenseHistorySystem: "System",
   expenseHistoryBaselineNotice:
@@ -33,6 +34,24 @@ export const en = {
   expenseHistorySourceReceipt: "Receipt action",
   expenseHistorySourceSeed: "Development fixture",
   expenseHistorySourceMigration: "Migration",
+  expenseHistorySourceVersionRestore: "Version restore",
+  expenseRestoreVersion: (values: MessageValues) =>
+    interpolate("Restore v{version}", values),
+  expenseRestoreTitle: "Restore expense version",
+  expenseRestoreDescription:
+    "Review the current expense and the version to restore. Restoring adds a new version; later history stays available.",
+  expenseRestoreKeepsReceipt:
+    "The current receipt stays attached. Old receipt images are not restored.",
+  expenseRestoreNoReceipt:
+    "A deleted expense returns without a receipt. Old receipt images are not restored.",
+  expenseRestoreMissingPerson:
+    "This version references someone no longer in the group. Edit the expense manually instead.",
+  expenseRestoreUnavailable:
+    "This expense cannot be restored. Reload and try again.",
+  expenseRestoreConflict:
+    "The expense changed. Review the latest state before confirming again.",
+  expenseRestoreConfirm: "Restore this version",
+  expenseRestored: "Expense version restored",
   expenseConflictParticipantsChanged:
     "People have changed. Confirming replaces unavailable payer or split selections with the latest expense's settings. Other draft fields are kept; review split amounts before saving.",
   expenseVersionConflict:
@@ -45,7 +64,7 @@ export const en = {
   latestExpenseMissing:
     "This expense was deleted or is no longer accessible. Your draft is retained but cannot be saved.",
   deleteExpenseHistoryRetained:
-    "The expense will leave the current ledger and balances will be recalculated. Change history is retained. Restore is not supported yet.",
+    "The expense will leave the current ledger and balances will be recalculated. Change history is retained; you can restore an earlier version without its old receipt image.",
   expenseHistoryForName: (values: MessageValues) =>
     interpolate("Change history: {name}", values),
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:

@@ -1,6 +1,10 @@
 import type { Messages } from "./messages.js";
 
 export const sourceMessageKeys = {
+  原版本的付款人或分帳參與者已不在群組中: "expenseRestoreMissingPerson",
+  找不到支出版本: "expenseRestoreUnavailable",
+  請選擇有效的支出版本: "expenseRestoreUnavailable",
+  支出版本內容無效: "expenseRestoreUnavailable",
   "支出已被修改，請查看最新內容後重新確認": "expenseVersionConflict",
   "請提供支出版本，重新載入後再試": "expenseVersionMissing",
   支出版本格式錯誤: "expenseVersionInvalid",

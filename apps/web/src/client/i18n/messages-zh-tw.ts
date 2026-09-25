@@ -3,12 +3,13 @@ import { interpolate, type MessageValues } from "./message-types.js";
 export const zhTW = {
   expenseHistory: "修改紀錄",
   expenseHistoryDescription:
-    "查看支出的修改與刪除紀錄；這不是付款或歷史餘額紀錄。",
+    "查看支出的修改、刪除與版本還原；這不是付款或歷史餘額紀錄。",
   expenseHistoryEmpty: "尚無修改紀錄",
   expenseHistoryMore: "載入更多紀錄",
   expenseHistoryCreated: "新增",
   expenseHistoryUpdated: "修改",
   expenseHistoryDeleted: "已刪除",
+  expenseHistoryRestored: "已還原",
   expenseHistoryBaseline: "起始快照",
   expenseHistorySystem: "系統",
   expenseHistoryBaselineNotice:
@@ -24,6 +25,21 @@ export const zhTW = {
   expenseHistorySourceReceipt: "收據操作",
   expenseHistorySourceSeed: "開發範例",
   expenseHistorySourceMigration: "資料遷移",
+  expenseHistorySourceVersionRestore: "版本還原",
+  expenseRestoreVersion: (values: MessageValues) =>
+    interpolate("還原版本 {version}", values),
+  expenseRestoreTitle: "還原支出版本",
+  expenseRestoreDescription:
+    "請核對目前支出與要還原的版本。還原會新增版本，後續修改紀錄仍會保留。",
+  expenseRestoreKeepsReceipt: "保留目前的收據，不會還原舊收據圖片。",
+  expenseRestoreNoReceipt:
+    "已刪除的支出會在沒有收據的狀態下還原，不會還原舊圖片。",
+  expenseRestoreMissingPerson:
+    "此版本的付款人或分帳參與者已不在群組中，請手動修改支出。",
+  expenseRestoreUnavailable: "無法還原此支出，請重新載入後再試。",
+  expenseRestoreConflict: "支出已變更，請核對最新內容後再次確認。",
+  expenseRestoreConfirm: "還原此版本",
+  expenseRestored: "已還原支出版本",
   expenseConflictParticipantsChanged:
     "參與者已變更。確認後，已失效的付款人或分帳設定會改用最新支出的設定，其他草稿欄位保留；儲存前請重新核對分帳金額。",
   expenseVersionConflict: "支出已被修改，請查看最新內容後重新確認",
@@ -33,7 +49,7 @@ export const zhTW = {
   confirmLatestExpenseVersion: "已確認最新內容，保留草稿繼續編輯",
   latestExpenseMissing: "此支出已刪除或無法存取。草稿仍保留，但無法儲存。",
   deleteExpenseHistoryRetained:
-    "支出將移出目前帳目並重算餘額，修改紀錄仍保留。此版本尚不支援還原。",
+    "支出將移出目前帳目並重算餘額，修改紀錄仍保留；之後可還原舊版本，但不會還原舊收據圖片。",
   expenseHistoryForName: (values: MessageValues) =>
     interpolate("修改紀錄：{name}", values),
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:
