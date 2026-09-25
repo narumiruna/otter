@@ -12,6 +12,7 @@ type ExpenseInsert = Pick<
   | "createdAt"
   | "participantIds"
   | "participantShares"
+  | "exchangeRate"
 > & { category: string; tags: string[] };
 
 // Callers own validation, IDs, timestamps, and the surrounding transaction.
@@ -22,8 +23,8 @@ export async function insertExpense(
 ): Promise<void> {
   await client.query(
     `INSERT INTO expenses
-       (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+       (id, trip_id, description, amount_minor, currency, category, tags, paid_by_id, expense_date, created_at, exchange_rate)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       expense.id,
       tripId,
@@ -35,6 +36,7 @@ export async function insertExpense(
       expense.paidById,
       expense.expenseDate,
       expense.createdAt,
+      expense.exchangeRate ?? null,
     ],
   );
   await insertExpenseParticipants(client, tripId, expense);

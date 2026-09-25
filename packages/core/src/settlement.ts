@@ -1,6 +1,6 @@
 import type { ExpenseCategory } from "./expense-metadata.js";
-import type { Currency, ExchangeRates } from "./money.js";
-import { convertMinorWithRates } from "./money.js";
+import type { Currency, ExchangeRates, ExpenseExchangeRate } from "./money.js";
+import { convertExpenseMinor, convertMinorWithRates } from "./money.js";
 
 export type Participant = {
   id: string;
@@ -17,6 +17,7 @@ export type Expense = {
   description: string;
   amountMinor: number;
   currency: Currency;
+  exchangeRate?: ExpenseExchangeRate;
   category?: ExpenseCategory;
   tags?: string[];
   paidById: string;
@@ -90,10 +91,11 @@ export function calculateBalances(trip: Trip): Balance[] {
       continue;
     }
 
-    const amount = convertMinorWithRates(
+    const amount = convertExpenseMinor(
       expense.amountMinor,
       expense.currency,
       trip.baseCurrency,
+      expense.exchangeRate,
       trip.exchangeRates,
     );
     balances.set(expense.paidById, payerBalance + amount);
@@ -111,10 +113,11 @@ export function calculateBalances(trip: Trip): Balance[] {
 
     if (hasExplicitShares) {
       const shares = splitIds.map((participantId) =>
-        convertMinorWithRates(
+        convertExpenseMinor(
           explicitShares.get(participantId) ?? 0,
           expense.currency,
           trip.baseCurrency,
+          expense.exchangeRate,
           trip.exchangeRates,
         ),
       );

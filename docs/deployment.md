@@ -45,6 +45,13 @@ docker compose up --detach --build --no-deps otter
 
 不要提交 `.env*`、資料庫 dumps 或 credentials。`.env.example` 只包含本機開發預設值。
 
+## Expense quote snapshot rollout (migration 019)
+
+1. Stop older API/CLI writers; take a full PostgreSQL backup (`pg_dump -Fc`) and verify its restore into an isolated database. A product JSON backup alone does not contain revision history.
+2. Run `npm run migrate` with the production `DATABASE_URL` before deploying the new API and Web together. Migration 019 adds a nullable JSONB column, backfills current expenses and past revisions with **legacy estimates** from the built-in fixed table and the trip's current base currency. Historical bank quotes and historic base-currency changes cannot be reconstructed. Check `SELECT count(*) FROM expenses WHERE exchange_rate->>'source' = 'legacy'` and revision snapshot counts; keep the full backup.
+3. Upgrade API/Web and CLI clients; verify new foreign-currency expenses contain `exchangeRate`, versions and v2 JSON exports preserve it, and old expenses show `legacy`. Old writers can still insert NULL (readers show an estimated legacy quote), but stop mixed-version writes to avoid silently recording unpriced expenses. Settlement payments remain floating. Changing the base currency uses current rates to bridge old snapshots without mutating their original base currency.
+4. To roll back the feature, stop writes and restore the prior reader/writer pair temporarily; **do not drop** the new column or rewrite its data. Older writers accept the additive schema but cannot maintain new snapshots. Before allowing writes again, approve a forward migration/compatibility plan. Restore a full PostgreSQL backup only after explicitly accepting loss of subsequent writes, or reconcile them first.
+
 ## Password auth rate limiting
 
 密碼註冊與登入使用 60 秒的 in-memory fixed window。每個 client 的註冊上限為 5 次、登入上限為 10 次；單一 process 的全域上限分別為 30 次與 120 次。超限時 API 回傳 `429` 與 `Retry-After`。格式錯誤的要求也會計數，避免繞過限制後消耗驗證資源。

@@ -702,7 +702,7 @@ export const zhTW = {
       ),
   customExchangeRates: "自訂匯率",
   bankOfTaiwanSpotMidRateDescription:
-    "未設定自訂匯率時，系統會自動使用台灣銀行即期買進與賣出的中價。載入後套用可清除自訂值，恢復自動更新。",
+    "新支出未設定自訂匯率時，使用台灣銀行即期中價並保存於該筆支出。清除自訂值只影響之後記錄的支出；付款紀錄仍依目前匯率換算。",
   loadBankOfTaiwanSpotMidRates: "載入台灣銀行預設匯率",
   loadingBankExchangeRates: "正在載入銀行匯率…",
   bankOfTaiwanSpotMidRatesLoadedAtTime: (values: MessageValues) =>
@@ -714,7 +714,7 @@ export const zhTW = {
     interpolate("總支出：{amount} · {count} 筆結清建議。", values),
   applyRates: "套用匯率",
   allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates:
-    "所有總額、餘額與結清建議會使用這組匯率重新計算。",
+    "已記錄支出保留原匯率；新匯率適用於之後新增或修改金額／貨幣的支出，以及既有付款紀錄。",
   applyCustomExchangeRates: "套用自訂匯率？",
   restoreBankOfTaiwanDefaultRates: "恢復台灣銀行預設匯率？",
   apiWriteSettings: "API 修改權限",

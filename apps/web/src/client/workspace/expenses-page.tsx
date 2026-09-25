@@ -26,6 +26,7 @@ import {
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
+import { ExpenseRateDetails } from "./expense-rate.js";
 import { ReceiptPreview } from "./receipt-preview.js";
 import { SectionHeading } from "./workspace-ui.js";
 
@@ -821,6 +822,8 @@ function ExpenseTableRow({
       ))}
       <td className="expense-amount-cell">
         {formatMoney(expense.amountMinor, expense.currency)}
+        <br />
+        <ExpenseRateDetails expense={expense} trip={trip} />
       </td>
     </tr>
   );

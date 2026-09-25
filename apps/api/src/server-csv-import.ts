@@ -1,3 +1,4 @@
+import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import { parseExpenseImportCsv } from "@narumitw/otter-core/csv";
 import {
   isExpenseCategory,
@@ -6,6 +7,7 @@ import {
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { Pool as PgPool } from "pg";
 import { recordExpenseChanges } from "./server-expense-history.js";
+import { expenseExchangeRate } from "./server-expense-rates.js";
 import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -28,114 +30,128 @@ export function registerCsvImportRoutes(
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
+  prefetch: () => Promise<ExchangeRateSnapshot>,
 ) {
   app.post(
     "/api/trips/:tripId/expenses/import",
     mustBeSignedIn,
     parseRequestBody,
-    expenseMutation(pool, async (context, pool, before) => {
-      const user = currentUser(context);
-      const trip = await loadTripForUser(
-        pool,
-        user.id,
-        context.req.param("tripId"),
-      );
-      if (!trip) {
-        return sendError(context, 404, "找不到旅行");
-      }
-      if (trip.archivedAt) {
-        return archivedTripResponse(context);
-      }
-
-      const csv = stringField(requestBody(context), "csv");
-      if (!csv) {
-        return sendError(context, 400, "請選擇 CSV 檔案");
-      }
-
-      const participantByName = new Map(
-        trip.participants.map((participant) => [
-          participant.name.trim().toLocaleLowerCase(),
-          participant.id,
-        ]),
-      );
-      const parsed = parseExpenseImportCsv(
-        csv,
-        trip.participants.map((participant) => participant.name),
-      );
-      const errors = parsed.errors.map(
-        (error) => `第 ${error.row} 列：${error.message}`,
-      );
-      if (errors.length > 0) {
-        return context.json({ error: "CSV 匯入失敗", errors }, 400);
-      }
-      const expenses = parsed.rows.map((row) => {
-        if (!isCurrency(row.currency)) {
-          return null;
-        }
-        const currency = row.currency;
-        const category = row.category || "其他";
-        if (!isExpenseCategory(category)) {
-          errors.push(`第 ${row.rowNumber} 列：分類不支援`);
-        }
-        let tags: string[] = [];
-        try {
-          tags = normalizeExpenseTags(row.tags.replaceAll("|", ","));
-        } catch (error) {
-          errors.push(
-            `第 ${row.rowNumber} 列：${error instanceof Error ? error.message : "標籤格式錯誤"}`,
-          );
-        }
-        const paidById = participantByName.get(
-          row.paidBy.trim().toLocaleLowerCase(),
+    expenseMutation(
+      pool,
+      async (context, pool, before, candidate) => {
+        const user = currentUser(context);
+        const trip = await loadTripForUser(
+          pool,
+          user.id,
+          context.req.param("tripId"),
         );
-        const participantIds = [
-          ...new Set(
-            row.splitParticipants
-              .map((name) => participantByName.get(name.toLocaleLowerCase()))
-              .filter((id): id is string => !!id),
-          ),
-        ];
-        const participantShares = row.splitShares?.map((share) => ({
-          participantId:
-            participantByName.get(share.name.toLocaleLowerCase()) ?? "",
-          shareMinor: parseAmountToMinor(share.amount, currency),
-        }));
-        return {
-          amountMinor: parseAmountToMinor(row.amount, currency),
-          category,
-          currency,
-          description: row.description,
-          expenseDate: row.date,
-          paidById,
-          participantIds,
-          participantShares,
-          tags,
-        };
-      });
-      if (errors.length > 0 || expenses.some((expense) => !expense?.paidById)) {
-        return context.json({ error: "CSV 匯入失敗", errors }, 400);
-      }
-
-      await withTransaction(pool, async (client) => {
-        for (const expense of expenses) {
-          if (!expense?.paidById) {
-            continue;
-          }
-          await insertExpense(client, trip.id, {
-            ...expense,
-            paidById: expense.paidById,
-            id: makeId("expense"),
-            createdAt: nowIso(),
-          });
+        if (!trip) {
+          return sendError(context, 404, "找不到旅行");
         }
-      });
+        if (trip.archivedAt) {
+          return archivedTripResponse(context);
+        }
 
-      await recordExpenseChanges(pool, trip.id, before, user, "csv_import");
-      const updated = await loadTripForUser(pool, user.id, trip.id);
-      if (!updated) {
-        throw new Error("Trip disappeared after CSV import");
-      }
-      return async () => context.json(await buildTripPayload(updated), 201);
-    }),
+        const csv = stringField(requestBody(context), "csv");
+        if (!csv) {
+          return sendError(context, 400, "請選擇 CSV 檔案");
+        }
+
+        const participantByName = new Map(
+          trip.participants.map((participant) => [
+            participant.name.trim().toLocaleLowerCase(),
+            participant.id,
+          ]),
+        );
+        const parsed = parseExpenseImportCsv(
+          csv,
+          trip.participants.map((participant) => participant.name),
+        );
+        const errors = parsed.errors.map(
+          (error) => `第 ${error.row} 列：${error.message}`,
+        );
+        if (errors.length > 0) {
+          return context.json({ error: "CSV 匯入失敗", errors }, 400);
+        }
+        const expenses = parsed.rows.map((row) => {
+          if (!isCurrency(row.currency)) {
+            return null;
+          }
+          const currency = row.currency;
+          const category = row.category || "其他";
+          if (!isExpenseCategory(category)) {
+            errors.push(`第 ${row.rowNumber} 列：分類不支援`);
+          }
+          let tags: string[] = [];
+          try {
+            tags = normalizeExpenseTags(row.tags.replaceAll("|", ","));
+          } catch (error) {
+            errors.push(
+              `第 ${row.rowNumber} 列：${error instanceof Error ? error.message : "標籤格式錯誤"}`,
+            );
+          }
+          const paidById = participantByName.get(
+            row.paidBy.trim().toLocaleLowerCase(),
+          );
+          const participantIds = [
+            ...new Set(
+              row.splitParticipants
+                .map((name) => participantByName.get(name.toLocaleLowerCase()))
+                .filter((id): id is string => !!id),
+            ),
+          ];
+          const participantShares = row.splitShares?.map((share) => ({
+            participantId:
+              participantByName.get(share.name.toLocaleLowerCase()) ?? "",
+            shareMinor: parseAmountToMinor(share.amount, currency),
+          }));
+          return {
+            amountMinor: parseAmountToMinor(row.amount, currency),
+            category,
+            currency,
+            description: row.description,
+            expenseDate: row.date,
+            paidById,
+            participantIds,
+            participantShares,
+            tags,
+          };
+        });
+        if (
+          errors.length > 0 ||
+          expenses.some((expense) => !expense?.paidById)
+        ) {
+          return context.json({ error: "CSV 匯入失敗", errors }, 400);
+        }
+
+        await withTransaction(pool, async (client) => {
+          for (const expense of expenses) {
+            if (!expense?.paidById) {
+              continue;
+            }
+            await insertExpense(client, trip.id, {
+              ...expense,
+              paidById: expense.paidById,
+              id: makeId("expense"),
+              createdAt: nowIso(),
+              exchangeRate: expenseExchangeRate(
+                trip,
+                expense.currency,
+                candidate,
+                expense.amountMinor,
+              ),
+            });
+          }
+        });
+
+        await recordExpenseChanges(pool, trip.id, before, user, "csv_import");
+        const updated = await loadTripForUser(pool, user.id, trip.id);
+        if (!updated) {
+          throw new Error("Trip disappeared after CSV import");
+        }
+        return async () => context.json(await buildTripPayload(updated), 201);
+      },
+      prefetch,
+    ),
   );
 }

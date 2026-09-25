@@ -1,6 +1,6 @@
 import { isDateOnly } from "@narumitw/otter-core/date";
 import { isExpenseCategory } from "@narumitw/otter-core/expense-metadata";
-import { isCurrency } from "@narumitw/otter-core/money";
+import { isCurrency, isExpenseExchangeRate } from "@narumitw/otter-core/money";
 import type {
   Expense as DomainExpense,
   Trip as DomainTrip,
@@ -35,6 +35,7 @@ export const expenseChangeFields = [
   "description",
   "amountMinor",
   "currency",
+  "exchangeRate",
   "expenseDate",
   "paidById",
   "category",
@@ -109,6 +110,8 @@ export function isExpenseSnapshot(value: unknown): value is ExpenseSnapshot {
     !text(e.description) ||
     !isExpenseVersion(e.amountMinor) ||
     !isCurrency(e.currency) ||
+    (e.exchangeRate !== undefined &&
+      !isExpenseExchangeRate(e.exchangeRate, e.currency)) ||
     !text(e.paidById) ||
     !strings(e.participantIds) ||
     !e.participantIds.length ||

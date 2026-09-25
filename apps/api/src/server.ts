@@ -107,8 +107,10 @@ function tripExchangeRatesFromBody(
       continue;
     }
     const rate = Number(rawRate);
-    if (!Number.isFinite(rate) || rate <= 0) {
-      throw new Error("匯率必須大於 0");
+    if (!Number.isFinite(rate) || rate < 0.00000001 || rate >= 10000000000) {
+      throw new Error(
+        "匯率須在資料庫可保存的範圍內 (0.00000001–9999999999.99999999)",
+      );
     }
     rows.push([currency, rate]);
   }
@@ -787,8 +789,12 @@ export function createApp(
     mustHaveBrowserSession,
     buildTripPayload,
   );
-  registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload);
-  registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload, () =>
+    exchangeRateService.getSnapshot("TWD"),
+  );
+  registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload, () =>
+    exchangeRateService.getSnapshot("TWD"),
+  );
   registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
   registerExpenseRestoreRoute(app, pool, mustBeSignedIn, buildTripPayload);
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);

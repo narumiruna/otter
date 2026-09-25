@@ -55,6 +55,46 @@ const validPayload: TripPayload = {
   },
 };
 
+test("trip payload accepts older expenses but rejects malformed quote snapshots", () => {
+  expect(
+    parseTripPayload(validPayload).trip.expenses[0].exchangeRate,
+  ).toBeUndefined();
+  const expense = validPayload.trip.expenses[0];
+  const quoted = {
+    ...validPayload,
+    trip: {
+      ...validPayload.trip,
+      expenses: [
+        {
+          ...expense,
+          exchangeRate: { baseCurrency: "TWD", rateToBase: 1, source: "fixed" },
+        },
+      ],
+    },
+  };
+  expect(parseTripPayload(quoted).trip.expenses[0].exchangeRate?.source).toBe(
+    "fixed",
+  );
+  expect(() =>
+    parseTripPayload({
+      ...quoted,
+      trip: {
+        ...quoted.trip,
+        expenses: [
+          {
+            ...expense,
+            exchangeRate: {
+              baseCurrency: "USD",
+              rateToBase: -1,
+              source: "bank",
+            },
+          },
+        ],
+      },
+    }),
+  ).toThrow();
+});
+
 test("share link modes must be explicit and valid", () => {
   expect(
     parseTripPayload({ ...validPayload, shareMode: "anyone-edit" }).shareMode,

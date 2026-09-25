@@ -105,6 +105,18 @@ Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/sc
 
 `server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。只有支出／收據／CSV／合併／單筆版本還原 route 使用 `expenseMutation` 明確啟用 before snapshot；設定、參與者、協作者與付款 route 只使用共同的 trip lock，不額外建立 before snapshot。Expense route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；傳入 `withTransaction` 的 PoolClient 必須已由外層 transaction 管理。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。備份還原與開發 fixtures 各在自己的 transaction 記錄建立來源。
 
+支出匯率政策：API／CLI 新增、CSV 匯入、開發 fixtures 使用同一 `expenseExchangeRate` 決策；依序採用同幣別 1、自訂、銀行候選、內建固定匯率。銀行候選在 `expenseMutation` 鎖外抓取；鎖內依最新群組貨幣及自訂值決定快照，和支出、revision 同 transaction 寫入。修改金額或貨幣重新定價；只改描述、參與者、日期或收據保留快照；版本還原保留所選版本的快照。JSON v2 備份保存快照；v1 匯入與 migration 前歷史資料以固定表推算，標示 `legacy`，不假裝是歷史銀行報價。舊版 payload 缺快照時仍可讀取，展示為未提供匯率；不得以其缺漏資料寫入新報價當作舊歷史；未經 migration 而缺快照的版本還原回傳 409。貨幣換算使用 JS number，銀行與固定匯率以 12 位有效數字、群組自訂值依 PostgreSQL `numeric(18,8)` 精度保存於支出的 JSONB numeric，先換算整筆原幣 minor units 並 `Math.round` 到基準幣 minor units，再換算各指定份額，按參與者順序分配差額以守恆。外幣付款仍浮動；改基準幣後使用當前匯率 bridge 由舊快照的基準幣換算到新基準幣，不改寫快照。
+
+| 寫入／讀取入口 | 快照政策 | 驗證案例 |
+| --- | --- | --- |
+| API／CLI 新增與 CSV 匯入 | 鎖外預取銀行候選；鎖內採用自訂／銀行／固定報價並與 revision 原子寫入 | `server.expense-exchange-rate.test.ts`、`server-trip-mutation.test.ts`、`server.features.test.ts`；CLI 沿用 API route |
+| 修改支出或收據、參與者合併 | 金額／幣別改動才重新定價；其餘保留快照 | `server.expense-exchange-rate.test.ts`、`server.expense-history.test.ts` |
+| 歷史版本還原 | 沿用所選版本原快照，不查詢新報價 | `server.expense-exchange-rate.test.ts`、`server.expense-restore.test.ts` |
+| JSON 備份 v2／舊版 v1 匯入 | v2 原樣保存；v1 以 `legacy` 估算、永不偽造銀行時間 | `backup.test.ts`、`server.expense-exchange-rate.test.ts` |
+| Migration 與開發 fixtures | 舊支出及 revision 標 `legacy`；fixtures 新建走相同快照函式 | `server.expense-rate-migration.test.ts`、`server-dev.test.ts` |
+| 改基準幣及付款 | 舊快照保留原基準幣，用當下匯率橋接；外幣付款仍浮動 | `server.expense-exchange-rate.test.ts`、`server.settlement-payments.test.ts` |
+| 舊版 payload | 無快照可讀但不冒充歷史快照；服務端遷移資料另有明確 `legacy` | `index.test.ts`、`expense-history.test.ts` |
+
 成功的 `tripMutation` handler 回傳 deferred response function：先在 transaction 內載入完整的 `LoadedTrip`，由 wrapper commit 並 release client 後，才呼叫 `buildTripPayload` 取得銀行匯率與產生回應。Deferred function 不可再使用 transaction client 或重新載入目前支出；否則會誤用已釋放的連線，或把後續修改混入本次回應。銀行失敗仍使用既有固定匯率 fallback；commit 後的回應處理錯誤不會回滾已完成的 mutation。慢速 provider 不應占用 trip lock 或 DB pool。`loadTrip` 收到 Pool 時平行執行六個獨立 detail queries；收到 transaction client 時循序執行，避免在單一連線排入尚未完成的 query。兩種路徑的支出 version、分帳與收據仍由同一 SQL snapshot 讀取。
 
 單筆支出 PATCH／DELETE 與收據 PUT／DELETE 要求觀察到的版本，例如：

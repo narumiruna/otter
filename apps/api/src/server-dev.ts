@@ -5,6 +5,7 @@ import {
   captureExpenses,
   recordExpenseChanges,
 } from "./server-expense-history.js";
+import { expenseExchangeRate } from "./server-expense-rates.js";
 import {
   hashPassword,
   makeId,
@@ -680,8 +681,8 @@ async function insertDevelopmentTrip(
     await client.query(
       `INSERT INTO expenses
          (id, trip_id, description, amount_minor, currency, paid_by_id,
-          created_at, expense_date, category, tags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          created_at, expense_date, category, tags, exchange_rate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (id) DO NOTHING`,
       [
         expense.id,
@@ -694,6 +695,7 @@ async function insertDevelopmentTrip(
         expense.expenseDate,
         expense.category,
         expense.tags,
+        expenseExchangeRate(trip, expense.currency, null),
       ],
     );
     for (const [position, split] of expense.splits.entries()) {

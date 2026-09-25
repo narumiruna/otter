@@ -27,6 +27,57 @@ const backup: TripBackupV1 = {
   version: 1,
 };
 
+test("v2 requires a positive quote in the matching base; v1 remains importable", () => {
+  const modern = {
+    ...backup,
+    version: 2,
+    trip: {
+      ...backup.trip,
+      expenses: backup.trip.expenses.map((e) => ({
+        ...e,
+        exchangeRate: { baseCurrency: "TWD", rateToBase: 1, source: "fixed" },
+      })),
+    },
+  };
+  assert.equal(validateTripBackupV1(modern).version, 2);
+  assert.equal(
+    validateTripBackupV1({
+      ...modern,
+      trip: { ...modern.trip, baseCurrency: "EUR" },
+    }).version,
+    2,
+  ); // snapshots may predate a base-currency change
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...modern,
+        trip: {
+          ...modern.trip,
+          expenses: [
+            {
+              ...modern.trip.expenses[0],
+              exchangeRate: {
+                baseCurrency: "USD",
+                rateToBase: -1,
+                source: "custom",
+              },
+            },
+          ],
+        },
+      }),
+    /備份支出匯率格式錯誤/,
+  );
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...modern,
+        trip: { ...modern.trip, expenses: backup.trip.expenses },
+      }),
+    /備份支出匯率格式錯誤/,
+  );
+  assert.equal(validateTripBackupV1(backup).version, 1);
+});
+
 test("validates trip backup version and required relationships", () => {
   assert.equal(validateTripBackupV1(backup).trip.name, "Tokyo");
   assert.throws(

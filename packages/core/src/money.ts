@@ -10,6 +10,77 @@ export type CurrencyInfo = {
 
 export type ExchangeRates = Partial<Record<Currency, number>>;
 
+export type ExpenseExchangeRate = {
+  baseCurrency: Currency;
+  rateToBase: number;
+  source: "bank" | "custom" | "fixed" | "legacy";
+  provider?: string;
+  rateType?: string;
+  fetchedAt?: string;
+};
+
+export function isExpenseExchangeRate(
+  value: unknown,
+  currency: Currency,
+): value is ExpenseExchangeRate {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const rate = value as Partial<ExpenseExchangeRate>;
+  return (
+    isCurrency(rate.baseCurrency) &&
+    typeof rate.rateToBase === "number" &&
+    Number.isFinite(rate.rateToBase) &&
+    rate.rateToBase > 0 &&
+    (currency !== rate.baseCurrency || rate.rateToBase === 1) &&
+    ["bank", "custom", "fixed", "legacy"].includes(rate.source ?? "") &&
+    (rate.source === "bank" ||
+      (rate.provider === undefined &&
+        rate.rateType === undefined &&
+        rate.fetchedAt === undefined)) &&
+    (rate.source !== "bank" ||
+      (rate.provider === "BANK_OF_TAIWAN" &&
+        rate.rateType === "spotMid" &&
+        typeof rate.fetchedAt === "string" &&
+        Number.isFinite(Date.parse(rate.fetchedAt)))) &&
+    (rate.provider === undefined || rate.provider === "BANK_OF_TAIWAN") &&
+    (rate.rateType === undefined || rate.rateType === "spotMid") &&
+    (rate.fetchedAt === undefined ||
+      (typeof rate.fetchedAt === "string" &&
+        Number.isFinite(Date.parse(rate.fetchedAt))))
+  );
+}
+
+export function convertExpenseMinor(
+  amountMinor: number,
+  currency: Currency,
+  baseCurrency: Currency,
+  snapshot?: ExpenseExchangeRate,
+  rates?: ExchangeRates,
+): number {
+  if (!snapshot)
+    return convertMinorWithRates(amountMinor, currency, baseCurrency, rates);
+  if (!isExpenseExchangeRate(snapshot, currency))
+    throw new Error("Invalid expense exchange rate");
+  const originalBaseMinor = Math.round(
+    toMajor(amountMinor, currency) *
+      snapshot.rateToBase *
+      10 ** currencyInfo[snapshot.baseCurrency].minorUnits,
+  );
+  if (!Number.isSafeInteger(originalBaseMinor))
+    throw new Error("Converted amount is out of range");
+  const converted =
+    snapshot.baseCurrency === baseCurrency
+      ? originalBaseMinor
+      : convertMinorWithRates(
+          originalBaseMinor,
+          snapshot.baseCurrency,
+          baseCurrency,
+          rates,
+        );
+  if (!Number.isSafeInteger(converted))
+    throw new Error("Converted amount is out of range");
+  return converted;
+}
+
 export const currencyInfo: Record<Currency, CurrencyInfo> = {
   TWD: { label: "新台幣", minorUnits: 0, rateToTwd: 1 },
   JPY: { label: "日幣", minorUnits: 0, rateToTwd: 0.22 },

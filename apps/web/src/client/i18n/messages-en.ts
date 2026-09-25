@@ -783,7 +783,7 @@ export const en = {
       ),
   customExchangeRates: "Custom exchange rates",
   bankOfTaiwanSpotMidRateDescription:
-    "When no custom rates are set, Otter automatically uses the midpoint of Bank of Taiwan's spot buy and sell rates. Load and apply these defaults to clear custom values and resume automatic updates.",
+    "New expenses without custom rates use the Bank of Taiwan spot midpoint and retain that quote. Clearing custom rates affects future expenses; payments still use current rates.",
   loadBankOfTaiwanSpotMidRates: "Load Bank of Taiwan default rates",
   loadingBankExchangeRates: "Loading bank exchange rates…",
   bankOfTaiwanSpotMidRatesLoadedAtTime: (values: MessageValues) =>
@@ -799,7 +799,7 @@ export const en = {
     ),
   applyRates: "Apply rates",
   allTotalsBalancesAndSettlementSuggestionsWillBeRecalculatedWithTheseRates:
-    "All totals, balances, and settlement suggestions will be recalculated with these rates.",
+    "Existing expenses retain their rates. New or repriced expenses and existing payments use the updated rates.",
   applyCustomExchangeRates: "Apply custom exchange rates?",
   restoreBankOfTaiwanDefaultRates: "Restore Bank of Taiwan default rates?",
   apiWriteSettings: "API write access",

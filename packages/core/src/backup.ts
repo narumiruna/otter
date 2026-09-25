@@ -1,7 +1,12 @@
 import { isDateOnly } from "./date.js";
 import { isExpenseCategory } from "./expense-metadata.js";
-import type { Currency } from "./money.js";
-import { isCurrency } from "./money.js";
+import type { Currency, ExpenseExchangeRate } from "./money.js";
+import {
+  convertExpenseMinor,
+  fixedExchangeRates,
+  isCurrency,
+  isExpenseExchangeRate,
+} from "./money.js";
 
 export type TripBackupV1 = {
   version: 1;
@@ -37,12 +42,22 @@ export type TripBackupV1 = {
   };
 };
 
-export function validateTripBackupV1(value: unknown): TripBackupV1 {
+export type TripBackupV2 = Omit<TripBackupV1, "version" | "trip"> & {
+  version: 2;
+  trip: Omit<TripBackupV1["trip"], "expenses"> & {
+    expenses: (TripBackupV1["trip"]["expenses"][number] & {
+      exchangeRate: ExpenseExchangeRate;
+    })[];
+  };
+};
+export type TripBackup = TripBackupV1 | TripBackupV2;
+
+export function validateTripBackupV1(value: unknown): TripBackup {
   if (!value || typeof value !== "object") {
     throw new Error("備份格式錯誤");
   }
   const backup = value as { version?: unknown; trip?: unknown };
-  if (backup.version !== 1) {
+  if (backup.version !== 1 && backup.version !== 2) {
     throw new Error("不支援的備份版本");
   }
   if (!backup.trip || typeof backup.trip !== "object") {
@@ -69,7 +84,8 @@ export function validateTripBackupV1(value: unknown): TripBackupV1 {
         !isCurrency(currency) ||
         typeof rate !== "number" ||
         !Number.isFinite(rate) ||
-        rate <= 0
+        rate < 0.00000001 ||
+        rate >= 10000000000
       ) {
         throw new Error("備份匯率格式錯誤");
       }
@@ -121,6 +137,34 @@ export function validateTripBackupV1(value: unknown): TripBackupV1 {
       expense.participantIds.length === 0
     ) {
       throw new Error("備份支出格式錯誤");
+    }
+    const rate = (expense as { exchangeRate?: unknown }).exchangeRate;
+    if (
+      backup.version === 2 &&
+      !isExpenseExchangeRate(rate, expense.currency)
+    ) {
+      throw new Error("備份支出匯率格式錯誤");
+    }
+    try {
+      const snapshot =
+        backup.version === 2 && isExpenseExchangeRate(rate, expense.currency)
+          ? rate
+          : {
+              baseCurrency: trip.baseCurrency,
+              rateToBase: fixedExchangeRates(trip.baseCurrency)[
+                expense.currency
+              ],
+              source: "legacy" as const,
+            };
+      convertExpenseMinor(
+        expense.amountMinor,
+        expense.currency,
+        trip.baseCurrency,
+        snapshot,
+        trip.exchangeRates,
+      );
+    } catch {
+      throw new Error("備份支出換算金額超出範圍");
     }
     const expenseParticipantIds = new Set<string>();
     for (const participantId of expense.participantIds) {
@@ -190,5 +234,5 @@ export function validateTripBackupV1(value: unknown): TripBackupV1 {
     }
   }
 
-  return value as TripBackupV1;
+  return value as TripBackup;
 }

@@ -1,3 +1,4 @@
+import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import type { Context } from "hono";
 import type { Pool, PoolClient } from "pg";
 import {
@@ -5,6 +6,7 @@ import {
   captureExpenses,
   ExpenseVersionError,
 } from "./server-expense-history.js";
+import { ExpenseRateError } from "./server-expense-rates.js";
 import type { OtterEnv } from "./server-http.js";
 import { apiWritesDisabledMessage, currentUser } from "./server-support.js";
 
@@ -57,6 +59,9 @@ export function tripMutation<Path extends string>(
       );
     } catch (error) {
       await client.query("ROLLBACK");
+      if (error instanceof ExpenseRateError) {
+        return context.json({ error: error.message }, 400);
+      }
       if (error instanceof ExpenseVersionError) {
         return context.json(
           { error: error.message, code: error.code },
@@ -81,11 +86,22 @@ export function expenseMutation<Path extends string>(
     context: Context<OtterEnv, Path>,
     client: PoolClient,
     before: CapturedExpense[],
+    candidate: ExchangeRateSnapshot | null,
   ) => Promise<MutationResult>,
+  prefetch?: () => Promise<ExchangeRateSnapshot>,
 ) {
-  return tripMutation<Path>(pool, async (context, client) => {
-    const tripId = context.req.param("tripId");
-    if (!tripId) throw new Error("Expense mutation requires a trip ID");
-    return handler(context, client, await captureExpenses(client, tripId));
-  });
+  return async (context: Context<OtterEnv, Path>): Promise<Response> => {
+    // Network I/O must finish before tripMutation takes the parent row lock.
+    const candidate = prefetch ? await prefetch().catch(() => null) : null;
+    return tripMutation<Path>(pool, async (context, client) => {
+      const tripId = context.req.param("tripId");
+      if (!tripId) throw new Error("Expense mutation requires a trip ID");
+      return handler(
+        context,
+        client,
+        await captureExpenses(client, tripId),
+        candidate,
+      );
+    })(context);
+  };
 }
