@@ -3,6 +3,7 @@ import { useI18n } from "../i18n.js";
 import { AccessSettings } from "./access-settings.js";
 import { DataSettings } from "./data-settings.js";
 import {
+  ApiWriteSettings,
   ExchangeRateSettings,
   LifecycleSettings,
   TripPreferences,
@@ -36,6 +37,7 @@ export function MorePage({
         </SectionHeading>
       </header>
       {isOwner ? <AccessSettings payload={payload} /> : null}
+      {isOwner ? <ApiWriteSettings payload={payload} /> : null}
       {isOwner && !payload.trip.archivedAt ? (
         <TripPreferences payload={payload} />
       ) : null}

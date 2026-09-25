@@ -74,6 +74,7 @@ type TripRow = {
   name: string;
   base_currency: string;
   archived_at: Date | string | null;
+  allow_api_writes: boolean;
   created_at: Date | string;
   current_user_role?: TripRole;
 };
@@ -287,6 +288,8 @@ export function participantExists(trip: Trip, participantId: string): boolean {
   );
 }
 
+export const apiWritesDisabledMessage = "此群組不允許透過 API Token 修改";
+
 export function archivedTripResponse(context: OtterContext) {
   return sendError(context, 409, "支出群組已封存，請先還原");
 }
@@ -358,6 +361,7 @@ function rowToTrip(
 ): Omit<Trip, "expenses" | "participants" | "settlementPayments"> {
   return {
     archivedAt: row.archived_at ? iso(row.archived_at) : null,
+    allowApiWrites: row.allow_api_writes,
     baseCurrency: currencyFromDb(row.base_currency),
     createdAt: iso(row.created_at),
     id: row.id,
@@ -526,7 +530,7 @@ async function loadTrip(
 ): Promise<LoadedTrip | undefined> {
   const tripResult = userId
     ? await db.query<TripRow>(
-        `SELECT trips.id, trips.owner_id, trips.name, trips.base_currency, trips.archived_at, trips.created_at,
+        `SELECT trips.id, trips.owner_id, trips.name, trips.base_currency, trips.archived_at, trips.allow_api_writes, trips.created_at,
                 trip_members.role AS current_user_role
          FROM trips
          JOIN trip_members ON trip_members.trip_id = trips.id
@@ -534,7 +538,7 @@ async function loadTrip(
         [tripId, userId],
       )
     : await db.query<TripRow>(
-        `SELECT id, owner_id, name, base_currency, archived_at, created_at
+        `SELECT id, owner_id, name, base_currency, archived_at, allow_api_writes, created_at
          FROM trips
          WHERE id = $1`,
         [tripId],

@@ -152,6 +152,21 @@ describe("parseTripPayload", () => {
     expect(parseTripPayload(validPayload)).toEqual(validPayload);
   });
 
+  test("accepts an optional boolean API write setting", () => {
+    expect(
+      parseTripPayload({
+        ...validPayload,
+        trip: { ...validPayload.trip, allowApiWrites: false },
+      }).trip.allowApiWrites,
+    ).toBe(false);
+    expect(() =>
+      parseTripPayload({
+        ...validPayload,
+        trip: { ...validPayload.trip, allowApiWrites: "false" },
+      }),
+    ).toThrow("Otter returned an unexpected trip payload");
+  });
+
   test("rejects malformed domain values", () => {
     expect(() =>
       parseTripPayload({

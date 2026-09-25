@@ -6,7 +6,7 @@ import {
   ExpenseVersionError,
 } from "./server-expense-history.js";
 import type { OtterEnv } from "./server-http.js";
-import { currentUser } from "./server-support.js";
+import { apiWritesDisabledMessage, currentUser } from "./server-support.js";
 
 type MutationResult = Response | (() => Promise<Response>);
 
@@ -28,8 +28,11 @@ export function tripMutation<Path extends string>(
       await client.query("BEGIN");
       const tripId = context.req.param("tripId");
       if (tripId) {
-        const access = await client.query(
-          `SELECT t.id FROM trips t WHERE t.id = $1 AND EXISTS
+        const access = await client.query<{
+          id: string;
+          allow_api_writes: boolean;
+        }>(
+          `SELECT t.id, t.allow_api_writes FROM trips t WHERE t.id = $1 AND EXISTS
            (SELECT 1 FROM trip_members m WHERE m.trip_id = t.id AND m.user_id = $2)
            FOR UPDATE`,
           [tripId, currentUser(context).id],
@@ -37,6 +40,13 @@ export function tripMutation<Path extends string>(
         if (!access.rowCount) {
           await client.query("ROLLBACK");
           return context.json({ error: "找不到旅行" }, 404);
+        }
+        if (
+          context.req.header("authorization") &&
+          access.rows[0].allow_api_writes === false
+        ) {
+          await client.query("ROLLBACK");
+          return context.json({ error: apiWritesDisabledMessage }, 403);
         }
       }
       result = await handler(context, client);

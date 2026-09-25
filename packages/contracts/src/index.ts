@@ -271,6 +271,8 @@ function validateTrip(value: unknown): asserts value is Trip {
     !isNonEmptyString(value.name) ||
     !isCurrency(value.baseCurrency) ||
     !isOptionalString(value.archivedAt, true) ||
+    (value.allowApiWrites !== undefined &&
+      typeof value.allowApiWrites !== "boolean") ||
     !isNonEmptyString(value.createdAt) ||
     !Array.isArray(value.participants) ||
     !Array.isArray(value.expenses)

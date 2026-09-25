@@ -8,6 +8,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { TripPayload } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
 import {
+  ApiWriteSettings,
   ExchangeRateSettings,
   LifecycleSettings,
   TripPreferences,
@@ -42,6 +43,48 @@ const payload: TripPayload = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("API write setting starts off and can be enabled by the owner", async () => {
+  const requests: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_input, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      requests.push(body);
+      return Response.json({ ...payload, trip: { ...payload.trip, ...body } });
+    }),
+  );
+  const user = userEvent.setup();
+  const client = new QueryClient();
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={client}>
+        <WorkspaceProvider
+          announce={() => undefined}
+          offline={false}
+          payload={payload}
+          refreshCollection={async () => undefined}
+        >
+          <ApiWriteSettings payload={payload} />
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  await user.click(view.getByText("API 修改權限"));
+  expect(
+    view.getByRole("checkbox", { name: "允許透過 API Token 修改群組" }),
+  ).not.toBeChecked();
+  await user.click(
+    view.getByRole("checkbox", { name: "允許透過 API Token 修改群組" }),
+  );
+  await waitFor(() => expect(requests).toEqual([{ allowApiWrites: true }]));
+  expect(globalThis.fetch).toHaveBeenCalledWith(
+    "/api/trips/trip_1",
+    expect.objectContaining({ method: "PATCH" }),
+  );
+  view.unmount();
+  client.clear();
 });
 
 test("reports a stable error when group deletion returns HTML", async () => {

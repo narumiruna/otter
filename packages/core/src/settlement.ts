@@ -45,6 +45,7 @@ export type Trip = {
   name: string;
   baseCurrency: Currency;
   archivedAt?: string | null;
+  allowApiWrites?: boolean;
   participants: Participant[];
   expenses: Expense[];
   settlementPayments?: SettlementPayment[];

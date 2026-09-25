@@ -41,6 +41,7 @@ import { registerReceiptRoutes } from "./server-receipts.js";
 import { registerSettlementPaymentRoutes } from "./server-settlement-payments.js";
 import { registerShareRoutes, requireUserOrShare } from "./server-sharing.js";
 import {
+  apiWritesDisabledMessage,
   archivedTripResponse,
   clearSessionCookie,
   createPool,
@@ -397,6 +398,7 @@ export function createApp(
       name: user.name,
     };
     const trip: LoadedTrip = {
+      allowApiWrites: false,
       baseCurrency,
       createdAt,
       expenses: [],
@@ -468,11 +470,26 @@ export function createApp(
       const hasBaseCurrency = "baseCurrency" in body;
       const hasArchived = "archived" in body;
       const hasExchangeRates = "exchangeRates" in body;
-      if (!hasName && !hasBaseCurrency && !hasArchived && !hasExchangeRates) {
+      const hasAllowApiWrites = "allowApiWrites" in body;
+      if (
+        !hasName &&
+        !hasBaseCurrency &&
+        !hasArchived &&
+        !hasExchangeRates &&
+        !hasAllowApiWrites
+      ) {
         return sendError(context, 400, "請提供要更新的旅行內容");
       }
       if (trip.archivedAt && (hasName || hasBaseCurrency || hasExchangeRates)) {
         return archivedTripResponse(context);
+      }
+      if (hasAllowApiWrites) {
+        if (context.req.header("authorization")) {
+          return sendError(context, 403, "只有瀏覽器登入可管理 API 修改權限");
+        }
+        if (typeof body.allowApiWrites !== "boolean") {
+          return sendError(context, 400, "API 修改權限格式錯誤");
+        }
       }
 
       const name = hasName ? stringField(body, "name") : trip.name;
@@ -520,19 +537,26 @@ export function createApp(
       await withTransaction(pool, async (client) => {
         if (hasArchived) {
           await client.query(
-            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3 WHERE id = $4 AND owner_id = $5",
+            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3, allow_api_writes = $4 WHERE id = $5 AND owner_id = $6",
             [
               name,
               baseCurrencyValue,
               archivedAt,
+              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
               context.req.param("tripId"),
               user.id,
             ],
           );
         } else {
           await client.query(
-            "UPDATE trips SET name = $1, base_currency = $2 WHERE id = $3 AND owner_id = $4",
-            [name, baseCurrencyValue, context.req.param("tripId"), user.id],
+            "UPDATE trips SET name = $1, base_currency = $2, allow_api_writes = $3 WHERE id = $4 AND owner_id = $5",
+            [
+              name,
+              baseCurrencyValue,
+              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
+              context.req.param("tripId"),
+              user.id,
+            ],
           );
         }
 
@@ -571,12 +595,21 @@ export function createApp(
     async (context) => {
       const user = currentUser(context);
       const deleted = await withTransaction(pool, async (client) => {
-        const lockedTrip = await client.query(
-          "SELECT id FROM trips WHERE id = $1 AND owner_id = $2 FOR UPDATE",
+        const lockedTrip = await client.query<{
+          id: string;
+          allow_api_writes: boolean;
+        }>(
+          "SELECT id, allow_api_writes FROM trips WHERE id = $1 AND owner_id = $2 FOR UPDATE",
           [context.req.param("tripId"), user.id],
         );
         if (lockedTrip.rowCount === 0) {
           return lockedTrip;
+        }
+        if (
+          context.req.header("authorization") &&
+          !lockedTrip.rows[0].allow_api_writes
+        ) {
+          return null;
         }
 
         await client.query(
@@ -603,6 +636,9 @@ export function createApp(
           context.req.param("tripId"),
         ]);
       });
+      if (deleted === null) {
+        return sendError(context, 403, apiWritesDisabledMessage);
+      }
       if (deleted.rowCount === 0) {
         return sendError(context, 404, "找不到旅行");
       }
