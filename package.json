@@ -24,7 +24,7 @@
     "prepare": "husky",
     "db:reset:dev": "docker compose down -v",
     "typecheck": "npm run build:packages && tsc --noEmit -p tsconfig.json && npm run typecheck --workspace @narumitw/otter-exchange-rates && npm run typecheck --workspace @narumitw/otter-core && npm run typecheck --workspace @narumitw/otter-contracts && npm run typecheck --workspace @narumitw/otter-web && npm run typecheck --workspace @narumitw/otter-api && npm run typecheck --workspace @narumitw/otter-cli",
-    "test": "npm run build:packages && npm test --workspace @narumitw/otter-exchange-rates && npm test --workspace @narumitw/otter-core && npm test --workspace @narumitw/otter-contracts && npm test --workspace @narumitw/otter-web && npm test --workspace @narumitw/otter-api && npm test --workspace @narumitw/otter-cli",
+    "test": "npm run build:packages && npm test --workspaces --ignore-scripts",
     "biome:ci": "biome ci .",
     "check": "npm run biome:ci && npm run typecheck && npm test && npm run build",
     "pretest:components": "npm run build:packages",

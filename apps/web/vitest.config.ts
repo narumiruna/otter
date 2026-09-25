@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    fileParallelism: false,
+    maxWorkers: 4,
     include: ["src/**/*.test.{ts,tsx}"],
     passWithNoTests: false,
     restoreMocks: true,
