@@ -67,9 +67,11 @@ export function registerExpenseHistoryRoutes(
       const latest = expenseId
         ? ((
             await pool.query<Pick<ExpenseRevision, "version" | "action">>(
-              `SELECT version, action FROM expense_revisions
-               WHERE trip_id = $1 AND expense_id = $2 ORDER BY version DESC LIMIT 1`,
-              [tripId, expenseId],
+              `SELECT r.version, r.action FROM expense_revisions r
+               WHERE r.trip_id = $1 AND r.expense_id = $2
+                 AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = r.trip_id AND m.user_id = $3)
+               ORDER BY r.version DESC LIMIT 1`,
+              [tripId, expenseId, userId],
             )
           ).rows[0] ?? null)
         : undefined;

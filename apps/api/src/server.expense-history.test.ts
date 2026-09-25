@@ -4,7 +4,7 @@ import {
   parseExpenseHistoryPage,
   type TripPayload,
 } from "@narumitw/otter-contracts";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { hashApiSecret } from "./server-api-tokens.js";
 import { createSession } from "./server-support.js";
 import { api, postgresTestOptions, withTestApp } from "./server-test-utils.js";
@@ -275,6 +275,51 @@ test(
         })
       ).response.status,
     ).toBe(404);
+  },
+);
+
+test(
+  "filtered history hides latest version when membership is revoked between reads",
+  postgresTestOptions,
+  async () => {
+    const s = await setup();
+    const query = s.pool.query.bind(s.pool);
+    let revoked = false;
+    const spy = vi
+      .spyOn(s.pool, "query")
+      .mockImplementation(async (sql, params) => {
+        const result = await query(sql, params);
+        if (
+          sql ===
+            "SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2" &&
+          params?.[1] === "editor"
+        ) {
+          await query(
+            "DELETE FROM trip_members WHERE trip_id = $1 AND user_id = $2",
+            [s.tripId, "editor"],
+          );
+          revoked = true;
+        }
+        return result;
+      });
+    try {
+      const response = await api(
+        s.baseUrl,
+        `${s.tripUrl}/expense-history?expenseId=${s.expenseId}`,
+        { headers: { cookie: s.cookies.editor } },
+      );
+      expect(revoked).toBe(true);
+      expect(response.response.status).toBe(200);
+      expect(parseExpenseHistoryPage(response.data)).toMatchObject({
+        revisions: [],
+        latestRevision: null,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      (await s.history(`?expenseId=${s.expenseId}`)).latestRevision,
+    ).toEqual({ version: 1, action: "created" });
   },
 );
 
