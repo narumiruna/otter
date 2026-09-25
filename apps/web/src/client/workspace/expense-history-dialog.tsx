@@ -1,6 +1,4 @@
 import {
-  type ExpenseChangeField,
-  type ExpenseSnapshot,
   parseExpenseHistoryPage,
   type RevisionSource,
 } from "@narumitw/otter-contracts";
@@ -18,7 +16,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { api } from "../client-support.js";
-import { localizeMessage, useI18n } from "../i18n.js";
+import { useI18n } from "../i18n.js";
+import { ExpenseRestoreAction } from "./expense-restore-action.js";
+import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
 import { ActionError, useOptionalWorkspace } from "./workspace-context.js";
 
 export function ExpenseHistoryDialog(props: {
@@ -68,6 +68,7 @@ function HistoryDialog({
     created: messages.expenseHistoryCreated,
     updated: messages.expenseHistoryUpdated,
     deleted: messages.expenseHistoryDeleted,
+    restored: messages.expenseHistoryRestored,
   };
   const sources: Record<RevisionSource, string> = {
     expense: messages.expenseHistorySourceExpense,
@@ -77,6 +78,7 @@ function HistoryDialog({
     receipt: messages.expenseHistorySourceReceipt,
     development_seed: messages.expenseHistorySourceSeed,
     migration: messages.expenseHistorySourceMigration,
+    version_restore: messages.expenseHistorySourceVersionRestore,
   };
   const revisions = history.data?.pages.flatMap((page) => page.revisions) ?? [];
   return (
@@ -163,6 +165,7 @@ function HistoryDialog({
                       {messages.expenseHistoryReceiptNotice}
                     </p>
                   ) : null}
+                  <ExpenseRestoreAction tripId={tripId} revision={revision} />
                 </li>
               ))}
             </ol>
@@ -181,72 +184,5 @@ function HistoryDialog({
         </DialogClose>
       </DialogContent>
     </Dialog>
-  );
-}
-
-export function ExpenseSnapshotDetails({
-  snapshot,
-  fields = [
-    "description",
-    "amountMinor",
-    "expenseDate",
-    "paidById",
-    "category",
-    "tags",
-    "participantIds",
-    "participantShares",
-  ],
-}: {
-  snapshot: ExpenseSnapshot;
-  fields?: ExpenseChangeField[];
-}) {
-  const { messages, formatMoney } = useI18n();
-  const e = snapshot.expense;
-  const names = new Map(
-    snapshot.participants.map((person) => [person.id, person.name]),
-  );
-  const labels: Record<ExpenseChangeField, string> = {
-    description: messages.description,
-    amountMinor: messages.amount,
-    currency: messages.currency,
-    expenseDate: messages.date,
-    paidById: messages.paidBy,
-    category: messages.category,
-    tags: messages.tags,
-    participantIds: messages.splitWith,
-    participantShares: messages.expenseHistoryShares,
-    receipt: messages.receipt,
-  };
-  const values: Record<ExpenseChangeField, string> = {
-    description: e.description,
-    amountMinor: formatMoney(e.amountMinor, e.currency),
-    currency: e.currency,
-    expenseDate: e.expenseDate,
-    paidById: names.get(e.paidById) ?? e.paidById,
-    category: localizeMessage(e.category ?? "其他"),
-    tags: e.tags?.join(", ") || "—",
-    participantIds: e.participantIds
-      .map((id) => names.get(id) ?? id)
-      .join(", "),
-    participantShares:
-      e.participantShares
-        ?.map(
-          (s) =>
-            `${names.get(s.participantId) ?? s.participantId}: ${formatMoney(s.shareMinor, e.currency)}`,
-        )
-        .join(", ") ?? messages.splitEqually,
-    receipt: snapshot.receipt
-      ? `${snapshot.receipt.mimeType} · ${snapshot.receipt.id}`
-      : "—",
-  };
-  return (
-    <dl className="grid gap-1 text-sm break-anywhere">
-      {fields.map((field) => (
-        <div key={field}>
-          <dt className="font-medium">{labels[field]}</dt>
-          <dd>{values[field]}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }

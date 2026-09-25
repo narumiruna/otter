@@ -128,6 +128,37 @@ test("history payload guards reject malformed versions and previous snapshots", 
     nextCursor: null,
   };
   expect(parseExpenseHistoryPage(page)).toEqual(page);
+  expect(
+    parseExpenseHistoryPage({
+      ...page,
+      latestRevision: { version: 3, action: "deleted" },
+    }).latestRevision,
+  ).toEqual({ version: 3, action: "deleted" });
+  for (const latestRevision of [
+    { version: 0, action: "deleted" },
+    { version: 3, action: "unknown" },
+    {},
+  ])
+    expect(() =>
+      parseExpenseHistoryPage({ ...page, latestRevision }),
+    ).toThrow();
+  expect(
+    parseExpenseHistoryPage({
+      ...page,
+      revisions: [
+        {
+          ...page.revisions[0],
+          version: 4,
+          action: "restored",
+          source: "version_restore",
+        },
+      ],
+    }).revisions[0],
+  ).toMatchObject({
+    version: 4,
+    action: "restored",
+    source: "version_restore",
+  });
   for (const patch of [
     { version: 0 },
     { version: 1.2 },

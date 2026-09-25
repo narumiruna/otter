@@ -69,7 +69,11 @@ const page: ExpenseHistoryPage = {
   nextCursor: "r2",
 };
 afterEach(() => vi.unstubAllGlobals());
-function harness(initialPayload = payload, locale: "en" | "zh-TW" = "en") {
+function harness(
+  initialPayload = payload,
+  locale: "en" | "zh-TW" = "en",
+  offline = false,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -78,7 +82,7 @@ function harness(initialPayload = payload, locale: "en" | "zh-TW" = "en") {
       <QueryClientProvider client={client}>
         <WorkspaceProvider
           announce={() => {}}
-          offline={false}
+          offline={offline}
           payload={nextPayload}
           refreshCollection={async () => {}}
         >
@@ -507,4 +511,217 @@ test("a public readonly payload never exposes the history entry point", () => {
   const { wrap } = harness({ ...payload, readonly: true });
   const view = render(wrap(<ExpenseHistoryDialog tripId="t" />));
   expect(view.queryByRole("button", { name: "Change history" })).toBeNull();
+});
+
+test("restore previews old and current expense, preserves receipt, and sends reviewed version", async () => {
+  const old = { ...page.revisions[0], id: "r1", version: 1, snapshot };
+  const withReceipt = {
+    ...payload,
+    trip: {
+      ...payload.trip,
+      expenses: [
+        { ...expense, version: 2, amountMinor: 200, receiptId: "receipt" },
+      ],
+    },
+  };
+  const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+    const pathname = String(url);
+    if (init?.method === "POST")
+      return Response.json({
+        ...withReceipt,
+        trip: {
+          ...withReceipt.trip,
+          expenses: [{ ...expense, version: 3, receiptId: "receipt" }],
+        },
+      });
+    if (pathname.includes("expense-history"))
+      return Response.json({
+        revisions: [page.revisions[0], old],
+        nextCursor: null,
+      });
+    return Response.json(withReceipt);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap, client } = harness(withReceipt);
+  const view = render(wrap(<ExpenseHistoryDialog tripId="t" />));
+  const user = userEvent.setup();
+  await user.click(view.getByRole("button", { name: "Change history" }));
+  await user.click(await view.findByRole("button", { name: "Restore v1" }));
+  const restoreDialog = await view.findByRole("region", {
+    name: "Restore expense version",
+  });
+  expect(
+    within(restoreDialog).getByText(/current receipt stays attached/),
+  ).toBeVisible();
+  expect(within(restoreDialog).getByText("NT$200")).toBeVisible();
+  expect(within(restoreDialog).getByText("NT$100")).toBeVisible();
+  await user.click(
+    within(restoreDialog).getByRole("button", { name: "Cancel" }),
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+    false,
+  );
+  await user.click(view.getByRole("button", { name: "Restore v1" }));
+  const confirm = await view.findByRole("button", {
+    name: "Restore this version",
+  });
+  await waitFor(() => expect(confirm).toBeEnabled());
+  await user.click(confirm);
+  await waitFor(() =>
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+      true,
+    ),
+  );
+  const request = fetcher.mock.calls.find(
+    ([, init]) => init?.method === "POST",
+  );
+  expect(String(request?.[0])).toBe("/api/trips/t/expenses/e/restore");
+  expect(new Headers(request?.[1]?.headers).get("If-Match")).toBe('"2"');
+  expect(JSON.parse(String(request?.[1]?.body))).toEqual({ revisionId: "r1" });
+  expect(
+    client.getQueryData<TripPayload>(["trip", "t"])?.trip.expenses[0],
+  ).toMatchObject({ version: 3, receiptId: "receipt" });
+});
+
+test("undelete uses latest deletion version, not the selected version, and explains missing receipt", async () => {
+  const deleted = {
+    ...page.revisions[0],
+    id: "r3",
+    action: "deleted",
+    version: 3,
+  };
+  const old = { ...page.revisions[0], id: "r1", version: 1, snapshot };
+  const withoutExpense = {
+    ...payload,
+    trip: { ...payload.trip, expenses: [] },
+  };
+  const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+    if (init?.method === "POST") return Response.json(payload);
+    return Response.json(
+      String(url).includes("expense-history")
+        ? {
+            revisions: [old, deleted], // Recorded-at order need not match version order.
+            nextCursor: null,
+            latestRevision: { version: 3, action: "deleted" },
+          }
+        : withoutExpense,
+    );
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap } = harness(withoutExpense, "zh-TW");
+  const view = render(wrap(<ExpenseHistoryDialog tripId="t" />));
+  const user = userEvent.setup();
+  await user.click(view.getByRole("button", { name: "修改紀錄" }));
+  await user.click(await view.findByRole("button", { name: "還原版本 1" }));
+  expect(await view.findByText(/沒有收據的狀態下還原/)).toBeVisible();
+  await user.click(view.getByRole("button", { name: "還原此版本" }));
+  await waitFor(() =>
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+      true,
+    ),
+  );
+  const request = fetcher.mock.calls.find(
+    ([, init]) => init?.method === "POST",
+  );
+  expect(new Headers(request?.[1]?.headers).get("If-Match")).toBe('"3"');
+});
+
+test("stale restore reloads current state and requires a second explicit confirmation", async () => {
+  const old = { ...page.revisions[0], id: "r1", version: 1, snapshot };
+  const newer = {
+    ...payload,
+    trip: {
+      ...payload.trip,
+      expenses: [{ ...expense, amountMinor: 400, version: 4 }],
+    },
+  };
+  let current = {
+    ...payload,
+    trip: {
+      ...payload.trip,
+      expenses: [{ ...expense, amountMinor: 200, version: 2 }],
+    },
+  };
+  let posts = 0;
+  const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+    if (init?.method === "POST") {
+      posts++;
+      current = newer;
+      return posts === 1
+        ? Response.json(
+            { error: "Changed", code: "EXPENSE_VERSION_CONFLICT" },
+            { status: 412 },
+          )
+        : Response.json({
+            ...newer,
+            trip: { ...newer.trip, expenses: [{ ...expense, version: 5 }] },
+          });
+    }
+    return Response.json(
+      String(url).includes("expense-history")
+        ? { revisions: [page.revisions[0], old], nextCursor: null }
+        : current,
+    );
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap } = harness(current);
+  const view = render(wrap(<ExpenseHistoryDialog tripId="t" />));
+  const user = userEvent.setup();
+  await user.click(view.getByRole("button", { name: "Change history" }));
+  await user.click(await view.findByRole("button", { name: "Restore v1" }));
+  await user.click(
+    await view.findByRole("button", { name: "Restore this version" }),
+  );
+  expect(
+    await view.findByText(/expense changed. Review the latest state/),
+  ).toBeVisible();
+  const confirm = view.getByRole("button", { name: "Restore this version" });
+  expect(confirm).toBeDisabled();
+  expect(view.getByText("NT$400")).toBeVisible();
+  await user.click(
+    view.getByRole("button", { name: /Reviewed latest version/ }),
+  );
+  expect(confirm).toBeEnabled();
+  await user.click(confirm);
+  await waitFor(() => expect(posts).toBe(2));
+  const writes = fetcher.mock.calls.filter(
+    ([, init]) => init?.method === "POST",
+  );
+  expect(new Headers(writes[0][1]?.headers).get("If-Match")).toBe('"2"');
+  expect(new Headers(writes[1][1]?.headers).get("If-Match")).toBe('"4"');
+});
+
+test("archived, offline and removed-participant versions cannot be restored", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>(async () =>
+      Response.json({ revisions: [page.revisions[0]], nextCursor: null }),
+    ),
+  );
+  const user = userEvent.setup();
+  for (const candidate of [
+    {
+      data: {
+        ...payload,
+        trip: { ...payload.trip, archivedAt: "2026-09-21T00:00:00Z" },
+      },
+      offline: false,
+    },
+    { data: payload, offline: true },
+    {
+      data: {
+        ...payload,
+        trip: { ...payload.trip, participants: [{ id: "a", name: "Alice" }] },
+      },
+      offline: false,
+    },
+  ]) {
+    const { wrap } = harness(candidate.data, "en", candidate.offline);
+    const view = render(wrap(<ExpenseHistoryDialog tripId="t" />));
+    await user.click(view.getByRole("button", { name: "Change history" }));
+    expect(
+      await view.findByRole("button", { name: "Restore v2" }),
+    ).toBeDisabled();
+    view.unmount();
+  }
 });

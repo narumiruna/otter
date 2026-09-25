@@ -103,7 +103,7 @@ Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/sc
 
 `014_expense_revisions.sql` 新增目前支出的 `version` 與 append-only-by-application 的 `expense_revisions`。DB 管理者仍可修改歷史。`expense_revision_snapshot(expenses)` 在單一 SQL snapshot 中取得支出、有序分帳、當時名稱與收據 metadata，供 baseline、版本寫入與目前支出讀取共用；不保存舊圖片 bytes 或 URL。
 
-`server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。只有支出／收據／CSV／合併 route 使用 `expenseMutation` 明確啟用 before snapshot；設定、參與者、協作者與付款 route 只使用共同的 trip lock，不額外建立 before snapshot。Expense route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；傳入 `withTransaction` 的 PoolClient 必須已由外層 transaction 管理。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。Restore 與開發 fixtures 各在自己的 transaction 記錄建立來源。
+`server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。只有支出／收據／CSV／合併／單筆版本還原 route 使用 `expenseMutation` 明確啟用 before snapshot；設定、參與者、協作者與付款 route 只使用共同的 trip lock，不額外建立 before snapshot。Expense route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；傳入 `withTransaction` 的 PoolClient 必須已由外層 transaction 管理。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。備份還原與開發 fixtures 各在自己的 transaction 記錄建立來源。
 
 成功的 `tripMutation` handler 回傳 deferred response function：先在 transaction 內載入完整的 `LoadedTrip`，由 wrapper commit 並 release client 後，才呼叫 `buildTripPayload` 取得銀行匯率與產生回應。Deferred function 不可再使用 transaction client 或重新載入目前支出；否則會誤用已釋放的連線，或把後續修改混入本次回應。銀行失敗仍使用既有固定匯率 fallback；commit 後的回應處理錯誤不會回滾已完成的 mutation。慢速 provider 不應占用 trip lock 或 DB pool。`loadTrip` 收到 Pool 時平行執行六個獨立 detail queries；收到 transaction client 時循序執行，避免在單一連線排入尚未完成的 query。兩種路徑的支出 version、分帳與收據仍由同一 SQL snapshot 讀取。
 
@@ -127,7 +127,21 @@ If-Match: "3"
 
 錯誤仍包含 `error` 字串。未授權／不存在沿用原有 auth／404 邊界，封存維持 409。新增支出不需版本。Contracts 提供 `VersionedExpense`／`parseVersionedTripPayload` 給嚴格線上資料；`parseTripPayload` 保留舊離線 preview 的相容性，任何寫入都不得把缺少版本補成 1。
 
-`GET /api/trips/:tripId/expense-history?expenseId=expense-id&limit=20&cursor=revision-id` 回傳 `{ revisions, nextCursor }`。expenseId、cursor 可省略；limit 預設 20，上限 100。Cursor 須來自同群組／篩選結果，不存在或格式無效回傳 400。每筆含 snapshot、previousSnapshot 與 changedFields，跨頁也可顯示差異；依 recordedAt、id 倒序排列。只有目前 owner／editor 可讀，公開分享不包含此 endpoint 或歷史內容。
+`GET /api/trips/:tripId/expense-history?expenseId=expense-id&limit=20&cursor=revision-id` 回傳 `{ revisions, nextCursor }`。expenseId、cursor 可省略；limit 預設 20，上限 100。Cursor 須來自同群組／篩選結果，不存在或格式無效回傳 400。每筆含 snapshot、previousSnapshot 與 changedFields，跨頁也可顯示差異；依 recordedAt、id 倒序排列。帶 `expenseId` 的回應另有 `latestRevision: { version, action } | null`，依版號取得，供已刪支出還原時核對最新刪除版（即使 recordedAt 相同也不猜版號）；不帶篩選的舊回應仍維持原形。只有目前 owner／editor 可讀，公開分享不包含此 endpoint 或歷史內容。
+
+`018_expense_version_restore.sql` 擴充 revision 的 action（`restored`，用於已刪支出）與 source（`version_restore`）。編輯中的版本還原使用 `updated` action。要把同群組支出還原為一筆既有 revision 的帳目／分帳內容（含已刪支出），提交：
+
+```http
+POST /api/trips/trip-id/expenses/expense-id/restore
+Content-Type: application/json
+If-Match: "3"
+
+{"revisionId":"revision-id"}
+```
+
+`If-Match` 為操作前讀取的目前支出版本；已刪支出則為同支出最新刪除 revision 的版本，不是要還原的舊版版本。與 PATCH 相同，缺少版本為 428、格式錯誤為 400、版本已變為 412；非成員／錯誤群組或版本為 404、封存或舊版參與者已移除為 409。所有比對、重建與新增 revision 均在同一 trip lock transaction；失敗無副作用。有效還原新增版本，已刪支出沿用原 ID 與建立時間，版本接續刪除版，不回到 1。內容相同的現有支出還原不新增版本。餘額／結清建議從新狀態重算，既有付款不改寫。
+
+舊收據圖片不在歷史內：現有支出保留目前收據，已刪支出還原時不帶收據。舊快照的收據 metadata 僅供顯示，不能當作圖片還原；UI 在確認前說明此規則。還原只取舊版支出欄位、分帳順序與份額；不還原舊名稱或已離群的參與者，也不自動改派付款人。
 
 API concurrency tests 用 DB lock waiters 控制交錯，避免以 sleep 推測時序。Migration suite 驗證 013 升級、10,000 筆 baseline、資料指紋與 migration 重跑；必須提供隔離的 `DATABASE_URL`，不能以 skipped 當作驗證通過。
 
