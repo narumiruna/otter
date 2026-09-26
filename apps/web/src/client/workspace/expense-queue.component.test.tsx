@@ -77,6 +77,51 @@ test("offline creates a durable, uncounted draft; pending edits rotate the ID, a
   client.clear();
 });
 
+test("storage failure preserves the offline form without claiming it was saved", async () => {
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const stored = globalThis.indexedDB;
+  const privateMode = {
+    open: () => {
+      throw new DOMException("Storage unavailable", "QuotaExceededError");
+    },
+  };
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{
+          ...payload,
+          trip: { ...payload.trip, id: "offline-storage-failure" },
+        }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseComposer trip={payload.trip} onCancel={() => undefined} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  try {
+    await user.type(view.getByLabelText("描述"), "Keep this draft");
+    await user.type(view.getByLabelText("金額"), "100");
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: privateMode,
+    });
+    await user.click(view.getByRole("button", { name: "存到此裝置" }));
+    expect(await view.findByRole("alert")).toHaveTextContent("無法存到此裝置");
+    expect(view.getByLabelText("描述")).toHaveValue("Keep this draft");
+  } finally {
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: stored,
+    });
+    view.unmount();
+    client.clear();
+  }
+});
+
 test("offline existing-expense edit cannot accidentally enqueue a second expense", async () => {
   const client = new QueryClient();
   const expense = {
