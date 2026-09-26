@@ -80,15 +80,18 @@ export function tripMutation<Path extends string>(
 
 // Opt in only when the handler can change expenses, splits, or receipts. Other
 // trip writers need the same lock, but do not need a before-expense snapshot.
-export function expenseMutation<Path extends string>(
+export function expenseMutation<
+  Path extends string,
+  Candidate = ExchangeRateSnapshot,
+>(
   pool: Pool,
   handler: (
     context: Context<OtterEnv, Path>,
     client: PoolClient,
     before: CapturedExpense[],
-    candidate: ExchangeRateSnapshot | null,
+    candidate: Candidate | null,
   ) => Promise<MutationResult>,
-  prefetch?: () => Promise<ExchangeRateSnapshot>,
+  prefetch?: () => Promise<Candidate>,
 ) {
   return async (context: Context<OtterEnv, Path>): Promise<Response> => {
     // Network I/O must finish before tripMutation takes the parent row lock.

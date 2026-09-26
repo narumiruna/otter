@@ -1,11 +1,20 @@
+import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import {
   type TripBackup,
   type TripBackupV2,
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
-import { fixedExchangeRates } from "@narumitw/otter-core/money";
+import {
+  type Currency,
+  convertExpenseMinor,
+  type ExchangeRates,
+  fixedExchangeRates,
+  isCurrency,
+} from "@narumitw/otter-core/money";
 import type { Pool as PgPool, PoolClient } from "pg";
+import { effectiveTripRates } from "./server-exchange-rates.js";
 import { recordExpenseChanges } from "./server-expense-history.js";
+import { ExpenseRateError } from "./server-expense-rates.js";
 import { insertExpense } from "./server-expense-store.js";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -26,6 +35,7 @@ export function registerBackupRoutes(
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
+  getSnapshot: (baseCurrency: Currency) => Promise<ExchangeRateSnapshot>,
 ) {
   app.get(
     "/api/trips/:tripId/backup",
@@ -54,9 +64,26 @@ export function registerBackupRoutes(
     async (context) => {
       const user = currentUser(context);
       let backup: TripBackup;
+      let quote: ExchangeRateSnapshot | null = null;
       try {
         const body = requestBody(context);
-        backup = validateTripBackupV1("version" in body ? body : body.backup);
+        const input = "version" in body ? body : body.backup;
+        // Read only the proposed base before full validation so the validator
+        // can check cross-base snapshots against the actual response rates.
+        const proposedTrip =
+          input && typeof input === "object" && "trip" in input
+            ? input.trip
+            : null;
+        const proposedBase =
+          proposedTrip &&
+          typeof proposedTrip === "object" &&
+          "baseCurrency" in proposedTrip
+            ? proposedTrip.baseCurrency
+            : null;
+        if (isCurrency(proposedBase)) {
+          quote = await getSnapshot(proposedBase).catch(() => null);
+        }
+        backup = validateTripBackupV1(input, quote?.rates);
       } catch (error) {
         return sendError(
           context,
@@ -65,116 +92,154 @@ export function registerBackupRoutes(
         );
       }
 
-      const tripId = await withTransaction(pool, async (client) => {
-        const newTripId = makeId("trip");
-        const createdAt = nowIso();
-        const name = await uniqueRestoredTripName(
-          client,
-          user.id,
-          backup.trip.name,
-        );
-        await client.query(
-          `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
+      let tripId: string;
+      try {
+        tripId = await withTransaction(pool, async (client) => {
+          const newTripId = makeId("trip");
+          const createdAt = nowIso();
+          const name = await uniqueRestoredTripName(
+            client,
+            user.id,
+            backup.trip.name,
+          );
+          await client.query(
+            `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
            VALUES ($1, $2, $3, $4, $5)`,
-          [newTripId, user.id, name, backup.trip.baseCurrency, createdAt],
-        );
-        await client.query(
-          `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
+            [newTripId, user.id, name, backup.trip.baseCurrency, createdAt],
+          );
+          await client.query(
+            `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
            VALUES ($1, $2, $3, 'owner', $4)`,
-          [makeId("member"), newTripId, user.id, createdAt],
-        );
+            [makeId("member"), newTripId, user.id, createdAt],
+          );
 
-        const participantIds = new Map<string, string>();
-        for (const participant of backup.trip.participants) {
-          const participantId = makeId("participant");
-          participantIds.set(participant.id, participantId);
-          await client.query(
-            `INSERT INTO participants (id, trip_id, name, created_at)
+          const participantIds = new Map<string, string>();
+          for (const participant of backup.trip.participants) {
+            const participantId = makeId("participant");
+            participantIds.set(participant.id, participantId);
+            await client.query(
+              `INSERT INTO participants (id, trip_id, name, created_at)
              VALUES ($1, $2, $3, $4)`,
-            [participantId, newTripId, participant.name, createdAt],
-          );
-        }
-
-        for (const [currency, rate] of Object.entries(
-          backup.trip.exchangeRates ?? {},
-        )) {
-          if (currency === backup.trip.baseCurrency || rate === undefined) {
-            continue;
+              [participantId, newTripId, participant.name, createdAt],
+            );
           }
-          await client.query(
-            `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
-             VALUES ($1, $2, $3)`,
-            [newTripId, currency, rate],
-          );
-        }
 
-        const restoredParticipantId = (id: string): string => {
-          const restored = participantIds.get(id);
-          if (!restored)
-            throw new Error("Validated backup participant is missing");
-          return restored;
-        };
-        for (const expense of backup.trip.expenses) {
-          await insertExpense(client, newTripId, {
-            ...expense,
-            exchangeRate:
+          const restoredRates: ExchangeRates = {
+            [backup.trip.baseCurrency]: 1,
+          };
+          for (const [currency, rate] of Object.entries(
+            backup.trip.exchangeRates ?? {},
+          )) {
+            if (
+              currency === backup.trip.baseCurrency ||
+              rate === undefined ||
+              !isCurrency(currency)
+            ) {
+              continue;
+            }
+            const saved = await client.query<{ rate_to_base: string }>(
+              `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
+             VALUES ($1, $2, $3) RETURNING rate_to_base`,
+              [newTripId, currency, rate],
+            );
+            restoredRates[currency] = Number(saved.rows[0].rate_to_base);
+          }
+
+          const effectiveRates = effectiveTripRates(
+            {
+              baseCurrency: backup.trip.baseCurrency,
+              exchangeRates: restoredRates,
+            },
+            quote,
+          );
+          const restoredParticipantId = (id: string): string => {
+            const restored = participantIds.get(id);
+            if (!restored)
+              throw new Error("Validated backup participant is missing");
+            return restored;
+          };
+          for (const expense of backup.trip.expenses) {
+            const exchangeRate =
               backup.version === 2 && "exchangeRate" in expense
                 ? expense.exchangeRate
                 : {
                     baseCurrency: backup.trip.baseCurrency,
-                    rateToBase: Number(
-                      fixedExchangeRates(backup.trip.baseCurrency)[
-                        expense.currency
-                      ].toPrecision(12),
-                    ),
-                    source: "legacy",
-                  },
-            id: makeId("expense"),
-            category: expense.category ?? "其他",
-            tags: expense.tags ?? [],
-            paidById: restoredParticipantId(expense.paidById),
-            participantIds: expense.participantIds.map(restoredParticipantId),
-            participantShares: expense.participantShares?.map((share) => ({
-              ...share,
-              participantId: restoredParticipantId(share.participantId),
-            })),
-          });
-        }
+                    rateToBase:
+                      expense.currency === backup.trip.baseCurrency
+                        ? 1
+                        : (restoredRates[expense.currency] ??
+                          Number(
+                            fixedExchangeRates(backup.trip.baseCurrency)[
+                              expense.currency
+                            ].toPrecision(12),
+                          )),
+                    source: "legacy" as const,
+                  };
+            try {
+              convertExpenseMinor(
+                expense.amountMinor,
+                expense.currency,
+                backup.trip.baseCurrency,
+                exchangeRate,
+                effectiveRates,
+              );
+            } catch {
+              throw new ExpenseRateError("備份支出換算金額超出範圍");
+            }
+            await insertExpense(client, newTripId, {
+              ...expense,
+              exchangeRate,
+              id: makeId("expense"),
+              category: expense.category ?? "其他",
+              tags: expense.tags ?? [],
+              paidById: restoredParticipantId(expense.paidById),
+              participantIds: expense.participantIds.map(restoredParticipantId),
+              participantShares: expense.participantShares?.map((share) => ({
+                ...share,
+                participantId: restoredParticipantId(share.participantId),
+              })),
+            });
+          }
 
-        for (const payment of backup.trip.settlementPayments ?? []) {
-          await client.query(
-            `INSERT INTO settlement_payments
+          for (const payment of backup.trip.settlementPayments ?? []) {
+            await client.query(
+              `INSERT INTO settlement_payments
                (id, trip_id, from_id, to_id, amount_minor, currency, paid_at, note, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [
-              makeId("payment"),
-              newTripId,
-              participantIds.get(payment.fromId),
-              participantIds.get(payment.toId),
-              payment.amountMinor,
-              payment.currency,
-              payment.paidAt,
-              payment.note,
-              payment.createdAt,
-            ],
-          );
-        }
+              [
+                makeId("payment"),
+                newTripId,
+                participantIds.get(payment.fromId),
+                participantIds.get(payment.toId),
+                payment.amountMinor,
+                payment.currency,
+                payment.paidAt,
+                payment.note,
+                payment.createdAt,
+              ],
+            );
+          }
 
-        await recordExpenseChanges(
-          client,
-          newTripId,
-          [],
-          user,
-          "backup_restore",
-        );
-        return newTripId;
-      });
+          await recordExpenseChanges(
+            client,
+            newTripId,
+            [],
+            user,
+            "backup_restore",
+          );
+          return newTripId;
+        });
+      } catch (error) {
+        if (error instanceof ExpenseRateError)
+          return sendError(context, 400, error.message);
+        throw error;
+      }
 
       const restored = await loadTripForUser(pool, user.id, tripId);
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      return context.json(await buildTripPayload(restored), 201);
+      return context.json(await buildTripPayload(restored, quote), 201);
     },
   );
 }
