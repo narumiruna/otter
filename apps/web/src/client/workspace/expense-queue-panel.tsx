@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "../i18n.js";
 import { ExpenseComposer } from "./expense-composer.js";
@@ -13,7 +13,15 @@ export function ExpenseQueuePanel({
   const { queued, queueError, payload, removeQueued, retryQueued } =
     useWorkspace();
   const [editing, setEditing] = useState("");
+  const [editingDirty, setEditingDirty] = useState(false);
   const [error, setError] = useState("");
+  const reportDirty = useCallback(
+    (dirty: boolean) => {
+      setEditingDirty(dirty);
+      onDirtyChange?.(dirty);
+    },
+    [onDirtyChange],
+  );
   if (!queued.length && (!queueError || typeof indexedDB === "undefined"))
     return null;
   const selected = queued.find((item) => item.id === editing);
@@ -44,6 +52,7 @@ export function ExpenseQueuePanel({
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={editingDirty && editing !== item.id}
                   onClick={() => setEditing(item.id)}
                 >
                   {messages.queueEdit}
@@ -68,7 +77,9 @@ export function ExpenseQueuePanel({
                 onClick={() => {
                   if (!window.confirm(messages.queueDeleteConfirm)) return;
                   void removeQueued(item)
-                    .then(() => setEditing(""))
+                    .then(() => {
+                      if (editing === item.id) setEditing("");
+                    })
                     .catch((failure: unknown) => setError(String(failure)));
                 }}
               >
@@ -84,7 +95,7 @@ export function ExpenseQueuePanel({
           key={selected.id}
           queued={selected}
           trip={payload.trip}
-          onDirtyChange={onDirtyChange}
+          onDirtyChange={reportDirty}
           onCancel={() => setEditing("")}
           onSaved={() => setEditing("")}
         />
