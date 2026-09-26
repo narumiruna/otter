@@ -74,6 +74,44 @@ test("retries an unknown result unchanged and removes only after refreshing bala
   expect(await listExpenses("alice", tripId)).toHaveLength(0);
 });
 
+test("a rejected draft refreshes trip participants before becoming editable", async () => {
+  const tripId = trip();
+  const item = await queueExpense("alice", tripId, draft);
+  const current = {
+    trip: { id: tripId, participants: [{ id: "replacement", name: "Bob" }] },
+    balances: [],
+  };
+  let refreshFails = true;
+  let posts = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url === "/api/me") return json({ user: { id: "alice" } });
+      if (url.endsWith("/expenses")) {
+        posts++;
+        return json({ error: "Participant removed" }, 400);
+      }
+      if (url === `/api/trips/${tripId}`)
+        return refreshFails
+          ? json({ error: "Unavailable" }, 503)
+          : json(current);
+      throw new Error(`Unexpected request: ${url}`);
+    }),
+  );
+  const received: unknown[] = [];
+  const onSynced = (payload: unknown) => received.push(payload);
+  await expect(
+    syncExpenses("alice", tripId, new AbortController().signal, onSynced),
+  ).rejects.toThrow("Unavailable");
+  expect((await getExpense(item.id))?.status).toBe("attempted");
+  expect(received).toEqual([]);
+  refreshFails = false;
+  await syncExpenses("alice", tripId, new AbortController().signal, onSynced);
+  expect(posts).toBe(2);
+  expect(received).toEqual([current]);
+  expect((await getExpense(item.id))?.status).toBe("invalid");
+});
+
 test("deleting a draft during an in-flight request cannot resurrect it", async () => {
   const tripId = trip();
   const item = await queueExpense("alice", tripId, draft);

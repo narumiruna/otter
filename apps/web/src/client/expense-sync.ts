@@ -78,6 +78,20 @@ export async function syncExpenses(
         if (!posted && error instanceof ApiResponseError) {
           if (error.status === 401) return;
           if ([400, 403, 404, 409].includes(error.status)) {
+            if (error.status === 400) {
+              // A rejected draft may reference participants removed elsewhere.
+              // Refresh before making it editable, so corrections use the
+              // current trip. If refresh fails, keep the immutable attempt
+              // and try again on the next sync tick.
+              const latest = await api<TripPayload>(`/api/trips/${tripId}`, {
+                signal,
+              });
+              const currentUser = await api<UserResponse>("/api/me", {
+                signal,
+              });
+              if (signal.aborted || currentUser.user?.id !== userId) return;
+              onSynced(latest);
+            }
             await changeExpense(item.id, userId, tripId, (current) => ({
               ...current,
               status: error.status === 400 ? "invalid" : "conflict",

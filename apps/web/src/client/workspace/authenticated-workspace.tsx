@@ -79,6 +79,8 @@ export function AuthenticatedWorkspace({
     readWorkspaceLocation(new URL(window.location.href)),
   );
   const [draftDirty, setDraftDirty] = useState(false);
+  const draftDirtyRef = useRef(draftDirty);
+  draftDirtyRef.current = draftDirty;
   const [recordedEditing, setRecordedEditing] = useState(false);
   const [queuedEditing, setQueuedEditing] = useState(false);
   const [filtersByTrip, setFiltersByTrip] = useState<
@@ -227,6 +229,13 @@ export function AuthenticatedWorkspace({
         queryFn: () => api<TripPayload>(`/api/trips/${tripId}`),
         queryKey: ["trip", tripId],
       });
+      // Check after the fetch too: the editor can become dirty while the
+      // destination is loading. Both sidebar and mobile switches use this.
+      if (
+        draftDirtyRef.current &&
+        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
+      )
+        return;
       navigate({ mode: null, tripId, view: "overview" });
     } catch (error) {
       setSwitchError(
@@ -328,7 +337,7 @@ export function AuthenticatedWorkspace({
                   view: "people",
                 });
               }}
-              offline={offline}
+              offline={offline || draftDirty}
             />
           ) : null}
           {switchError ? (

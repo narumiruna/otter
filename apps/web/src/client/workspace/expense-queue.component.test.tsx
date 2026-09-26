@@ -168,6 +168,57 @@ test("switching queued editors cannot discard dirty changes without confirmation
   client.clear();
 });
 
+test("cross-tab deletion closes a missing editor and clears workspace editing state", async () => {
+  const trip = { ...payload.trip, id: "offline-deleted-editor" };
+  const item = await queueExpense("u", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Removed elsewhere",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const onEditingChange = vi.fn();
+  const onDirtyChange = vi.fn();
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel
+          onEditingChange={onEditingChange}
+          onDirtyChange={onDirtyChange}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  try {
+    await user.click(await view.findByRole("button", { name: "修改草稿" }));
+    const description = view.getByLabelText("描述");
+    await user.type(description, " unsaved");
+    await waitFor(() => expect(onEditingChange).toHaveBeenLastCalledWith(true));
+    await changeExpense(item.id, "u", trip.id, () => null);
+    await waitFor(() => {
+      expect(view.queryByRole("region", { name: "尚未同步的支出" })).toBeNull();
+      expect(onEditingChange).toHaveBeenLastCalledWith(false);
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    });
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
 test("reconnect waits for the queued editor and sends its saved changes, not the stale draft", async () => {
   const trip = { ...payload.trip, id: "offline-reconnect-edit" };
   const previous = await queueExpense("u", trip.id, {

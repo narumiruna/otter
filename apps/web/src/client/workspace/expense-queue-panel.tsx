@@ -47,6 +47,20 @@ export function ExpenseQueuePanel({
     releaseEditLock.current?.();
     releaseEditLock.current = null;
   };
+  useEffect(() => {
+    if (
+      editing &&
+      !queued.some(
+        (item) =>
+          item.id === editing &&
+          (item.status === "pending" || item.status === "invalid"),
+      )
+    ) {
+      setEditing("");
+      releaseEditLock.current?.();
+      releaseEditLock.current = null;
+    }
+  }, [editing, queued]);
   const openEditor = async (id: string) => {
     if (
       !userId ||

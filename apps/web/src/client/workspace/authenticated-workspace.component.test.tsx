@@ -144,6 +144,86 @@ test("recorded and queued expense editors cannot overlap or reset dirty navigati
   }
 });
 
+test("sidebar trip switching confirms queued edits made while the destination loads", async () => {
+  const trip = {
+    ...selected.trip,
+    id: "trip_queued_switch",
+    participants: [
+      ...selected.trip.participants,
+      { id: "participant_2", name: "Bob" },
+    ],
+  };
+  await queueExpense("user_1", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Pending draft",
+    expenseDate: "2026-09-26",
+    paidById: "participant_1",
+    participantIds: ["participant_1", "participant_2"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  window.history.replaceState({}, "", `/?trip=${trip.id}&view=expenses`);
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  let finish: ((response: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const fetcher = vi.fn(async (path: string) => {
+    if (path === "/api/trips/trip_2") return pending;
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          offline
+          webMcpEnabled={false}
+          bootstrap={{
+            ...bootstrap,
+            trips: [{ ...trips[0], id: trip.id }, trips[1]],
+            selected: { ...selected, trip },
+          }}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    await user.click(await view.findByRole("button", { name: "Edit draft" }));
+    const description = await view.findByLabelText("Description");
+    const destination = view.getByRole("button", { name: /第二個群組/ });
+    await user.click(destination);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    await user.type(description, " changed");
+    finish?.(
+      Response.json({
+        ...selected,
+        trip: { ...selected.trip, id: "trip_2", name: "第二個群組" },
+      }),
+    );
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    expect(description).toHaveValue("Pending draft changed");
+    expect(window.location.search).toContain(`trip=${trip.id}`);
+    confirm.mockReturnValue(true);
+    await user.click(destination);
+    await waitFor(() =>
+      expect(window.location.search).toContain("trip=trip_2"),
+    );
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
 test("preserves expense grouping across workspace navigation", async () => {
   window.history.replaceState({}, "", "/?trip=trip_1&view=expenses");
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
