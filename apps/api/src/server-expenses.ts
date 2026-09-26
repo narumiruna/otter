@@ -386,7 +386,8 @@ export function registerExpenseRoutes(
               expenseDate,
               trip.id,
               context.req.param("expenseId"),
-              hasAmount || currencyValue !== expense.currency
+              amountMinor !== expense.amountMinor ||
+              currencyValue !== expense.currency
                 ? expenseExchangeRate(
                     trip,
                     currencyValue,

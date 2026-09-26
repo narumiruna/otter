@@ -91,11 +91,22 @@ test(
       textOnly.data.trip.expenses.find((e) => e.id === id)?.exchangeRate
         ?.rateToBase,
     ).toBe(32);
+    const fullEditorPatch = await request(
+      `${url}/expenses/${id}`,
+      "PATCH",
+      { ...input, description: "Full editor payload" },
+      2,
+    );
+    expect(fullEditorPatch.response.status).toBe(200);
+    expect(
+      fullEditorPatch.data.trip.expenses.find((e) => e.id === id)?.exchangeRate
+        ?.rateToBase,
+    ).toBe(32);
     const repriced = await request(
       `${url}/expenses/${id}`,
       "PATCH",
       { amount: "2" },
-      2,
+      3,
     );
     expect(
       repriced.data.trip.expenses.find((e) => e.id === id)?.exchangeRate
@@ -138,7 +149,7 @@ test(
       `${url}/expenses/${id}/restore`,
       "POST",
       { revisionId: originalRevision.id },
-      3,
+      4,
     );
     expect(reverted.response.status).toBe(200);
     expect(
@@ -208,9 +219,29 @@ test(
           [created.data.trip.id],
         )
       ).rows[0].count,
-    ).toBe(7);
+    ).toBe(8);
+    const largeBaseExpense = await request(`${url}/expenses`, "POST", {
+      ...input,
+      description: "Old base amount",
+      currency: "TWD",
+      amount: "100000",
+    });
+    expect(largeBaseExpense.response.status).toBe(201);
     const rebased = await request(url, "PATCH", { baseCurrency: "EUR" });
     expect(rebased.response.status).toBe(200);
+    const unrepresentableBridge = await request(url, "PATCH", {
+      exchangeRates: { TWD: 1e9 },
+    });
+    expect(unrepresentableBridge.response.status).toBe(400);
+    expect((await request(url)).response.status).toBe(200);
+    expect(
+      (
+        await s.pool.query(
+          "SELECT count(*)::int AS count FROM trip_exchange_rates WHERE trip_id = $1",
+          [created.data.trip.id],
+        )
+      ).rows[0].count,
+    ).toBe(0);
     expect(
       rebased.data.trip.expenses.find((e) => e.id === id)?.exchangeRate
         ?.baseCurrency,
@@ -239,7 +270,7 @@ test(
       `${url}/expenses/${id}/restore`,
       "POST",
       { revisionId: originalRevision.id },
-      4,
+      5,
     );
     expect(missingQuote.response.status).toBe(409);
   },

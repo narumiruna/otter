@@ -25,6 +25,13 @@ export const en = {
   expenseHistoryReceiptNotice:
     "Only receipt metadata is retained. Previous images are unavailable.",
   expenseHistoryShares: "Split amounts",
+  expenseHistoryRate: "Exchange rate snapshot",
+  expenseHistoryRateBank: "Bank of Taiwan",
+  expenseHistoryRateCustom: "Group custom",
+  expenseHistoryRateFixed: "Built-in fixed",
+  expenseHistoryRateLegacy: "Legacy estimate",
+  expenseHistoryRateTimeUnavailable: "Quote time unavailable",
+  expenseHistoryRateUnavailable: "Legacy version: no rate recorded",
   expenseHistoryBefore: "Before",
   expenseHistoryAfter: "After",
   expenseHistorySourceExpense: "Expense action",

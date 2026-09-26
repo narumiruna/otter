@@ -16,6 +16,14 @@ test("snapshots round once in minor units and reject incompatible quotes", () =>
   expect(
     convertExpenseMinor(101, "USD", "TWD", snapshot, { USD: 99, TWD: 1 }),
   ).toBe(33);
+  const largeMinor = Number.MAX_SAFE_INTEGER - 1;
+  expect(
+    convertExpenseMinor(largeMinor, "USD", "USD", {
+      baseCurrency: "USD",
+      rateToBase: 1,
+      source: "fixed",
+    }),
+  ).toBe(largeMinor);
   expect(isExpenseExchangeRate({ ...snapshot, rateToBase: 0 }, "USD")).toBe(
     false,
   );

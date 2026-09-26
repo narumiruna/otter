@@ -60,6 +60,11 @@ export function convertExpenseMinor(
     return convertMinorWithRates(amountMinor, currency, baseCurrency, rates);
   if (!isExpenseExchangeRate(snapshot, currency))
     throw new Error("Invalid expense exchange rate");
+  if (
+    currency === snapshot.baseCurrency &&
+    snapshot.baseCurrency === baseCurrency
+  )
+    return amountMinor;
   const originalBaseMinor = Math.round(
     toMajor(amountMinor, currency) *
       snapshot.rateToBase *
