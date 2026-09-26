@@ -6,6 +6,7 @@ import {
 } from "@narumitw/otter-contracts";
 import { ApiResponseError, api } from "./client-support.js";
 import { changeExpense, getExpense, listExpenses } from "./expense-queue.js";
+import { acquireExpenseQueueLock } from "./expense-queue-lock.js";
 
 const running = new Set<string>();
 
@@ -91,16 +92,14 @@ export async function syncExpenses(
       }
     }
   };
+  let release: (() => void) | undefined;
   try {
-    if (navigator.locks) {
-      await navigator.locks.request(`otter-expenses:${key}`, { signal }, run);
-    } else {
-      // Older browsers still rely on server-side idempotency across tabs.
-      await run();
-    }
+    release = await acquireExpenseQueueLock(userId, tripId, signal);
+    if (!signal.aborted) await run();
   } catch (error) {
     if (!signal.aborted) throw error;
   } finally {
+    release?.();
     running.delete(key);
   }
 }

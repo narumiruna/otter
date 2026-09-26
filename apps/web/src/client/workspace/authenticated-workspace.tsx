@@ -79,6 +79,8 @@ export function AuthenticatedWorkspace({
     readWorkspaceLocation(new URL(window.location.href)),
   );
   const [draftDirty, setDraftDirty] = useState(false);
+  const [recordedEditing, setRecordedEditing] = useState(false);
+  const [queuedEditing, setQueuedEditing] = useState(false);
   const [filtersByTrip, setFiltersByTrip] = useState<
     Record<string, ExpenseFilters>
   >({});
@@ -373,6 +375,8 @@ export function AuthenticatedWorkspace({
               <ExpenseQueuePanel
                 key={selectedTripId}
                 onDirtyChange={setDraftDirty}
+                onEditingChange={setQueuedEditing}
+                otherEditorActive={recordedEditing}
               />
             ) : null}
             {location.mode === "add-expense" && !archived ? (
@@ -407,31 +411,38 @@ export function AuthenticatedWorkspace({
                 <SettlementHistory trip={payload.trip} readonly={archived} />
               </div>
             ) : location.view === "expenses" ? (
-              <ExpensesPage
-                filters={
-                  filtersByTrip[payload.trip.id] ?? { ...defaultExpenseFilters }
-                }
-                grouping={groupingByTrip[payload.trip.id] ?? "date"}
-                onAddExpense={() =>
-                  needsPeople ? go("people") : navigate({ mode: "add-expense" })
-                }
-                onDirtyChange={setDraftDirty}
-                onFiltersChange={(filters) =>
-                  setFiltersByTrip((current) => ({
-                    ...current,
-                    [payload.trip.id]: filters,
-                  }))
-                }
-                onGroupingChange={(grouping) =>
-                  setGroupingByTrip((current) => ({
-                    ...current,
-                    [payload.trip.id]: grouping,
-                  }))
-                }
-                readonly={archived}
-                trip={payload.trip}
-                userId={bootstrap.user?.id ?? "current"}
-              />
+              !queuedEditing ? (
+                <ExpensesPage
+                  filters={
+                    filtersByTrip[payload.trip.id] ?? {
+                      ...defaultExpenseFilters,
+                    }
+                  }
+                  grouping={groupingByTrip[payload.trip.id] ?? "date"}
+                  onAddExpense={() =>
+                    needsPeople
+                      ? go("people")
+                      : navigate({ mode: "add-expense" })
+                  }
+                  onDirtyChange={setDraftDirty}
+                  onEditingChange={setRecordedEditing}
+                  onFiltersChange={(filters) =>
+                    setFiltersByTrip((current) => ({
+                      ...current,
+                      [payload.trip.id]: filters,
+                    }))
+                  }
+                  onGroupingChange={(grouping) =>
+                    setGroupingByTrip((current) => ({
+                      ...current,
+                      [payload.trip.id]: grouping,
+                    }))
+                  }
+                  readonly={archived}
+                  trip={payload.trip}
+                  userId={bootstrap.user?.id ?? "current"}
+                />
+              ) : null
             ) : location.view === "people" ? (
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (

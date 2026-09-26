@@ -168,6 +168,75 @@ test("switching queued editors cannot discard dirty changes without confirmation
   client.clear();
 });
 
+test("reconnect waits for the queued editor and sends its saved changes, not the stale draft", async () => {
+  const trip = { ...payload.trip, id: "offline-reconnect-edit" };
+  const previous = await queueExpense("u", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Old details",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const sent: { id: string | null; description: string }[] = [];
+  const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === "/api/me") return Response.json({ user: { id: "u" } });
+    if (path.endsWith("/expenses")) {
+      sent.push({
+        id: new Headers(init?.headers).get("Idempotency-Key"),
+        description: JSON.parse(String(init?.body)).description,
+      });
+      return Response.json({ ...payload, trip });
+    }
+    return Response.json({ ...payload, trip });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const workspace = (offline: boolean) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={offline}
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(workspace(true));
+  try {
+    const panel = await view.findByRole("region", { name: "尚未同步的支出" });
+    await user.click(within(panel).getByRole("button", { name: "修改草稿" }));
+    const description = within(panel).getByLabelText("描述");
+    await user.clear(description);
+    await user.type(description, "Correct details");
+    view.rerender(workspace(false));
+    window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(description).toHaveValue("Correct details");
+    expect(sent).toEqual([]);
+    expect((await listExpenses("u", trip.id))[0]?.status).toBe("pending");
+    await user.click(within(panel).getByRole("button", { name: "存到此裝置" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].description).toBe("Correct details");
+    expect(sent[0].id).not.toBe(previous.id);
+    await waitFor(async () =>
+      expect(await listExpenses("u", trip.id)).toEqual([]),
+    );
+  } finally {
+    view.unmount();
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
 test("storage failure preserves the offline form without claiming it was saved", async () => {
   const client = new QueryClient();
   const user = userEvent.setup();

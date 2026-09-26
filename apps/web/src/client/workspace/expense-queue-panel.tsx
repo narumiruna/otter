@@ -1,20 +1,101 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getExpense } from "../expense-queue.js";
+import { acquireExpenseQueueLock } from "../expense-queue-lock.js";
 import { useI18n } from "../i18n.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 
 export function ExpenseQueuePanel({
   onDirtyChange,
+  onEditingChange,
+  otherEditorActive = false,
 }: {
   onDirtyChange?: (dirty: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
+  otherEditorActive?: boolean;
 }) {
   const { messages } = useI18n();
-  const { queued, queueError, payload, removeQueued, retryQueued } =
+  const { queued, queueError, payload, removeQueued, retryQueued, userId } =
     useWorkspace();
   const [editing, setEditing] = useState("");
   const [editingDirty, setEditingDirty] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
+  const releaseEditLock = useRef<(() => void) | null>(null);
+  const editorController = useRef(new AbortController());
+  const blockedByOtherEditor = useRef(otherEditorActive);
+  blockedByOtherEditor.current = otherEditorActive;
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+    editorController.current = controller;
+    setOpening(false);
+    setEditing("");
+    setEditingDirty(false);
+    return () => {
+      controller.abort();
+      releaseEditLock.current?.();
+      releaseEditLock.current = null;
+      onEditingChange?.(false);
+    };
+  }, [onEditingChange, userId]);
+  useEffect(() => onEditingChange?.(!!editing), [editing, onEditingChange]);
+
+  const closeEditor = () => {
+    setEditing("");
+    releaseEditLock.current?.();
+    releaseEditLock.current = null;
+  };
+  const openEditor = async (id: string) => {
+    if (
+      !userId ||
+      opening ||
+      editingDirty ||
+      blockedByOtherEditor.current ||
+      editing === id
+    )
+      return;
+    setOpening(true);
+    const signal = editorController.current?.signal;
+    let release: (() => void) | undefined;
+    try {
+      // The lock excludes sync in this and other tabs. Acquire it before
+      // reading status, so a request already in flight finishes first.
+      if (!releaseEditLock.current)
+        release = await acquireExpenseQueueLock(
+          userId,
+          payload.trip.id,
+          signal,
+        );
+      const item = await getExpense(id);
+      if (
+        signal?.aborted ||
+        blockedByOtherEditor.current ||
+        item?.userId !== userId ||
+        item.tripId !== payload.trip.id ||
+        (item.status !== "pending" && item.status !== "invalid")
+      ) {
+        release?.();
+        if (!signal?.aborted)
+          setError("Queued expense changed; reload and try again");
+        return;
+      }
+      if (release) releaseEditLock.current = release;
+      setEditing(id);
+      setError("");
+    } catch (caught) {
+      release?.();
+      if (!signal?.aborted)
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Unable to open queued expense",
+        );
+    } finally {
+      if (!signal?.aborted) setOpening(false);
+    }
+  };
   const reportDirty = useCallback(
     (dirty: boolean) => {
       setEditingDirty(dirty);
@@ -52,8 +133,12 @@ export function ExpenseQueuePanel({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={editingDirty && editing !== item.id}
-                  onClick={() => setEditing(item.id)}
+                  disabled={
+                    opening ||
+                    otherEditorActive ||
+                    (editingDirty && editing !== item.id)
+                  }
+                  onClick={() => void openEditor(item.id)}
                 >
                   {messages.queueEdit}
                 </Button>
@@ -78,7 +163,7 @@ export function ExpenseQueuePanel({
                   if (!window.confirm(messages.queueDeleteConfirm)) return;
                   void removeQueued(item)
                     .then(() => {
-                      if (editing === item.id) setEditing("");
+                      if (editing === item.id) closeEditor();
                     })
                     .catch((failure: unknown) => setError(String(failure)));
                 }}
@@ -96,8 +181,8 @@ export function ExpenseQueuePanel({
           queued={selected}
           trip={payload.trip}
           onDirtyChange={reportDirty}
-          onCancel={() => setEditing("")}
-          onSaved={() => setEditing("")}
+          onCancel={closeEditor}
+          onSaved={closeEditor}
         />
       ) : null}
     </section>

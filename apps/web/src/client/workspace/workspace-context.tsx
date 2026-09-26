@@ -24,6 +24,7 @@ import { useI18n } from "../i18n.js";
 export type WorkspaceContextValue = {
   announce: (message: string) => void;
   offline: boolean;
+  userId?: string;
   canQueue: boolean;
   payload: TripPayload;
   queued: QueuedExpense[];
@@ -146,6 +147,7 @@ export function WorkspaceProvider({
     return {
       announce,
       offline,
+      userId,
       canQueue: !!userId,
       payload,
       queued,

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
@@ -6,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
 import type { TripPayload, TripSummary } from "../client-support.js";
+import { queueExpense } from "../expense-queue.js";
 import { I18nProvider, useI18n } from "../i18n.js";
 import { AuthenticatedWorkspace } from "./authenticated-workspace.js";
 
@@ -63,6 +65,83 @@ const bootstrap: AppBootstrap = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("recorded and queued expense editors cannot overlap or reset dirty navigation protection", async () => {
+  const trip = {
+    ...selected.trip,
+    id: "trip_queue_recorded",
+    participants: [
+      ...selected.trip.participants,
+      { id: "participant_2", name: "Bob" },
+    ],
+    expenses: [
+      {
+        id: "recorded",
+        version: 1,
+        amountMinor: 100,
+        currency: "TWD" as const,
+        description: "Dinner",
+        expenseDate: "2026-09-26",
+        createdAt: "2026-09-26T00:00:00Z",
+        paidById: "participant_1",
+        participantIds: ["participant_1", "participant_2"],
+      },
+    ],
+  };
+  await queueExpense("user_1", trip.id, {
+    amount: "200",
+    currency: "TWD",
+    description: "Queued lunch",
+    expenseDate: "2026-09-26",
+    paidById: "participant_1",
+    participantIds: ["participant_1", "participant_2"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  window.history.replaceState({}, "", `/?trip=${trip.id}&view=expenses`);
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          offline
+          webMcpEnabled={false}
+          bootstrap={{
+            ...bootstrap,
+            trips: [{ ...trips[0], id: trip.id }],
+            selected: { ...selected, trip },
+          }}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const queuedEdit = await view.findByRole("button", { name: "Edit draft" });
+    await user.click(view.getByRole("button", { name: "Dinner" }));
+    expect(queuedEdit).toBeDisabled();
+    await user.type(view.getByLabelText("Description"), " changed");
+    expect(view.queryByRole("button", { name: "Overview" })).toBeNull();
+    expect(queuedEdit).toBeDisabled();
+    await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    await user.click(view.getByRole("button", { name: "Discard draft" }));
+    await waitFor(() => expect(queuedEdit).toBeEnabled());
+    await user.click(queuedEdit);
+    expect(view.getByLabelText("Description")).toHaveValue("Queued lunch");
+    expect(view.queryByRole("button", { name: "Dinner" })).toBeNull();
+    await user.type(view.getByLabelText("Description"), " updated");
+    expect(view.queryByRole("button", { name: "Overview" })).toBeNull();
+  } finally {
+    view.unmount();
+    client.clear();
+  }
 });
 
 test("preserves expense grouping across workspace navigation", async () => {

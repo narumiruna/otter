@@ -55,6 +55,7 @@ export function ExpensesPage({
   grouping,
   onAddExpense,
   onDirtyChange,
+  onEditingChange,
   onFiltersChange,
   onGroupingChange,
   readonly = false,
@@ -65,6 +66,7 @@ export function ExpensesPage({
   grouping: ExpenseGrouping;
   onAddExpense: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
   onFiltersChange: (filters: ExpenseFilters) => void;
   onGroupingChange: (grouping: ExpenseGrouping) => void;
   readonly?: boolean;
@@ -78,6 +80,10 @@ export function ExpensesPage({
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  useEffect(() => {
+    onEditingChange?.(!!editingExpenseId);
+    return () => onEditingChange?.(false);
+  }, [editingExpenseId, onEditingChange]);
   const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
     readExpenseColumns(userId),
   );

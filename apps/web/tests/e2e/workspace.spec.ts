@@ -407,6 +407,53 @@ test("offline state keeps reading available, queues new expenses and disables ot
   ).toHaveLength(4);
 });
 
+test("reconnecting while editing a queued expense waits for its saved changes", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  const tripId = new URL(page.url()).searchParams.get("trip");
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "記一筆" }).click();
+  await page.getByLabel("描述").fill("尚未修改的午餐");
+  await page.getByLabel("金額", { exact: true }).fill("120");
+  await page.getByRole("button", { name: "存到此裝置" }).click();
+  const panel = page.getByRole("region", { name: "尚未同步的支出" });
+  await panel.getByRole("button", { name: "修改草稿" }).click();
+  await panel.getByLabel("描述").fill("已修改的午餐");
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(panel.getByLabel("描述")).toHaveValue("已修改的午餐");
+  const before = await page.evaluate(
+    async (id) => (await fetch(`/api/trips/${id}`)).json(),
+    tripId,
+  );
+  expect(
+    before.trip.expenses.filter(
+      (expense: { description: string }) =>
+        expense.description === "尚未修改的午餐",
+    ),
+  ).toHaveLength(0);
+  await panel.getByRole("button", { name: "存到此裝置" }).click();
+  await expect(panel).toHaveCount(0, { timeout: 20_000 });
+  const after = await page.evaluate(
+    async (id) => (await fetch(`/api/trips/${id}`)).json(),
+    tripId,
+  );
+  expect(
+    after.trip.expenses.filter(
+      (expense: { description: string }) =>
+        expense.description === "已修改的午餐",
+    ),
+  ).toHaveLength(1);
+  expect(
+    after.trip.expenses.filter(
+      (expense: { description: string }) =>
+        expense.description === "尚未修改的午餐",
+    ),
+  ).toHaveLength(0);
+});
+
 test("offline draft survives reload after reconnect and a lost response does not duplicate it", async ({
   page,
   context,
