@@ -122,11 +122,15 @@ export function registerBackupRoutes(
                 ? expense.exchangeRate
                 : {
                     baseCurrency: backup.trip.baseCurrency,
-                    rateToBase: Number(
-                      fixedExchangeRates(backup.trip.baseCurrency)[
-                        expense.currency
-                      ].toPrecision(12),
-                    ),
+                    rateToBase:
+                      expense.currency === backup.trip.baseCurrency
+                        ? 1
+                        : (backup.trip.exchangeRates?.[expense.currency] ??
+                          Number(
+                            fixedExchangeRates(backup.trip.baseCurrency)[
+                              expense.currency
+                            ].toPrecision(12),
+                          )),
                     source: "legacy",
                   },
             id: makeId("expense"),

@@ -8,7 +8,7 @@ import { migrationsDirectory, runMigrations } from "../scripts/migrate.js";
 import { postgresTestOptions, testDatabaseUrl } from "./server-test-utils.js";
 
 test(
-  "019 marks existing expenses and revisions as estimates without inventing quotes",
+  "019 and 020 backfill legacy estimates using saved custom rates when available",
   postgresTestOptions,
   async () => {
     const admin = new pg.Pool({ connectionString: testDatabaseUrl });
@@ -36,6 +36,7 @@ test(
       INSERT INTO trips (id,owner_id,name,base_currency) VALUES ('t','u','Legacy','TWD');
       INSERT INTO trip_members (id,trip_id,user_id,role) VALUES ('m','t','u','owner');
       INSERT INTO participants (id,trip_id,name) VALUES ('a','t','Alice');
+      INSERT INTO trip_exchange_rates (trip_id,currency,rate_to_base) VALUES ('t','USD',40);
       INSERT INTO expenses (id,trip_id,description,amount_minor,currency,paid_by_id,expense_date) VALUES ('e','t','Dinner',100,'USD','a','2020-01-01');
       INSERT INTO expense_participants (trip_id,expense_id,participant_id,position) VALUES ('t','e','a',0);
       INSERT INTO expense_revisions (id,trip_id,expense_id,version,action,source,snapshot)
@@ -46,13 +47,31 @@ test(
         path.join(dir, "019_expense_exchange_rate.sql"),
       );
       expect(await runMigrations(pool, { migrationsDir: dir, logger })).toBe(1);
+      // A legacy snapshot made after 019 (e.g. a v1 restore) must not be rewritten.
+      await pool.query(`
+        INSERT INTO expenses (id,trip_id,description,amount_minor,currency,paid_by_id,expense_date,exchange_rate)
+        VALUES ('new','t','New',100,'USD','a','2020-01-01',legacy_expense_rate('USD','TWD'));
+        INSERT INTO expense_participants (trip_id,expense_id,participant_id,position) VALUES ('t','new','a',0);
+        INSERT INTO expense_revisions (id,trip_id,expense_id,version,action,source,snapshot)
+          SELECT 'new_rev','t','new',1,'created','backup_restore',expense_revision_snapshot(e) FROM expenses e WHERE id = 'new';
+      `);
+      await cp(
+        path.join(migrationsDirectory(), "020_legacy_custom_rates.sql"),
+        path.join(dir, "020_legacy_custom_rates.sql"),
+      );
+      expect(await runMigrations(pool, { migrationsDir: dir, logger })).toBe(1);
       expect(await runMigrations(pool, { migrationsDir: dir, logger })).toBe(0);
+      const later = await pool.query(
+        "SELECT e.exchange_rate, r.snapshot->'expense'->'exchangeRate' AS historical FROM expenses e JOIN expense_revisions r ON r.expense_id = e.id WHERE e.id = 'new'",
+      );
+      expect(later.rows[0].exchange_rate.rateToBase).toBe(32);
+      expect(later.rows[0].historical.rateToBase).toBe(32);
       const result =
         await pool.query(`SELECT e.exchange_rate, expense_revision_snapshot(e) AS live,
-      r.snapshot AS historical FROM expenses e JOIN expense_revisions r ON r.expense_id = e.id`);
+      r.snapshot AS historical FROM expenses e JOIN expense_revisions r ON r.expense_id = e.id WHERE e.id = 'e'`);
       expect(result.rows[0].exchange_rate).toEqual({
         baseCurrency: "TWD",
-        rateToBase: 32,
+        rateToBase: 40,
         source: "legacy",
       });
       expect(result.rows[0].live.expense.exchangeRate).toEqual(

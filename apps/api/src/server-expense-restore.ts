@@ -3,6 +3,7 @@ import {
   type ExpenseRevision,
   isExpenseSnapshot,
 } from "@narumitw/otter-contracts";
+import { convertExpenseMinor } from "@narumitw/otter-core/money";
 import type { Pool } from "pg";
 import {
   recordExpenseChanges,
@@ -88,6 +89,17 @@ export function registerExpenseRestoreRoute(
       const restored = snapshot.expense;
       if (!restored.exchangeRate)
         return sendError(context, 409, "支出版本缺少匯率快照，請先遷移資料");
+      try {
+        convertExpenseMinor(
+          restored.amountMinor,
+          restored.currency,
+          trip.baseCurrency,
+          restored.exchangeRate,
+          trip.exchangeRates,
+        );
+      } catch {
+        return sendError(context, 400, "支出版本換算金額超出範圍");
+      }
       if (
         !participantExists(trip, restored.paidById) ||
         restored.participantIds.some((id) => !participantExists(trip, id))

@@ -78,6 +78,30 @@ test("v2 requires a positive quote in the matching base; v1 remains importable",
   assert.equal(validateTripBackupV1(backup).version, 1);
 });
 
+test("validation uses the base rate actually restored for cross-base snapshots", () => {
+  const modern = {
+    ...backup,
+    version: 2,
+    trip: {
+      ...backup.trip,
+      baseCurrency: "EUR",
+      exchangeRates: { TWD: 1e9, EUR: 1e9 },
+      expenses: [
+        {
+          ...backup.trip.expenses[0],
+          amountMinor: 100000,
+          exchangeRate: {
+            baseCurrency: "TWD",
+            rateToBase: 1,
+            source: "legacy",
+          },
+        },
+      ],
+    },
+  };
+  assert.throws(() => validateTripBackupV1(modern), /備份支出換算金額超出範圍/);
+});
+
 test("validates trip backup version and required relationships", () => {
   assert.equal(validateTripBackupV1(backup).trip.name, "Tokyo");
   assert.throws(

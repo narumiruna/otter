@@ -151,9 +151,11 @@ export function validateTripBackupV1(value: unknown): TripBackup {
           ? rate
           : {
               baseCurrency: trip.baseCurrency,
-              rateToBase: fixedExchangeRates(trip.baseCurrency)[
-                expense.currency
-              ],
+              rateToBase:
+                expense.currency === trip.baseCurrency
+                  ? 1
+                  : (trip.exchangeRates?.[expense.currency] ??
+                    fixedExchangeRates(trip.baseCurrency)[expense.currency]),
               source: "legacy" as const,
             };
       convertExpenseMinor(
@@ -161,7 +163,7 @@ export function validateTripBackupV1(value: unknown): TripBackup {
         expense.currency,
         trip.baseCurrency,
         snapshot,
-        trip.exchangeRates,
+        { ...trip.exchangeRates, [trip.baseCurrency]: 1 },
       );
     } catch {
       throw new Error("備份支出換算金額超出範圍");

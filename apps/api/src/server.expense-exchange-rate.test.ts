@@ -162,15 +162,21 @@ test(
       delete (expense as { exchangeRate?: unknown }).exchangeRate;
     (legacyBackup.trip.expenses[0] as { exchangeRate?: unknown }).exchangeRate =
       { baseCurrency: "TWD", rateToBase: 9999, source: "custom" };
+    (legacyBackup.trip as { exchangeRates?: object }).exchangeRates = {
+      USD: 40,
+    };
     const oldRestored = await request(
       "/api/trips/restore",
       "POST",
       legacyBackup,
     );
     expect(oldRestored.response.status).toBe(201);
+    expect(oldRestored.response.status).toBe(201);
     expect(
       oldRestored.data.trip.expenses.every(
-        (e) => e.exchangeRate?.source === "legacy",
+        (e) =>
+          e.exchangeRate?.source === "legacy" &&
+          e.exchangeRate.rateToBase === 40,
       ),
     ).toBe(true);
     current = 55;
@@ -227,6 +233,27 @@ test(
       amount: "100000",
     });
     expect(largeBaseExpense.response.status).toBe(201);
+    const historicalLarge = await request(`${url}/expenses`, "POST", {
+      ...input,
+      description: "Historical large amount",
+      currency: "TWD",
+      amount: "10000000",
+    });
+    expect(historicalLarge.response.status).toBe(201);
+    const historicalId = historicalLarge.data.trip.expenses.find(
+      (e) => e.description === "Historical large amount",
+    )?.id;
+    assert.ok(historicalId);
+    expect(
+      (
+        await request(
+          `${url}/expenses/${historicalId}`,
+          "PATCH",
+          { amount: "100" },
+          1,
+        )
+      ).response.status,
+    ).toBe(200);
     const rebased = await request(url, "PATCH", { baseCurrency: "EUR" });
     expect(rebased.response.status).toBe(200);
     const unrepresentableBridge = await request(url, "PATCH", {
@@ -253,6 +280,17 @@ test(
     expect(rebasedBackup.data.trip.expenses[0].exchangeRate.baseCurrency).toBe(
       "TWD",
     );
+    const unsafeBackup = {
+      ...rebasedBackup.data,
+      trip: {
+        ...rebasedBackup.data.trip,
+        exchangeRates: { TWD: 1e9, EUR: 1e9 },
+      },
+    };
+    expect(
+      (await request("/api/trips/restore", "POST", unsafeBackup)).response
+        .status,
+    ).toBe(400);
     const rebasedRestore = await request(
       "/api/trips/restore",
       "POST",
@@ -262,6 +300,44 @@ test(
     expect(
       rebasedRestore.data.trip.expenses[0].exchangeRate?.baseCurrency,
     ).toBe("TWD");
+    expect(
+      (
+        await request(
+          `${url}/expenses/${largeBaseExpense.data.trip.expenses.find((e) => e.description === "Old base amount")?.id}`,
+          "PATCH",
+          { amount: "100" },
+          1,
+        )
+      ).response.status,
+    ).toBe(200);
+    expect(
+      (await request(url, "PATCH", { exchangeRates: { TWD: 1e9 } })).response
+        .status,
+    ).toBe(200);
+    const oldVersions = await api<{
+      revisions: { id: string; version: number }[];
+    }>(
+      s.baseUrl,
+      `${url}/expense-history?expenseId=${encodeURIComponent(historicalId)}`,
+      { headers: { cookie } },
+    );
+    const oldVersion = oldVersions.data.revisions.find((r) => r.version === 1);
+    assert.ok(oldVersion);
+    const unsafeRestore = await request(
+      `${url}/expenses/${historicalId}/restore`,
+      "POST",
+      { revisionId: oldVersion.id },
+      2,
+    );
+    expect(unsafeRestore.response.status).toBe(400);
+    expect((await request(url)).response.status).toBe(200);
+    expect(
+      (
+        await s.pool.query("SELECT amount_minor FROM expenses WHERE id = $1", [
+          historicalId,
+        ])
+      ).rows[0].amount_minor,
+    ).toBe("100");
     await s.pool.query(
       "UPDATE expense_revisions SET snapshot = snapshot #- '{expense,exchangeRate}' WHERE id = $1",
       [originalRevision.id],
