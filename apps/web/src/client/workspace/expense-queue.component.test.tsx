@@ -1,0 +1,434 @@
+// @vitest-environment jsdom
+import "fake-indexeddb/auto";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { expect, test, vi } from "vitest";
+import type { TripPayload } from "../client-support.js";
+import { changeExpense, listExpenses, queueExpense } from "../expense-queue.js";
+import { ExpenseComposer } from "./expense-composer.js";
+import { ExpenseQueuePanel } from "./expense-queue-panel.js";
+import { WorkspaceProvider } from "./workspace-context.js";
+
+const payload: TripPayload = {
+  balances: [],
+  settlements: [],
+  trip: {
+    id: "offline-component-trip",
+    name: "Trip",
+    baseCurrency: "TWD",
+    createdAt: "2026-09-26T00:00:00Z",
+    ownerId: "u",
+    expenses: [],
+    participants: [
+      { id: "a", name: "Alice" },
+      { id: "b", name: "Bob" },
+    ],
+  },
+};
+
+test("offline creates a durable, uncounted draft; pending edits rotate the ID, attempted ones stay locked", async () => {
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={payload}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseComposer trip={payload.trip} onCancel={() => undefined} />
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await user.type(view.getByPlaceholderText("晚餐、飯店、車票"), "Dinner");
+  await user.type(view.getByPlaceholderText("1000"), "100");
+  await user.click(view.getByRole("button", { name: "存到此裝置" }));
+  await waitFor(async () =>
+    expect(await listExpenses("u", payload.trip.id)).toHaveLength(1),
+  );
+  const [original] = await listExpenses("u", payload.trip.id);
+  expect(payload.trip.expenses).toHaveLength(0);
+  await user.click(view.getByRole("button", { name: "修改草稿" }));
+  const panel = view.getByRole("region", { name: "尚未同步的支出" });
+  const input = within(panel).getByPlaceholderText("1000");
+  await user.clear(input);
+  await user.type(input, "200");
+  await user.click(within(panel).getByRole("button", { name: "存到此裝置" }));
+  await waitFor(async () => {
+    const [revised] = await listExpenses("u", payload.trip.id);
+    expect(revised.id).not.toBe(original.id);
+    expect(revised.draft.amount).toBe("200");
+  });
+  const [revised] = await listExpenses("u", payload.trip.id);
+  await changeExpense(revised.id, "u", payload.trip.id, (item) => ({
+    ...item,
+    status: "attempted",
+  }));
+  await waitFor(() =>
+    expect(
+      within(panel).queryByRole("button", { name: "修改草稿" }),
+    ).toBeNull(),
+  );
+  view.unmount();
+  client.clear();
+});
+
+test("switching queued editors cannot discard dirty changes without confirmation", async () => {
+  const trip = { ...payload.trip, id: "offline-switch-guard" };
+  const draft = {
+    amount: "100",
+    currency: "TWD" as const,
+    description: "First",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal" as const,
+    splitValues: {},
+  };
+  const first = await queueExpense("u", trip.id, draft);
+  await queueExpense("u", trip.id, { ...draft, description: "Second" });
+  await queueExpense("u", trip.id, { ...draft, description: "Third" });
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  const panel = await view.findByRole("region", { name: "尚未同步的支出" });
+  const firstRow = within(panel)
+    .getByText("First", { selector: "strong" })
+    .closest("li");
+  const secondRow = within(panel)
+    .getByText("Second", { selector: "strong" })
+    .closest("li");
+  expect(firstRow).not.toBeNull();
+  expect(secondRow).not.toBeNull();
+  if (!firstRow || !secondRow) throw new Error("Missing queue rows");
+  await user.click(within(firstRow).getByRole("button", { name: "修改草稿" }));
+  const description = within(panel).getByLabelText("描述");
+  await user.clear(description);
+  await user.type(description, "Unsaved change");
+  const switchButton = within(secondRow).getByRole("button", {
+    name: "修改草稿",
+  });
+  expect(switchButton).toBeDisabled();
+  await user.click(switchButton);
+  expect(description).toHaveValue("Unsaved change");
+  const confirmDeletion = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const thirdRow = within(panel)
+    .getByText("Third", { selector: "strong" })
+    .closest("li");
+  if (!thirdRow) throw new Error("Missing third queue row");
+  await user.click(
+    within(thirdRow).getByRole("button", { name: "刪除本機草稿" }),
+  );
+  await waitFor(() =>
+    expect(
+      within(panel).queryByText("Third", { selector: "strong" }),
+    ).toBeNull(),
+  );
+  confirmDeletion.mockRestore();
+  expect(description).toHaveValue("Unsaved change");
+  expect(switchButton).toBeDisabled();
+  await user.click(within(panel).getAllByRole("button", { name: "取消" })[0]);
+  const confirm = view.getByRole("dialog", { name: "要捨棄這份草稿嗎？" });
+  await user.click(within(confirm).getByRole("button", { name: "取消" }));
+  expect(description).toHaveValue("Unsaved change");
+  expect(switchButton).toBeDisabled();
+  await user.click(within(panel).getAllByRole("button", { name: "取消" })[0]);
+  await user.click(
+    within(view.getByRole("dialog", { name: "要捨棄這份草稿嗎？" })).getByRole(
+      "button",
+      { name: "捨棄草稿" },
+    ),
+  );
+  await waitFor(() => expect(switchButton).toBeEnabled());
+  await user.click(switchButton);
+  expect(within(panel).getByLabelText("描述")).toHaveValue("Second");
+  expect(
+    (await listExpenses("u", trip.id)).find((item) => item.id === first.id)
+      ?.draft.description,
+  ).toBe("First");
+  view.unmount();
+  client.clear();
+});
+
+test("cross-tab deletion closes a missing editor and clears workspace editing state", async () => {
+  const trip = { ...payload.trip, id: "offline-deleted-editor" };
+  const item = await queueExpense("u", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Removed elsewhere",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const onEditingChange = vi.fn();
+  const onDirtyChange = vi.fn();
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel
+          onEditingChange={onEditingChange}
+          onDirtyChange={onDirtyChange}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  try {
+    await user.click(await view.findByRole("button", { name: "修改草稿" }));
+    const description = view.getByLabelText("描述");
+    await user.type(description, " unsaved");
+    await waitFor(() => expect(onEditingChange).toHaveBeenLastCalledWith(true));
+    await changeExpense(item.id, "u", trip.id, () => null);
+    await waitFor(() => {
+      expect(view.queryByRole("region", { name: "尚未同步的支出" })).toBeNull();
+      expect(onEditingChange).toHaveBeenLastCalledWith(false);
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    });
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("reconnect waits for the queued editor and sends its saved changes, not the stale draft", async () => {
+  const trip = { ...payload.trip, id: "offline-reconnect-edit" };
+  const previous = await queueExpense("u", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Old details",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const sent: { id: string | null; description: string }[] = [];
+  const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === "/api/me") return Response.json({ user: { id: "u" } });
+    if (path.endsWith("/expenses")) {
+      sent.push({
+        id: new Headers(init?.headers).get("Idempotency-Key"),
+        description: JSON.parse(String(init?.body)).description,
+      });
+      return Response.json({ ...payload, trip });
+    }
+    return Response.json({ ...payload, trip });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const workspace = (offline: boolean) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={offline}
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(workspace(true));
+  try {
+    const panel = await view.findByRole("region", { name: "尚未同步的支出" });
+    await user.click(within(panel).getByRole("button", { name: "修改草稿" }));
+    const description = within(panel).getByLabelText("描述");
+    await user.clear(description);
+    await user.type(description, "Correct details");
+    view.rerender(workspace(false));
+    window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(description).toHaveValue("Correct details");
+    expect(sent).toEqual([]);
+    expect((await listExpenses("u", trip.id))[0]?.status).toBe("pending");
+    await user.click(within(panel).getByRole("button", { name: "存到此裝置" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].description).toBe("Correct details");
+    expect(sent[0].id).not.toBe(previous.id);
+    await waitFor(async () =>
+      expect(await listExpenses("u", trip.id)).toEqual([]),
+    );
+  } finally {
+    view.unmount();
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
+test("authentication loss stops automatic queue retries until the account changes", async () => {
+  const trip = { ...payload.trip, id: "offline-auth-stopped" };
+  const draft = {
+    amount: "100",
+    currency: "TWD" as const,
+    description: "Unsent",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal" as const,
+    splitValues: {},
+  };
+  const secondTrip = { ...trip, id: "offline-auth-stopped-second" };
+  await queueExpense("u", trip.id, draft);
+  await queueExpense("u", secondTrip.id, draft);
+  await queueExpense("other", secondTrip.id, draft);
+  const fetcher = vi.fn(async (path: string) => {
+    if (path === "/api/me")
+      return Response.json({ error: "Session expired" }, { status: 401 });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient();
+  const authBlockedFor = { current: null as string | null };
+  const workspace = (userId: string, currentTrip = trip) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        key={currentTrip.id}
+        announce={() => undefined}
+        authBlockedFor={authBlockedFor}
+        offline={false}
+        payload={{ ...payload, trip: currentTrip }}
+        userId={userId}
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(workspace("u"));
+  try {
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    view.rerender(workspace("u", secondTrip));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    view.rerender(workspace("other", secondTrip));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect((await listExpenses("u", trip.id))[0]?.status).toBe("pending");
+  } finally {
+    view.unmount();
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
+test("storage failure preserves the offline form without claiming it was saved", async () => {
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const stored = globalThis.indexedDB;
+  const privateMode = {
+    open: () => {
+      throw new DOMException("Storage unavailable", "QuotaExceededError");
+    },
+  };
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{
+          ...payload,
+          trip: { ...payload.trip, id: "offline-storage-failure" },
+        }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseComposer trip={payload.trip} onCancel={() => undefined} />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  try {
+    await user.type(view.getByLabelText("描述"), "Keep this draft");
+    await user.type(view.getByLabelText("金額"), "100");
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: privateMode,
+    });
+    await user.click(view.getByRole("button", { name: "存到此裝置" }));
+    expect(await view.findByRole("alert")).toHaveTextContent("無法存到此裝置");
+    expect(view.getByLabelText("描述")).toHaveValue("Keep this draft");
+  } finally {
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: stored,
+    });
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("offline existing-expense edit cannot accidentally enqueue a second expense", async () => {
+  const client = new QueryClient();
+  const expense = {
+    id: "recorded",
+    amountMinor: 100,
+    currency: "TWD" as const,
+    description: "Recorded",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a"],
+    createdAt: "2026-09-26T00:00:00Z",
+    version: 1,
+  };
+  const existingTrip = { ...payload.trip, id: "offline-existing-edit" };
+  const existingPayload = { ...payload, trip: existingTrip };
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={existingPayload}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseComposer
+          expense={expense}
+          trip={existingTrip}
+          onCancel={() => undefined}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  fireEvent.submit(view.container.querySelector("form") as HTMLFormElement);
+  await waitFor(() => expect(view.getByRole("alert")).toBeVisible());
+  expect(await listExpenses("u", existingTrip.id)).toHaveLength(0);
+  view.unmount();
+  client.clear();
+});

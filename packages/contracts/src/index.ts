@@ -38,6 +38,11 @@ export {
   type VersionedExpense,
   type VersionedTrip,
 } from "./expense-history.js";
+export {
+  expenseOperationHeader,
+  expenseQueueUserHeader,
+  parseExpenseOperationId,
+} from "./expense-operation.js";
 
 export type User = {
   id: string;

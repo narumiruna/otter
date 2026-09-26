@@ -4,11 +4,13 @@ import {
   type MessageValues,
   pluralize,
 } from "./message-types.js";
+import { enQueue } from "./messages-en-queue.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 type Messages = CatalogShape<typeof zhTW>;
 
 export const en = {
+  ...enQueue,
   expenseHistory: "Change history",
   expenseHistoryDescription:
     "Expense edits, deletions, and restores; not payment history or historical balances.",

@@ -45,6 +45,12 @@ docker compose up --detach --build --no-deps otter
 
 不要提交 `.env*`、資料庫 dumps 或 credentials。`.env.example` 只包含本機開發預設值。
 
+## Offline expense operations (migration 020)
+
+Before shipping the Web queue, back up PostgreSQL and deploy the additive `020_expense_operations.sql` schema and API first. `POST /api/trips/:tripId/expenses` remains compatible without `Idempotency-Key`. With a UUID key, the server checks membership and archive state on every attempt, serializes same-trip writes, and stores `(trip, user, operation ID, SHA-256 request body, expense ID)` with the expense and revision in one transaction. A same-body replay returns the latest trip payload (HTTP 200 even if the expense was later deleted); a different body returns 409. The optional `X-Otter-Queue-User` header prevents a pending draft from another logged-in account being submitted. No session, share token, receipt image, or password is stored in IndexedDB. Public share guests cannot queue. No cookie or environment change is needed.
+
+Do not prune operation rows while offline clients might retry: they live until the trip is deleted. Offline drafts remain only in browser storage and are lost if site data is cleared or the browser evicts them; there is no offline cold start. Exchange rates are set at **sync time**, not draft creation. Failed authorization or conflict leaves local data for manual resolution. On rollback, disable new queueing and automatic sync first, but retain client drafts and API deduplication for recovery; never remove operation receipts while any client could replay. Before dropping the table, inventory pending clients and applied operation IDs, and restore a database backup if necessary. Test migration and API before exposing the Web update.
+
 ## Expense quote snapshot rollout (migration 019)
 
 1. Stop older API/CLI writers; take a full PostgreSQL backup (`pg_dump -Fc`) and verify its restore into an isolated database. A product JSON backup alone does not contain revision history.

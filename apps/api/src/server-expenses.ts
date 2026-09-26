@@ -1,4 +1,10 @@
-import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
+import { createHash } from "node:crypto";
+import {
+  type ExchangeRateSnapshot,
+  expenseOperationHeader,
+  expenseQueueUserHeader,
+  parseExpenseOperationId,
+} from "@narumitw/otter-contracts";
 import {
   type ExpenseCategory,
   expenseCategories,
@@ -46,6 +52,19 @@ import {
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
 
+// JSON object order does not change the meaning of a request. Include every
+// supplied field so a replay cannot silently replace an earlier create.
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function expenseCategoryFromBody(value: unknown): ExpenseCategory {
   if (value == null || value === "") {
     return "其他";
@@ -84,6 +103,41 @@ export function registerExpenseRoutes(
         }
 
         const body = requestBody(context);
+        let operationId: string | undefined;
+        try {
+          operationId = parseExpenseOperationId(
+            context.req.header(expenseOperationHeader),
+          );
+        } catch {
+          return sendError(context, 400, "支出操作 ID 格式錯誤");
+        }
+        const queuedUser = context.req.header(expenseQueueUserHeader);
+        if (queuedUser && queuedUser !== user.id) {
+          return sendError(context, 403, "待同步支出屬於其他帳號");
+        }
+        if (operationId) {
+          const guest = await pool.query(
+            "SELECT 1 FROM trip_share_links WHERE guest_user_id = $1 LIMIT 1",
+            [user.id],
+          );
+          if (guest.rowCount)
+            return sendError(context, 403, "訪客不能排隊新增支出");
+        }
+        const requestHash = operationId
+          ? createHash("sha256").update(canonicalJson(body)).digest("hex")
+          : undefined;
+        if (operationId) {
+          const prior = await pool.query<{ request_hash: string }>(
+            `SELECT request_hash FROM expense_create_operations
+             WHERE trip_id = $1 AND user_id = $2 AND operation_id = $3`,
+            [trip.id, user.id, operationId],
+          );
+          if (prior.rowCount) {
+            if (prior.rows[0].request_hash !== requestHash)
+              return sendError(context, 409, "操作 ID 已用於不同的支出");
+            return async () => context.json(await buildTripPayload(trip));
+          }
+        }
         const description = stringField(body, "description");
         const amountInput = body.amount;
         const currencyValue = body.currency;
@@ -189,6 +243,13 @@ export function registerExpenseRoutes(
         );
 
         await recordExpenseChanges(pool, trip.id, before, user, "expense");
+        if (operationId && requestHash) {
+          await pool.query(
+            `INSERT INTO expense_create_operations (trip_id, user_id, operation_id, request_hash, expense_id)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [trip.id, user.id, operationId, requestHash, expenseId],
+          );
+        }
         const updated = await loadTripForUser(pool, user.id, trip.id);
         if (!updated) {
           throw new Error("Trip disappeared after expense insert");

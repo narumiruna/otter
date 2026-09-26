@@ -38,8 +38,10 @@ import {
 } from "../url-state.js";
 import { RestoreBackup } from "./data-settings.js";
 import { ExpenseComposer } from "./expense-composer.js";
+import { ExpenseQueuePanel } from "./expense-queue-panel.js";
 import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 import { MorePage } from "./more-page.js";
+import { OrphanedExpenseQueue } from "./orphaned-expense-queue.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
 import { WebMcpTools } from "./webmcp-tools.js";
@@ -78,6 +80,11 @@ export function AuthenticatedWorkspace({
     readWorkspaceLocation(new URL(window.location.href)),
   );
   const [draftDirty, setDraftDirty] = useState(false);
+  const draftDirtyRef = useRef(draftDirty);
+  draftDirtyRef.current = draftDirty;
+  const authBlockedFor = useRef<string | null>(null);
+  const [recordedEditing, setRecordedEditing] = useState(false);
+  const [queuedEditing, setQueuedEditing] = useState(false);
   const [filtersByTrip, setFiltersByTrip] = useState<
     Record<string, ExpenseFilters>
   >({});
@@ -224,6 +231,13 @@ export function AuthenticatedWorkspace({
         queryFn: () => api<TripPayload>(`/api/trips/${tripId}`),
         queryKey: ["trip", tripId],
       });
+      // Check after the fetch too: the editor can become dirty while the
+      // destination is loading. Both sidebar and mobile switches use this.
+      if (
+        draftDirtyRef.current &&
+        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
+      )
+        return;
       navigate({ mode: null, tripId, view: "overview" });
     } catch (error) {
       setSwitchError(
@@ -271,6 +285,8 @@ export function AuthenticatedWorkspace({
           navigate({ mode: null, tripId: payload.trip.id, view: "people" });
         }}
         offline={offline}
+        trips={allTrips}
+        userId={guestShare ? undefined : bootstrap.user?.id}
       />
     );
   }
@@ -283,11 +299,13 @@ export function AuthenticatedWorkspace({
   return (
     <WorkspaceProvider
       announce={announce}
+      authBlockedFor={authBlockedFor}
       offline={offline}
       payload={payload}
       refreshCollection={refreshCollection}
       onPayload={updateGuestSummary}
       tripQueryKey={guestShare ? ["trip", selectedTripId, "share"] : undefined}
+      userId={guestShare ? undefined : bootstrap.user?.id}
     >
       {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
@@ -324,7 +342,13 @@ export function AuthenticatedWorkspace({
                   view: "people",
                 });
               }}
-              offline={offline}
+              offline={offline || draftDirty}
+            />
+          ) : null}
+          {!guestShare ? (
+            <OrphanedExpenseQueue
+              trips={allTrips}
+              userId={bootstrap.user?.id}
             />
           ) : null}
           {switchError ? (
@@ -367,6 +391,14 @@ export function AuthenticatedWorkspace({
             />
           )}
           <div id="workspace-content" className="min-w-0" tabIndex={-1}>
+            {!guestShare && location.mode !== "add-expense" ? (
+              <ExpenseQueuePanel
+                key={selectedTripId}
+                onDirtyChange={setDraftDirty}
+                onEditingChange={setQueuedEditing}
+                otherEditorActive={recordedEditing}
+              />
+            ) : null}
             {location.mode === "add-expense" && !archived ? (
               needsPeople ? (
                 <section className="surface empty-state">
@@ -399,31 +431,38 @@ export function AuthenticatedWorkspace({
                 <SettlementHistory trip={payload.trip} readonly={archived} />
               </div>
             ) : location.view === "expenses" ? (
-              <ExpensesPage
-                filters={
-                  filtersByTrip[payload.trip.id] ?? { ...defaultExpenseFilters }
-                }
-                grouping={groupingByTrip[payload.trip.id] ?? "date"}
-                onAddExpense={() =>
-                  needsPeople ? go("people") : navigate({ mode: "add-expense" })
-                }
-                onDirtyChange={setDraftDirty}
-                onFiltersChange={(filters) =>
-                  setFiltersByTrip((current) => ({
-                    ...current,
-                    [payload.trip.id]: filters,
-                  }))
-                }
-                onGroupingChange={(grouping) =>
-                  setGroupingByTrip((current) => ({
-                    ...current,
-                    [payload.trip.id]: grouping,
-                  }))
-                }
-                readonly={archived}
-                trip={payload.trip}
-                userId={bootstrap.user?.id ?? "current"}
-              />
+              !queuedEditing ? (
+                <ExpensesPage
+                  filters={
+                    filtersByTrip[payload.trip.id] ?? {
+                      ...defaultExpenseFilters,
+                    }
+                  }
+                  grouping={groupingByTrip[payload.trip.id] ?? "date"}
+                  onAddExpense={() =>
+                    needsPeople
+                      ? go("people")
+                      : navigate({ mode: "add-expense" })
+                  }
+                  onDirtyChange={setDraftDirty}
+                  onEditingChange={setRecordedEditing}
+                  onFiltersChange={(filters) =>
+                    setFiltersByTrip((current) => ({
+                      ...current,
+                      [payload.trip.id]: filters,
+                    }))
+                  }
+                  onGroupingChange={(grouping) =>
+                    setGroupingByTrip((current) => ({
+                      ...current,
+                      [payload.trip.id]: grouping,
+                    }))
+                  }
+                  readonly={archived}
+                  trip={payload.trip}
+                  userId={bootstrap.user?.id ?? "current"}
+                />
+              ) : null
             ) : location.view === "people" ? (
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (
@@ -744,9 +783,13 @@ function CreateTrip({
 function NoGroups({
   onCreated,
   offline,
+  trips,
+  userId,
 }: {
   onCreated: (payload: TripPayload) => void | Promise<void>;
   offline: boolean;
+  trips: TripSummary[];
+  userId?: string;
 }) {
   const { messages } = useI18n();
   return (
@@ -761,6 +804,7 @@ function NoGroups({
         <CreateTrip onCreated={onCreated} offline={offline} />
       </div>
       <RestoreBackup onRestored={(payload) => void onCreated(payload)} />
+      {userId ? <OrphanedExpenseQueue trips={trips} userId={userId} /> : null}
     </section>
   );
 }
