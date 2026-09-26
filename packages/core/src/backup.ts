@@ -1,6 +1,6 @@
 import { isDateOnly } from "./date.js";
 import { isExpenseCategory } from "./expense-metadata.js";
-import type { Currency, ExpenseExchangeRate } from "./money.js";
+import type { Currency, ExchangeRates, ExpenseExchangeRate } from "./money.js";
 import {
   convertExpenseMinor,
   fixedExchangeRates,
@@ -52,7 +52,10 @@ export type TripBackupV2 = Omit<TripBackupV1, "version" | "trip"> & {
 };
 export type TripBackup = TripBackupV1 | TripBackupV2;
 
-export function validateTripBackupV1(value: unknown): TripBackup {
+export function validateTripBackupV1(
+  value: unknown,
+  defaultRates?: ExchangeRates,
+): TripBackup {
   if (!value || typeof value !== "object") {
     throw new Error("備份格式錯誤");
   }
@@ -163,7 +166,7 @@ export function validateTripBackupV1(value: unknown): TripBackup {
         expense.currency,
         trip.baseCurrency,
         snapshot,
-        { ...trip.exchangeRates, [trip.baseCurrency]: 1 },
+        { ...defaultRates, ...trip.exchangeRates, [trip.baseCurrency]: 1 },
       );
     } catch {
       throw new Error("備份支出換算金額超出範圍");

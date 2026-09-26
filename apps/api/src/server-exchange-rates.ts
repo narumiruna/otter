@@ -30,6 +30,7 @@ export type ExchangeRateRouteOptions = {
 
 export type ExchangeRateService = {
   buildTripPayload: BuildTripPayload;
+  getRates: () => Promise<readonly Rate[]>;
   getSnapshot: (baseCurrency: Currency) => Promise<ExchangeRateSnapshot>;
 };
 
@@ -43,20 +44,24 @@ export function createExchangeRateService(
     buildExchangeRateSnapshot(await fetchCurrentRates(), baseCurrency);
 
   return {
+    getRates: fetchCurrentRates,
     getSnapshot,
-    buildTripPayload: async (trip) => {
+    buildTripPayload: async (trip, prefetchedQuote) => {
       const customRates = customExchangeRates(trip);
       const hasCustomRates = Object.keys(customRates).length > 0;
       let defaults: ExchangeRateDefaults;
       let candidate: ExchangeRateSnapshot | null = null;
       try {
-        const snapshot = await getSnapshot(trip.baseCurrency);
-        candidate = snapshot;
+        candidate =
+          prefetchedQuote === undefined
+            ? await getSnapshot(trip.baseCurrency)
+            : prefetchedQuote;
+        if (!candidate) throw new Error("Bank quote unavailable");
         defaults = {
-          fetchedAt: snapshot.fetchedAt,
-          provider: snapshot.source,
-          rates: snapshot.rates,
-          rateType: snapshot.rateType,
+          fetchedAt: candidate.fetchedAt,
+          provider: candidate.source,
+          rates: candidate.rates,
+          rateType: candidate.rateType,
           source: "bank",
         };
       } catch {
@@ -102,16 +107,19 @@ export function effectiveTripRates(
   candidate: ExchangeRateSnapshot | null,
 ): ExchangeRates {
   const base = candidate?.rates[trip.baseCurrency];
-  const defaults = base
-    ? Object.fromEntries(
-        currencies.map((currency) => [
-          currency,
-          currency === trip.baseCurrency
-            ? 1
-            : Number((candidate.rates[currency] / base).toPrecision(12)),
-        ]),
-      )
-    : fixedExchangeRates(trip.baseCurrency);
+  const defaults =
+    candidate?.baseCurrency === trip.baseCurrency
+      ? candidate.rates
+      : base
+        ? Object.fromEntries(
+            currencies.map((currency) => [
+              currency,
+              currency === trip.baseCurrency
+                ? 1
+                : Number((candidate.rates[currency] / base).toPrecision(12)),
+            ]),
+          )
+        : fixedExchangeRates(trip.baseCurrency);
   return { ...defaults, ...trip.exchangeRates, [trip.baseCurrency]: 1 };
 }
 

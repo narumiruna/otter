@@ -352,6 +352,81 @@ test(
 );
 
 test(
+  "v2 backup rejects bank-unsafe cross-base snapshots before inserting a trip",
+  postgresTestOptions,
+  async () => {
+    let eur = 10;
+    const fetchRates = vi.fn(async () =>
+      quote(32).map((rate) =>
+        rate.source === "EUR" ? { ...rate, spotBuy: eur, spotSell: eur } : rate,
+      ),
+    );
+    const s = await withTestApp({
+      appOptions: { exchangeRates: { fetchRates } },
+      prepare: async (pool) => {
+        await pool.query(
+          "INSERT INTO users (id,name,username,password_hash) VALUES ('owner','Owner','owner','unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(s.pool, "owner")).id}`;
+    const request = (path: string, method = "GET", body?: object) =>
+      api<TripPayload>(s.baseUrl, path, {
+        method,
+        headers: { cookie },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const created = await request("/api/trips", "POST", {
+      name: "Backup bridge",
+      baseCurrency: "TWD",
+    });
+    const person = created.data.trip.participants[0].id;
+    const url = `/api/trips/${created.data.trip.id}`;
+    expect(
+      (
+        await request(`${url}/expenses`, "POST", {
+          description: "Large TWD",
+          amount: "1000000000000000",
+          currency: "TWD",
+          paidById: person,
+          participantIds: [person],
+        })
+      ).response.status,
+    ).toBe(201);
+    const backup = await api<{
+      trip: {
+        baseCurrency: string;
+        exchangeRates?: object;
+        expenses: { amountMinor: number }[];
+      };
+    }>(s.baseUrl, `${url}/backup`, { headers: { cookie } });
+    const imported = structuredClone(backup.data);
+    imported.trip.baseCurrency = "EUR";
+    expect(imported.trip.exchangeRates).toBeUndefined();
+    const rejected = await request("/api/trips/restore", "POST", imported);
+    expect(rejected.response.status).toBe(400);
+    expect(
+      (await s.pool.query("SELECT count(*)::int AS count FROM trips")).rows[0]
+        .count,
+    ).toBe(1);
+    expect((await request(url)).response.status).toBe(200);
+    // A quote that makes the same bridge safe must not be rejected by
+    // validation against the old fixed table (which overflows here).
+    eur = 100;
+    const safe = structuredClone(imported);
+    safe.trip.expenses[0].amountMinor = 4000000000000000;
+    fetchRates.mockClear();
+    const accepted = await request("/api/trips/restore", "POST", safe);
+    expect(accepted.response.status).toBe(201);
+    expect(accepted.data.exchangeRateInfo?.source).toBe("bank");
+    expect(fetchRates).toHaveBeenCalledTimes(1);
+    expect(
+      (await request(`/api/trips/${accepted.data.trip.id}`)).response.status,
+    ).toBe(200);
+  },
+);
+
+test(
   "v1 restore snapshots the PostgreSQL-rounded custom rate",
   postgresTestOptions,
   async () => {
@@ -408,6 +483,88 @@ test(
     expect(Number(saved.rows[0].rate_to_base)).toBe(
       restored.data.trip.expenses[0].exchangeRate?.rateToBase,
     );
+  },
+);
+
+test(
+  "restore uses a directly normalized bank quote for validation and response",
+  postgresTestOptions,
+  async () => {
+    const fetchRates = vi.fn(async () =>
+      quote(32).map((rate) =>
+        rate.source === "EUR"
+          ? { ...rate, spotBuy: 10.0001, spotSell: 10.0001 }
+          : rate,
+      ),
+    );
+    const s = await withTestApp({
+      appOptions: { exchangeRates: { fetchRates } },
+      prepare: async (pool) => {
+        await pool.query(
+          "INSERT INTO users (id,name,username,password_hash) VALUES ('owner','Owner','owner','unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(s.pool, "owner")).id}`;
+    const request = (
+      path: string,
+      method = "GET",
+      body?: object,
+      version?: number,
+    ) =>
+      api<TripPayload>(s.baseUrl, path, {
+        method,
+        headers: { cookie, ...(version ? { "If-Match": `"${version}"` } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const created = await request("/api/trips", "POST", {
+      name: "Rounding bridge",
+      baseCurrency: "TWD",
+    });
+    const url = `/api/trips/${created.data.trip.id}`;
+    const person = created.data.trip.participants[0].id;
+    const first = await request(`${url}/expenses`, "POST", {
+      description: "Large original base",
+      amount: "900728932673353",
+      currency: "TWD",
+      paidById: person,
+      participantIds: [person],
+    });
+    expect(first.response.status).toBe(201);
+    const expenseId = first.data.trip.expenses[0].id;
+    expect(
+      (
+        await request(
+          `${url}/expenses/${expenseId}`,
+          "PATCH",
+          { amount: "100" },
+          1,
+        )
+      ).response.status,
+    ).toBe(200);
+    expect(
+      (await request(url, "PATCH", { baseCurrency: "EUR" })).response.status,
+    ).toBe(200);
+    const history = await api<{ revisions: { id: string; version: number }[] }>(
+      s.baseUrl,
+      `${url}/expense-history?expenseId=${encodeURIComponent(expenseId)}`,
+      { headers: { cookie } },
+    );
+    const revision = history.data.revisions.find((item) => item.version === 1);
+    assert.ok(revision);
+    fetchRates.mockClear();
+    const rejected = await request(
+      `${url}/expenses/${expenseId}/restore`,
+      "POST",
+      { revisionId: revision.id },
+      2,
+    );
+    expect(rejected.response.status).toBe(400);
+    expect(fetchRates).toHaveBeenCalledTimes(1);
+    const current = await request(url);
+    expect(current.response.status).toBe(200);
+    expect(current.data.trip.expenses[0].amountMinor).toBe(100);
+    expect(current.data.trip.expenses[0].version).toBe(2);
   },
 );
 

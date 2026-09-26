@@ -166,7 +166,13 @@ export function createApp(
   });
 
   registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
-  registerBackupRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerBackupRoutes(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    exchangeRateService.getSnapshot,
+  );
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
@@ -844,8 +850,12 @@ export function createApp(
     exchangeRateService.getSnapshot("TWD"),
   );
   registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
-  registerExpenseRestoreRoute(app, pool, mustBeSignedIn, buildTripPayload, () =>
-    exchangeRateService.getSnapshot("TWD"),
+  registerExpenseRestoreRoute(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    exchangeRateService.getRates,
   );
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);

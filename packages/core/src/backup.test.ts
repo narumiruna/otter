@@ -102,6 +102,34 @@ test("validation uses the base rate actually restored for cross-base snapshots",
   assert.throws(() => validateTripBackupV1(modern), /備份支出換算金額超出範圍/);
 });
 
+test("cross-base backup validation accepts response rates instead of fixed defaults", () => {
+  const modern = {
+    ...backup,
+    version: 2,
+    trip: {
+      ...backup.trip,
+      baseCurrency: "EUR",
+      expenses: [
+        {
+          ...backup.trip.expenses[0],
+          amountMinor: 4000000000000000,
+          exchangeRate: {
+            baseCurrency: "TWD",
+            rateToBase: 1,
+            source: "legacy",
+          },
+        },
+      ],
+    },
+  };
+  assert.throws(() => validateTripBackupV1(modern), /備份支出換算金額超出範圍/);
+  assert.equal(validateTripBackupV1(modern, { TWD: 0.01, EUR: 1 }).version, 2);
+  assert.throws(
+    () => validateTripBackupV1(modern, { TWD: 0.1, EUR: 1 }),
+    /備份支出換算金額超出範圍/,
+  );
+});
+
 test("validates trip backup version and required relationships", () => {
   assert.equal(validateTripBackupV1(backup).trip.name, "Tokyo");
   assert.throws(

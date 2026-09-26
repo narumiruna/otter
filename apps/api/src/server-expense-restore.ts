@@ -1,12 +1,15 @@
 import {
   changedExpenseFields,
-  type ExchangeRateSnapshot,
   type ExpenseRevision,
   isExpenseSnapshot,
 } from "@narumitw/otter-contracts";
 import { convertExpenseMinor } from "@narumitw/otter-core/money";
+import type { Rate } from "@narumitw/otter-exchange-rates";
 import type { Pool } from "pg";
-import { effectiveTripRates } from "./server-exchange-rates.js";
+import {
+  buildExchangeRateSnapshot,
+  effectiveTripRates,
+} from "./server-exchange-rates.js";
 import {
   recordExpenseChanges,
   requireExpenseVersion,
@@ -43,7 +46,7 @@ export function registerExpenseRestoreRoute(
   pool: Pool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
-  prefetch: () => Promise<ExchangeRateSnapshot>,
+  prefetch: () => Promise<readonly Rate[]>,
 ) {
   app.post(
     "/api/trips/:tripId/expenses/:expenseId/restore",
@@ -93,6 +96,13 @@ export function registerExpenseRestoreRoute(
           current?.version ?? last?.version,
         );
 
+        let quote = null;
+        try {
+          if (candidate)
+            quote = buildExchangeRateSnapshot(candidate, trip.baseCurrency);
+        } catch {
+          // A missing/invalid bank quote uses the same fixed fallback as reads.
+        }
         const restored = snapshot.expense;
         if (!restored.exchangeRate)
           return sendError(context, 409, "支出版本缺少匯率快照，請先遷移資料");
@@ -102,7 +112,7 @@ export function registerExpenseRestoreRoute(
             restored.currency,
             trip.baseCurrency,
             restored.exchangeRate,
-            effectiveTripRates(trip, candidate),
+            effectiveTripRates(trip, quote),
           );
         } catch {
           return sendError(context, 400, "支出版本換算金額超出範圍");
@@ -125,7 +135,7 @@ export function registerExpenseRestoreRoute(
             receipt: previous.snapshot.receipt,
           }).length === 0
         ) {
-          return async () => context.json(await buildTripPayload(trip));
+          return async () => context.json(await buildTripPayload(trip, quote));
         }
 
         if (current) {
@@ -167,7 +177,7 @@ export function registerExpenseRestoreRoute(
         );
         const updated = await loadTripForUser(client, user.id, tripId);
         if (!updated) throw new Error("Trip disappeared after expense restore");
-        return async () => context.json(await buildTripPayload(updated));
+        return async () => context.json(await buildTripPayload(updated, quote));
       },
       prefetch,
     ),

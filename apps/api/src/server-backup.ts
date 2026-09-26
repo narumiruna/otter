@@ -1,15 +1,18 @@
+import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import {
   type TripBackup,
   type TripBackupV2,
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import {
+  type Currency,
   convertExpenseMinor,
   type ExchangeRates,
   fixedExchangeRates,
   isCurrency,
 } from "@narumitw/otter-core/money";
 import type { Pool as PgPool, PoolClient } from "pg";
+import { effectiveTripRates } from "./server-exchange-rates.js";
 import { recordExpenseChanges } from "./server-expense-history.js";
 import { ExpenseRateError } from "./server-expense-rates.js";
 import { insertExpense } from "./server-expense-store.js";
@@ -32,6 +35,7 @@ export function registerBackupRoutes(
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
+  getSnapshot: (baseCurrency: Currency) => Promise<ExchangeRateSnapshot>,
 ) {
   app.get(
     "/api/trips/:tripId/backup",
@@ -60,9 +64,26 @@ export function registerBackupRoutes(
     async (context) => {
       const user = currentUser(context);
       let backup: TripBackup;
+      let quote: ExchangeRateSnapshot | null = null;
       try {
         const body = requestBody(context);
-        backup = validateTripBackupV1("version" in body ? body : body.backup);
+        const input = "version" in body ? body : body.backup;
+        // Read only the proposed base before full validation so the validator
+        // can check cross-base snapshots against the actual response rates.
+        const proposedTrip =
+          input && typeof input === "object" && "trip" in input
+            ? input.trip
+            : null;
+        const proposedBase =
+          proposedTrip &&
+          typeof proposedTrip === "object" &&
+          "baseCurrency" in proposedTrip
+            ? proposedTrip.baseCurrency
+            : null;
+        if (isCurrency(proposedBase)) {
+          quote = await getSnapshot(proposedBase).catch(() => null);
+        }
+        backup = validateTripBackupV1(input, quote?.rates);
       } catch (error) {
         return sendError(
           context,
@@ -124,6 +145,13 @@ export function registerBackupRoutes(
             restoredRates[currency] = Number(saved.rows[0].rate_to_base);
           }
 
+          const effectiveRates = effectiveTripRates(
+            {
+              baseCurrency: backup.trip.baseCurrency,
+              exchangeRates: restoredRates,
+            },
+            quote,
+          );
           const restoredParticipantId = (id: string): string => {
             const restored = participantIds.get(id);
             if (!restored)
@@ -153,10 +181,7 @@ export function registerBackupRoutes(
                 expense.currency,
                 backup.trip.baseCurrency,
                 exchangeRate,
-                {
-                  ...fixedExchangeRates(backup.trip.baseCurrency),
-                  ...restoredRates,
-                },
+                effectiveRates,
               );
             } catch {
               throw new ExpenseRateError("備份支出換算金額超出範圍");
@@ -214,7 +239,7 @@ export function registerBackupRoutes(
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      return context.json(await buildTripPayload(restored), 201);
+      return context.json(await buildTripPayload(restored, quote), 201);
     },
   );
 }

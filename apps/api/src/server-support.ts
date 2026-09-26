@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type {
   ExchangeRateInfo,
+  ExchangeRateSnapshot,
   ExpenseSnapshot,
   User as PublicUser,
   Trip,
@@ -264,7 +265,12 @@ export function clearSessionCookie(context: OtterContext) {
   context.header("Set-Cookie", clearSessionCookieHeader());
 }
 
-export type BuildTripPayload = (trip: LoadedTrip) => Promise<TripPayload>;
+// Passing a quote (or null for fixed fallback) reuses the exact rates validated
+// before a mutation commits. Omit it for ordinary reads that fetch fresh rates.
+export type BuildTripPayload = (
+  trip: LoadedTrip,
+  quote?: ExchangeRateSnapshot | null,
+) => Promise<TripPayload>;
 
 export function tripPayload(
   trip: LoadedTrip,
