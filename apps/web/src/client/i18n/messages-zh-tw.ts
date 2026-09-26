@@ -1,6 +1,26 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 
 export const zhTW = {
+  offlineQueueBanner:
+    "目前離線：已載入資料可閱讀；新增支出可存到此裝置，其他編輯須連線。",
+  queueSave: "存到此裝置",
+  queueSaved: "已存到此裝置，尚未計入餘額；同步時才會決定匯率。",
+  queueStorageError: "無法存到此裝置，請保持頁面開啟並重試。",
+  queueTitle: "尚未同步的支出",
+  queueNotice:
+    "僅存於此裝置、不計入餘額；同步時才決定匯率。清除瀏覽器資料會遺失草稿。",
+  queuePending: "等待同步",
+  queueAttempted: "同步結果待確認，原請求不得修改",
+  queueConflict: "同步暫停，請確認權限及參與者；原請求已保留。",
+  queueInvalid: "尚未記帳，請修改草稿後重試。",
+  queueEdit: "修改草稿",
+  queueRetry: "以原請求重試",
+  queueDelete: "刪除本機草稿",
+  queueDeleteConfirm:
+    "要刪除本機草稿嗎？已送出的請求可能已記帳，請先檢查群組。",
+  queueCount: (values: MessageValues) =>
+    interpolate("此裝置有 {count} 筆尚未同步支出", values),
+  queueSyncPricing: "預覽只顯示原幣金額，伺服器在同步時決定匯率。",
   expenseHistory: "修改紀錄",
   expenseHistoryDescription:
     "查看支出的修改、刪除與版本還原；這不是付款或歷史餘額紀錄。",

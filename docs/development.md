@@ -1,5 +1,9 @@
 # 本機開發與架構
 
+## 離線新增支出測試
+
+已載入並登入的頁面可在離線時把新支出存到 IndexedDB；不提供 service worker 或離線冷啟動。`apps/web/src/client/expense-queue.ts` 管理本機佇列，`expense-sync.ts` 在連線、回到頁面及定時觸發；先持久化 attempted 狀態，再送原操作 ID 與原 JSON。可用 `npm run test:components` 驗證儲存失敗、跨帳號隔離、編輯及重試；需 migrated PostgreSQL 的 API 測試及 Chromium 的 `npm run test:e2e` 驗證斷線／回應遺失／恢復後只記一次。離線資料不計餘額；匯率在同步時由 API 決定。測試私密模式、容量不足、封存、撤銷成員以及多分頁時，切勿清除真實使用者站點資料。
+
 ## 開發環境
 
 建議使用 Node.js 25（與 CI 相同），另需 npm 與 Docker Compose。從 repository root 執行：

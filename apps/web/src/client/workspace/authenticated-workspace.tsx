@@ -38,6 +38,7 @@ import {
 } from "../url-state.js";
 import { RestoreBackup } from "./data-settings.js";
 import { ExpenseComposer } from "./expense-composer.js";
+import { ExpenseQueuePanel } from "./expense-queue-panel.js";
 import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 import { MorePage } from "./more-page.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
@@ -288,6 +289,7 @@ export function AuthenticatedWorkspace({
       refreshCollection={refreshCollection}
       onPayload={updateGuestSummary}
       tripQueryKey={guestShare ? ["trip", selectedTripId, "share"] : undefined}
+      userId={guestShare ? undefined : bootstrap.user?.id}
     >
       {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
@@ -367,6 +369,12 @@ export function AuthenticatedWorkspace({
             />
           )}
           <div id="workspace-content" className="min-w-0" tabIndex={-1}>
+            {!guestShare && location.mode !== "add-expense" ? (
+              <ExpenseQueuePanel
+                key={selectedTripId}
+                onDirtyChange={setDraftDirty}
+              />
+            ) : null}
             {location.mode === "add-expense" && !archived ? (
               needsPeople ? (
                 <section className="surface empty-state">

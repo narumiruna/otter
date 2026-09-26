@@ -9,6 +9,31 @@ import type { zhTW } from "./messages-zh-tw.js";
 type Messages = CatalogShape<typeof zhTW>;
 
 export const en = {
+  offlineQueueBanner:
+    "Offline: loaded data remains available. New expenses can be saved on this device; other edits require a connection.",
+  queueSave: "Save on this device",
+  queueSaved:
+    "Saved on this device. Not yet included in balances; exchange rates are set when synced.",
+  queueStorageError:
+    "Could not save on this device. Keep this page open and try again.",
+  queueTitle: "Unsynced expenses",
+  queueNotice:
+    "Only on this device. Not included in balances. Exchange rates are set at sync time. Clearing browser data loses these drafts.",
+  queuePending: "Waiting to sync",
+  queueAttempted:
+    "Sync pending confirmation; keep the original request unchanged",
+  queueConflict:
+    "Sync stopped. Check access and participants before retrying; the original request is retained.",
+  queueInvalid: "Not recorded. Edit the draft and retry.",
+  queueEdit: "Edit draft",
+  queueRetry: "Retry original request",
+  queueDelete: "Delete local draft",
+  queueDeleteConfirm:
+    "Delete this local draft? A request already sent may still have been recorded on the server. Check the group first.",
+  queueCount: (values: MessageValues) =>
+    interpolate("{count} unsynced expenses on this device", values),
+  queueSyncPricing:
+    "Preview shows original currency only. The server sets the exchange rate at sync time.",
   expenseHistory: "Change history",
   expenseHistoryDescription:
     "Expense edits, deletions, and restores; not payment history or historical balances.",

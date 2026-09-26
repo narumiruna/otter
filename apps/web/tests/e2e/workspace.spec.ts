@@ -366,7 +366,7 @@ test("long localized content and dense expense history remain usable", async ({
   await expect(page.getByRole("heading", { name: "支出" })).toBeVisible();
 });
 
-test("offline state keeps reading available and disables mutations", async ({
+test("offline state keeps reading available, queues new expenses and disables other mutations", async ({
   context,
   page,
 }) => {
@@ -377,7 +377,73 @@ test("offline state keeps reading available and disables mutations", async ({
     page.getByRole("button", { name: "記錄付款" }).first(),
   ).toBeDisabled();
   await expect(page.getByRole("button", { name: "建立群組" })).toBeDisabled();
+  await page.getByRole("button", { name: "記一筆" }).click();
+  await page.getByLabel("描述").fill("離線車票");
+  await page.getByLabel("金額", { exact: true }).fill("100");
+  await page.getByRole("button", { name: "存到此裝置" }).click();
+  await expect(page.getByText("此裝置有 1 筆尚未同步支出")).toBeVisible();
+  await expect(
+    page.getByLabel("尚未同步的支出").getByText("離線車票"),
+  ).toBeVisible();
   await context.setOffline(false);
+  await expect(page.getByText("此裝置有 1 筆尚未同步支出")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "離線車票", exact: true }),
+  ).toBeVisible();
+  const tripId = new URL(page.url()).searchParams.get("trip");
+  const payload = await page.evaluate(
+    async (id) => (await fetch(`/api/trips/${id}`)).json(),
+    tripId,
+  );
+  expect(
+    payload.trip.expenses.filter(
+      (expense: { description: string }) => expense.description === "離線車票",
+    ),
+  ).toHaveLength(1);
+  expect(
+    payload.trip.expenses.find(
+      (expense: { description: string }) => expense.description === "離線車票",
+    ).participantIds,
+  ).toHaveLength(4);
+});
+
+test("offline draft survives reload after reconnect and a lost response does not duplicate it", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  const tripId = new URL(page.url()).searchParams.get("trip");
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "記一筆" }).click();
+  await page.getByLabel("描述").fill("重新同步的晚餐");
+  await page.getByLabel("金額", { exact: true }).fill("400");
+  await page.getByRole("button", { name: "存到此裝置" }).click();
+  await expect(page.getByText("此裝置有 1 筆尚未同步支出")).toBeVisible();
+  let lost = false;
+  await page.route(/\/api\/trips\/[^/]+\/expenses$/, async (route) => {
+    if (route.request().method() !== "POST" || lost) return route.continue();
+    lost = true;
+    await route.fetch();
+    await route.abort();
+  });
+  await context.setOffline(false);
+  await page.reload();
+  await expect(page.getByText("此裝置有 1 筆尚未同步支出")).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByText("此裝置有 1 筆尚未同步支出")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  expect(lost).toBe(true);
+  const payload = await page.evaluate(
+    async (id) => (await fetch(`/api/trips/${id}`)).json(),
+    tripId,
+  );
+  expect(
+    payload.trip.expenses.filter(
+      (expense: { description: string }) =>
+        expense.description === "重新同步的晚餐",
+    ),
+  ).toHaveLength(1);
 });
 
 test("Radix dark theme respects reduced motion without overflow", async ({

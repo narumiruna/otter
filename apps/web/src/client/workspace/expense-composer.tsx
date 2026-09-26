@@ -1,12 +1,15 @@
 import type { Expense, Trip } from "@narumitw/otter-contracts";
-import { expenseCategories } from "@narumitw/otter-core/expense-metadata";
+import { isDateOnly } from "@narumitw/otter-core/date";
+import {
+  expenseCategories,
+  isExpenseCategory,
+  normalizeExpenseTags,
+} from "@narumitw/otter-core/expense-metadata";
 import {
   parseSplitMode,
   previewParticipantShares,
-  type SplitMode,
 } from "@narumitw/otter-core/expense-splits";
 import {
-  type Currency,
   currencies,
   currencyInfo,
   isCurrency,
@@ -21,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { todayDate } from "../client-support.js";
+import type { QueuedExpense, QueuedExpenseDraft } from "../expense-queue.js";
 import { localizeMessage, useI18n } from "../i18n.js";
 import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
@@ -32,18 +36,7 @@ import {
   SectionHeading,
 } from "./workspace-ui.js";
 
-type ExpenseDraft = {
-  amount: string;
-  category: string;
-  currency: Currency;
-  description: string;
-  expenseDate: string;
-  paidById: string;
-  participantIds: string[];
-  splitMode: SplitMode;
-  splitValues: Record<string, string>;
-  tags: string;
-};
+type ExpenseDraft = QueuedExpenseDraft;
 
 function defaults(trip: Trip, expense?: Expense): ExpenseDraft {
   const explicit = new Map(
@@ -83,24 +76,27 @@ function defaults(trip: Trip, expense?: Expense): ExpenseDraft {
 
 export function ExpenseComposer({
   expense,
+  queued,
   onCancel,
   onDirtyChange,
   onSaved,
   trip: originalTrip,
 }: {
   expense?: Expense;
+  queued?: QueuedExpense;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: () => void;
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
-  const { offline, requestPayload } = useWorkspace();
+  const { offline, canQueue, requestPayload, queueDraft, announce } =
+    useWorkspace();
   const versionState = useExpenseVersion(expense, originalTrip.id);
   const trip = versionState.latest?.trip ?? originalTrip;
   const [serverError, setServerError] = useState("");
   const form = useForm<ExpenseDraft>({
-    defaultValues: defaults(trip, expense),
+    defaultValues: queued?.draft ?? defaults(trip, expense),
   });
   const previousLocale = useRef(locale);
   const values = form.watch();
@@ -191,11 +187,28 @@ export function ExpenseComposer({
       });
       return;
     }
-    if (preview?.error) {
-      setServerError(preview.error);
+    if (
+      preview?.error ||
+      !preview ||
+      !isDateOnly(draft.expenseDate) ||
+      !trip.participants.some((person) => person.id === draft.paidById) ||
+      draft.participantIds.some(
+        (id) => !trip.participants.some((person) => person.id === id),
+      ) ||
+      !isExpenseCategory(draft.category)
+    ) {
+      setServerError(preview?.error || messages.unableToSaveExpense);
       return;
     }
     try {
+      normalizeExpenseTags(draft.tags);
+      if (!expense && (queued || offline)) {
+        await queueDraft(draft, queued);
+        announce(messages.queueSaved);
+        form.reset(defaults(trip));
+        onSaved?.();
+        return;
+      }
       await requestPayload(
         expense
           ? `/api/trips/${trip.id}/expenses/${expense.id}`
@@ -213,7 +226,13 @@ export function ExpenseComposer({
     } catch (error) {
       versionState.handleError(error);
       setServerError(
-        error instanceof Error ? error.message : messages.unableToSaveExpense,
+        !expense &&
+          (queued || offline) &&
+          (error instanceof DOMException || typeof indexedDB === "undefined")
+          ? messages.queueStorageError
+          : error instanceof Error
+            ? error.message
+            : messages.unableToSaveExpense,
       );
     }
   });
@@ -264,6 +283,11 @@ export function ExpenseComposer({
 
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
+        {!expense && (offline || queued) && canQueue ? (
+          <p className="text-sm text-muted-foreground">
+            {messages.queueSyncPricing}
+          </p>
+        ) : null}
         <ExpenseConflictReview
           state={versionState}
           onConfirm={confirmReviewedVersion}
@@ -546,14 +570,20 @@ export function ExpenseComposer({
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
             disabled={
-              offline ||
+              (offline && (!!expense || !canQueue)) ||
               !!preview?.error ||
               versionState.conflict ||
               versionState.missing
             }
             type="submit"
           >
-            {expense ? messages.saveChanges : messages.recordExpense}
+            {queued
+              ? messages.queueSave
+              : expense
+                ? messages.saveChanges
+                : offline && canQueue
+                  ? messages.queueSave
+                  : messages.recordExpense}
           </BusyButton>
         </div>
       </form>

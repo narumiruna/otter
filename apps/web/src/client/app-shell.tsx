@@ -510,9 +510,9 @@ export function AppShell() {
         {offline ? (
           <div className="offline-banner" role="status">
             <WifiOff aria-hidden="true" />
-            {
-              messages.youAreOfflineLoadedDataIsAvailableButEditingRequiresAConnection
-            }
+            {appData?.user && !appData.guestShare
+              ? messages.offlineQueueBanner
+              : messages.youAreOfflineLoadedDataIsAvailableButEditingRequiresAConnection}
           </div>
         ) : null}
         {announcement ? (
