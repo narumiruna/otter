@@ -1,10 +1,103 @@
 import assert from "node:assert/strict";
-import { test } from "vitest";
+import { expect, test } from "vitest";
 import {
   calculateBalances,
   calculateSettlements,
   type Trip,
 } from "./settlement.js";
+
+test("snapshots keep expense totals, explicit shares and settlements balanced as quotes change", () => {
+  const trip: Trip = {
+    id: "t",
+    ownerId: "u",
+    name: "Trip",
+    createdAt: "2026-01-01T00:00:00Z",
+    baseCurrency: "TWD",
+    participants: [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+      { id: "c", name: "C" },
+    ],
+    expenses: [
+      {
+        id: "e",
+        description: "Meal",
+        amountMinor: 100,
+        currency: "USD",
+        exchangeRate: {
+          baseCurrency: "TWD",
+          rateToBase: 32.5,
+          source: "bank",
+          provider: "BANK_OF_TAIWAN",
+          rateType: "spotMid",
+          fetchedAt: "2026-01-01T00:00:00Z",
+        },
+        createdAt: "2026-01-01T00:00:00Z",
+        expenseDate: "2026-01-01",
+        paidById: "a",
+        participantIds: ["a", "b", "c"],
+        participantShares: [
+          { participantId: "a", shareMinor: 33 },
+          { participantId: "b", shareMinor: 33 },
+          { participantId: "c", shareMinor: 34 },
+        ],
+      },
+    ],
+    exchangeRates: { TWD: 1, USD: 10 },
+  };
+  const before = calculateBalances(trip);
+  trip.exchangeRates = { TWD: 1, USD: 90 };
+  expect(calculateBalances(trip)).toEqual(before);
+  expect(
+    calculateSettlements(trip)
+      .map((s) => s.amountMinor)
+      .reduce((a, b) => a + b, 0),
+  ).toBe(before[0].amountMinor);
+  expect(before.reduce((sum, b) => sum + b.amountMinor, 0)).toBe(0);
+});
+
+test("foreign-currency payments remain floating even when expenses are frozen", () => {
+  const trip: Trip = {
+    id: "t",
+    ownerId: "u",
+    name: "Trip",
+    createdAt: "2026-01-01T00:00:00Z",
+    baseCurrency: "TWD",
+    participants: [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+    ],
+    expenses: [
+      {
+        id: "e",
+        description: "Meal",
+        amountMinor: 100,
+        currency: "USD",
+        exchangeRate: { baseCurrency: "TWD", rateToBase: 30, source: "custom" },
+        createdAt: "2026-01-01T00:00:00Z",
+        expenseDate: "2026-01-01",
+        paidById: "a",
+        participantIds: ["a", "b"],
+      },
+    ],
+    settlementPayments: [
+      {
+        id: "p",
+        fromId: "b",
+        toId: "a",
+        amountMinor: 50,
+        currency: "USD",
+        paidAt: "2026-01-01",
+        note: "",
+        createdAt: "2026-01-01T00:00:00Z",
+      },
+    ],
+    exchangeRates: { TWD: 1, USD: 30 },
+  };
+  expect(calculateBalances(trip).map((b) => b.amountMinor)).toEqual([0, 0]);
+  trip.exchangeRates = { TWD: 1, USD: 20 };
+  expect(calculateBalances(trip).map((b) => b.amountMinor)).toEqual([5, -5]);
+});
 
 test("uses explicit participant shares when present", () => {
   const trip: Trip = {

@@ -72,6 +72,37 @@ function ExpensesHarness({
   );
 }
 
+test("expense row shows the saved quote and converted total after live rates change", () => {
+  const quoted: Trip = {
+    ...trip,
+    exchangeRates: { TWD: 1, USD: 80 },
+    expenses: [
+      {
+        ...trip.expenses[0],
+        currency: "USD",
+        amountMinor: 100,
+        exchangeRate: {
+          baseCurrency: "TWD",
+          rateToBase: 32,
+          source: "bank",
+          provider: "BANK_OF_TAIWAN",
+          rateType: "spotMid",
+          fetchedAt: "2026-09-19T00:00:00Z",
+        },
+      },
+    ],
+  };
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness currentTrip={quoted} />
+    </I18nProvider>,
+  );
+  expect(screen.getByText(/1 USD = 32 TWD/)).toHaveTextContent(
+    "Bank of Taiwan",
+  );
+  expect(screen.getByText(/1 USD = 32 TWD/)).toHaveTextContent("NT$32");
+});
+
 test("empty expenses prioritize the first expense without unused filters", async () => {
   const onAddExpense = vi.fn();
   render(

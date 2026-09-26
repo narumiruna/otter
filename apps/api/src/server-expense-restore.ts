@@ -86,6 +86,8 @@ export function registerExpenseRestoreRoute(
       );
 
       const restored = snapshot.expense;
+      if (!restored.exchangeRate)
+        return sendError(context, 409, "支出版本缺少匯率快照，請先遷移資料");
       if (
         !participantExists(trip, restored.paidById) ||
         restored.participantIds.some((id) => !participantExists(trip, id))
@@ -110,7 +112,7 @@ export function registerExpenseRestoreRoute(
       if (current) {
         await client.query(
           `UPDATE expenses SET description = $3, amount_minor = $4, currency = $5,
-            category = $6, tags = $7, paid_by_id = $8, expense_date = $9
+            category = $6, tags = $7, paid_by_id = $8, expense_date = $9, exchange_rate = $10
            WHERE trip_id = $1 AND id = $2`,
           [
             tripId,
@@ -122,6 +124,7 @@ export function registerExpenseRestoreRoute(
             restored.tags ?? [],
             restored.paidById,
             restored.expenseDate,
+            restored.exchangeRate,
           ],
         );
         await client.query(

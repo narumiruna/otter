@@ -9,6 +9,7 @@ import {
   currencies,
   type ExchangeRates,
   isCurrency,
+  isExpenseExchangeRate,
 } from "@narumitw/otter-core/money";
 import type { Balance, Settlement } from "@narumitw/otter-core/settlement";
 import {
@@ -298,6 +299,8 @@ function validateTrip(value: unknown): asserts value is Trip {
       !isNonEmptyString(expense.description) ||
       !isPositiveSafeInteger(expense.amountMinor) ||
       !isCurrency(expense.currency) ||
+      (expense.exchangeRate !== undefined &&
+        !isExpenseExchangeRate(expense.exchangeRate, expense.currency)) ||
       (expense.category !== undefined &&
         !isExpenseCategory(expense.category)) ||
       !isOptionalStringArray(expense.tags) ||

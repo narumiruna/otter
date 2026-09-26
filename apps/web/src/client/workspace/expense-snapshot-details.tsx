@@ -10,6 +10,7 @@ export function ExpenseSnapshotDetails({
     "description",
     "amountMinor",
     "currency",
+    "exchangeRate",
     "expenseDate",
     "paidById",
     "category",
@@ -30,6 +31,7 @@ export function ExpenseSnapshotDetails({
     description: messages.description,
     amountMinor: messages.amount,
     currency: messages.currency,
+    exchangeRate: messages.expenseHistoryRate,
     expenseDate: messages.date,
     paidById: messages.paidBy,
     category: messages.category,
@@ -38,10 +40,21 @@ export function ExpenseSnapshotDetails({
     participantShares: messages.expenseHistoryShares,
     receipt: messages.receipt,
   };
+  const rateSource = e.exchangeRate
+    ? {
+        bank: messages.expenseHistoryRateBank,
+        custom: messages.expenseHistoryRateCustom,
+        fixed: messages.expenseHistoryRateFixed,
+        legacy: messages.expenseHistoryRateLegacy,
+      }[e.exchangeRate.source]
+    : "";
   const values: Record<ExpenseChangeField, string> = {
     description: e.description,
     amountMinor: formatMoney(e.amountMinor, e.currency),
     currency: e.currency,
+    exchangeRate: e.exchangeRate
+      ? `1 ${e.currency} = ${e.exchangeRate.rateToBase} ${e.exchangeRate.baseCurrency} · ${rateSource} · ${e.exchangeRate.fetchedAt ?? messages.expenseHistoryRateTimeUnavailable}`
+      : messages.expenseHistoryRateUnavailable,
     expenseDate: e.expenseDate,
     paidById: names.get(e.paidById) ?? e.paidById,
     category: localizeMessage(e.category ?? "其他"),

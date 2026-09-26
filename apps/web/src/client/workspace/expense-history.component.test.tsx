@@ -6,7 +6,7 @@ import type {
   TripPayload,
 } from "@narumitw/otter-contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
@@ -14,6 +14,7 @@ import { I18nProvider } from "../i18n.js";
 import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
+import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const expense: Expense = {
@@ -51,6 +52,33 @@ const snapshot: ExpenseSnapshot = {
   participants: payload.trip.participants,
   receipt: null,
 };
+test("history snapshot rate source and missing quote time follow the locale", () => {
+  const rated: ExpenseSnapshot = {
+    ...snapshot,
+    expense: {
+      ...expense,
+      exchangeRate: { baseCurrency: "TWD", rateToBase: 1, source: "legacy" },
+    },
+  };
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <ExpenseSnapshotDetails snapshot={rated} fields={["exchangeRate"]} />
+    </I18nProvider>,
+  );
+  expect(screen.getByText("支出匯率快照")).toBeInTheDocument();
+  expect(screen.getByText(/舊帳估算 · 無報價時間/)).toBeInTheDocument();
+  view.unmount();
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpenseSnapshotDetails snapshot={snapshot} fields={["exchangeRate"]} />
+    </I18nProvider>,
+  );
+  expect(screen.getByText("Exchange rate snapshot")).toBeInTheDocument();
+  expect(
+    screen.getByText("Legacy version: no rate recorded"),
+  ).toBeInTheDocument();
+});
+
 const page: ExpenseHistoryPage = {
   revisions: [
     {

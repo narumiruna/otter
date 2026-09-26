@@ -1,5 +1,5 @@
 import {
-  type TripBackupV1,
+  type TripBackup,
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import {
@@ -257,7 +257,7 @@ export function RestoreBackup({
   const { messages } = useI18n();
   const workspace = useOptionalWorkspace();
   const offline = workspace?.offline ?? !navigator.onLine;
-  const [backup, setBackup] = useState<TripBackupV1 | null>(null);
+  const [backup, setBackup] = useState<TripBackup | null>(null);
   const [filename, setFilename] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);

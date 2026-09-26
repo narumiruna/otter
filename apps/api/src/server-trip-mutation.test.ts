@@ -92,6 +92,7 @@ for (const outcome of ["bank", "fallback"] as const) {
       const s = await setup();
       const entered = barrier();
       const finish = barrier();
+      s.fetchRates.mockImplementationOnce(async () => rates);
       s.fetchRates.mockImplementationOnce(async () => {
         entered.release();
         await finish.promise;
@@ -240,6 +241,7 @@ for (const timing of ["write", "commit"] as const) {
       const s = await setup();
       expect((await s.patch("-1")).response.status).toBe(400);
       expect((await s.patch("200", '"2"')).response.status).toBe(412);
+      s.fetchRates.mockClear();
       await s.pool.query(
         `CREATE FUNCTION reject_revision() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'revision rejected'; END $$`,
       );
@@ -249,7 +251,7 @@ for (const timing of ["write", "commit"] as const) {
           : "CREATE TRIGGER reject_revision BEFORE INSERT ON expense_revisions FOR EACH ROW EXECUTE FUNCTION reject_revision()",
       );
       expect((await s.patch("200")).response.status).toBe(500);
-      expect(s.fetchRates).not.toHaveBeenCalled();
+      expect(s.fetchRates).toHaveBeenCalledTimes(1); // candidate only, not post-commit enrichment
       expect(s.pool.idleCount).toBe(s.pool.totalCount);
       const current = await s.pool.query(
         "SELECT version, amount_minor FROM expenses WHERE id = $1",

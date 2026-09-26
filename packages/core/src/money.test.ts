@@ -1,6 +1,45 @@
 import assert from "node:assert/strict";
 import { expect, test } from "vitest";
-import { currencies, fixedExchangeRates } from "./money.js";
+import {
+  convertExpenseMinor,
+  currencies,
+  fixedExchangeRates,
+  isExpenseExchangeRate,
+} from "./money.js";
+
+test("snapshots round once in minor units and reject incompatible quotes", () => {
+  const snapshot = {
+    baseCurrency: "TWD" as const,
+    rateToBase: 32.5,
+    source: "custom" as const,
+  };
+  expect(
+    convertExpenseMinor(101, "USD", "TWD", snapshot, { USD: 99, TWD: 1 }),
+  ).toBe(33);
+  const largeMinor = Number.MAX_SAFE_INTEGER - 1;
+  expect(
+    convertExpenseMinor(largeMinor, "USD", "USD", {
+      baseCurrency: "USD",
+      rateToBase: 1,
+      source: "fixed",
+    }),
+  ).toBe(largeMinor);
+  expect(isExpenseExchangeRate({ ...snapshot, rateToBase: 0 }, "USD")).toBe(
+    false,
+  );
+  expect(
+    isExpenseExchangeRate(
+      { ...snapshot, rateToBase: Number.POSITIVE_INFINITY },
+      "USD",
+    ),
+  ).toBe(false);
+  expect(
+    isExpenseExchangeRate({ ...snapshot, baseCurrency: "USD" }, "USD"),
+  ).toBe(false);
+  expect(isExpenseExchangeRate({ ...snapshot, source: "bank" }, "USD")).toBe(
+    false,
+  );
+});
 
 test.each(currencies)(
   "normalizes fixed exchange rates to %s",

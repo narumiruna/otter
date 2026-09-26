@@ -1,5 +1,5 @@
 import type { Trip } from "@narumitw/otter-contracts";
-import { convertMinorWithRates } from "@narumitw/otter-core/money";
+import { convertExpenseMinor } from "@narumitw/otter-core/money";
 import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
 import { currentLocale, localizeMessage } from "./i18n.js";
 
@@ -135,10 +135,11 @@ export function spendingSummary(trip: Trip): SpendingSummary {
   let totalMinor = 0;
 
   for (const expense of trip.expenses) {
-    const amount = convertMinorWithRates(
+    const amount = convertExpenseMinor(
       expense.amountMinor,
       expense.currency,
       trip.baseCurrency,
+      expense.exchangeRate,
       trip.exchangeRates,
     );
     totalMinor += amount;
@@ -222,31 +223,35 @@ export function filterAndSortExpenses(
         }
         case "amount-desc":
           return (
-            convertMinorWithRates(
+            convertExpenseMinor(
               right.amountMinor,
               right.currency,
               trip.baseCurrency,
+              right.exchangeRate,
               trip.exchangeRates,
             ) -
-            convertMinorWithRates(
+            convertExpenseMinor(
               left.amountMinor,
               left.currency,
               trip.baseCurrency,
+              left.exchangeRate,
               trip.exchangeRates,
             )
           );
         case "amount-asc":
           return (
-            convertMinorWithRates(
+            convertExpenseMinor(
               left.amountMinor,
               left.currency,
               trip.baseCurrency,
+              left.exchangeRate,
               trip.exchangeRates,
             ) -
-            convertMinorWithRates(
+            convertExpenseMinor(
               right.amountMinor,
               right.currency,
               trip.baseCurrency,
+              right.exchangeRate,
               trip.exchangeRates,
             )
           );

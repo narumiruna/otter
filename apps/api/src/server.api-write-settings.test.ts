@@ -122,6 +122,23 @@ test(
       }),
     });
     assert.equal(expense.response.status, 201);
+    assert.deepEqual(expense.data.trip.expenses[0].exchangeRate, {
+      baseCurrency: "TWD",
+      rateToBase: 1,
+      source: "fixed",
+    });
+    const tokenExpense = await pool.query(
+      "SELECT e.exchange_rate, r.snapshot->'expense'->'exchangeRate' AS revision_rate FROM expenses e JOIN expense_revisions r ON r.expense_id = e.id WHERE e.id = $1",
+      [expense.data.trip.expenses[0].id],
+    );
+    assert.deepEqual(
+      tokenExpense.rows[0].exchange_rate,
+      expense.data.trip.expenses[0].exchangeRate,
+    );
+    assert.deepEqual(
+      tokenExpense.rows[0].revision_rate,
+      tokenExpense.rows[0].exchange_rate,
+    );
     assert.equal(
       (await patch({ cookie }, { allowApiWrites: false })).data.trip
         .allowApiWrites,

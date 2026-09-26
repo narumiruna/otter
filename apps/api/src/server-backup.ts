@@ -1,7 +1,9 @@
 import {
-  type TripBackupV1,
+  type TripBackup,
+  type TripBackupV2,
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
+import { fixedExchangeRates } from "@narumitw/otter-core/money";
 import type { Pool as PgPool, PoolClient } from "pg";
 import { recordExpenseChanges } from "./server-expense-history.js";
 import { insertExpense } from "./server-expense-store.js";
@@ -41,7 +43,7 @@ export function registerBackupRoutes(
       if (trip.currentUserRole !== "owner") {
         return sendError(context, 403, "只有擁有者可下載完整備份");
       }
-      return context.json(tripBackupV1(trip));
+      return context.json(tripBackupV2(trip));
     },
   );
 
@@ -51,7 +53,7 @@ export function registerBackupRoutes(
     parseRequestBody,
     async (context) => {
       const user = currentUser(context);
-      let backup: TripBackupV1;
+      let backup: TripBackup;
       try {
         const body = requestBody(context);
         backup = validateTripBackupV1("version" in body ? body : body.backup);
@@ -115,6 +117,18 @@ export function registerBackupRoutes(
         for (const expense of backup.trip.expenses) {
           await insertExpense(client, newTripId, {
             ...expense,
+            exchangeRate:
+              backup.version === 2 && "exchangeRate" in expense
+                ? expense.exchangeRate
+                : {
+                    baseCurrency: backup.trip.baseCurrency,
+                    rateToBase: Number(
+                      fixedExchangeRates(backup.trip.baseCurrency)[
+                        expense.currency
+                      ].toPrecision(12),
+                    ),
+                    source: "legacy",
+                  },
             id: makeId("expense"),
             category: expense.category ?? "其他",
             tags: expense.tags ?? [],
@@ -165,9 +179,9 @@ export function registerBackupRoutes(
   );
 }
 
-function tripBackupV1(
+function tripBackupV2(
   trip: NonNullable<Awaited<ReturnType<typeof loadTripForUser>>>,
-): TripBackupV1 {
+): TripBackupV2 {
   return {
     exportedAt: nowIso(),
     trip: {
@@ -178,6 +192,15 @@ function tripBackupV1(
         category: expense.category,
         createdAt: expense.createdAt,
         currency: expense.currency,
+        exchangeRate: expense.exchangeRate ?? {
+          baseCurrency: trip.baseCurrency,
+          rateToBase: Number(
+            fixedExchangeRates(trip.baseCurrency)[expense.currency].toPrecision(
+              12,
+            ),
+          ),
+          source: "legacy" as const,
+        },
         description: expense.description,
         expenseDate: expense.expenseDate,
         id: expense.id,
@@ -192,7 +215,7 @@ function tripBackupV1(
       participants: trip.participants,
       settlementPayments: trip.settlementPayments ?? [],
     },
-    version: 1,
+    version: 2,
   };
 }
 
