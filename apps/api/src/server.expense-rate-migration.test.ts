@@ -8,7 +8,7 @@ import { migrationsDirectory, runMigrations } from "../scripts/migrate.js";
 import { postgresTestOptions, testDatabaseUrl } from "./server-test-utils.js";
 
 test(
-  "019 and 020 backfill legacy estimates using saved custom rates when available",
+  "019 and 021 backfill legacy estimates using saved custom rates when available",
   postgresTestOptions,
   async () => {
     const admin = new pg.Pool({ connectionString: testDatabaseUrl });
@@ -67,8 +67,8 @@ test(
           SELECT 'new_rev','t','new',1,'created','backup_restore',expense_revision_snapshot(e) FROM expenses e WHERE id = 'new';
       `);
       await cp(
-        path.join(migrationsDirectory(), "020_legacy_custom_rates.sql"),
-        path.join(dir, "020_legacy_custom_rates.sql"),
+        path.join(migrationsDirectory(), "021_legacy_custom_rates.sql"),
+        path.join(dir, "021_legacy_custom_rates.sql"),
       );
       await expect(
         runMigrations(pool, { migrationsDir: dir, logger }),
@@ -83,7 +83,7 @@ test(
       expect(
         (
           await pool.query(
-            "SELECT count(*)::int AS count FROM schema_migrations WHERE version = '020_legacy_custom_rates'",
+            "SELECT count(*)::int AS count FROM schema_migrations WHERE version = '021_legacy_custom_rates'",
           )
         ).rows[0].count,
       ).toBe(0);

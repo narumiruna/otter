@@ -44,7 +44,7 @@ BEGIN
   LIMIT 1;
   IF bad_expense IS NOT NULL THEN
     RAISE EXCEPTION 'Legacy custom rate exceeds safe conversion range for trip %, expense %', bad_trip, bad_expense
-      USING HINT = 'Compare the saved rate and expense against the pre-upgrade backup before retrying migration 020.';
+      USING HINT = 'Compare the saved rate and expense against the pre-upgrade backup before retrying migration 021.';
   END IF;
 END $$;
 
