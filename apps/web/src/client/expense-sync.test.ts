@@ -194,9 +194,11 @@ test("401, account switching and conflicts never silently discard a draft", asyn
   });
   expect(posts).toBe(0);
   userId = "alice";
-  await syncExpenses("alice", tripId, controller.signal, () => {
-    throw new Error("unexpected");
-  });
+  expect(
+    await syncExpenses("alice", tripId, controller.signal, () => {
+      throw new Error("unexpected");
+    }),
+  ).toBe("authentication-lost");
   expect(posts).toBe(1);
   expect((await getExpense(item.id))?.status).toBe("attempted");
   outcome = 403;

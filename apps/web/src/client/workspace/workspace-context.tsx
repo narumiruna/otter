@@ -2,10 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
+  type RefObject,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { api, type TripPayload } from "../client-support.js";
@@ -49,6 +51,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({
   announce,
+  authBlockedFor: sharedAuthBlockedFor,
   children,
   offline,
   payload,
@@ -58,6 +61,7 @@ export function WorkspaceProvider({
   userId,
 }: {
   announce: (message: string) => void;
+  authBlockedFor?: RefObject<string | null>;
   children: ReactNode;
   offline: boolean;
   payload: TripPayload;
@@ -71,6 +75,8 @@ export function WorkspaceProvider({
   const tripId = payload.trip.id;
   const [queued, setQueued] = useState<QueuedExpense[]>([]);
   const [queueError, setQueueError] = useState("");
+  const localAuthBlockedFor = useRef<string | null>(null);
+  const authBlockedFor = sharedAuthBlockedFor ?? localAuthBlockedFor;
   const reload = useCallback(async () => {
     if (!userId) {
       setQueued([]);
@@ -105,13 +111,21 @@ export function WorkspaceProvider({
       void refreshCollection();
     };
     const run = () => {
-      if (!document.hidden && navigator.onLine)
-        void syncExpenses(userId, tripId, controller.signal, synced).catch(
-          (error: unknown) =>
+      if (
+        !document.hidden &&
+        navigator.onLine &&
+        authBlockedFor.current !== userId
+      )
+        void syncExpenses(userId, tripId, controller.signal, synced)
+          .then((result) => {
+            if (!controller.signal.aborted && result === "authentication-lost")
+              authBlockedFor.current = userId;
+          })
+          .catch((error: unknown) =>
             setQueueError(
               error instanceof Error ? error.message : messages.loadingFailed,
             ),
-        );
+          );
     };
     run();
     window.addEventListener("online", run);
@@ -129,6 +143,7 @@ export function WorkspaceProvider({
     userId,
     tripId,
     offline,
+    authBlockedFor,
     onPayload,
     refreshCollection,
     tripQueryKey,

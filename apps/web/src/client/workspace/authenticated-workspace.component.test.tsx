@@ -134,9 +134,10 @@ test("recorded and queued expense editors cannot overlap or reset dirty navigati
     await user.click(view.getByRole("button", { name: "Discard draft" }));
     await waitFor(() => expect(queuedEdit).toBeEnabled());
     await user.click(queuedEdit);
-    expect(view.getByLabelText("Description")).toHaveValue("Queued lunch");
+    const queuedDescription = await view.findByLabelText("Description");
+    expect(queuedDescription).toHaveValue("Queued lunch");
     expect(view.queryByRole("button", { name: "Dinner" })).toBeNull();
-    await user.type(view.getByLabelText("Description"), " updated");
+    await user.type(queuedDescription, " updated");
     expect(view.queryByRole("button", { name: "Overview" })).toBeNull();
   } finally {
     view.unmount();
@@ -218,6 +219,47 @@ test("sidebar trip switching confirms queued edits made while the destination lo
     await waitFor(() =>
       expect(window.location.search).toContain("trip=trip_2"),
     );
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("a signed-in account can find retained drafts even with no accessible groups", async () => {
+  await queueExpense("user_1", "removed-group", {
+    amount: "100",
+    currency: "TWD",
+    description: "Unreachable draft",
+    expenseDate: "2026-09-26",
+    paidById: "participant_1",
+    participantIds: ["participant_1"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  window.history.replaceState({}, "", "/");
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          offline
+          webMcpEnabled={false}
+          bootstrap={{ ...bootstrap, selected: null, trips: [] }}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    expect(
+      await view.findByRole("region", {
+        name: "Drafts from unavailable groups",
+      }),
+    ).toHaveTextContent("Unreachable draft");
   } finally {
     view.unmount();
     client.clear();

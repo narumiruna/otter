@@ -113,6 +113,21 @@ export async function listExpenses(
   return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+export async function listUserExpenses(
+  userId: string,
+): Promise<QueuedExpense[]> {
+  const items = await transact<QueuedExpense[]>("readonly", (store, set) => {
+    const request = store.getAll();
+    request.onsuccess = () =>
+      set(
+        (request.result as QueuedExpense[]).filter(
+          (item) => item.userId === userId,
+        ),
+      );
+  });
+  return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 export async function getExpense(
   id: string,
 ): Promise<QueuedExpense | undefined> {

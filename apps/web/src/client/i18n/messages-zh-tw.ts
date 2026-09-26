@@ -21,6 +21,11 @@ export const zhTW = {
   queueCount: (values: MessageValues) =>
     interpolate("此裝置有 {count} 筆尚未同步支出", values),
   queueSyncPricing: "預覽只顯示原幣金額，伺服器在同步時決定匯率。",
+  queueOrphanTitle: "無法存取群組的草稿",
+  queueOrphanNotice:
+    "這些群組已無法存取。已送出的請求可能已記帳；刪除本機資料前請先核對。",
+  queueOrphanTrip: (values: MessageValues) =>
+    interpolate("群組 ID：{id}", values),
   expenseHistory: "修改紀錄",
   expenseHistoryDescription:
     "查看支出的修改、刪除與版本還原；這不是付款或歷史餘額紀錄。",

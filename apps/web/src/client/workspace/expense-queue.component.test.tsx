@@ -288,6 +288,67 @@ test("reconnect waits for the queued editor and sends its saved changes, not the
   }
 });
 
+test("authentication loss stops automatic queue retries until the account changes", async () => {
+  const trip = { ...payload.trip, id: "offline-auth-stopped" };
+  const draft = {
+    amount: "100",
+    currency: "TWD" as const,
+    description: "Unsent",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal" as const,
+    splitValues: {},
+  };
+  const secondTrip = { ...trip, id: "offline-auth-stopped-second" };
+  await queueExpense("u", trip.id, draft);
+  await queueExpense("u", secondTrip.id, draft);
+  await queueExpense("other", secondTrip.id, draft);
+  const fetcher = vi.fn(async (path: string) => {
+    if (path === "/api/me")
+      return Response.json({ error: "Session expired" }, { status: 401 });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient();
+  const authBlockedFor = { current: null as string | null };
+  const workspace = (userId: string, currentTrip = trip) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        key={currentTrip.id}
+        announce={() => undefined}
+        authBlockedFor={authBlockedFor}
+        offline={false}
+        payload={{ ...payload, trip: currentTrip }}
+        userId={userId}
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(workspace("u"));
+  try {
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    view.rerender(workspace("u", secondTrip));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    view.rerender(workspace("other", secondTrip));
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    expect((await listExpenses("u", trip.id))[0]?.status).toBe("pending");
+  } finally {
+    view.unmount();
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
 test("storage failure preserves the offline form without claiming it was saved", async () => {
   const client = new QueryClient();
   const user = userEvent.setup();

@@ -15,7 +15,7 @@ export async function syncExpenses(
   tripId: string,
   signal: AbortSignal,
   onSynced: (payload: TripPayload) => void,
-): Promise<void> {
+): Promise<"authentication-lost" | undefined> {
   const key = `${userId}:${tripId}`;
   if (running.has(key) || signal.aborted || !navigator.onLine) return;
   running.add(key);
@@ -28,7 +28,8 @@ export async function syncExpenses(
     )
       return;
     const me = await api<UserResponse>("/api/me", { signal });
-    if (me.user?.id !== userId || signal.aborted) return;
+    if (signal.aborted) return;
+    if (me.user?.id !== userId) return "authentication-lost" as const;
     for (const queued of items) {
       if (signal.aborted || !navigator.onLine) return;
       const item = await getExpense(queued.id);
@@ -68,7 +69,9 @@ export async function syncExpenses(
           signal,
         });
         const currentUser = await api<UserResponse>("/api/me", { signal });
-        if (signal.aborted || currentUser.user?.id !== userId) return;
+        if (signal.aborted) return;
+        if (currentUser.user?.id !== userId)
+          return "authentication-lost" as const;
         onSynced(latest);
         await changeExpense(item.id, userId, tripId, (current) =>
           current.status === "attempted" ? null : current,
@@ -76,7 +79,7 @@ export async function syncExpenses(
       } catch (error) {
         if (signal.aborted) return;
         if (!posted && error instanceof ApiResponseError) {
-          if (error.status === 401) return;
+          if (error.status === 401) return "authentication-lost" as const;
           if ([400, 403, 404, 409].includes(error.status)) {
             if (error.status === 400) {
               // A rejected draft may reference participants removed elsewhere.
@@ -89,7 +92,9 @@ export async function syncExpenses(
               const currentUser = await api<UserResponse>("/api/me", {
                 signal,
               });
-              if (signal.aborted || currentUser.user?.id !== userId) return;
+              if (signal.aborted) return;
+              if (currentUser.user?.id !== userId)
+                return "authentication-lost" as const;
               onSynced(latest);
             }
             await changeExpense(item.id, userId, tripId, (current) => ({
@@ -109,9 +114,13 @@ export async function syncExpenses(
   let release: (() => void) | undefined;
   try {
     release = await acquireExpenseQueueLock(userId, tripId, signal);
-    if (!signal.aborted) await run();
+    if (!signal.aborted) return await run();
   } catch (error) {
-    if (!signal.aborted) throw error;
+    if (!signal.aborted) {
+      if (error instanceof ApiResponseError && error.status === 401)
+        return "authentication-lost";
+      throw error;
+    }
   } finally {
     release?.();
     running.delete(key);

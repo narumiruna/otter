@@ -41,6 +41,7 @@ import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseQueuePanel } from "./expense-queue-panel.js";
 import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 import { MorePage } from "./more-page.js";
+import { OrphanedExpenseQueue } from "./orphaned-expense-queue.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
 import { WebMcpTools } from "./webmcp-tools.js";
@@ -81,6 +82,7 @@ export function AuthenticatedWorkspace({
   const [draftDirty, setDraftDirty] = useState(false);
   const draftDirtyRef = useRef(draftDirty);
   draftDirtyRef.current = draftDirty;
+  const authBlockedFor = useRef<string | null>(null);
   const [recordedEditing, setRecordedEditing] = useState(false);
   const [queuedEditing, setQueuedEditing] = useState(false);
   const [filtersByTrip, setFiltersByTrip] = useState<
@@ -283,6 +285,8 @@ export function AuthenticatedWorkspace({
           navigate({ mode: null, tripId: payload.trip.id, view: "people" });
         }}
         offline={offline}
+        trips={allTrips}
+        userId={guestShare ? undefined : bootstrap.user?.id}
       />
     );
   }
@@ -295,6 +299,7 @@ export function AuthenticatedWorkspace({
   return (
     <WorkspaceProvider
       announce={announce}
+      authBlockedFor={authBlockedFor}
       offline={offline}
       payload={payload}
       refreshCollection={refreshCollection}
@@ -338,6 +343,12 @@ export function AuthenticatedWorkspace({
                 });
               }}
               offline={offline || draftDirty}
+            />
+          ) : null}
+          {!guestShare ? (
+            <OrphanedExpenseQueue
+              trips={allTrips}
+              userId={bootstrap.user?.id}
             />
           ) : null}
           {switchError ? (
@@ -772,9 +783,13 @@ function CreateTrip({
 function NoGroups({
   onCreated,
   offline,
+  trips,
+  userId,
 }: {
   onCreated: (payload: TripPayload) => void | Promise<void>;
   offline: boolean;
+  trips: TripSummary[];
+  userId?: string;
 }) {
   const { messages } = useI18n();
   return (
@@ -789,6 +804,7 @@ function NoGroups({
         <CreateTrip onCreated={onCreated} offline={offline} />
       </div>
       <RestoreBackup onRestored={(payload) => void onCreated(payload)} />
+      {userId ? <OrphanedExpenseQueue trips={trips} userId={userId} /> : null}
     </section>
   );
 }
