@@ -171,7 +171,6 @@ test(
       legacyBackup,
     );
     expect(oldRestored.response.status).toBe(201);
-    expect(oldRestored.response.status).toBe(201);
     expect(
       oldRestored.data.trip.expenses.every(
         (e) =>
@@ -349,5 +348,132 @@ test(
       5,
     );
     expect(missingQuote.response.status).toBe(409);
+  },
+);
+
+test(
+  "v1 restore snapshots the PostgreSQL-rounded custom rate",
+  postgresTestOptions,
+  async () => {
+    const s = await withTestApp({
+      prepare: async (pool) => {
+        await pool.query(
+          "INSERT INTO users (id,name,username,password_hash) VALUES ('owner','Owner','owner','unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(s.pool, "owner")).id}`;
+    const request = (path: string, method = "GET", body?: object) =>
+      api<TripPayload>(s.baseUrl, path, {
+        method,
+        headers: { cookie },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const created = await request("/api/trips", "POST", {
+      name: "V1",
+      baseCurrency: "TWD",
+    });
+    const tripUrl = `/api/trips/${created.data.trip.id}`;
+    const participant = created.data.trip.participants[0].id;
+    expect(
+      (
+        await request(`${tripUrl}/expenses`, "POST", {
+          description: "Old USD",
+          amount: "100000000",
+          currency: "USD",
+          paidById: participant,
+          participantIds: [participant],
+        })
+      ).response.status,
+    ).toBe(201);
+    const backup = await api<{
+      version: number;
+      trip: { expenses: { exchangeRate?: unknown }[]; exchangeRates?: object };
+    }>(s.baseUrl, `${tripUrl}/backup`, { headers: { cookie } });
+    const legacy = structuredClone(backup.data);
+    legacy.version = 1;
+    legacy.trip.exchangeRates = { USD: 0.000000014 };
+    for (const expense of legacy.trip.expenses) delete expense.exchangeRate;
+    const restored = await request("/api/trips/restore", "POST", legacy);
+    expect(restored.response.status).toBe(201);
+    expect(restored.data.trip.exchangeRates?.USD).toBe(0.00000001);
+    expect(restored.data.trip.expenses[0].exchangeRate).toMatchObject({
+      source: "legacy",
+      rateToBase: 0.00000001,
+    });
+    const saved = await s.pool.query(
+      "SELECT rate_to_base FROM trip_exchange_rates WHERE trip_id = $1 AND currency = 'USD'",
+      [restored.data.trip.id],
+    );
+    expect(Number(saved.rows[0].rate_to_base)).toBe(
+      restored.data.trip.expenses[0].exchangeRate?.rateToBase,
+    );
+  },
+);
+
+test(
+  "restore checks a cross-base revision against bank rates used by the response",
+  postgresTestOptions,
+  async () => {
+    const fetchRates = vi.fn(async () =>
+      quote(32).map((rate) =>
+        rate.source === "EUR" ? { ...rate, spotBuy: 100, spotSell: 100 } : rate,
+      ),
+    );
+    const s = await withTestApp({
+      appOptions: { exchangeRates: { fetchRates } },
+      prepare: async (pool) => {
+        await pool.query(
+          "INSERT INTO users (id,name,username,password_hash) VALUES ('owner','Owner','owner','unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(s.pool, "owner")).id}`;
+    const request = (
+      path: string,
+      method = "GET",
+      body?: object,
+      version?: number,
+    ) =>
+      api<TripPayload>(s.baseUrl, path, {
+        method,
+        headers: { cookie, ...(version ? { "If-Match": `"${version}"` } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const created = await request("/api/trips", "POST", {
+      name: "Bank bridge",
+      baseCurrency: "TWD",
+    });
+    const url = `/api/trips/${created.data.trip.id}`;
+    const person = created.data.trip.participants[0].id;
+    const expense = await request(`${url}/expenses`, "POST", {
+      description: "Large original base",
+      amount: "4000000000000000",
+      currency: "TWD",
+      paidById: person,
+      participantIds: [person],
+    });
+    expect(expense.response.status).toBe(201);
+    const expenseId = expense.data.trip.expenses[0].id;
+    const rebased = await request(url, "PATCH", { baseCurrency: "EUR" });
+    expect(rebased.response.status).toBe(200);
+    expect(rebased.data.trip.exchangeRates?.EUR).toBe(1);
+    const history = await api<{ revisions: { id: string; version: number }[] }>(
+      s.baseUrl,
+      `${url}/expense-history?expenseId=${encodeURIComponent(expenseId)}`,
+      { headers: { cookie } },
+    );
+    const first = history.data.revisions.find(
+      (revision) => revision.version === 1,
+    );
+    assert.ok(first);
+    const noOp = await request(
+      `${url}/expenses/${expenseId}/restore`,
+      "POST",
+      { revisionId: first.id },
+      1,
+    );
+    expect(noOp.response.status).toBe(200);
+    expect((await request(url)).response.status).toBe(200);
   },
 );

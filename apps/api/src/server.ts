@@ -844,7 +844,9 @@ export function createApp(
     exchangeRateService.getSnapshot("TWD"),
   );
   registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
-  registerExpenseRestoreRoute(app, pool, mustBeSignedIn, buildTripPayload);
+  registerExpenseRestoreRoute(app, pool, mustBeSignedIn, buildTripPayload, () =>
+    exchangeRateService.getSnapshot("TWD"),
+  );
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);

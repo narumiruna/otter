@@ -48,8 +48,10 @@ export function createExchangeRateService(
       const customRates = customExchangeRates(trip);
       const hasCustomRates = Object.keys(customRates).length > 0;
       let defaults: ExchangeRateDefaults;
+      let candidate: ExchangeRateSnapshot | null = null;
       try {
         const snapshot = await getSnapshot(trip.baseCurrency);
+        candidate = snapshot;
         defaults = {
           fetchedAt: snapshot.fetchedAt,
           provider: snapshot.source,
@@ -71,11 +73,7 @@ export function createExchangeRateService(
         return tripPayload(
           {
             ...trip,
-            exchangeRates: {
-              ...defaults.rates,
-              ...customRates,
-              [trip.baseCurrency]: 1,
-            },
+            exchangeRates: effectiveTripRates(trip, candidate),
           },
           { customRates, defaults, source: "custom" },
         );
@@ -85,7 +83,7 @@ export function createExchangeRateService(
         return tripPayload(trip, { source: "fixed" });
       }
       return tripPayload(
-        { ...trip, exchangeRates: defaults.rates },
+        { ...trip, exchangeRates: effectiveTripRates(trip, candidate) },
         {
           fetchedAt: defaults.fetchedAt,
           provider: defaults.provider,
@@ -95,6 +93,26 @@ export function createExchangeRateService(
       );
     },
   };
+}
+
+// Matches response enrichment for either a current bank quote or fixed fallback.
+// A TWD-base prefetched quote can be normalized after the locked trip is loaded.
+export function effectiveTripRates(
+  trip: Pick<LoadedTrip, "baseCurrency" | "exchangeRates">,
+  candidate: ExchangeRateSnapshot | null,
+): ExchangeRates {
+  const base = candidate?.rates[trip.baseCurrency];
+  const defaults = base
+    ? Object.fromEntries(
+        currencies.map((currency) => [
+          currency,
+          currency === trip.baseCurrency
+            ? 1
+            : Number((candidate.rates[currency] / base).toPrecision(12)),
+        ]),
+      )
+    : fixedExchangeRates(trip.baseCurrency);
+  return { ...defaults, ...trip.exchangeRates, [trip.baseCurrency]: 1 };
 }
 
 function customExchangeRates(trip: LoadedTrip): ExchangeRates {
