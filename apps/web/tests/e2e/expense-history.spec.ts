@@ -322,6 +322,22 @@ test("two members resolve an expense conflict without losing a draft; history is
     await expect(
       editorPage.getByRole("dialog").getByText(/已刪除 · v4/),
     ).toBeVisible();
+    await editorPage.keyboard.press("Escape");
+    const scopedHistory = editorPage.waitForResponse((response) =>
+      response.url().includes(`expenseId=${expenseId}`),
+    );
+    await editorPage
+      .getByRole("button", { name: "修改紀錄：晚餐", exact: true })
+      .click();
+    expect((await scopedHistory).status()).toBe(200);
+    await expect(
+      editorPage.getByRole("dialog", { name: "修改紀錄：晚餐" }),
+    ).toBeVisible();
+    await expect(
+      editorPage
+        .getByRole("dialog")
+        .getByRole("button", { name: "還原版本 1" }),
+    ).toBeDisabled();
   } finally {
     await Promise.all([owner.close(), editor.close(), publicContext.close()]);
   }

@@ -272,6 +272,8 @@ export function ExpenseComposer({
               tripId={originalTrip.id}
               expenseId={expense.id}
               name={expense.description}
+              discardDraft={isDirty}
+              onRestored={onCancel}
             />
           ) : null}
           {isDirty ? (
