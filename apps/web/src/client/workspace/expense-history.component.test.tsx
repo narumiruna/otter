@@ -10,11 +10,13 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
+import { defaultExpenseFilters } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
 import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
+import { ExpensesPage } from "./expenses-page.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const expense: Expense = {
@@ -449,6 +451,45 @@ test("expense editor uploads a receipt and saves its draft with the returned ver
   expect(saveHeaders.get("If-Match")).toBe('"2"');
   expect(saved).toHaveBeenCalledOnce();
 });
+test("expense history moves from the row to the edit header and preserves a draft", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(page));
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap } = harness();
+  const view = render(
+    wrap(
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        grouping="none"
+        onAddExpense={() => {}}
+        onFiltersChange={() => {}}
+        onGroupingChange={() => {}}
+        trip={payload.trip}
+      />,
+    ),
+  );
+  const user = userEvent.setup();
+  expect(view.getByRole("button", { name: "Change history" })).toBeVisible();
+  expect(
+    view.queryByRole("button", { name: "Change history: Dinner" }),
+  ).toBeNull();
+  await user.click(view.getByRole("button", { name: "Dinner" }));
+  const trigger = view.getByRole("button", { name: "Change history: Dinner" });
+  expect(trigger).toHaveTextContent("Change history");
+  expect(fetcher).not.toHaveBeenCalled();
+  await user.type(view.getByLabelText("Description"), " draft");
+  await user.click(trigger);
+  expect(
+    await view.findByRole("dialog", { name: "Change history: Dinner" }),
+  ).toBeVisible();
+  expect(String(fetcher.mock.calls[0][0])).toContain("expenseId=e");
+  expect(view.getByLabelText("Description")).toHaveValue("Dinner draft");
+  await user.click(
+    within(view.getByRole("dialog")).getByRole("button", { name: "Cancel" }),
+  );
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(view.getByLabelText("Description")).toHaveValue("Dinner draft");
+});
+
 test("history is lazy, paginated, shows deletions and differences, and restores trigger focus", async () => {
   const fetcher = vi
     .fn<typeof fetch>()

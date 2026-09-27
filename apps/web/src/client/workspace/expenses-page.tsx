@@ -794,11 +794,6 @@ function ExpenseTableRow({
             {expense.description}
           </button>
         )}
-        <ExpenseHistoryDialog
-          tripId={trip.id}
-          expenseId={expense.id}
-          name={expense.description}
-        />
       </th>
       {columns.map((column) => (
         <td className={`expense-${column}-cell`} key={column}>

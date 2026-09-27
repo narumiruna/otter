@@ -221,6 +221,11 @@ test("two members resolve an expense conflict without losing a draft; history is
       name: "修改紀錄：我的草稿",
       exact: true,
     });
+    await expect(historyButton).toHaveCount(0);
+    await ownerPage
+      .getByRole("button", { name: "我的草稿", exact: true })
+      .click();
+    await expect(historyButton).toHaveText("修改紀錄");
     await historyButton.click();
     const dialog = ownerPage.getByRole("dialog", {
       name: "修改紀錄：我的草稿",

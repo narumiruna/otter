@@ -87,13 +87,13 @@ function HistoryDialog({
         render={
           <Button
             aria-label={title}
-            variant="ghost"
-            size={name ? "icon-sm" : "sm"}
+            variant={name ? "outline" : "ghost"}
+            size="sm"
           />
         }
       >
         <ClockIcon aria-hidden="true" />
-        {name ? null : title}
+        {messages.expenseHistory}
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
