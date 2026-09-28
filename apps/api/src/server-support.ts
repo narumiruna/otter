@@ -406,11 +406,9 @@ export function createPool(): PgPool {
 }
 
 export async function withTransaction<T>(
-  pool: PgPool | PoolClient,
+  pool: PgPool,
   callback: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
-  // A supplied client belongs to the surrounding tripMutation transaction.
-  if ("release" in pool) return callback(pool);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

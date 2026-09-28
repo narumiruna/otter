@@ -557,3 +557,115 @@ test(
     assert.equal(forbiddenParticipantDelete.response.status, 404);
   },
 );
+
+test(
+  "expense create and patch agree on split participant validation and order",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl } = await withTestApp();
+    const registered = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: "split-validation",
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    const cookie = registered.response.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+    const created = await api<TripPayload>(baseUrl, "/api/trips", {
+      body: JSON.stringify({ name: "Split validation" }),
+      headers: { cookie },
+      method: "POST",
+    });
+    const tripId = created.data.trip.id;
+    const ownerId = created.data.trip.participants[0].id;
+    const withBob = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${tripId}/participants`,
+      {
+        body: JSON.stringify({ name: "Bob" }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    const bobId = withBob.data.trip.participants[1].id;
+    const createBody = {
+      amount: "100",
+      currency: "TWD",
+      description: "Dinner",
+      paidById: ownerId,
+      participantIds: [ownerId],
+    };
+    const createPath = `/api/trips/${tripId}/expenses`;
+    const saved = await api<TripPayload>(baseUrl, createPath, {
+      body: JSON.stringify(createBody),
+      headers: { cookie },
+      method: "POST",
+    });
+    const expenseId = saved.data.trip.expenses[0].id;
+    const expensePath = `${createPath}/${expenseId}`;
+
+    for (const [participantIds, expected] of [
+      [null, "請選擇分帳參與者"],
+      [[], "請至少選擇一位分帳參與者"],
+      [[ownerId, "missing"], "分帳參與者必須是旅行參與者"],
+      [[ownerId, 42], "分帳參與者必須是旅行參與者"],
+    ] as const) {
+      for (const [path, method] of [
+        [createPath, "POST"],
+        [expensePath, "PATCH"],
+      ] as const) {
+        const result = await api<{ error: string }>(baseUrl, path, {
+          body: JSON.stringify({ ...createBody, participantIds }),
+          headers: {
+            cookie,
+            ...(method === "PATCH" ? { "If-Match": '"1"' } : {}),
+          },
+          method,
+        });
+        assert.equal(result.response.status, 400);
+        assert.equal(result.data.error, expected);
+      }
+    }
+    const invalidDate = await api<{ error: string }>(baseUrl, createPath, {
+      body: JSON.stringify({
+        ...createBody,
+        expenseDate: "invalid",
+        participantIds: ["missing"],
+      }),
+      headers: { cookie },
+      method: "POST",
+    });
+    assert.equal(invalidDate.data.error, "請輸入有效支出日期");
+    const invalidAmount = await api<{ error: string }>(baseUrl, expensePath, {
+      body: JSON.stringify({ amount: "invalid", participantIds: ["missing"] }),
+      headers: { cookie, "If-Match": '"1"' },
+      method: "PATCH",
+    });
+    assert.equal(invalidAmount.data.error, "Amount must be a positive number");
+
+    const duplicates = [bobId, ownerId, bobId];
+    const added = await api<TripPayload>(baseUrl, createPath, {
+      body: JSON.stringify({ ...createBody, participantIds: duplicates }),
+      headers: { cookie },
+      method: "POST",
+    });
+    assert.equal(added.response.status, 201);
+    assert.deepEqual(
+      added.data.trip.expenses.find((expense) => expense.id !== expenseId)
+        ?.participantIds,
+      [bobId, ownerId],
+    );
+    const patched = await api<TripPayload>(baseUrl, expensePath, {
+      body: JSON.stringify({ participantIds: duplicates }),
+      headers: { cookie, "If-Match": '"1"' },
+      method: "PATCH",
+    });
+    assert.equal(patched.response.status, 200);
+    assert.deepEqual(
+      patched.data.trip.expenses.find((expense) => expense.id === expenseId)
+        ?.participantIds,
+      [bobId, ownerId],
+    );
+  },
+);

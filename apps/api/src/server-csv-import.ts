@@ -21,7 +21,6 @@ import {
   requestBody,
   sendError,
   stringField,
-  withTransaction,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
 
@@ -124,25 +123,23 @@ export function registerCsvImportRoutes(
           return context.json({ error: "CSV 匯入失敗", errors }, 400);
         }
 
-        await withTransaction(pool, async (client) => {
-          for (const expense of expenses) {
-            if (!expense?.paidById) {
-              continue;
-            }
-            await insertExpense(client, trip.id, {
-              ...expense,
-              paidById: expense.paidById,
-              id: makeId("expense"),
-              createdAt: nowIso(),
-              exchangeRate: expenseExchangeRate(
-                trip,
-                expense.currency,
-                candidate,
-                expense.amountMinor,
-              ),
-            });
+        for (const expense of expenses) {
+          if (!expense?.paidById) {
+            continue;
           }
-        });
+          await insertExpense(pool, trip.id, {
+            ...expense,
+            paidById: expense.paidById,
+            id: makeId("expense"),
+            createdAt: nowIso(),
+            exchangeRate: expenseExchangeRate(
+              trip,
+              expense.currency,
+              candidate,
+              expense.amountMinor,
+            ),
+          });
+        }
 
         await recordExpenseChanges(pool, trip.id, before, user, "csv_import");
         const updated = await loadTripForUser(pool, user.id, trip.id);

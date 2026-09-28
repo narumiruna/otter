@@ -90,6 +90,32 @@ test(
 );
 
 test(
+  "unknown API paths and unsupported methods share the JSON 404 fallback",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl } = await withTestApp();
+    for (const [path, method] of [
+      ["/api", "GET"],
+      ["/api/not-found", "POST"],
+      ["/api/trips", "PUT"],
+    ] as const) {
+      await expectError(
+        await fetch(`${baseUrl}${path}`, {
+          body: method === "GET" ? undefined : "{",
+          headers: { "Content-Type": "application/json" },
+          method,
+        }),
+        404,
+        "找不到 API",
+      );
+    }
+    const nonApi = await fetch(`${baseUrl}/not-found`);
+    expect(nonApi.status).toBe(404);
+    expect(await nonApi.text()).toBe("Not found");
+  },
+);
+
+test(
   "HTTP authentication precedes parsing and restore retains its 10 MiB limit",
   postgresTestOptions,
   async () => {
