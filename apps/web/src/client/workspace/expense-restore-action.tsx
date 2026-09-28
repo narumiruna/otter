@@ -23,9 +23,13 @@ type ReviewedState = {
 export function ExpenseRestoreAction({
   tripId,
   revision,
+  discardDraft = false,
+  onRestored,
 }: {
   tripId: string;
   revision: ExpenseRevision;
+  discardDraft?: boolean;
+  onRestored?: () => void;
 }) {
   const workspace = useWorkspace();
   const { messages } = useI18n();
@@ -129,6 +133,7 @@ export function ExpenseRestoreAction({
         true,
       );
       close();
+      onRestored?.();
     } catch (caught) {
       if (caught instanceof ApiResponseError && caught.status === 412) {
         setConflict(true);
@@ -196,6 +201,11 @@ export function ExpenseRestoreAction({
               ? messages.expenseRestoreKeepsReceipt
               : messages.expenseRestoreNoReceipt}
           </p>
+          {discardDraft ? (
+            <p className="text-sm text-destructive">
+              {messages.unsavedChangesWillBeLost}
+            </p>
+          ) : null}
           {conflict ? (
             <div className="grid gap-2">
               <p role="alert">{messages.expenseRestoreConflict}</p>

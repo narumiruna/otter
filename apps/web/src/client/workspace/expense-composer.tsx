@@ -27,6 +27,7 @@ import { todayDate } from "../client-support.js";
 import type { QueuedExpense, QueuedExpenseDraft } from "../expense-queue.js";
 import { localizeMessage, useI18n } from "../i18n.js";
 import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
+import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
@@ -253,7 +254,7 @@ export function ExpenseComposer({
       className="surface grid gap-5"
       aria-labelledby="expense-composer-heading"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <SectionHeading
           description={
             expense
@@ -265,20 +266,31 @@ export function ExpenseComposer({
             {expense ? messages.editExpense : messages.addExpense2}
           </span>
         </SectionHeading>
-        {isDirty ? (
-          <ConfirmDialog
-            confirmLabel={messages.discardDraft}
-            description={
-              messages.unsavedChangesWillBeLostExistingDataWillNotChange
-            }
-            destructive
-            onConfirm={onCancel}
-            title={messages.discardThisDraft}
-            trigger={cancelButton}
-          />
-        ) : (
-          cancelButton
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {expense ? (
+            <ExpenseHistoryDialog
+              tripId={originalTrip.id}
+              expenseId={expense.id}
+              name={expense.description}
+              discardDraft={isDirty}
+              onRestored={onCancel}
+            />
+          ) : null}
+          {isDirty ? (
+            <ConfirmDialog
+              confirmLabel={messages.discardDraft}
+              description={
+                messages.unsavedChangesWillBeLostExistingDataWillNotChange
+              }
+              destructive
+              onConfirm={onCancel}
+              title={messages.discardThisDraft}
+              trigger={cancelButton}
+            />
+          ) : (
+            cancelButton
+          )}
+        </div>
       </div>
 
       <form className="grid gap-5" noValidate onSubmit={submit}>

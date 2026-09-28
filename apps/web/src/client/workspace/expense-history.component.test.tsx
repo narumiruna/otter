@@ -8,13 +8,15 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
+import { defaultExpenseFilters } from "../client-support.js";
 import { I18nProvider } from "../i18n.js";
 import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
+import { ExpensesPage } from "./expenses-page.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const expense: Expense = {
@@ -449,6 +451,200 @@ test("expense editor uploads a receipt and saves its draft with the returned ver
   expect(saveHeaders.get("If-Match")).toBe('"2"');
   expect(saved).toHaveBeenCalledOnce();
 });
+test("expense history moves from the row to the edit header and preserves a draft", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(page));
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap } = harness();
+  const view = render(
+    wrap(
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        grouping="none"
+        onAddExpense={() => {}}
+        onFiltersChange={() => {}}
+        onGroupingChange={() => {}}
+        trip={payload.trip}
+      />,
+    ),
+  );
+  const user = userEvent.setup();
+  expect(view.getByRole("button", { name: "Change history" })).toBeVisible();
+  expect(
+    view.queryByRole("button", { name: "Change history: Dinner" }),
+  ).toBeNull();
+  await user.click(view.getByRole("button", { name: "Dinner" }));
+  const trigger = view.getByRole("button", { name: "Change history: Dinner" });
+  expect(trigger).toHaveTextContent("Change history");
+  expect(fetcher).not.toHaveBeenCalled();
+  await user.type(view.getByLabelText("Description"), " draft");
+  await user.click(trigger);
+  expect(
+    await view.findByRole("dialog", { name: "Change history: Dinner" }),
+  ).toBeVisible();
+  expect(String(fetcher.mock.calls[0][0])).toContain("expenseId=e");
+  expect(view.getByLabelText("Description")).toHaveValue("Dinner draft");
+  await user.click(
+    within(view.getByRole("dialog")).getByRole("button", { name: "Cancel" }),
+  );
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(view.getByLabelText("Description")).toHaveValue("Dinner draft");
+});
+
+test("restoring from an edit warns about a draft, closes the stale editor, and reopens at the new version", async () => {
+  const currentExpense = { ...expense, version: 2, amountMinor: 200 };
+  const originalExpense = { ...expense, description: "Original Dinner" };
+  const initial = {
+    ...payload,
+    trip: { ...payload.trip, expenses: [currentExpense] },
+  };
+  const restoredExpense = { ...originalExpense, version: 3 };
+  const restored = {
+    ...payload,
+    trip: { ...payload.trip, expenses: [restoredExpense] },
+  };
+  const history: ExpenseHistoryPage = {
+    revisions: [
+      page.revisions[0],
+      {
+        ...page.revisions[0],
+        id: "r1",
+        version: 1,
+        action: "created",
+        previousSnapshot: null,
+        changedFields: [],
+        snapshot: { ...snapshot, expense: originalExpense },
+      },
+    ],
+    nextCursor: null,
+  };
+  const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+    if (init?.method === "POST") return Response.json(restored);
+    if (init?.method === "PATCH") return Response.json(restored);
+    if (String(url).includes("expense-history")) return Response.json(history);
+    return Response.json(initial);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  function Workspace() {
+    const [current, setCurrent] = useState<TripPayload>(initial);
+    return (
+      <I18nProvider initialLocale="en">
+        <QueryClientProvider client={client}>
+          <WorkspaceProvider
+            announce={() => {}}
+            offline={false}
+            payload={current}
+            onPayload={setCurrent}
+            refreshCollection={async () => {}}
+          >
+            <ExpensesPage
+              filters={{ ...defaultExpenseFilters }}
+              grouping="none"
+              onAddExpense={() => {}}
+              onFiltersChange={() => {}}
+              onGroupingChange={() => {}}
+              trip={current.trip}
+            />
+          </WorkspaceProvider>
+        </QueryClientProvider>
+      </I18nProvider>
+    );
+  }
+  const view = render(<Workspace />);
+  const user = userEvent.setup();
+  await user.click(view.getByRole("button", { name: "Dinner" }));
+  await user.type(view.getByLabelText("Description"), " draft");
+  await user.click(
+    view.getByRole("button", { name: "Change history: Dinner" }),
+  );
+  await user.click(await view.findByRole("button", { name: "Restore v1" }));
+  const review = await view.findByRole("region", {
+    name: "Restore expense version",
+  });
+  expect(
+    within(review).getByText("Unsaved changes will be lost."),
+  ).toBeVisible();
+  await user.click(
+    within(review).getByRole("button", { name: "Restore this version" }),
+  );
+  await waitFor(() => expect(view.queryByLabelText("Description")).toBeNull());
+  expect(view.getByRole("button", { name: "Original Dinner" })).toBeVisible();
+  const restoreRequest = fetcher.mock.calls.find(
+    ([, init]) => init?.method === "POST",
+  );
+  expect(new Headers(restoreRequest?.[1]?.headers).get("If-Match")).toBe('"2"');
+  await user.click(view.getByRole("button", { name: "Original Dinner" }));
+  expect(view.getByLabelText("Description")).toHaveValue("Original Dinner");
+  await user.type(view.getByLabelText("Description"), " edited");
+  await user.click(view.getByRole("button", { name: "Save changes" }));
+  const saveRequest = fetcher.mock.calls.find(
+    ([, init]) => init?.method === "PATCH",
+  );
+  expect(new Headers(saveRequest?.[1]?.headers).get("If-Match")).toBe('"3"');
+});
+
+test("archived trips open scoped history from the description without a second row button", async () => {
+  const archived = {
+    ...payload,
+    trip: { ...payload.trip, archivedAt: "2026-09-21T00:00:00Z" },
+  };
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(Response.json({ ...page, nextCursor: null }));
+  vi.stubGlobal("fetch", fetcher);
+  const { wrap } = harness(archived);
+  const view = render(
+    wrap(
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        grouping="none"
+        onAddExpense={() => {}}
+        onFiltersChange={() => {}}
+        onGroupingChange={() => {}}
+        readonly
+        trip={archived.trip}
+      />,
+    ),
+  );
+  const trigger = view.getByRole("button", { name: "Change history: Dinner" });
+  expect(trigger).toHaveTextContent("Dinner");
+  expect(view.queryByRole("button", { name: "Dinner" })).toBeNull();
+  await userEvent.setup().click(trigger);
+  expect(
+    await view.findByRole("dialog", { name: "Change history: Dinner" }),
+  ).toBeVisible();
+  expect(String(fetcher.mock.calls[0][0])).toContain("expenseId=e");
+  expect(view.getByRole("button", { name: "Restore v2" })).toBeDisabled();
+});
+
+test("public readonly trips do not expose scoped history from a row", () => {
+  const publicPayload = {
+    ...payload,
+    readonly: true,
+    trip: { ...payload.trip, archivedAt: "2026-09-21T00:00:00Z" },
+  };
+  const { wrap } = harness(publicPayload);
+  const view = render(
+    wrap(
+      <ExpensesPage
+        filters={{ ...defaultExpenseFilters }}
+        grouping="none"
+        onAddExpense={() => {}}
+        onFiltersChange={() => {}}
+        onGroupingChange={() => {}}
+        readonly
+        trip={publicPayload.trip}
+      />,
+    ),
+  );
+  expect(view.getByText("Dinner")).toBeVisible();
+  expect(
+    view.queryByRole("button", { name: "Change history: Dinner" }),
+  ).toBeNull();
+});
+
 test("history is lazy, paginated, shows deletions and differences, and restores trigger focus", async () => {
   const fetcher = vi
     .fn<typeof fetch>()

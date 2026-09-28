@@ -25,6 +25,9 @@ export function ExpenseHistoryDialog(props: {
   tripId: string;
   expenseId?: string;
   name?: string;
+  descriptionTrigger?: boolean;
+  discardDraft?: boolean;
+  onRestored?: () => void;
 }) {
   const workspace = useOptionalWorkspace();
   if (!workspace || workspace.payload.readonly) return null;
@@ -34,10 +37,16 @@ function HistoryDialog({
   tripId,
   expenseId,
   name,
+  descriptionTrigger,
+  discardDraft,
+  onRestored,
 }: {
   tripId: string;
   expenseId?: string;
   name?: string;
+  descriptionTrigger?: boolean;
+  discardDraft?: boolean;
+  onRestored?: () => void;
 }) {
   const { messages, locale } = useI18n();
   const [open, setOpen] = useState(false);
@@ -85,15 +94,25 @@ function HistoryDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button
-            aria-label={title}
-            variant="ghost"
-            size={name ? "icon-sm" : "sm"}
-          />
+          descriptionTrigger ? (
+            <button aria-label={title} type="button" />
+          ) : (
+            <Button
+              aria-label={title}
+              variant={name ? "outline" : "ghost"}
+              size="sm"
+            />
+          )
         }
       >
-        <ClockIcon aria-hidden="true" />
-        {name ? null : title}
+        {descriptionTrigger ? (
+          name
+        ) : (
+          <>
+            <ClockIcon aria-hidden="true" />
+            {messages.expenseHistory}
+          </>
+        )}
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}
@@ -165,7 +184,12 @@ function HistoryDialog({
                       {messages.expenseHistoryReceiptNotice}
                     </p>
                   ) : null}
-                  <ExpenseRestoreAction tripId={tripId} revision={revision} />
+                  <ExpenseRestoreAction
+                    tripId={tripId}
+                    revision={revision}
+                    discardDraft={discardDraft}
+                    onRestored={onRestored}
+                  />
                 </li>
               ))}
             </ol>

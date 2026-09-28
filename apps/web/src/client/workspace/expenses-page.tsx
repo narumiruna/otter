@@ -28,6 +28,7 @@ import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseRateDetails } from "./expense-rate.js";
 import { ReceiptPreview } from "./receipt-preview.js";
+import { useOptionalWorkspace } from "./workspace-context.js";
 import { SectionHeading } from "./workspace-ui.js";
 
 export type ExpenseGrouping = "date" | "none" | "payer";
@@ -781,6 +782,7 @@ function ExpenseTableRow({
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
+  const workspace = useOptionalWorkspace();
   return (
     <tr className="expense-table-row">
       <th className="expense-description-cell" scope="row">
@@ -788,17 +790,21 @@ function ExpenseTableRow({
           <ExpenseCategoryIcon category={expense.category} />
         </span>
         {readonly ? (
-          <span>{expense.description}</span>
+          trip.archivedAt && workspace && !workspace.payload.readonly ? (
+            <ExpenseHistoryDialog
+              tripId={trip.id}
+              expenseId={expense.id}
+              name={expense.description}
+              descriptionTrigger
+            />
+          ) : (
+            <span>{expense.description}</span>
+          )
         ) : (
           <button type="button" onClick={() => onEdit(expense)}>
             {expense.description}
           </button>
         )}
-        <ExpenseHistoryDialog
-          tripId={trip.id}
-          expenseId={expense.id}
-          name={expense.description}
-        />
       </th>
       {columns.map((column) => (
         <td className={`expense-${column}-cell`} key={column}>
