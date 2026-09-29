@@ -4,6 +4,7 @@ import {
   expenseOperationHeader,
   expenseQueueUserHeader,
   parseExpenseOperationId,
+  type Trip,
 } from "@narumitw/otter-contracts";
 import {
   type ExpenseCategory,
@@ -48,7 +49,6 @@ import {
   sendError,
   stringField,
   todayDate,
-  withTransaction,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
 
@@ -73,6 +73,20 @@ function expenseCategoryFromBody(value: unknown): ExpenseCategory {
     throw new Error(`分類必須是：${expenseCategories.join("、")}`);
   }
   return value;
+}
+
+function expenseParticipantIds(trip: Trip, input: unknown[]): string[] {
+  const ids: string[] = [];
+  for (const id of new Set(input)) {
+    if (typeof id !== "string" || !participantExists(trip, id)) {
+      throw new Error("分帳參與者必須是旅行參與者");
+    }
+    ids.push(id);
+  }
+  if (ids.length === 0) {
+    throw new Error("請至少選擇一位分帳參與者");
+  }
+  return ids;
 }
 
 export function registerExpenseRoutes(
@@ -174,19 +188,15 @@ export function registerExpenseRoutes(
           );
         }
 
-        const participantIds: string[] = [];
-        for (const participantId of new Set(participantIdsInput)) {
-          if (
-            typeof participantId !== "string" ||
-            !participantExists(trip, participantId)
-          ) {
-            return sendError(context, 400, "分帳參與者必須是旅行參與者");
-          }
-          participantIds.push(participantId);
-        }
-
-        if (participantIds.length === 0) {
-          return sendError(context, 400, "請至少選擇一位分帳參與者");
+        let participantIds: string[];
+        try {
+          participantIds = expenseParticipantIds(trip, participantIdsInput);
+        } catch (error) {
+          return sendError(
+            context,
+            400,
+            error instanceof Error ? error.message : "分帳格式錯誤",
+          );
         }
 
         let amountMinor: number;
@@ -220,27 +230,25 @@ export function registerExpenseRoutes(
         }
 
         const expenseId = makeId("expense");
-        await withTransaction(pool, (client) =>
-          insertExpense(client, trip.id, {
-            id: expenseId,
-            description,
+        await insertExpense(pool, trip.id, {
+          id: expenseId,
+          description,
+          amountMinor,
+          currency: currencyValue,
+          category,
+          tags,
+          paidById,
+          expenseDate,
+          createdAt: nowIso(),
+          participantIds,
+          participantShares,
+          exchangeRate: expenseExchangeRate(
+            trip,
+            currencyValue,
+            candidate,
             amountMinor,
-            currency: currencyValue,
-            category,
-            tags,
-            paidById,
-            expenseDate,
-            createdAt: nowIso(),
-            participantIds,
-            participantShares,
-            exchangeRate: expenseExchangeRate(
-              trip,
-              currencyValue,
-              candidate,
-              amountMinor,
-            ),
-          }),
-        );
+          ),
+        });
 
         await recordExpenseChanges(pool, trip.id, before, user, "expense");
         if (operationId && requestHash) {
@@ -385,20 +393,15 @@ export function registerExpenseRoutes(
             return sendError(context, 400, "請選擇分帳參與者");
           }
 
-          const nextParticipantIds: string[] = [];
-          for (const participantId of new Set(participantIdsInput)) {
-            if (
-              typeof participantId !== "string" ||
-              !participantExists(trip, participantId)
-            ) {
-              return sendError(context, 400, "分帳參與者必須是旅行參與者");
-            }
-            nextParticipantIds.push(participantId);
+          try {
+            participantIds = expenseParticipantIds(trip, participantIdsInput);
+          } catch (error) {
+            return sendError(
+              context,
+              400,
+              error instanceof Error ? error.message : "分帳格式錯誤",
+            );
           }
-          if (nextParticipantIds.length === 0) {
-            return sendError(context, 400, "請至少選擇一位分帳參與者");
-          }
-          participantIds = nextParticipantIds;
         }
 
         let participantShares: ParticipantShare[] | undefined;
@@ -431,48 +434,38 @@ export function registerExpenseRoutes(
             );
           }
         }
-        const updatedExpense = await withTransaction(pool, async (client) => {
-          const result = await client.query(
-            `UPDATE expenses
+        const updatedExpense = await pool.query(
+          `UPDATE expenses
            SET description = $1, amount_minor = $2, currency = $3, category = $4, tags = $5, paid_by_id = $6, expense_date = $7,
                exchange_rate = $10
            WHERE trip_id = $8 AND id = $9`,
-            [
-              description,
-              amountMinor,
-              currencyValue,
-              category,
-              tags,
-              paidById,
-              expenseDate,
-              trip.id,
-              context.req.param("expenseId"),
-              amountMinor !== expense.amountMinor ||
-              currencyValue !== expense.currency
-                ? expenseExchangeRate(
-                    trip,
-                    currencyValue,
-                    candidate,
-                    amountMinor,
-                  )
-                : expense.exchangeRate,
-            ],
-          );
-          if (result.rowCount === 0 || !shouldReplaceSplits) {
-            return result;
-          }
-
-          await client.query(
+          [
+            description,
+            amountMinor,
+            currencyValue,
+            category,
+            tags,
+            paidById,
+            expenseDate,
+            trip.id,
+            context.req.param("expenseId"),
+            amountMinor !== expense.amountMinor ||
+            currencyValue !== expense.currency
+              ? expenseExchangeRate(trip, currencyValue, candidate, amountMinor)
+              : expense.exchangeRate,
+          ],
+        );
+        if (updatedExpense.rowCount !== 0 && shouldReplaceSplits) {
+          await pool.query(
             "DELETE FROM expense_participants WHERE trip_id = $1 AND expense_id = $2",
             [trip.id, context.req.param("expenseId")],
           );
-          await insertExpenseParticipants(client, trip.id, {
+          await insertExpenseParticipants(pool, trip.id, {
             id: context.req.param("expenseId"),
             participantIds,
             participantShares,
           });
-          return result;
-        });
+        }
         if (updatedExpense.rowCount === 0) {
           return sendError(context, 404, "找不到支出");
         }

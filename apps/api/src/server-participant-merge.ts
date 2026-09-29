@@ -11,7 +11,6 @@ import {
   requestBody,
   sendError,
   stringField,
-  withTransaction,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
 
@@ -50,13 +49,12 @@ export function registerParticipantMergeRoute(
         return sendError(context, 400, "不能合併同一位參與者");
       }
 
-      await withTransaction(pool, async (client) => {
-        await client.query(
-          "UPDATE expenses SET paid_by_id = $3 WHERE trip_id = $1 AND paid_by_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `UPDATE expense_participants target
+      await pool.query(
+        "UPDATE expenses SET paid_by_id = $3 WHERE trip_id = $1 AND paid_by_id = $2",
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        `UPDATE expense_participants target
            SET share_minor = CASE
              WHEN target.share_minor IS NULL OR source.share_minor IS NULL THEN NULL
              ELSE target.share_minor + source.share_minor
@@ -67,47 +65,46 @@ export function registerParticipantMergeRoute(
              AND source.participant_id = $2
              AND target.participant_id = $3
              AND target.expense_id = source.expense_id`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `DELETE FROM expense_participants source
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        `DELETE FROM expense_participants source
            USING expense_participants target
            WHERE source.trip_id = $1
              AND target.trip_id = $1
              AND source.participant_id = $2
              AND target.participant_id = $3
              AND source.expense_id = target.expense_id`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `UPDATE expense_participants
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        `UPDATE expense_participants
            SET participant_id = $3
            WHERE trip_id = $1 AND participant_id = $2`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          `DELETE FROM settlement_payments
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        `DELETE FROM settlement_payments
            WHERE trip_id = $1
              AND ((from_id = $2 AND to_id = $3) OR (from_id = $3 AND to_id = $2))`,
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "UPDATE settlement_payments SET from_id = $3 WHERE trip_id = $1 AND from_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "UPDATE settlement_payments SET to_id = $3 WHERE trip_id = $1 AND to_id = $2",
-          [trip.id, sourceId, targetId],
-        );
-        await client.query(
-          "DELETE FROM settlement_payments WHERE trip_id = $1 AND from_id = to_id",
-          [trip.id],
-        );
-        await client.query(
-          "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
-          [trip.id, sourceId],
-        );
-      });
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        "UPDATE settlement_payments SET from_id = $3 WHERE trip_id = $1 AND from_id = $2",
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        "UPDATE settlement_payments SET to_id = $3 WHERE trip_id = $1 AND to_id = $2",
+        [trip.id, sourceId, targetId],
+      );
+      await pool.query(
+        "DELETE FROM settlement_payments WHERE trip_id = $1 AND from_id = to_id",
+        [trip.id],
+      );
+      await pool.query(
+        "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
+        [trip.id, sourceId],
+      );
 
       await recordExpenseChanges(
         pool,

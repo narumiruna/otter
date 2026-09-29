@@ -213,58 +213,35 @@ export function filterAndSortExpenses(
       return true;
     })
     .sort((left, right) => {
-      switch (filters.sort) {
-        case "date-asc": {
-          const dateCmp = left.expenseDate.localeCompare(right.expenseDate);
-          if (dateCmp !== 0) return dateCmp;
-          const createdAtCmp = left.createdAt.localeCompare(right.createdAt);
-          if (createdAtCmp !== 0) return createdAtCmp;
-          return left.id.localeCompare(right.id);
-        }
-        case "amount-desc":
-          return (
-            convertExpenseMinor(
-              right.amountMinor,
-              right.currency,
-              trip.baseCurrency,
-              right.exchangeRate,
-              trip.exchangeRates,
-            ) -
-            convertExpenseMinor(
-              left.amountMinor,
-              left.currency,
-              trip.baseCurrency,
-              left.exchangeRate,
-              trip.exchangeRates,
-            )
-          );
-        case "amount-asc":
-          return (
-            convertExpenseMinor(
-              left.amountMinor,
-              left.currency,
-              trip.baseCurrency,
-              left.exchangeRate,
-              trip.exchangeRates,
-            ) -
-            convertExpenseMinor(
-              right.amountMinor,
-              right.currency,
-              trip.baseCurrency,
-              right.exchangeRate,
-              trip.exchangeRates,
-            )
-          );
-        case "date-desc": {
-          const dateCmp = right.expenseDate.localeCompare(left.expenseDate);
-          if (dateCmp !== 0) return dateCmp;
-          const createdAtCmp = right.createdAt.localeCompare(left.createdAt);
-          if (createdAtCmp !== 0) return createdAtCmp;
-          return right.id.localeCompare(left.id);
-        }
-        default:
-          return 0;
+      if (filters.sort === "date-asc" || filters.sort === "date-desc") {
+        const direction = filters.sort === "date-asc" ? 1 : -1;
+        return (
+          direction *
+          (left.expenseDate.localeCompare(right.expenseDate) ||
+            left.createdAt.localeCompare(right.createdAt) ||
+            left.id.localeCompare(right.id))
+        );
       }
+      if (filters.sort === "amount-asc" || filters.sort === "amount-desc") {
+        const leftAmount = convertExpenseMinor(
+          left.amountMinor,
+          left.currency,
+          trip.baseCurrency,
+          left.exchangeRate,
+          trip.exchangeRates,
+        );
+        const rightAmount = convertExpenseMinor(
+          right.amountMinor,
+          right.currency,
+          trip.baseCurrency,
+          right.exchangeRate,
+          trip.exchangeRates,
+        );
+        return (
+          (filters.sort === "amount-asc" ? 1 : -1) * (leftAmount - rightAmount)
+        );
+      }
+      return 0;
     });
 }
 

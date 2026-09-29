@@ -12,8 +12,8 @@ import { apiWritesDisabledMessage, currentUser } from "./server-support.js";
 
 type MutationResult = Response | (() => Promise<Response>);
 
-// All same-trip writers lock the parent first. Nested withTransaction calls reuse
-// this client; only this boundary owns commit/rollback (including HTTP errors).
+// All same-trip writers lock the parent first. The handler uses this client
+// directly; only this boundary owns commit/rollback (including HTTP errors).
 // Return a function to enrich a successful response after commit AND release.
 // Capture its data in the transaction; never use this client in that function.
 export function tripMutation<Path extends string>(

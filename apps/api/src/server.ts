@@ -590,47 +590,44 @@ export function createApp(
           }
         }
 
-        await withTransaction(pool, async (client) => {
-          if (hasArchived) {
-            await client.query(
-              "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3, allow_api_writes = $4 WHERE id = $5 AND owner_id = $6",
-              [
-                name,
-                baseCurrencyValue,
-                archivedAt,
-                hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-                context.req.param("tripId"),
-                user.id,
-              ],
-            );
-          } else {
-            await client.query(
-              "UPDATE trips SET name = $1, base_currency = $2, allow_api_writes = $3 WHERE id = $4 AND owner_id = $5",
-              [
-                name,
-                baseCurrencyValue,
-                hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-                context.req.param("tripId"),
-                user.id,
-              ],
-            );
-          }
+        if (hasArchived) {
+          await pool.query(
+            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3, allow_api_writes = $4 WHERE id = $5 AND owner_id = $6",
+            [
+              name,
+              baseCurrencyValue,
+              archivedAt,
+              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
+              context.req.param("tripId"),
+              user.id,
+            ],
+          );
+        } else {
+          await pool.query(
+            "UPDATE trips SET name = $1, base_currency = $2, allow_api_writes = $3 WHERE id = $4 AND owner_id = $5",
+            [
+              name,
+              baseCurrencyValue,
+              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
+              context.req.param("tripId"),
+              user.id,
+            ],
+          );
+        }
 
-          if (!hasExchangeRates && !baseCurrencyChanged) {
-            return;
-          }
-          await client.query(
+        if (hasExchangeRates || baseCurrencyChanged) {
+          await pool.query(
             "DELETE FROM trip_exchange_rates WHERE trip_id = $1",
             [context.req.param("tripId")],
           );
           for (const [currency, rate] of exchangeRates) {
-            await client.query(
+            await pool.query(
               `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
              VALUES ($1, $2, $3)`,
               [context.req.param("tripId"), currency, rate],
             );
           }
-        });
+        }
 
         const updated = await loadTripForUser(
           pool,
@@ -860,9 +857,6 @@ export function createApp(
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);
-
-  app.all("/api", (context) => context.json({ error: "找不到 API" }, 404));
-  app.all("/api/*", (context) => context.json({ error: "找不到 API" }, 404));
 
   app.notFound((context) =>
     context.req.path.startsWith("/api")

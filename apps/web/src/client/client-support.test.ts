@@ -247,6 +247,42 @@ test("date sort uses createdAt and id as tie-breakers for same-date expenses", (
   );
 });
 
+test("amount sorting keeps the original order when converted amounts tie", () => {
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-25T01:00:00.000Z",
+        currency: "TWD",
+        description: "First",
+        expenseDate: "2026-06-25",
+        id: "first",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+      {
+        amountMinor: 100,
+        createdAt: "2026-06-24T01:00:00.000Z",
+        currency: "TWD",
+        description: "Second",
+        expenseDate: "2026-06-24",
+        id: "second",
+        paidById: "alice",
+        participantIds: ["alice"],
+      },
+    ],
+  };
+  for (const sort of ["amount-asc", "amount-desc"] as const) {
+    assert.deepEqual(
+      filterAndSortExpenses(trip, { ...defaultExpenseFilters, sort }).map(
+        ({ id }) => id,
+      ),
+      ["first", "second"],
+    );
+  }
+});
+
 test("expense split labels summarize all-person splits", () => {
   assert.equal(expenseSplitLabel(baseTrip, ["alice", "bob"]), "所有人");
   assert.equal(expenseSplitLabel(baseTrip, ["bob"]), "Bob");
