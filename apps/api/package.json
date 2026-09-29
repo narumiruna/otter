@@ -1,6 +1,6 @@
 {
   "name": "@narumitw/otter-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
-    "@narumitw/otter-contracts": "0.1.0",
-    "@narumitw/otter-core": "0.1.0",
+    "@narumitw/otter-contracts": "0.1.1",
+    "@narumitw/otter-core": "0.1.1",
     "@narumitw/otter-exchange-rates": "0.1.0",
     "@simplewebauthn/server": "^14.0.2",
     "hono": "^4.13.4",
