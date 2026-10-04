@@ -131,56 +131,55 @@ function ParticipantRow({
   const { offline, requestPayload } = useWorkspace();
   const blocked = participantDeleteBlockReason(trip, person.id);
   return (
-    <li className="flex flex-wrap items-center gap-3 p-3">
+    <li className="people-row p-3">
       <span
         className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-semibold text-secondary-foreground"
         aria-hidden="true"
       >
         {person.name.trim().charAt(0).toLocaleUpperCase() || "?"}
       </span>
-      <strong className="min-w-0 flex-1 break-anywhere">{person.name}</strong>
+      <strong className="people-row-name break-anywhere">{person.name}</strong>
       <SettlementRepresentative
         person={person}
         readonly={readonly}
         trip={trip}
       />
       {!readonly ? (
-        <RenameParticipant offline={offline} person={person} trip={trip} />
+        <div className="people-row-actions">
+          <RenameParticipant offline={offline} person={person} trip={trip} />
+          {blocked ? (
+            <span className="text-xs text-muted-foreground">
+              {messages.cannotDeleteReasonUpdateRelatedExpensesFirstOrUseTheMergeToolBelow(
+                { reason: blocked },
+              )}
+            </span>
+          ) : (
+            <ConfirmDialog
+              confirmLabel={messages.deleteName2({ name: person.name })}
+              description={
+                messages.thisPersonHasNoExpensesOrPaymentsDeletionCannotBeUndone
+              }
+              destructive
+              disabled={offline}
+              onConfirm={() =>
+                requestPayload(
+                  `/api/trips/${trip.id}/participants/${person.id}`,
+                  { method: "DELETE" },
+                  messages.expenseParticipantDeleted,
+                  true,
+                )
+              }
+              title={messages.deleteThisExpenseParticipant}
+              trigger={
+                <Button size="sm" variant="ghost">
+                  <Trash2 aria-hidden="true" />
+                  {messages.delete}
+                </Button>
+              }
+            />
+          )}
+        </div>
       ) : null}
-      {!readonly &&
-        (blocked ? (
-          <span className="text-xs text-muted-foreground">
-            {messages.cannotDeleteReasonUpdateRelatedExpensesFirstOrUseTheMergeToolBelow(
-              {
-                reason: blocked,
-              },
-            )}
-          </span>
-        ) : (
-          <ConfirmDialog
-            confirmLabel={messages.deleteName2({ name: person.name })}
-            description={
-              messages.thisPersonHasNoExpensesOrPaymentsDeletionCannotBeUndone
-            }
-            destructive
-            disabled={offline}
-            onConfirm={() =>
-              requestPayload(
-                `/api/trips/${trip.id}/participants/${person.id}`,
-                { method: "DELETE" },
-                messages.expenseParticipantDeleted,
-                true,
-              )
-            }
-            title={messages.deleteThisExpenseParticipant}
-            trigger={
-              <Button size="sm" variant="ghost">
-                <Trash2 aria-hidden="true" />
-                {messages.delete}
-              </Button>
-            }
-          />
-        ))}
     </li>
   );
 }
@@ -206,13 +205,13 @@ function SettlementRepresentative({
   );
   if (readonly) {
     return representative ? (
-      <span className="text-sm text-muted-foreground">
+      <span className="people-settlement text-sm text-muted-foreground">
         {messages.settledByName({ name: representative.name })}
       </span>
     ) : null;
   }
   return (
-    <div className="grid gap-1">
+    <div className="people-settlement grid gap-1">
       <label
         className="text-xs text-muted-foreground"
         htmlFor={`settled-by-${person.id}`}
@@ -221,8 +220,11 @@ function SettlementRepresentative({
       </label>
       <select
         id={`settled-by-${person.id}`}
-        className="form-control"
+        className="form-control people-settlement-select"
         value={person.settledById ?? ""}
+        aria-describedby={
+          hasDependents ? `settled-by-reason-${person.id}` : undefined
+        }
         disabled={offline || busy || hasDependents}
         onChange={async (event) => {
           setBusy(true);
@@ -261,7 +263,10 @@ function SettlementRepresentative({
           ))}
       </select>
       {hasDependents ? (
-        <span className="text-xs text-muted-foreground">
+        <span
+          className="text-xs text-muted-foreground"
+          id={`settled-by-reason-${person.id}`}
+        >
           {messages.representativeHasDependents}
         </span>
       ) : null}

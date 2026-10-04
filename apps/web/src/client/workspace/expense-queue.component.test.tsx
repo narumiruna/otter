@@ -52,9 +52,11 @@ test("offline creates a durable, uncounted draft; pending edits rotate the ID, a
   );
   const [original] = await listExpenses("u", payload.trip.id);
   expect(payload.trip.expenses).toHaveLength(0);
-  await user.click(view.getByRole("button", { name: "修改草稿" }));
+  const editButton = view.getByRole("button", { name: "修改草稿" });
+  await waitFor(() => expect(editButton).toBeEnabled());
+  await user.click(editButton);
   const panel = view.getByRole("region", { name: "尚未同步的支出" });
-  const input = within(panel).getByPlaceholderText("1000");
+  const input = await within(panel).findByPlaceholderText("1000");
   await user.clear(input);
   await user.type(input, "200");
   await user.click(within(panel).getByRole("button", { name: "存到此裝置" }));
@@ -119,8 +121,12 @@ test("switching queued editors cannot discard dirty changes without confirmation
   expect(firstRow).not.toBeNull();
   expect(secondRow).not.toBeNull();
   if (!firstRow || !secondRow) throw new Error("Missing queue rows");
-  await user.click(within(firstRow).getByRole("button", { name: "修改草稿" }));
-  const description = within(panel).getByLabelText("描述");
+  const editButton = within(firstRow).getByRole("button", {
+    name: "修改草稿",
+  });
+  await waitFor(() => expect(editButton).toBeEnabled());
+  await user.click(editButton);
+  const description = await within(panel).findByLabelText("描述");
   await user.clear(description);
   await user.type(description, "Unsaved change");
   const switchButton = within(secondRow).getByRole("button", {
@@ -203,8 +209,10 @@ test("cross-tab deletion closes a missing editor and clears workspace editing st
     </QueryClientProvider>,
   );
   try {
-    await user.click(await view.findByRole("button", { name: "修改草稿" }));
-    const description = view.getByLabelText("描述");
+    const editButton = await view.findByRole("button", { name: "修改草稿" });
+    await waitFor(() => expect(editButton).toBeEnabled());
+    await user.click(editButton);
+    const description = await view.findByLabelText("描述");
     await user.type(description, " unsaved");
     await waitFor(() => expect(onEditingChange).toHaveBeenLastCalledWith(true));
     await changeExpense(item.id, "u", trip.id, () => null);
@@ -264,8 +272,12 @@ test("reconnect waits for the queued editor and sends its saved changes, not the
   const view = render(workspace(true));
   try {
     const panel = await view.findByRole("region", { name: "尚未同步的支出" });
-    await user.click(within(panel).getByRole("button", { name: "修改草稿" }));
-    const description = within(panel).getByLabelText("描述");
+    const editButton = within(panel).getByRole("button", {
+      name: "修改草稿",
+    });
+    await waitFor(() => expect(editButton).toBeEnabled());
+    await user.click(editButton);
+    const description = await within(panel).findByLabelText("描述");
     await user.clear(description);
     await user.type(description, "Correct details");
     view.rerender(workspace(false));

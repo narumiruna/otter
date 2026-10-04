@@ -206,7 +206,10 @@ test("a family member can settle through another participant without merging", a
     </I18nProvider>,
   );
   const childRow = within(screen.getAllByRole("listitem")[1]);
-  await user.selectOptions(childRow.getByLabelText("Settle through"), "parent");
+  await user.selectOptions(
+    childRow.getByLabelText("Settlement assigned to"),
+    "parent",
+  );
   expect(fetchMock).toHaveBeenCalledWith(
     "/api/trips/trip_people/participants/child",
     expect.objectContaining({
@@ -214,6 +217,97 @@ test("a family member can settle through another participant without merging", a
       body: JSON.stringify({ settledById: "parent" }),
     }),
   );
+});
+
+test("failed settlement assignment keeps the previous selection and shows an error", async () => {
+  const trip: TripPayload["trip"] = {
+    ...payload.trip,
+    participants: [
+      { id: "parent", name: "Parent" },
+      { id: "child", name: "Child" },
+    ],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ error: "無法更新結算歸屬" }, { status: 409 }),
+    ),
+  );
+  const user = userEvent.setup();
+  render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkspaceProvider
+          announce={() => undefined}
+          offline={false}
+          payload={{ ...payload, trip }}
+          refreshCollection={async () => undefined}
+        >
+          <PeoplePage trip={trip} />
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+
+  const child = within(screen.getAllByRole("listitem")[1]);
+  const select = child.getByRole("combobox", { name: "結算歸屬" });
+  await user.selectOptions(select, "parent");
+  expect(await child.findByRole("alert")).toHaveTextContent("無法更新結算歸屬");
+  expect(select).toHaveValue("");
+});
+
+test.each([
+  {
+    locale: "zh-TW" as const,
+    label: "結算歸屬",
+    self: "本人（獨立結算）",
+    reason: "已有成員歸屬此人，請先移除歸屬。",
+  },
+  {
+    locale: "en" as const,
+    label: "Settlement assigned to",
+    self: "Self (settle separately)",
+    reason:
+      "Other members are assigned to this person. Remove those assignments first.",
+  },
+])("settlement assignments are clear and accessible in $locale", (locale) => {
+  const trip: TripPayload["trip"] = {
+    ...payload.trip,
+    participants: [
+      { id: "parent", name: "Parent" },
+      { id: "child", name: "Child", settledById: "parent" },
+      { id: "other", name: "Other" },
+    ],
+  };
+  render(
+    <I18nProvider initialLocale={locale.locale}>
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkspaceProvider
+          announce={() => undefined}
+          offline={false}
+          payload={{ ...payload, trip }}
+          refreshCollection={async () => undefined}
+        >
+          <PeoplePage trip={trip} />
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+
+  const [parent, child, other] = screen
+    .getAllByRole("listitem")
+    .map((row) => within(row));
+  const parentSelect = parent.getByRole("combobox", { name: locale.label });
+  expect(parentSelect).toBeDisabled();
+  expect(parentSelect).toHaveValue("");
+  expect(parentSelect).toHaveAccessibleDescription(locale.reason);
+  expect(parent.getByText(locale.reason)).toBeVisible();
+  expect(child.getByRole("combobox", { name: locale.label })).toHaveValue(
+    "parent",
+  );
+  expect(child.getByRole("option", { name: locale.self })).toHaveValue("");
+  expect(other.getByRole("combobox", { name: locale.label })).toBeEnabled();
+  expect(other.queryByRole("option", { name: "Other" })).toBeNull();
 });
 
 test("English participant management uses a page-specific heading", () => {

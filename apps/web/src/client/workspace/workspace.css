@@ -1,3 +1,49 @@
+.people-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 12rem 11rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+.people-row-name,
+.people-settlement,
+.people-row-actions {
+  min-width: 0;
+}
+.people-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+.people-row-actions > span {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+.people-settlement-select {
+  min-height: 40px;
+  padding-block: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.people-settlement-select:disabled {
+  border-color: var(--gray-7);
+  background: var(--gray-3);
+  color: var(--foreground);
+  opacity: 1;
+}
+@media (max-width: 680px) {
+  .people-row {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+  .people-settlement,
+  .people-row-actions {
+    grid-column: 1 / -1;
+  }
+  .people-settlement-select {
+    min-height: 44px;
+  }
+}
+
 .trip-list-copy {
   display: grid;
   min-width: 0;
