@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import type { CreateExpenseResponse } from "@narumitw/otter-contracts";
 import { test } from "vitest";
 import {
   api,
@@ -61,7 +62,7 @@ test(
       tripPath = path,
       userId?: string,
     ) =>
-      api<TripPayload & { error?: string }>(baseUrl, tripPath, {
+      api<CreateExpenseResponse & { error?: string }>(baseUrl, tripPath, {
         method: "POST",
         body: json,
         headers: {
@@ -83,6 +84,22 @@ test(
     assert.ok(concurrent.every(({ data }) => data.trip.expenses.length === 1));
     const expense = concurrent[0].data.trip.expenses[0];
     assert.ok(expense);
+    assert.ok(
+      concurrent.every(({ data }) => data.createdExpenseId === expense.id),
+    );
+    // Concurrent writes cannot change the identity reported by this response.
+    const secondCreate = await api<CreateExpenseResponse>(baseUrl, path, {
+      method: "POST",
+      body,
+      headers: { cookie: owner.cookie },
+    });
+    assert.equal(secondCreate.response.status, 201);
+    assert.notEqual(secondCreate.data.createdExpenseId, expense.id);
+    assert.equal(secondCreate.data.trip.expenses.length, 2);
+    assert.equal(
+      (await post(owner.cookie, key)).data.createdExpenseId,
+      expense.id,
+    );
     assert.equal(
       (
         await pool.query(
@@ -90,7 +107,7 @@ test(
           [trip.id],
         )
       ).rows[0].n,
-      1,
+      2,
     );
     assert.equal(
       (
@@ -136,7 +153,8 @@ test(
     assert.equal(deleted.response.status, 200);
     const replay = await post(owner.cookie, key);
     assert.equal(replay.response.status, 200);
-    assert.equal(replay.data.trip.expenses.length, 0);
+    assert.equal(replay.data.createdExpenseId, expense.id);
+    assert.equal(replay.data.trip.expenses.length, 1);
     assert.equal(
       (
         await pool.query(
@@ -164,7 +182,7 @@ test(
           [trip.id],
         )
       ).rows[0].n,
-      0,
+      1,
     );
     await pool.query(
       "DROP TRIGGER refuse_operation ON expense_create_operations",

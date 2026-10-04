@@ -184,6 +184,8 @@ export type DeviceTokenResponse = {
   token_type: "Bearer";
 };
 
+export type CreateExpenseResponse = TripPayload & { createdExpenseId: string };
+
 export type CreateExpenseRequest = {
   amount: string;
   category?: ExpenseCategory;

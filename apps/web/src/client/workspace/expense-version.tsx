@@ -14,11 +14,17 @@ import { ActionError } from "./workspace-context.js";
 export function useExpenseVersion(
   expense: Expense | undefined,
   tripId: string,
+  initialError?: unknown,
 ) {
   const { messages } = useI18n();
   const [version, setVersion] = useState(expense?.version);
-  const [conflict, setConflict] = useState(false);
-  const [missing, setMissing] = useState(false);
+  const [conflict, setConflict] = useState(
+    initialError instanceof ApiResponseError &&
+      [404, 412, 428].includes(initialError.status),
+  );
+  const [missing, setMissing] = useState(
+    initialError instanceof ApiResponseError && initialError.status === 404,
+  );
   const [latest, setLatest] = useState<{
     expense: Expense;
     trip: TripPayload["trip"];

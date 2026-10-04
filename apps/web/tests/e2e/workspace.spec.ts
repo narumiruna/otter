@@ -132,6 +132,60 @@ test("Back restores the previous view scroll position", async ({ page }) => {
     .toBeGreaterThan(200);
 });
 
+test("mobile new expense attaches a camera photo to the expense it created", async ({
+  page,
+}) => {
+  await login(page);
+  const groupName = `Receipt-${Date.now()}`;
+  await page.getByRole("button", { name: "建立群組" }).click();
+  const createDialog = page.getByRole("dialog", { name: "建立群組" });
+  await createDialog.getByLabel("群組名稱").fill(groupName);
+  await createDialog.getByRole("button", { name: "建立群組" }).click();
+  await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
+  await page.getByLabel("成員名稱").fill("Bob");
+  await page.getByRole("button", { name: "新增成員" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "記一筆" }).click();
+  await page.getByLabel("描述").fill("相機收據測試");
+  await page.getByLabel("金額", { exact: true }).fill("80");
+  const camera = page.getByLabel("拍照");
+  await expect(camera).toHaveAttribute("capture", "environment");
+  await camera.setInputFiles({
+    name: "camera.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  const created = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/trips\/[^/]+\/expenses$/.test(response.url()),
+  );
+  await page.getByRole("button", { name: "記錄支出" }).click();
+  const result = await (await created).json();
+  expect(result.createdExpenseId).toBeTruthy();
+  await page
+    .getByRole("button", { name: "相機收據測試", exact: true })
+    .first()
+    .click();
+  await expect(page.getByRole("button", { name: "查看收據" })).toBeVisible();
+  await page.getByRole("button", { name: "查看收據" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "「相機收據測試」的收據" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "群組設定" }).click();
+  await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
+  await page.getByLabel(`輸入「${groupName}」確認`).fill(groupName);
+  await page.getByRole("button", { name: "永久刪除群組" }).click();
+  await page
+    .getByRole("dialog", { name: "永久刪除群組？" })
+    .getByRole("button", { name: `永久刪除「${groupName}」` })
+    .click();
+});
+
 test("failed expense mutation preserves the draft and previous data", async ({
   page,
 }) => {

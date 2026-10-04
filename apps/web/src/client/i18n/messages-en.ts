@@ -504,6 +504,20 @@ export const en = {
   uploading: "Uploading…",
   uploadReceipt: "Upload receipt",
   receiptFileRequirements: "JPEG, PNG, or WebP · Up to 5 MB",
+  selectReceiptPhoto: "Upload photo",
+  takeReceiptPhoto: "Take photo",
+  removeReceiptPhoto: "Remove photo",
+  receiptOnlineOnly:
+    "Photos require a connection; offline drafts do not store photos. Remove the photo or reconnect first.",
+  receiptFileTooLarge: "Photos must be 5 MB or smaller",
+  expenseSavedReceiptFailed:
+    "Expense created, but receipt upload failed. Retry now or add it later from the expense list.",
+  retryReceiptUpload: "Retry receipt upload",
+  receiptAlreadyAttached:
+    "This expense already has a receipt. Review it from the expense list; it will not be overwritten automatically",
+  uploadReceiptLater: "Upload later",
+  expenseCreationUncertain:
+    "We cannot confirm whether the expense was created. Check the expense list before adding it again; do not retry immediately.",
   viewReceipt: "View receipt",
   noReceipt: "No receipt",
   deleteReceipt: "Delete receipt",

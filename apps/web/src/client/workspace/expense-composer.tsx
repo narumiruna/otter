@@ -1,4 +1,9 @@
-import type { Expense, Trip } from "@narumitw/otter-contracts";
+import {
+  type CreateExpenseResponse,
+  type Expense,
+  isExpenseVersion,
+  type Trip,
+} from "@narumitw/otter-contracts";
 import { isDateOnly } from "@narumitw/otter-core/date";
 import {
   expenseCategories,
@@ -23,12 +28,18 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { todayDate } from "../client-support.js";
+import { ApiResponseError, api, todayDate } from "../client-support.js";
 import type { QueuedExpense, QueuedExpenseDraft } from "../expense-queue.js";
 import { localizeMessage, useI18n } from "../i18n.js";
 import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
+import {
+  CreatedReceiptRecovery,
+  NewExpenseReceiptPicker,
+  receiptFileError,
+  uploadNewExpenseReceipt,
+} from "./new-expense-receipt.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -91,17 +102,31 @@ export function ExpenseComposer({
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
-  const { offline, canQueue, requestPayload, queueDraft, announce } =
-    useWorkspace();
+  const {
+    offline,
+    canQueue,
+    requestPayload,
+    queueDraft,
+    announce,
+    replacePayload,
+    refreshCollection,
+  } = useWorkspace();
   const versionState = useExpenseVersion(expense, originalTrip.id);
   const trip = versionState.latest?.trip ?? originalTrip;
   const [serverError, setServerError] = useState("");
+  const [file, setFile] = useState<File>();
+  const [fileError, setFileError] = useState("");
+  const [creationUncertain, setCreationUncertain] = useState(false);
+  const [savedReceipt, setSavedReceipt] = useState<{
+    expense: Expense;
+    error: unknown;
+  }>();
   const form = useForm<ExpenseDraft>({
     defaultValues: queued?.draft ?? defaults(trip, expense),
   });
   const previousLocale = useRef(locale);
   const values = form.watch();
-  const isDirty = form.formState.isDirty;
+  const isDirty = form.formState.isDirty || !!file;
 
   useEffect(() => {
     if (previousLocale.current === locale) return;
@@ -203,11 +228,62 @@ export function ExpenseComposer({
     }
     try {
       normalizeExpenseTags(draft.tags);
+      if (file) {
+        const invalid = receiptFileError(file, messages);
+        if (invalid) {
+          setFileError(invalid);
+          return;
+        }
+        if (queued || offline) {
+          setServerError(messages.receiptOnlineOnly);
+          return;
+        }
+      }
       if (!expense && (queued || offline)) {
         await queueDraft(draft, queued);
         announce(messages.queueSaved);
         form.reset(defaults(trip));
         onSaved?.();
+        return;
+      }
+      if (!expense && file) {
+        let created: CreateExpenseResponse;
+        try {
+          created = await api<CreateExpenseResponse>(
+            `/api/trips/${trip.id}/expenses`,
+            { body: JSON.stringify(draft), method: "POST" },
+          );
+        } catch (error) {
+          if (!(error instanceof ApiResponseError) || error.status >= 500)
+            setCreationUncertain(true);
+          throw error;
+        }
+        replacePayload(created);
+        const newExpense = created.trip.expenses.find(
+          (item) => item.id === created.createdExpenseId,
+        );
+        if (!newExpense || !isExpenseVersion(newExpense.version)) {
+          setCreationUncertain(true);
+          setServerError(messages.expenseCreationUncertain);
+          return;
+        }
+        try {
+          const uploaded = await uploadNewExpenseReceipt(
+            trip.id,
+            newExpense,
+            file,
+          );
+          replacePayload(uploaded);
+          await refreshCollection().catch(() =>
+            announce(messages.loadingFailed),
+          );
+          announce(messages.expenseRecorded);
+          setFile(undefined);
+          form.reset(defaults(trip));
+          onSaved?.();
+        } catch (error) {
+          setSavedReceipt({ expense: newExpense, error });
+        }
         return;
       }
       await requestPayload(
@@ -237,6 +313,22 @@ export function ExpenseComposer({
       );
     }
   });
+
+  if (savedReceipt && file) {
+    return (
+      <CreatedReceiptRecovery
+        expense={savedReceipt.expense}
+        file={file}
+        initialError={savedReceipt.error}
+        trip={trip}
+        onDone={() => {
+          setFile(undefined);
+          if (onSaved) onSaved();
+          else onCancel();
+        }}
+      />
+    );
+  }
 
   const cancelButton = (
     <Button
@@ -280,7 +372,9 @@ export function ExpenseComposer({
             <ConfirmDialog
               confirmLabel={messages.discardDraft}
               description={
-                messages.unsavedChangesWillBeLostExistingDataWillNotChange
+                creationUncertain
+                  ? messages.expenseCreationUncertain
+                  : messages.unsavedChangesWillBeLostExistingDataWillNotChange
               }
               destructive
               onConfirm={onCancel}
@@ -295,6 +389,9 @@ export function ExpenseComposer({
 
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
+        {creationUncertain ? (
+          <p role="alert">{messages.expenseCreationUncertain}</p>
+        ) : null}
         {!expense && (offline || queued) && canQueue ? (
           <p className="text-sm text-muted-foreground">
             {messages.queueSyncPricing}
@@ -531,6 +628,27 @@ export function ExpenseComposer({
           </div>
         </details>
 
+        {!expense ? (
+          <>
+            <NewExpenseReceiptPicker
+              busy={form.formState.isSubmitting}
+              disabled={
+                offline ||
+                !!queued ||
+                creationUncertain ||
+                form.formState.isSubmitting
+              }
+              file={file}
+              onlineOnly={offline || !!queued}
+              onChange={(next) => {
+                setFile(next);
+                setFileError(next ? receiptFileError(next, messages) : "");
+              }}
+            />
+            <ActionError message={fileError} />
+          </>
+        ) : null}
+
         {expense ? (
           <section
             aria-labelledby="expense-receipt-heading"
@@ -585,7 +703,8 @@ export function ExpenseComposer({
               (offline && (!!expense || !canQueue)) ||
               !!preview?.error ||
               versionState.conflict ||
-              versionState.missing
+              versionState.missing ||
+              creationUncertain
             }
             type="submit"
           >

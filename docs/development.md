@@ -121,6 +121,8 @@ Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/sc
 | 改基準幣及付款 | 舊快照保留原基準幣，用當下匯率橋接；外幣付款仍浮動 | `server.expense-exchange-rate.test.ts`、`server.settlement-payments.test.ts` |
 | 舊版 payload | 無快照可讀但不冒充歷史快照；服務端遷移資料另有明確 `legacy` | `index.test.ts`、`expense-history.test.ts` |
 
+新增支出 `POST /api/trips/:tripId/expenses` 的成功回應除 `TripPayload` 外，還有 `createdExpenseId`，指向本次 transaction 真正建立的支出；重播既有操作 ID 也回傳原始 ID（即使該支出後來被刪除）。瀏覽器用此 ID 與該筆支出版本再 `PUT /expenses/:expenseId/receipt`，不能從清單差異猜 ID。兩個請求不是原子交易；第一個成功、第二個失敗時保留支出，只重試收據 PUT。線上建檔回應不明時不自動重送 POST，提示使用者先檢查清單；離線操作 ID 流程維持原有 guest 限制。照片檔案只存在表單記憶體，不進 IndexedDB。
+
 成功的 `tripMutation` handler 回傳 deferred response function：先在 transaction 內載入完整的 `LoadedTrip`，由 wrapper commit 並 release client 後，才呼叫 `buildTripPayload` 取得銀行匯率與產生回應。Deferred function 不可再使用 transaction client 或重新載入目前支出；否則會誤用已釋放的連線，或把後續修改混入本次回應。銀行失敗仍使用既有固定匯率 fallback；commit 後的回應處理錯誤不會回滾已完成的 mutation。慢速 provider 不應占用 trip lock 或 DB pool。`loadTrip` 收到 Pool 時平行執行六個獨立 detail queries；收到 transaction client 時循序執行，避免在單一連線排入尚未完成的 query。兩種路徑的支出 version、分帳與收據仍由同一 SQL snapshot 讀取。
 
 單筆支出 PATCH／DELETE 與收據 PUT／DELETE 要求觀察到的版本，例如：
