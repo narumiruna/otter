@@ -200,9 +200,16 @@ test("recent expenses open the editor and expense rows edit from non-title cells
     await user.click(
       view.getByRole("button", { name: "View receipt for Dinner" }),
     );
-    expect(
-      view.getByRole("dialog", { name: "Receipt for “Dinner”" }),
-    ).toBeVisible();
+    const dialog = view.getByRole("dialog", { name: "Receipt for “Dinner”" });
+    expect(dialog).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("heading", { name: "Receipt for “Dinner”" }),
+    );
+    expect(dialog).toBeVisible();
+    await user.click(
+      within(dialog).getByText("Click the image or press Esc to close."),
+    );
+    expect(dialog).toBeVisible();
     expect(view.queryByLabelText("Description")).toBeNull();
   } finally {
     view.unmount();

@@ -796,7 +796,8 @@ function ExpenseTableRow({
           ? undefined
           : (event) => {
               if (
-                event.target instanceof Element &&
+                !(event.target instanceof Element) ||
+                !event.currentTarget.contains(event.target) ||
                 event.target.closest("button, a, input, select, textarea")
               )
                 return;
