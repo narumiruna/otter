@@ -15,7 +15,7 @@ export type TripBackupV1 = {
     name: string;
     baseCurrency: Currency;
     exchangeRates?: Partial<Record<Currency, number>>;
-    participants: { id: string; name: string }[];
+    participants: { id: string; name: string; settledById?: string }[];
     expenses: {
       id: string;
       description: string;
@@ -120,6 +120,22 @@ export function validateTripBackupV1(
     }
     participantIds.add(participant.id);
     participantNames.add(name);
+  }
+  const representatives = new Set(
+    trip.participants
+      .map((participant) => participant.settledById)
+      .filter((id) => id !== undefined),
+  );
+  for (const participant of trip.participants) {
+    if (
+      participant.settledById !== undefined &&
+      (typeof participant.settledById !== "string" ||
+        !participantIds.has(participant.settledById) ||
+        participant.id === participant.settledById ||
+        representatives.has(participant.id))
+    ) {
+      throw new Error("備份結算歸屬格式錯誤");
+    }
   }
 
   for (const expense of trip.expenses) {

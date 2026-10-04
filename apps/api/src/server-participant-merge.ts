@@ -101,6 +101,39 @@ export function registerParticipantMergeRoute(
         "DELETE FROM settlement_payments WHERE trip_id = $1 AND from_id = to_id",
         [trip.id],
       );
+      // Only detach the target when the source has dependents to transfer.
+      // Otherwise keep the target's existing settlement representative.
+      if (trip.participants.some((person) => person.settledById === sourceId)) {
+        // The target may itself be a dependent of the source. Detach it first
+        // so the transfer cannot assign the target as its own representative.
+        await pool.query(
+          "UPDATE participants SET settled_by_id = NULL WHERE trip_id = $1 AND id = $2",
+          [trip.id, targetId],
+        );
+        await pool.query(
+          "UPDATE participants SET settled_by_id = $3 WHERE trip_id = $1 AND settled_by_id = $2",
+          [trip.id, sourceId, targetId],
+        );
+      } else {
+        const source = trip.participants.find(
+          (person) => person.id === sourceId,
+        );
+        const target = trip.participants.find(
+          (person) => person.id === targetId,
+        );
+        // A target with dependents must remain their direct representative.
+        if (
+          source?.settledById &&
+          !target?.settledById &&
+          source.settledById !== targetId &&
+          !trip.participants.some((person) => person.settledById === targetId)
+        ) {
+          await pool.query(
+            "UPDATE participants SET settled_by_id = $3 WHERE trip_id = $1 AND id = $2",
+            [trip.id, targetId, source.settledById],
+          );
+        }
+      }
       await pool.query(
         "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
         [trip.id, sourceId],

@@ -6,6 +6,65 @@ import {
   type Trip,
 } from "./settlement.js";
 
+test("family members keep separate shares while a representative settles their net balance", () => {
+  const trip: Trip = {
+    id: "trip",
+    ownerId: "user",
+    name: "Family trip",
+    baseCurrency: "TWD",
+    createdAt: "2026-01-01T00:00:00Z",
+    participants: [
+      { id: "parent", name: "Parent" },
+      { id: "child", name: "Child", settledById: "parent" },
+      { id: "friend", name: "Friend" },
+    ],
+    expenses: [
+      {
+        id: "e",
+        description: "Dinner",
+        amountMinor: 90,
+        currency: "TWD",
+        paidById: "friend",
+        participantIds: ["parent", "child", "friend"],
+        expenseDate: "2026-01-01",
+        createdAt: "2026-01-01T00:00:00Z",
+      },
+    ],
+  };
+  expect(calculateBalances(trip).map((balance) => balance.amountMinor)).toEqual(
+    [-60, 0, 60],
+  );
+  expect(calculateSettlements(trip)).toEqual([
+    {
+      fromId: "parent",
+      fromName: "Parent",
+      toId: "friend",
+      toName: "Friend",
+      amountMinor: 60,
+      currency: "TWD",
+    },
+  ]);
+  trip.settlementPayments = [
+    {
+      id: "p",
+      fromId: "child",
+      toId: "friend",
+      amountMinor: 10,
+      currency: "TWD",
+      paidAt: "2026-01-02",
+      note: "",
+      createdAt: "2026-01-02T00:00:00Z",
+    },
+  ];
+  expect(calculateBalances(trip).map((balance) => balance.amountMinor)).toEqual(
+    [-50, 0, 50],
+  );
+  trip.participants[1] = { id: "child", name: "Child" };
+  expect(calculateBalances(trip).map((balance) => balance.amountMinor)).toEqual(
+    [-30, -20, 50],
+  );
+});
+
 test("snapshots keep expense totals, explicit shares and settlements balanced as quotes change", () => {
   const trip: Trip = {
     id: "t",

@@ -286,11 +286,29 @@ function validateTrip(value: unknown): asserts value is Trip {
     throw invalidTripPayload();
   }
 
+  const participantIds = new Set<string>();
+  const representativeIds = new Set<string>();
   for (const participant of value.participants) {
     if (
       !isRecord(participant) ||
       !isNonEmptyString(participant.id) ||
-      !isNonEmptyString(participant.name)
+      !isNonEmptyString(participant.name) ||
+      (participant.settledById !== undefined &&
+        !isNonEmptyString(participant.settledById))
+    ) {
+      throw invalidTripPayload();
+    }
+    participantIds.add(participant.id);
+    if (typeof participant.settledById === "string") {
+      representativeIds.add(participant.settledById);
+    }
+  }
+  for (const participant of value.participants) {
+    if (
+      typeof participant.settledById === "string" &&
+      (!participantIds.has(participant.settledById) ||
+        participant.id === participant.settledById ||
+        representativeIds.has(participant.id))
     ) {
       throw invalidTripPayload();
     }

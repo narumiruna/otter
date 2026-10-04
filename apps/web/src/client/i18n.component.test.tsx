@@ -338,6 +338,25 @@ test("message translation interpolates values and preserves Traditional Chinese"
   );
 });
 
+test("settlement representative API and backup errors have English translations", () => {
+  for (const [source, english] of [
+    ["請提供要更新的參與者內容", "Provide the participant details to update"],
+    ["結算代表人格式錯誤", "Invalid settlement representative"],
+    [
+      "結算代表人必須是同團的其他成員",
+      "The settlement representative must be another member of this group",
+    ],
+    [
+      "結算代表人不能再歸屬其他人，也不能有自己的被歸屬成員",
+      "The settlement representative cannot settle through someone else, and this person cannot have members settling through them",
+    ],
+    ["備份結算歸屬格式錯誤", "Invalid settlement representative in backup"],
+  ]) {
+    assert.equal(translate("en", source), english);
+    assert.equal(translate("zh-TW", source), source);
+  }
+});
+
 test("English auth forms show localized rate-limit errors", async () => {
   vi.stubGlobal(
     "fetch",

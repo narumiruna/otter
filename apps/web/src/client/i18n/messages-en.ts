@@ -562,6 +562,25 @@ export const en = {
   cancelEditing: "Cancel editing?",
   saveChanges: "Save changes",
   recordExpense: "Record expense",
+  settlementRepresentative: "Settle through",
+  settledByName: (values: MessageValues) =>
+    interpolate("Settled by {name}", values),
+  settleSeparately: "Settle separately",
+  settlementRepresentativeHelp:
+    "Expenses are split per person; balances and settlement suggestions include a person's net balance under their representative. Representatives cannot themselves be assigned to someone else.",
+  representativeHasDependents:
+    "Other people settle through this person. Remove those assignments first.",
+  settlementRepresentativeUpdated: "Settlement representative updated",
+  unableToUpdateSettlementRepresentative:
+    "Unable to update settlement representative",
+  provideParticipantChanges: "Provide the participant details to update",
+  invalidSettlementRepresentative: "Invalid settlement representative",
+  settlementRepresentativeMustBeAnotherGroupMember:
+    "The settlement representative must be another member of this group",
+  settlementRepresentativeCannotBeAssignedOrHaveDependents:
+    "The settlement representative cannot settle through someone else, and this person cannot have members settling through them",
+  invalidBackupSettlementRepresentative:
+    "Invalid settlement representative in backup",
   expenseParticipantAdded: "Expense participant added",
   unableToAddPerson: "Unable to add person",
   expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess:

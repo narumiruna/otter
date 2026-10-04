@@ -352,6 +352,13 @@ export const sourceMessageKeys = {
   "要取消嗎？": "cancelEditing",
   儲存變更: "saveChanges",
   記錄支出: "recordExpense",
+  請提供要更新的參與者內容: "provideParticipantChanges",
+  結算代表人格式錯誤: "invalidSettlementRepresentative",
+  結算代表人必須是同團的其他成員:
+    "settlementRepresentativeMustBeAnotherGroupMember",
+  "結算代表人不能再歸屬其他人，也不能有自己的被歸屬成員":
+    "settlementRepresentativeCannotBeAssignedOrHaveDependents",
+  備份結算歸屬格式錯誤: "invalidBackupSettlementRepresentative",
   已新增分帳成員: "expenseParticipantAdded",
   無法新增成員: "unableToAddPerson",
   "分帳成員不需要登入；有登入權限的帳號請到「更多 → 分享與權限」管理。":

@@ -525,6 +525,22 @@ export const zhTW = {
   cancelEditing: "要取消嗎？",
   saveChanges: "儲存變更",
   recordExpense: "記錄支出",
+  settlementRepresentative: "結算算在",
+  settledByName: (values: MessageValues) =>
+    interpolate("結算算在 {name} 身上", values),
+  settleSeparately: "自己結算",
+  settlementRepresentativeHelp:
+    "支出仍按每位成員分攤；餘額與結算建議會把被歸屬者的淨額併入代表人。代表人不能再算在別人身上。",
+  representativeHasDependents: "已有成員算在此人身上，須先解除歸屬才能變更。",
+  settlementRepresentativeUpdated: "已更新結算歸屬",
+  unableToUpdateSettlementRepresentative: "無法更新結算歸屬",
+  provideParticipantChanges: "請提供要更新的參與者內容",
+  invalidSettlementRepresentative: "結算代表人格式錯誤",
+  settlementRepresentativeMustBeAnotherGroupMember:
+    "結算代表人必須是同團的其他成員",
+  settlementRepresentativeCannotBeAssignedOrHaveDependents:
+    "結算代表人不能再歸屬其他人，也不能有自己的被歸屬成員",
+  invalidBackupSettlementRepresentative: "備份結算歸屬格式錯誤",
   expenseParticipantAdded: "已新增分帳成員",
   unableToAddPerson: "無法新增成員",
   expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess:

@@ -180,6 +180,42 @@ test.each([
   }
 });
 
+test("a family member can settle through another participant without merging", async () => {
+  const trip = {
+    ...payload.trip,
+    participants: [
+      { id: "parent", name: "Parent" },
+      { id: "child", name: "Child" },
+    ],
+  };
+  const fetchMock = vi.fn(async () => Response.json({ ...payload, trip }));
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+  render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkspaceProvider
+          announce={() => undefined}
+          offline={false}
+          payload={{ ...payload, trip }}
+          refreshCollection={async () => undefined}
+        >
+          <PeoplePage trip={trip} />
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  const childRow = within(screen.getAllByRole("listitem")[1]);
+  await user.selectOptions(childRow.getByLabelText("Settle through"), "parent");
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/trips/trip_people/participants/child",
+    expect.objectContaining({
+      method: "PATCH",
+      body: JSON.stringify({ settledById: "parent" }),
+    }),
+  );
+});
+
 test("English participant management uses a page-specific heading", () => {
   const queryClient = new QueryClient();
   render(

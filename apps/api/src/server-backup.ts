@@ -124,6 +124,19 @@ export function registerBackupRoutes(
             );
           }
 
+          for (const participant of backup.trip.participants) {
+            if (participant.settledById) {
+              await client.query(
+                "UPDATE participants SET settled_by_id = $1 WHERE trip_id = $2 AND id = $3",
+                [
+                  participantIds.get(participant.settledById),
+                  newTripId,
+                  participantIds.get(participant.id),
+                ],
+              );
+            }
+          }
+
           const restoredRates: ExchangeRates = {
             [backup.trip.baseCurrency]: 1,
           };

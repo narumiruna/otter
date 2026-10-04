@@ -758,30 +758,58 @@ export function createApp(
         return archivedTripResponse(context);
       }
 
-      const name = stringField(requestBody(context), "name");
+      const participantId = context.req.param("participantId");
+      const person = trip.participants.find(({ id }) => id === participantId);
+      if (!person) {
+        return sendError(context, 404, "找不到參與者");
+      }
+      const body = requestBody(context);
+      if (!("name" in body) && !("settledById" in body)) {
+        return sendError(context, 400, "請提供要更新的參與者內容");
+      }
+      const name = "name" in body ? stringField(body, "name") : person.name;
       if (!name || name.length > 80) {
         return sendError(context, 400, "請輸入 1-80 字的參與者名稱");
       }
-      if (!participantExists(trip, context.req.param("participantId"))) {
-        return sendError(context, 404, "找不到參與者");
-      }
-      if (
-        participantNameExists(trip, name, context.req.param("participantId"))
-      ) {
+      if (participantNameExists(trip, name, participantId)) {
         return sendError(context, 409, "參與者名稱已存在");
       }
-
-      const renamed = await pool.query(
-        "UPDATE participants SET name = $1 WHERE trip_id = $2 AND id = $3",
-        [name, trip.id, context.req.param("participantId")],
-      );
-      if (renamed.rowCount === 0) {
-        return sendError(context, 404, "找不到參與者");
+      let settledById = person.settledById ?? null;
+      if ("settledById" in body) {
+        if (body.settledById !== null && typeof body.settledById !== "string") {
+          return sendError(context, 400, "結算代表人格式錯誤");
+        }
+        settledById = body.settledById;
+        if (settledById !== null) {
+          const representative = trip.participants.find(
+            ({ id }) => id === settledById,
+          );
+          if (!representative || representative.id === participantId) {
+            return sendError(context, 400, "結算代表人必須是同團的其他成員");
+          }
+          if (
+            representative.settledById ||
+            trip.participants.some(
+              ({ settledById: id }) => id === participantId,
+            )
+          ) {
+            return sendError(
+              context,
+              400,
+              "結算代表人不能再歸屬其他人，也不能有自己的被歸屬成員",
+            );
+          }
+        }
       }
+
+      await pool.query(
+        "UPDATE participants SET name = $1, settled_by_id = $2 WHERE trip_id = $3 AND id = $4",
+        [name, settledById, trip.id, participantId],
+      );
 
       const updated = await loadTripForUser(pool, user.id, trip.id);
       if (!updated) {
-        throw new Error("Trip disappeared after participant rename");
+        throw new Error("Trip disappeared after participant update");
       }
       return async () => context.json(await buildTripPayload(updated));
     }),

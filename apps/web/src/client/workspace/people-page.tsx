@@ -98,6 +98,9 @@ export function PeoplePage({
           }
         </p>
       )}
+      <p className="text-sm text-muted-foreground">
+        {messages.settlementRepresentativeHelp}
+      </p>
       <ul className="divide-y rounded-xl border bg-card">
         {trip.participants.map((person) => (
           <ParticipantRow
@@ -136,6 +139,11 @@ function ParticipantRow({
         {person.name.trim().charAt(0).toLocaleUpperCase() || "?"}
       </span>
       <strong className="min-w-0 flex-1 break-anywhere">{person.name}</strong>
+      <SettlementRepresentative
+        person={person}
+        readonly={readonly}
+        trip={trip}
+      />
       {!readonly ? (
         <RenameParticipant offline={offline} person={person} trip={trip} />
       ) : null}
@@ -174,6 +182,91 @@ function ParticipantRow({
           />
         ))}
     </li>
+  );
+}
+
+function SettlementRepresentative({
+  person,
+  readonly,
+  trip,
+}: {
+  person: Participant;
+  readonly: boolean;
+  trip: Trip;
+}) {
+  const { messages } = useI18n();
+  const { offline, requestPayload } = useWorkspace();
+  const [error, setError] = useLocaleError();
+  const [busy, setBusy] = useState(false);
+  const hasDependents = trip.participants.some(
+    (candidate) => candidate.settledById === person.id,
+  );
+  const representative = trip.participants.find(
+    (candidate) => candidate.id === person.settledById,
+  );
+  if (readonly) {
+    return representative ? (
+      <span className="text-sm text-muted-foreground">
+        {messages.settledByName({ name: representative.name })}
+      </span>
+    ) : null;
+  }
+  return (
+    <div className="grid gap-1">
+      <label
+        className="text-xs text-muted-foreground"
+        htmlFor={`settled-by-${person.id}`}
+      >
+        {messages.settlementRepresentative}
+      </label>
+      <select
+        id={`settled-by-${person.id}`}
+        className="form-control"
+        value={person.settledById ?? ""}
+        disabled={offline || busy || hasDependents}
+        onChange={async (event) => {
+          setBusy(true);
+          setError("");
+          try {
+            await requestPayload(
+              `/api/trips/${trip.id}/participants/${person.id}`,
+              {
+                body: JSON.stringify({
+                  settledById: event.target.value || null,
+                }),
+                method: "PATCH",
+              },
+              messages.settlementRepresentativeUpdated,
+            );
+          } catch (caught) {
+            setError(
+              caught instanceof Error
+                ? caught.message
+                : messages.unableToUpdateSettlementRepresentative,
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <option value="">{messages.settleSeparately}</option>
+        {trip.participants
+          .filter(
+            (candidate) => candidate.id !== person.id && !candidate.settledById,
+          )
+          .map((candidate) => (
+            <option key={candidate.id} value={candidate.id}>
+              {candidate.name}
+            </option>
+          ))}
+      </select>
+      {hasDependents ? (
+        <span className="text-xs text-muted-foreground">
+          {messages.representativeHasDependents}
+        </span>
+      ) : null}
+      <ActionError message={error} />
+    </div>
   );
 }
 
