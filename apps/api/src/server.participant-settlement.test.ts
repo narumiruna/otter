@@ -8,6 +8,15 @@ import {
   withTestApp,
 } from "./server-test-utils.js";
 
+function balancesById(payload: TripPayload): Record<string, number> {
+  return Object.fromEntries(
+    payload.balances.map(({ participantId, amountMinor }) => [
+      participantId,
+      amountMinor,
+    ]),
+  );
+}
+
 test(
   "participant settlement representatives persist, validate, and can be cleared",
   postgresTestOptions,
@@ -76,10 +85,11 @@ test(
         ?.settledById,
       parent.id,
     );
-    assert.deepEqual(
-      assigned.data.balances.map((b) => b.amountMinor),
-      [-60, 0, 60],
-    );
+    assert.deepEqual(balancesById(assigned.data), {
+      [parent.id]: -60,
+      [child.id]: 0,
+      [friend.id]: 60,
+    });
     assert.deepEqual(
       assigned.data.settlements.map((s) => [s.fromId, s.toId, s.amountMinor]),
       [[parent.id, friend.id, 60]],
@@ -132,10 +142,59 @@ test(
     );
     assert.ok(restoredParent && restoredChild);
     assert.equal(restoredChild.settledById, restoredParent.id);
-    assert.deepEqual(
-      restored.data.balances.map((b) => b.amountMinor),
-      [-60, 0, 60],
+    const restoredFriend = restored.data.trip.participants.find(
+      (p) => p.name === friend.name,
     );
+    assert.ok(restoredFriend);
+    assert.deepEqual(balancesById(restored.data), {
+      [restoredParent.id]: -60,
+      [restoredChild.id]: 0,
+      [restoredFriend.id]: 60,
+    });
+
+    const duplicateTrip = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants`,
+      {
+        body: JSON.stringify({ name: "Child duplicate" }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    const duplicate = duplicateTrip.data.trip.participants.find(
+      (p) => p.name === "Child duplicate",
+    );
+    assert.ok(duplicate);
+    const delegatedDuplicate = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${duplicate.id}`,
+      {
+        body: JSON.stringify({ settledById: parent.id }),
+        method: "PATCH",
+        headers: { cookie },
+      },
+    );
+    assert.equal(delegatedDuplicate.response.status, 200);
+    const mergedDuplicate = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${duplicate.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: child.id }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    assert.equal(mergedDuplicate.response.status, 200);
+    assert.equal(
+      mergedDuplicate.data.trip.participants.find((p) => p.id === child.id)
+        ?.settledById,
+      parent.id,
+    );
+    assert.deepEqual(balancesById(mergedDuplicate.data), {
+      [parent.id]: -60,
+      [child.id]: 0,
+      [friend.id]: 60,
+    });
 
     const cleared = await api<TripPayload>(
       baseUrl,
@@ -147,10 +206,11 @@ test(
       },
     );
     assert.equal(cleared.response.status, 200);
-    assert.deepEqual(
-      cleared.data.balances.map((b) => b.amountMinor),
-      [-30, -30, 60],
-    );
+    assert.deepEqual(balancesById(cleared.data), {
+      [parent.id]: -30,
+      [child.id]: -30,
+      [friend.id]: 60,
+    });
     await api<TripPayload>(baseUrl, `${path}/participants/${child.id}`, {
       body: JSON.stringify({ settledById: parent.id }),
       method: "PATCH",
