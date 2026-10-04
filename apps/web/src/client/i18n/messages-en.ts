@@ -562,14 +562,14 @@ export const en = {
   cancelEditing: "Cancel editing?",
   saveChanges: "Save changes",
   recordExpense: "Record expense",
-  settlementRepresentative: "Settle through",
+  settlementRepresentative: "Settlement assigned to",
   settledByName: (values: MessageValues) =>
-    interpolate("Settled by {name}", values),
-  settleSeparately: "Settle separately",
+    interpolate("Settlement assigned to {name}", values),
+  settleSeparately: "Self (settle separately)",
   settlementRepresentativeHelp:
     "Expenses are split per person; balances and settlement suggestions include a person's net balance under their representative. Representatives cannot themselves be assigned to someone else.",
   representativeHasDependents:
-    "Other people settle through this person. Remove those assignments first.",
+    "Other members are assigned to this person. Remove those assignments first.",
   settlementRepresentativeUpdated: "Settlement representative updated",
   unableToUpdateSettlementRepresentative:
     "Unable to update settlement representative",
