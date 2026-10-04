@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor, within } from "@testing-library/react";
+import { act, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
@@ -128,6 +128,77 @@ test("copying a group adds it to the switcher and navigates without reloading th
       "/api/trips/trip_1/copy",
       expect.objectContaining({ method: "POST" }),
     );
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("copy stays selected when an older group listing finishes after the copy", async () => {
+  window.history.replaceState({}, "", "/?trip=trip_1&view=more");
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const copied: TripPayload = {
+    ...selected,
+    trip: { ...selected.trip, id: "trip_copy", name: "目前群組 (copy)" },
+  };
+  let deliverListing!: (response: Response) => void;
+  const listing = new Promise<Response>((resolve) => {
+    deliverListing = resolve;
+  });
+  const fetcher = vi.fn((path: string, init?: RequestInit) => {
+    if (path === "/api/trips") return listing;
+    if (path === "/api/trips/trip_1/copy" && init?.method === "POST")
+      return Promise.resolve(Response.json(copied, { status: 201 }));
+    if (path === "/api/trips/trip_1")
+      return Promise.resolve(Response.json(selected));
+    if (path === "/api/trips/trip_copy")
+      return Promise.resolve(Response.json(copied));
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          bootstrap={bootstrap}
+          offline={false}
+          webMcpEnabled={false}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/trips",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    const user = userEvent.setup();
+    await user.click(view.getByRole("button", { name: "複製群組" }));
+    await user.click(
+      within(view.getByRole("dialog")).getByRole("button", {
+        name: "複製群組",
+      }),
+    );
+    expect(
+      await view.findByRole("heading", { name: "目前群組 (copy)" }),
+    ).toBeVisible();
+    await act(async () => {
+      deliverListing(Response.json({ archivedTrips: [], trips }));
+      await listing;
+    });
+    expect(window.location.search).toContain("trip=trip_copy");
+    expect(
+      within(view.getByRole("complementary", { name: "群組切換" })).getByRole(
+        "button",
+        { name: /目前群組 \(copy\)/ },
+      ),
+    ).toBeVisible();
   } finally {
     view.unmount();
     client.clear();

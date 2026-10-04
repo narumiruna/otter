@@ -22,6 +22,7 @@ import {
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
+  lockTripNamesForUser,
   makeId,
   nowIso,
   requestBody,
@@ -95,6 +96,7 @@ export function registerBackupRoutes(
       let tripId: string;
       try {
         tripId = await withTransaction(pool, async (client) => {
+          await lockTripNamesForUser(client, user.id);
           const newTripId = makeId("trip");
           const createdAt = nowIso();
           const name = await uniqueRestoredTripName(

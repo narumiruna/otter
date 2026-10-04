@@ -101,7 +101,7 @@ export function AuthenticatedWorkspace({
   const collectionQuery = useQuery({
     enabled: !guestShare,
     initialData: initialCollection,
-    queryFn: () => api<TripCollection>("/api/trips"),
+    queryFn: ({ signal }) => api<TripCollection>("/api/trips", { signal }),
     queryKey: guestShare
       ? ["trips", "share", bootstrap.selected?.trip.id]
       : ["trips"],
@@ -468,7 +468,11 @@ export function AuthenticatedWorkspace({
             ) : (
               <MorePage
                 guestShare={guestShare}
-                onCopied={(copied) => {
+                onCopied={async (copied) => {
+                  await queryClient.cancelQueries({
+                    queryKey: ["trips"],
+                    exact: true,
+                  });
                   queryClient.setQueryData(["trip", copied.trip.id], copied);
                   queryClient.setQueryData<TripCollection>(
                     ["trips"],

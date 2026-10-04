@@ -9,7 +9,7 @@ export function CopyGroup({
   onCopied,
   payload,
 }: {
-  onCopied: (payload: TripPayload) => void;
+  onCopied: (payload: TripPayload) => void | Promise<void>;
   payload: TripPayload;
 }) {
   const { messages } = useI18n();
@@ -20,7 +20,7 @@ export function CopyGroup({
       `/api/trips/${encodeURIComponent(payload.trip.id)}/copy`,
       { method: "POST" },
     );
-    onCopied(copied);
+    await onCopied(copied);
     announce(messages.groupCopied);
   }
 

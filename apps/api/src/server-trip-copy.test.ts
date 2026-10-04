@@ -136,6 +136,149 @@ test(
   },
 );
 
+test(
+  "copy names stay unique alongside create, rename and restore",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl, pool } = await withTestApp({
+      prepare: async (db) => {
+        await db.query(
+          "INSERT INTO users (id, name, username, password_hash) VALUES ('owner', 'Owner', 'owner', 'unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(pool, "owner")).id}`;
+    const request = <T>(path: string, method = "GET", body?: unknown) =>
+      api<T>(baseUrl, path, {
+        method,
+        headers: { cookie },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const source = await request<TripPayload>("/api/trips", "POST", {
+      name: "Tokyo",
+    });
+    const other = await request<TripPayload>("/api/trips", "POST", {
+      name: "Other",
+    });
+    assert.equal(source.response.status, 201);
+    assert.equal(other.response.status, 201);
+    const sourcePath = `/api/trips/${source.data.trip.id}`;
+    const backup = await request<{ trip: { name: string } }>(
+      `${sourcePath}/backup`,
+    );
+    assert.equal(backup.response.status, 200);
+    backup.data.trip.name = "Tokyo (copy)";
+
+    const [copy, created, renamed, restored] = await Promise.all([
+      request<TripPayload>(`${sourcePath}/copy`, "POST"),
+      request<TripPayload>("/api/trips", "POST", { name: "Tokyo (copy)" }),
+      request<TripPayload>(`/api/trips/${other.data.trip.id}`, "PATCH", {
+        name: "Tokyo (copy)",
+      }),
+      request<TripPayload>("/api/trips/restore", "POST", backup.data),
+    ]);
+    expect(copy.response.status).toBe(201);
+    expect([201, 409]).toContain(created.response.status);
+    expect([200, 409]).toContain(renamed.response.status);
+    expect(restored.response.status).toBe(201);
+    const listing = await request<TripsResponse>("/api/trips");
+    const names = listing.data.trips.map((trip) =>
+      trip.name.trim().toLowerCase(),
+    );
+    expect(new Set(names).size).toBe(names.length);
+    expect(
+      listing.data.trips.find((trip) => trip.id === copy.data.trip.id),
+    ).toBeDefined();
+  },
+);
+
+test(
+  "guest copy cannot deadlock share-link revocation",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl, pool } = await withTestApp({
+      prepare: async (db) => {
+        await db.query(
+          "INSERT INTO users (id, name, username, password_hash) VALUES ('owner', 'Owner', 'owner', 'unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(pool, "owner")).id}`;
+    const source = await api<TripPayload>(baseUrl, "/api/trips", {
+      method: "POST",
+      headers: { cookie },
+      body: JSON.stringify({ name: "Tokyo" }),
+    });
+    const path = `/api/trips/${source.data.trip.id}`;
+    const shared = await api<TripPayload>(baseUrl, `${path}/share-links`, {
+      method: "POST",
+      headers: { cookie },
+      body: JSON.stringify({ mode: "anyone-edit" }),
+    });
+    const link = shared.data.shareLinks?.[0];
+    assert.ok(link?.url);
+    const token = new URL(link.url).pathname.split("/").at(-1);
+    assert.ok(token);
+    const guest = await pool.query<{ guest_user_id: string }>(
+      "SELECT guest_user_id FROM trip_share_links WHERE id = $1",
+      [link.id],
+    );
+    const guestId = guest.rows[0]?.guest_user_id;
+    assert.ok(guestId);
+
+    const blocker = await pool.connect();
+    await blocker.query("BEGIN");
+    try {
+      await blocker.query("SELECT id FROM trips WHERE id = $1 FOR UPDATE", [
+        source.data.trip.id,
+      ]);
+      const blockerPid = await blocker.query<{ pid: number }>(
+        "SELECT pg_backend_pid() AS pid",
+      );
+      const attempt = api<{ error: string }>(baseUrl, `${path}/copy`, {
+        method: "POST",
+        headers: { "X-Otter-Share-Token": token },
+      });
+      // Wait until the guest copy is blocked on the trip, not on its user.
+      let waiting = false;
+      for (let i = 0; i < 200; i += 1) {
+        const result = await pool.query<{ waiting: boolean }>(
+          `SELECT EXISTS (
+           SELECT 1 FROM pg_stat_activity
+           WHERE wait_event_type = 'Lock'
+             AND query LIKE 'SELECT id FROM trips WHERE id = $1 FOR UPDATE%'
+             AND $1 = ANY(pg_blocking_pids(pid))
+         ) AS waiting`,
+          [blockerPid.rows[0].pid],
+        );
+        if (result.rows[0]?.waiting) {
+          waiting = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(true);
+      await pool.query("SELECT id FROM users WHERE id = $1 FOR UPDATE NOWAIT", [
+        guestId,
+      ]);
+      const revoke = api<TripPayload>(
+        baseUrl,
+        `${path}/share-links/${link.id}`,
+        {
+          method: "DELETE",
+          headers: { cookie },
+        },
+      );
+      await blocker.query("COMMIT");
+      expect([403, 404]).toContain((await attempt).response.status);
+      expect((await revoke).response.status).toBe(200);
+    } finally {
+      await blocker.query("ROLLBACK");
+      blocker.release();
+    }
+  },
+);
+
 test("only the owner may duplicate a group", postgresTestOptions, async () => {
   const { baseUrl, pool } = await withTestApp({
     prepare: async (db) => {

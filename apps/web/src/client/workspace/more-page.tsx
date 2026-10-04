@@ -18,7 +18,7 @@ export function MorePage({
   payload,
   guestShare = false,
 }: {
-  onCopied: (payload: TripPayload) => void;
+  onCopied: (payload: TripPayload) => void | Promise<void>;
   onDeleted: () => void;
   onRestored: (payload: TripPayload) => void;
   payload: TripPayload;

@@ -5,6 +5,7 @@ import {
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
+  lockTripNamesForUser,
   makeId,
   nowIso,
   sendError,
@@ -27,24 +28,39 @@ export function registerTripCopyRoute(
       const tripId = context.req.param("tripId");
       const copiedId: { id: string } | { error: string; status: 403 | 404 } =
         await withTransaction(pool, async (client) => {
-          // Serialize copies by the same owner, and prevent edits/deletion while
-          // reading the source and creating the new group.
-          await client.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [
-            user.id,
-          ]);
-          await client.query("SELECT id FROM trips WHERE id = $1 FOR UPDATE", [
-            tripId,
-          ]);
-          const source = await loadTripForUser(client, user.id, tripId);
-          if (!source) return { error: "找不到旅行", status: 404 } as const;
-          if (source.currentUserRole !== "owner") {
+          // Match other same-trip writers' lock order; reject guests before
+          // taking the owner's name-allocation lock.
+          const locked = await client.query<{ id: string }>(
+            "SELECT id FROM trips WHERE id = $1 FOR UPDATE",
+            [tripId],
+          );
+          if (!locked.rowCount)
+            return { error: "找不到旅行", status: 404 } as const;
+          const source = await client.query<{
+            name: string;
+            base_currency: string;
+            role: string;
+          }>(
+            `SELECT trips.name, trips.base_currency, trip_members.role
+             FROM trips JOIN trip_members ON trip_members.trip_id = trips.id
+             WHERE trips.id = $1 AND trip_members.user_id = $2`,
+            [tripId, user.id],
+          );
+          const template = source.rows[0];
+          if (!template) return { error: "找不到旅行", status: 404 } as const;
+          if (template.role !== "owner") {
             return { error: "只有擁有者可複製群組", status: 403 } as const;
           }
+          await lockTripNamesForUser(client, user.id);
+          const participants = await client.query<{ name: string }>(
+            `SELECT name FROM participants WHERE trip_id = $1 ORDER BY created_at, id`,
+            [tripId],
+          );
 
           let name = "";
           for (let index = 1; ; index += 1) {
             const suffix = ` (copy${index === 1 ? "" : ` ${index}`})`;
-            const candidate = `${source.name.slice(0, 100 - suffix.length).trimEnd()}${suffix}`;
+            const candidate = `${template.name.slice(0, 100 - suffix.length).trimEnd()}${suffix}`;
             if (!(await tripNameExistsForUser(client, user.id, candidate))) {
               name = candidate;
               break;
@@ -56,14 +72,14 @@ export function registerTripCopyRoute(
           await client.query(
             `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
            VALUES ($1, $2, $3, $4, $5)`,
-            [id, user.id, name, source.baseCurrency, createdAt],
+            [id, user.id, name, template.base_currency, createdAt],
           );
           await client.query(
             `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
            VALUES ($1, $2, $3, 'owner', $4)`,
             [makeId("member"), id, user.id, createdAt],
           );
-          for (const [index, person] of source.participants.entries()) {
+          for (const [index, person] of participants.rows.entries()) {
             await client.query(
               `INSERT INTO participants (id, trip_id, name, created_at)
              VALUES ($1, $2, $3, $4)`,
