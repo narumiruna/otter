@@ -129,7 +129,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       page
         .getByRole("list")
-        .getByRole("strong", { name: "Alice", exact: true }),
+        .locator("li > strong")
+        .filter({ hasText: /^Alice$/ }),
     ).toBeVisible();
     await expect(
       navigation.getByRole("button", { name: "記一筆", exact: true }),

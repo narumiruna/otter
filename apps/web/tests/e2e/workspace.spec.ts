@@ -279,7 +279,7 @@ test("a new group can record an expense and be safely removed", async ({
   await page.getByLabel("成員名稱").fill("Bob");
   await page.getByRole("button", { name: "新增成員" }).click();
   await expect(
-    page.getByRole("list").getByRole("strong", { name: "Bob", exact: true }),
+    page.getByRole("list").locator("li > strong").filter({ hasText: /^Bob$/ }),
   ).toBeVisible();
   await page.getByRole("button", { name: "記一筆" }).click();
   await page.getByLabel("描述").fill("E2E dinner");
