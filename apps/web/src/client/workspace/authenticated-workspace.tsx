@@ -459,7 +459,10 @@ export function AuthenticatedWorkspace({
                       : navigate({ mode: "add-expense" })
                   }
                   onDirtyChange={setDraftDirty}
-                  onEditingChange={setRecordedEditing}
+                  onEditingChange={(editing) => {
+                    setRecordedEditing(editing);
+                    if (editing) setOverviewExpenseId(null);
+                  }}
                   onFiltersChange={(filters) =>
                     setFiltersByTrip((current) => ({
                       ...current,
