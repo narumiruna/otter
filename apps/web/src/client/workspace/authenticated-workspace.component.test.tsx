@@ -2,12 +2,12 @@
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor, within } from "@testing-library/react";
+import { act, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
 import type { TripPayload, TripSummary } from "../client-support.js";
-import { queueExpense } from "../expense-queue.js";
+import { changeExpense, queueExpense } from "../expense-queue.js";
 import { I18nProvider, useI18n } from "../i18n.js";
 import { AuthenticatedWorkspace } from "./authenticated-workspace.js";
 
@@ -65,6 +65,222 @@ const bootstrap: AppBootstrap = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("copying a group adds it to the switcher and navigates without reloading the collection", async () => {
+  window.history.replaceState({}, "", "/?trip=trip_1&view=more");
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const copied: TripPayload = {
+    ...selected,
+    trip: {
+      ...selected.trip,
+      id: "trip_copy",
+      name: "目前群組 (copy)",
+      participants: [{ id: "participant_copy", name: "Alice" }],
+    },
+  };
+  const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === "/api/trips") {
+      return Response.json({ archivedTrips: [], trips });
+    }
+    if (path === "/api/trips/trip_1/copy" && init?.method === "POST") {
+      // A listing refresh may already include the committed copy.
+      client.setQueryData(["trips"], {
+        archivedTrips: [],
+        trips: [
+          ...trips,
+          {
+            baseCurrency: copied.trip.baseCurrency,
+            expenseCount: 0,
+            id: copied.trip.id,
+            name: copied.trip.name,
+            participantCount: copied.trip.participants.length,
+          },
+        ],
+      });
+      return Response.json(copied, { status: 201 });
+    }
+    if (path === "/api/trips/trip_1") return Response.json(selected);
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          bootstrap={bootstrap}
+          offline={false}
+          webMcpEnabled={false}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const user = userEvent.setup();
+    await user.click(view.getByRole("button", { name: "複製群組" }));
+    await user.click(
+      within(view.getByRole("dialog")).getByRole("button", {
+        name: "複製群組",
+      }),
+    );
+    expect(
+      await view.findByRole("heading", { name: "目前群組 (copy)" }),
+    ).toBeVisible();
+    expect(
+      within(view.getByRole("complementary", { name: "群組切換" })).getByRole(
+        "button",
+        { name: /目前群組 \(copy\)/ },
+      ),
+    ).toBeVisible();
+    expect(window.location.search).toContain("trip=trip_copy");
+    expect(
+      client
+        .getQueryData<{ trips: TripSummary[] }>(["trips"])
+        ?.trips.filter((trip) => trip.id === "trip_copy"),
+    ).toHaveLength(1);
+    expect(client.getQueryData(["trip", "trip_copy"])).toEqual(copied);
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/trips/trip_1/copy",
+      expect.objectContaining({ method: "POST" }),
+    );
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("copy stays selected when an older group listing finishes after the copy", async () => {
+  window.history.replaceState({}, "", "/?trip=trip_1&view=more");
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const copied: TripPayload = {
+    ...selected,
+    trip: { ...selected.trip, id: "trip_copy", name: "目前群組 (copy)" },
+  };
+  let deliverListing!: (response: Response) => void;
+  const listing = new Promise<Response>((resolve) => {
+    deliverListing = resolve;
+  });
+  const fetcher = vi.fn((path: string, init?: RequestInit) => {
+    if (path === "/api/trips") return listing;
+    if (path === "/api/trips/trip_1/copy" && init?.method === "POST")
+      return Promise.resolve(Response.json(copied, { status: 201 }));
+    if (path === "/api/trips/trip_1")
+      return Promise.resolve(Response.json(selected));
+    if (path === "/api/trips/trip_copy")
+      return Promise.resolve(Response.json(copied));
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          bootstrap={bootstrap}
+          offline={false}
+          webMcpEnabled={false}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    await waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        "/api/trips",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    const user = userEvent.setup();
+    await user.click(view.getByRole("button", { name: "複製群組" }));
+    await user.click(
+      within(view.getByRole("dialog")).getByRole("button", {
+        name: "複製群組",
+      }),
+    );
+    expect(
+      await view.findByRole("heading", { name: "目前群組 (copy)" }),
+    ).toBeVisible();
+    await act(async () => {
+      deliverListing(Response.json({ archivedTrips: [], trips }));
+      await listing;
+    });
+    expect(window.location.search).toContain("trip=trip_copy");
+    expect(
+      within(view.getByRole("complementary", { name: "群組切換" })).getByRole(
+        "button",
+        { name: /目前群組 \(copy\)/ },
+      ),
+    ).toBeVisible();
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("copying cannot discard an unsaved queued expense draft", async () => {
+  const trip = {
+    ...selected.trip,
+    participants: [
+      ...selected.trip.participants,
+      { id: "participant_2", name: "Bob" },
+    ],
+  };
+  const queued = await queueExpense("user_1", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Queued lunch",
+    expenseDate: "2026-09-26",
+    paidById: "participant_1",
+    participantIds: ["participant_1", "participant_2"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  window.history.replaceState({}, "", `/?trip=${trip.id}&view=more`);
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          bootstrap={{ ...bootstrap, selected: { ...selected, trip } }}
+          offline={false}
+          webMcpEnabled={false}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const user = userEvent.setup();
+    const duplicate = view.getByRole("button", { name: "Duplicate group" });
+    expect(duplicate).toBeEnabled();
+    await user.click(await view.findByRole("button", { name: "Edit draft" }));
+    const description = await view.findByLabelText("Description");
+    await user.type(description, " changed");
+    expect(duplicate).toBeDisabled();
+    await user.click(duplicate);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(description).toHaveValue("Queued lunch changed");
+    expect(window.location.search).toContain(`trip=${trip.id}`);
+  } finally {
+    view.unmount();
+    client.clear();
+    await changeExpense(queued.id, "user_1", trip.id, () => null);
+  }
 });
 
 test("recorded and queued expense editors cannot overlap or reset dirty navigation protection", async () => {

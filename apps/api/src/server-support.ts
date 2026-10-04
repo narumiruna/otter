@@ -314,6 +314,12 @@ export function participantNameExists(
   );
 }
 
+// Serialize name checks and writes across create, restore, rename, and copy.
+// Existing-trip mutations must lock the trip before this user row.
+export async function lockTripNamesForUser(db: Queryable, userId: string) {
+  await db.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [userId]);
+}
+
 export async function tripNameExistsForUser(
   db: Queryable,
   ownerId: string,

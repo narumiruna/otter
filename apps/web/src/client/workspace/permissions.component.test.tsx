@@ -38,6 +38,7 @@ test("guest More view retains trip data tools but hides account and owner backup
       >
         <MorePage
           guestShare
+          onCopied={() => undefined}
           onDeleted={() => undefined}
           onRestored={() => undefined}
           payload={editorPayload}
@@ -49,6 +50,7 @@ test("guest More view retains trip data tools but hides account and owner backup
   assert.ok(view.getByText("匯出支出 CSV"));
   assert.equal(view.queryByText("下載完整備份"), null);
   assert.equal(view.queryByText("還原 JSON 備份"), null);
+  assert.equal(view.queryByText("複製群組"), null);
   view.unmount();
   client.clear();
 });
@@ -65,6 +67,7 @@ test("editor More view omits every owner-only mutation surface", () => {
         refreshCollection={async () => undefined}
       >
         <MorePage
+          onCopied={() => undefined}
           onDeleted={() => undefined}
           onRestored={() => undefined}
           payload={editorPayload}
@@ -78,7 +81,37 @@ test("editor More view omits every owner-only mutation surface", () => {
   assert.equal(view.queryByText("群組偏好"), null);
   assert.equal(view.queryByText("換算方式"), null);
   assert.equal(view.queryByText("群組生命週期"), null);
+  assert.equal(view.queryByText("複製群組"), null);
 
+  view.unmount();
+  client.clear();
+});
+
+test("owner can duplicate an archived group from More view", () => {
+  const client = new QueryClient();
+  const payload: TripPayload = {
+    ...editorPayload,
+    currentUserRole: "owner",
+    trip: { ...editorPayload.trip, archivedAt: "2026-07-26T00:00:00.000Z" },
+  };
+  const view = render(
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline={false}
+        payload={payload}
+        refreshCollection={async () => undefined}
+      >
+        <MorePage
+          onCopied={() => undefined}
+          onDeleted={() => undefined}
+          onRestored={() => undefined}
+          payload={payload}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  assert.ok(view.getByRole("button", { name: "複製群組" }));
   view.unmount();
   client.clear();
 });

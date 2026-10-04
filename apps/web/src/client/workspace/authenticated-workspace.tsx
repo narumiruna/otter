@@ -104,7 +104,7 @@ export function AuthenticatedWorkspace({
   const collectionQuery = useQuery({
     enabled: !guestShare,
     initialData: initialCollection,
-    queryFn: () => api<TripCollection>("/api/trips"),
+    queryFn: ({ signal }) => api<TripCollection>("/api/trips", { signal }),
     queryKey: guestShare
       ? ["trips", "share", bootstrap.selected?.trip.id]
       : ["trips"],
@@ -484,7 +484,42 @@ export function AuthenticatedWorkspace({
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (
               <MorePage
+                copyDisabled={draftDirty}
                 guestShare={guestShare}
+                onCopied={async (copied) => {
+                  await queryClient.cancelQueries({
+                    queryKey: ["trips"],
+                    exact: true,
+                  });
+                  queryClient.setQueryData(["trip", copied.trip.id], copied);
+                  queryClient.setQueryData<TripCollection>(
+                    ["trips"],
+                    (current) =>
+                      current && {
+                        ...current,
+                        trips: current.trips.some(
+                          (trip) => trip.id === copied.trip.id,
+                        )
+                          ? current.trips
+                          : [
+                              ...current.trips,
+                              {
+                                baseCurrency: copied.trip.baseCurrency,
+                                expenseCount: 0,
+                                id: copied.trip.id,
+                                name: copied.trip.name,
+                                participantCount:
+                                  copied.trip.participants.length,
+                              },
+                            ],
+                      },
+                  );
+                  navigate({
+                    mode: null,
+                    tripId: copied.trip.id,
+                    view: "overview",
+                  });
+                }}
                 onDeleted={afterDelete}
                 onRestored={(restored) =>
                   navigate({

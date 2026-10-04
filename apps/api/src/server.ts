@@ -62,6 +62,7 @@ import {
   isProduction,
   type LoadedTrip,
   loadTripForUser,
+  lockTripNamesForUser,
   makeId,
   normalizeUsername,
   nowIso,
@@ -80,6 +81,7 @@ import {
   verifyPassword,
   withTransaction,
 } from "./server-support.js";
+import { registerTripCopyRoute } from "./server-trip-copy.js";
 import { tripMutation } from "./server-trip-mutation.js";
 import {
   isUsernameReserved,
@@ -173,6 +175,7 @@ export function createApp(
     buildTripPayload,
     exchangeRateService.getSnapshot,
   );
+  registerTripCopyRoute(app, pool, mustBeSignedIn, buildTripPayload);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
@@ -402,10 +405,6 @@ export function createApp(
     if (!name || name.length > 100) {
       return sendError(context, 400, "請輸入 1-100 字的旅行名稱");
     }
-    if (await tripNameExistsForUser(pool, user.id, name)) {
-      return sendError(context, 409, "旅行名稱已存在");
-    }
-
     const createdAt = nowIso();
     const ownerParticipant: Participant = {
       id: makeId("participant"),
@@ -422,7 +421,9 @@ export function createApp(
       participants: [ownerParticipant],
     };
 
-    await withTransaction(pool, async (client) => {
+    const created = await withTransaction(pool, async (client) => {
+      await lockTripNamesForUser(client, user.id);
+      if (await tripNameExistsForUser(client, user.id, name)) return false;
       await client.query(
         `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
            VALUES ($1, $2, $3, $4, $5)`,
@@ -438,7 +439,9 @@ export function createApp(
            VALUES ($1, $2, $3, $4)`,
         [ownerParticipant.id, trip.id, ownerParticipant.name, createdAt],
       );
+      return true;
     });
+    if (!created) return sendError(context, 409, "旅行名稱已存在");
 
     return context.json(await buildTripPayload(trip), 201);
   });
@@ -520,6 +523,7 @@ export function createApp(
         if (!name || name.length > 100) {
           return sendError(context, 400, "請輸入 1-100 字的旅行名稱");
         }
+        if (hasName) await lockTripNamesForUser(pool, user.id);
         if (await tripNameExistsForUser(pool, user.id, name, trip.id)) {
           return sendError(context, 409, "旅行名稱已存在");
         }

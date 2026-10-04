@@ -1,6 +1,7 @@
 import type { TripPayload } from "../client-support.js";
 import { useI18n } from "../i18n.js";
 import { AccessSettings } from "./access-settings.js";
+import { CopyGroup } from "./copy-group.js";
 import { DataSettings } from "./data-settings.js";
 import {
   ApiWriteSettings,
@@ -11,11 +12,15 @@ import {
 import { SectionHeading } from "./workspace-ui.js";
 
 export function MorePage({
+  copyDisabled = false,
+  onCopied,
   onDeleted,
   onRestored,
   payload,
   guestShare = false,
 }: {
+  copyDisabled?: boolean;
+  onCopied: (payload: TripPayload) => void | Promise<void>;
   onDeleted: () => void;
   onRestored: (payload: TripPayload) => void;
   payload: TripPayload;
@@ -40,6 +45,13 @@ export function MorePage({
       {isOwner ? <ApiWriteSettings payload={payload} /> : null}
       {isOwner && !payload.trip.archivedAt ? (
         <TripPreferences payload={payload} />
+      ) : null}
+      {isOwner && !guestShare ? (
+        <CopyGroup
+          disabled={copyDisabled}
+          onCopied={onCopied}
+          payload={payload}
+        />
       ) : null}
       <DataSettings
         guestShare={guestShare}
