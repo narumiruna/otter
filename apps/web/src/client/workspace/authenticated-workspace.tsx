@@ -85,6 +85,9 @@ export function AuthenticatedWorkspace({
   const authBlockedFor = useRef<string | null>(null);
   const [recordedEditing, setRecordedEditing] = useState(false);
   const [queuedEditing, setQueuedEditing] = useState(false);
+  const [overviewExpenseId, setOverviewExpenseId] = useState<string | null>(
+    null,
+  );
   const [filtersByTrip, setFiltersByTrip] = useState<
     Record<string, ExpenseFilters>
   >({});
@@ -141,6 +144,7 @@ export function AuthenticatedWorkspace({
         merged,
       );
       window.history[replace ? "replaceState" : "pushState"]({}, "", target);
+      setOverviewExpenseId(null);
       setLocation(merged);
     },
     [location, pageKey],
@@ -159,6 +163,7 @@ export function AuthenticatedWorkspace({
       }
       scrollPositions.current.set(pageKey, window.scrollY);
       setDraftDirty(false);
+      setOverviewExpenseId(null);
       setLocation(nextLocation);
     };
     window.addEventListener("popstate", pop);
@@ -424,6 +429,14 @@ export function AuthenticatedWorkspace({
               <div className="grid gap-4">
                 <OverviewPage
                   onAddExpense={() => navigate({ mode: "add-expense" })}
+                  onEditExpense={
+                    queuedEditing
+                      ? undefined
+                      : (expense) => {
+                          navigate({ mode: null, view: "expenses" });
+                          setOverviewExpenseId(expense.id);
+                        }
+                  }
                   onPeople={() => go("people")}
                   payload={payload}
                   readonly={archived}
@@ -439,13 +452,17 @@ export function AuthenticatedWorkspace({
                     }
                   }
                   grouping={groupingByTrip[payload.trip.id] ?? "date"}
+                  initialEditingExpenseId={overviewExpenseId}
                   onAddExpense={() =>
                     needsPeople
                       ? go("people")
                       : navigate({ mode: "add-expense" })
                   }
                   onDirtyChange={setDraftDirty}
-                  onEditingChange={setRecordedEditing}
+                  onEditingChange={(editing) => {
+                    setRecordedEditing(editing);
+                    if (editing) setOverviewExpenseId(null);
+                  }}
                   onFiltersChange={(filters) =>
                     setFiltersByTrip((current) => ({
                       ...current,

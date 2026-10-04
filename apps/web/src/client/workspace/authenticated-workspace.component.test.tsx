@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
@@ -139,6 +139,156 @@ test("recorded and queued expense editors cannot overlap or reset dirty navigati
     expect(view.queryByRole("button", { name: "Dinner" })).toBeNull();
     await user.type(queuedDescription, " updated");
     expect(view.queryByRole("button", { name: "Overview" })).toBeNull();
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("recent expenses open the editor and expense rows edit from non-title cells", async () => {
+  const trip = {
+    ...selected.trip,
+    participants: [
+      ...selected.trip.participants,
+      { id: "participant_2", name: "Bob" },
+    ],
+    expenses: [
+      {
+        id: "dinner",
+        version: 1,
+        amountMinor: 100,
+        currency: "TWD" as const,
+        description: "Dinner",
+        expenseDate: "2026-09-26",
+        createdAt: "2026-09-26T00:00:00Z",
+        paidById: "participant_1",
+        participantIds: ["participant_1", "participant_2"],
+        receiptUrl: "/receipt.png",
+      },
+    ],
+  };
+  window.history.replaceState({}, "", `/?trip=${trip.id}`);
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          offline
+          webMcpEnabled={false}
+          bootstrap={{ ...bootstrap, selected: { ...selected, trip } }}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const recent = view.getByRole("region", { name: "Recent expenses" });
+    await user.click(within(recent).getByText("NT$100"));
+    expect(window.location.search).toContain("view=expenses");
+    expect(view.getByLabelText("Description")).toHaveValue("Dinner");
+    await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    const row = view.getByRole("row", { name: /Dinner/ });
+    await user.click(within(row).getByText("Alice"));
+    expect(view.getByLabelText("Description")).toHaveValue("Dinner");
+    await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    await user.click(view.getByRole("button", { name: "Columns" }));
+    await user.click(view.getByRole("checkbox", { name: "Receipt" }));
+    await user.click(
+      view.getByRole("button", { name: "View receipt for Dinner" }),
+    );
+    const dialog = view.getByRole("dialog", { name: "Receipt for “Dinner”" });
+    expect(dialog).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("heading", { name: "Receipt for “Dinner”" }),
+    );
+    expect(dialog).toBeVisible();
+    await user.click(
+      within(dialog).getByText("Click the image or press Esc to close."),
+    );
+    expect(dialog).toBeVisible();
+    expect(view.queryByLabelText("Description")).toBeNull();
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
+test("closing a queued draft does not reopen a canceled overview expense", async () => {
+  const trip = {
+    ...selected.trip,
+    id: "trip_overview_queued",
+    participants: [
+      ...selected.trip.participants,
+      { id: "participant_2", name: "Bob" },
+    ],
+    expenses: [
+      {
+        id: "dinner",
+        version: 1,
+        amountMinor: 100,
+        currency: "TWD" as const,
+        description: "Dinner",
+        expenseDate: "2026-09-26",
+        createdAt: "2026-09-26T00:00:00Z",
+        paidById: "participant_1",
+        participantIds: ["participant_1", "participant_2"],
+      },
+    ],
+  };
+  await queueExpense("user_1", trip.id, {
+    amount: "200",
+    currency: "TWD",
+    description: "Queued lunch",
+    expenseDate: "2026-09-26",
+    paidById: "participant_1",
+    participantIds: ["participant_1", "participant_2"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  window.history.replaceState({}, "", `/?trip=${trip.id}`);
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const user = userEvent.setup();
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          offline
+          webMcpEnabled={false}
+          bootstrap={{
+            ...bootstrap,
+            trips: [{ ...trips[0], id: trip.id }],
+            selected: { ...selected, trip },
+          }}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const recent = view.getByRole("region", { name: "Recent expenses" });
+    await user.click(within(recent).getByText("NT$100"));
+    expect(view.getByLabelText("Description")).toHaveValue("Dinner");
+    await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    const queuedEdit = view.getByRole("button", { name: "Edit draft" });
+    await waitFor(() => expect(queuedEdit).toBeEnabled());
+    await user.click(queuedEdit);
+    expect(await view.findByLabelText("Description")).toHaveValue(
+      "Queued lunch",
+    );
+    await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    await waitFor(() =>
+      expect(view.queryByLabelText("Description")).toBeNull(),
+    );
+    expect(view.getByRole("button", { name: "Dinner" })).toBeVisible();
   } finally {
     view.unmount();
     client.clear();
