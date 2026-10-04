@@ -1,5 +1,9 @@
 import { currencyInfo, toMajor } from "@narumitw/otter-core/money";
-import type { Settlement, Trip } from "@narumitw/otter-core/settlement";
+import type {
+  Expense,
+  Settlement,
+  Trip,
+} from "@narumitw/otter-core/settlement";
 import {
   ArrowRightIcon as ArrowRight,
   CheckCircledIcon as CheckCircle2,
@@ -42,11 +46,13 @@ import {
 
 export function OverviewPage({
   onAddExpense,
+  onEditExpense,
   onPeople,
   payload,
   readonly = false,
 }: {
   onAddExpense?: () => void;
+  onEditExpense?: (expense: Expense) => void;
   onPeople?: () => void;
   payload: TripPayload;
   readonly?: boolean;
@@ -105,7 +111,10 @@ export function OverviewPage({
         <SectionHeading>
           <span id="recent-heading">{messages.recentExpenses}</span>
         </SectionHeading>
-        <RecentExpenses trip={trip} />
+        <RecentExpenses
+          onEditExpense={readonly ? undefined : onEditExpense}
+          trip={trip}
+        />
       </section>
       {trip.expenses.length ? <SpendingAnalysis trip={trip} /> : null}
     </div>
@@ -447,7 +456,13 @@ export function SettlementHistory({
   );
 }
 
-function RecentExpenses({ trip }: { trip: Trip }) {
+function RecentExpenses({
+  onEditExpense,
+  trip,
+}: {
+  onEditExpense?: (expense: Expense) => void;
+  trip: Trip;
+}) {
   const { formatMoney, messages } = useI18n();
   if (!trip.expenses.length)
     return <p className="empty-copy">{messages.noExpensesYet}</p>;
@@ -463,24 +478,41 @@ function RecentExpenses({ trip }: { trip: Trip }) {
     .slice(0, 3);
   return (
     <ul>
-      {recent.map((expense) => (
-        <li className="recent-expense-row" key={expense.id}>
-          <ExpenseCategoryIcon category={expense.category} />
-          <div className="recent-expense-info">
-            <strong>{expense.description}</strong>
-            <span>
-              {messages.datePaidByNameSplitWithSplit({
-                date: expense.expenseDate,
-                name: names.get(expense.paidById) ?? messages.unknown,
-                split: expenseSplitLabel(trip, expense.participantIds),
-              })}
-            </span>
-          </div>
-          <strong className="recent-expense-amount">
-            {formatMoney(expense.amountMinor, expense.currency)}
-          </strong>
-        </li>
-      ))}
+      {recent.map((expense) => {
+        const content = (
+          <>
+            <ExpenseCategoryIcon category={expense.category} />
+            <div className="recent-expense-info">
+              <strong>{expense.description}</strong>
+              <span>
+                {messages.datePaidByNameSplitWithSplit({
+                  date: expense.expenseDate,
+                  name: names.get(expense.paidById) ?? messages.unknown,
+                  split: expenseSplitLabel(trip, expense.participantIds),
+                })}
+              </span>
+            </div>
+            <strong className="recent-expense-amount">
+              {formatMoney(expense.amountMinor, expense.currency)}
+            </strong>
+          </>
+        );
+        return (
+          <li className="recent-expense-row" key={expense.id}>
+            {onEditExpense ? (
+              <button
+                className="recent-expense-content"
+                type="button"
+                onClick={() => onEditExpense(expense)}
+              >
+                {content}
+              </button>
+            ) : (
+              <div className="recent-expense-content">{content}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

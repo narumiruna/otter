@@ -54,6 +54,7 @@ const defaultExpenseColumns: ExpenseColumn[] = ["payer", "category", "date"];
 export function ExpensesPage({
   filters,
   grouping,
+  initialEditingExpenseId = null,
   onAddExpense,
   onDirtyChange,
   onEditingChange,
@@ -65,6 +66,7 @@ export function ExpensesPage({
 }: {
   filters: ExpenseFilters;
   grouping: ExpenseGrouping;
+  initialEditingExpenseId?: string | null;
   onAddExpense: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onEditingChange?: (editing: boolean) => void;
@@ -80,7 +82,9 @@ export function ExpensesPage({
   ) => {
     onFiltersChange(typeof update === "function" ? update(filters) : update);
   };
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(
+    initialEditingExpenseId,
+  );
   useEffect(() => {
     onEditingChange?.(!!editingExpenseId);
     return () => onEditingChange?.(false);
@@ -784,7 +788,22 @@ function ExpenseTableRow({
   const { formatMoney, locale, messages } = useI18n();
   const workspace = useOptionalWorkspace();
   return (
-    <tr className="expense-table-row">
+    <tr
+      className="expense-table-row"
+      data-editable={!readonly || undefined}
+      onClick={
+        readonly
+          ? undefined
+          : (event) => {
+              if (
+                event.target instanceof Element &&
+                event.target.closest("button, a, input, select, textarea")
+              )
+                return;
+              onEdit(expense);
+            }
+      }
+    >
       <th className="expense-description-cell" scope="row">
         <span aria-hidden="true" className="expense-table-category-icon">
           <ExpenseCategoryIcon category={expense.category} />
