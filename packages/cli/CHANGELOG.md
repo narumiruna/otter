@@ -1,5 +1,11 @@
 # @narumitw/otter-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- 75d04e7: Allow participants to settle another member's net balance through a designated representative without changing expense splits. Release the bundled CLI settlement preview with the new behavior.
+
 ## 0.3.0
 
 ### Minor Changes
