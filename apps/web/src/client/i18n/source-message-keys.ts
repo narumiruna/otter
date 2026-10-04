@@ -495,6 +495,11 @@ export const sourceMessageKeys = {
     "aNewGroupNamedNameWillBeCreatedWithoutChangingExistingGroups",
   "套用備份還原？": "restoreThisBackup",
   "預覽完成，建立新群組": "createNewGroup2",
+  複製群組: "copyGroup",
+  "複製這個群組？": "copyThisGroup",
+  "將成員、基準貨幣及自訂匯率複製到新群組；支出、結清紀錄、協作者與分享連結不會複製。原群組不會變動。":
+    "copyGroupDescription",
+  已複製群組: "groupCopied",
   群組偏好: "groupPreferences",
   "變更基準貨幣會重算顯示金額，並清除目前自訂匯率。":
     "changingTheBaseCurrencyRecalculatesDisplayedAmountsAndClearsCustomExchangeRates",

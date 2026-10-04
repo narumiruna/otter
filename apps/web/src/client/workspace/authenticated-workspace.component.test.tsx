@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
@@ -65,6 +65,73 @@ const bootstrap: AppBootstrap = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("copying a group adds it to the switcher and navigates without reloading the collection", async () => {
+  window.history.replaceState({}, "", "/?trip=trip_1&view=more");
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  const copied: TripPayload = {
+    ...selected,
+    trip: {
+      ...selected.trip,
+      id: "trip_copy",
+      name: "目前群組 (copy)",
+      participants: [{ id: "participant_copy", name: "Alice" }],
+    },
+  };
+  const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === "/api/trips") {
+      return Response.json({ archivedTrips: [], trips });
+    }
+    if (path === "/api/trips/trip_1/copy" && init?.method === "POST") {
+      return Response.json(copied, { status: 201 });
+    }
+    if (path === "/api/trips/trip_1") return Response.json(selected);
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  const view = render(
+    <I18nProvider initialLocale="zh-TW">
+      <QueryClientProvider client={client}>
+        <AuthenticatedWorkspace
+          announce={() => undefined}
+          bootstrap={bootstrap}
+          offline={false}
+          webMcpEnabled={false}
+        />
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  try {
+    const user = userEvent.setup();
+    await user.click(view.getByRole("button", { name: "複製群組" }));
+    await user.click(
+      within(view.getByRole("dialog")).getByRole("button", {
+        name: "複製群組",
+      }),
+    );
+    expect(
+      await view.findByRole("heading", { name: "目前群組 (copy)" }),
+    ).toBeVisible();
+    expect(
+      within(view.getByRole("complementary", { name: "群組切換" })).getByRole(
+        "button",
+        { name: /目前群組 \(copy\)/ },
+      ),
+    ).toBeVisible();
+    expect(window.location.search).toContain("trip=trip_copy");
+    expect(client.getQueryData(["trip", "trip_copy"])).toEqual(copied);
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/trips/trip_1/copy",
+      expect.objectContaining({ method: "POST" }),
+    );
+  } finally {
+    view.unmount();
+    client.clear();
+  }
 });
 
 test("recorded and queued expense editors cannot overlap or reset dirty navigation protection", async () => {

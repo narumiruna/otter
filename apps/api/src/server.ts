@@ -80,6 +80,7 @@ import {
   verifyPassword,
   withTransaction,
 } from "./server-support.js";
+import { registerTripCopyRoute } from "./server-trip-copy.js";
 import { tripMutation } from "./server-trip-mutation.js";
 import {
   isUsernameReserved,
@@ -173,6 +174,7 @@ export function createApp(
     buildTripPayload,
     exchangeRateService.getSnapshot,
   );
+  registerTripCopyRoute(app, pool, mustBeSignedIn, buildTripPayload);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);

@@ -468,6 +468,31 @@ export function AuthenticatedWorkspace({
             ) : (
               <MorePage
                 guestShare={guestShare}
+                onCopied={(copied) => {
+                  queryClient.setQueryData(["trip", copied.trip.id], copied);
+                  queryClient.setQueryData<TripCollection>(
+                    ["trips"],
+                    (current) =>
+                      current && {
+                        ...current,
+                        trips: [
+                          ...current.trips,
+                          {
+                            baseCurrency: copied.trip.baseCurrency,
+                            expenseCount: 0,
+                            id: copied.trip.id,
+                            name: copied.trip.name,
+                            participantCount: copied.trip.participants.length,
+                          },
+                        ],
+                      },
+                  );
+                  navigate({
+                    mode: null,
+                    tripId: copied.trip.id,
+                    view: "overview",
+                  });
+                }}
                 onDeleted={afterDelete}
                 onRestored={(restored) =>
                   navigate({

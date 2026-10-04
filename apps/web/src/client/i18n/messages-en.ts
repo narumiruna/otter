@@ -746,6 +746,11 @@ export const en = {
     ),
   restoreThisBackup: "Restore this backup?",
   createNewGroup2: "Create new group",
+  copyGroup: "Duplicate group",
+  copyThisGroup: "Duplicate this group?",
+  copyGroupDescription:
+    "Copy people, base currency, and custom rates into a new group. Expenses, settlement payments, collaborators, and share links are not copied. The original group stays unchanged.",
+  groupCopied: "Group duplicated",
   groupPreferences: "Group preferences",
   changingTheBaseCurrencyRecalculatesDisplayedAmountsAndClearsCustomExchangeRates:
     "Changing the base currency recalculates displayed amounts and clears custom exchange rates.",
