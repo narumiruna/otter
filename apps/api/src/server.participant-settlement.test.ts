@@ -264,3 +264,164 @@ test(
     );
   },
 );
+
+test(
+  "merging a dependent into a standalone duplicate retains its settlement representative",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl } = await withTestApp();
+    const registered = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      body: JSON.stringify({
+        username: `merge-family-${Date.now()}`,
+        password: "password123",
+      }),
+      method: "POST",
+    });
+    const cookie = registered.response.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+    const created = await api<TripPayload>(baseUrl, "/api/trips", {
+      body: JSON.stringify({ name: "Shared trip" }),
+      method: "POST",
+      headers: { cookie },
+    });
+    const path = `/api/trips/${created.data.trip.id}`;
+    const representative = created.data.trip.participants[0];
+    assert.ok(representative);
+    const childTrip = await api<TripPayload>(baseUrl, `${path}/participants`, {
+      body: JSON.stringify({ name: "Child" }),
+      method: "POST",
+      headers: { cookie },
+    });
+    const child = childTrip.data.trip.participants.find(
+      (p) => p.name === "Child",
+    );
+    assert.ok(child);
+    const targetTrip = await api<TripPayload>(baseUrl, `${path}/participants`, {
+      body: JSON.stringify({ name: "Duplicate" }),
+      method: "POST",
+      headers: { cookie },
+    });
+    const target = targetTrip.data.trip.participants.find(
+      (p) => p.name === "Duplicate",
+    );
+    assert.ok(target);
+    await api<TripPayload>(baseUrl, `${path}/expenses`, {
+      body: JSON.stringify({
+        description: "Dinner",
+        amount: "90",
+        currency: "TWD",
+        expenseDate: "2026-01-01",
+        paidById: representative.id,
+        participantIds: [representative.id, child.id, target.id],
+      }),
+      method: "POST",
+      headers: { cookie },
+    });
+    const assigned = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${child.id}`,
+      {
+        body: JSON.stringify({ settledById: representative.id }),
+        method: "PATCH",
+        headers: { cookie },
+      },
+    );
+    assert.deepEqual(balancesById(assigned.data), {
+      [representative.id]: 30,
+      [child.id]: 0,
+      [target.id]: -30,
+    });
+    const merged = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${child.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: target.id }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    assert.equal(merged.response.status, 200);
+    assert.equal(
+      merged.data.trip.participants.find((p) => p.id === target.id)
+        ?.settledById,
+      representative.id,
+    );
+    assert.deepEqual(balancesById(merged.data), {
+      [representative.id]: 0,
+      [target.id]: 0,
+    });
+    assert.deepEqual(merged.data.settlements, []);
+
+    const anotherTrip = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants`,
+      {
+        body: JSON.stringify({ name: "Another duplicate" }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    const another = anotherTrip.data.trip.participants.find(
+      (p) => p.name === "Another duplicate",
+    );
+    assert.ok(another);
+    await api<TripPayload>(baseUrl, `${path}/participants/${another.id}`, {
+      body: JSON.stringify({ settledById: representative.id }),
+      method: "PATCH",
+      headers: { cookie },
+    });
+    const mergedWithAssignedTarget = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${another.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: target.id }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    assert.equal(mergedWithAssignedTarget.response.status, 200);
+    assert.equal(
+      mergedWithAssignedTarget.data.trip.participants.find(
+        (p) => p.id === target.id,
+      )?.settledById,
+      representative.id,
+    );
+
+    const finalTrip = await api<TripPayload>(baseUrl, `${path}/participants`, {
+      body: JSON.stringify({ name: "Representative duplicate" }),
+      method: "POST",
+      headers: { cookie },
+    });
+    const finalSource = finalTrip.data.trip.participants.find(
+      (p) => p.name === "Representative duplicate",
+    );
+    assert.ok(finalSource);
+    await api<TripPayload>(baseUrl, `${path}/participants/${finalSource.id}`, {
+      body: JSON.stringify({ settledById: representative.id }),
+      method: "PATCH",
+      headers: { cookie },
+    });
+    const mergedIntoRepresentative = await api<TripPayload>(
+      baseUrl,
+      `${path}/participants/${finalSource.id}/merge`,
+      {
+        body: JSON.stringify({ targetParticipantId: representative.id }),
+        method: "POST",
+        headers: { cookie },
+      },
+    );
+    assert.equal(mergedIntoRepresentative.response.status, 200);
+    assert.equal(
+      mergedIntoRepresentative.data.trip.participants.find(
+        (p) => p.id === representative.id,
+      )?.settledById,
+      undefined,
+    );
+    assert.equal(
+      mergedIntoRepresentative.data.trip.participants.find(
+        (p) => p.id === target.id,
+      )?.settledById,
+      representative.id,
+    );
+  },
+);

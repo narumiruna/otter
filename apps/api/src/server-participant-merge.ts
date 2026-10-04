@@ -114,6 +114,23 @@ export function registerParticipantMergeRoute(
           "UPDATE participants SET settled_by_id = $3 WHERE trip_id = $1 AND settled_by_id = $2",
           [trip.id, sourceId, targetId],
         );
+      } else {
+        const source = trip.participants.find(
+          (person) => person.id === sourceId,
+        );
+        const target = trip.participants.find(
+          (person) => person.id === targetId,
+        );
+        if (
+          source?.settledById &&
+          !target?.settledById &&
+          source.settledById !== targetId
+        ) {
+          await pool.query(
+            "UPDATE participants SET settled_by_id = $3 WHERE trip_id = $1 AND id = $2",
+            [trip.id, targetId, source.settledById],
+          );
+        }
       }
       await pool.query(
         "DELETE FROM participants WHERE trip_id = $1 AND id = $2",
