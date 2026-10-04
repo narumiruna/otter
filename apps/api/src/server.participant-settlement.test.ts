@@ -486,6 +486,13 @@ test(
           newSource.id,
           newTarget.id,
         ],
+        splitMode: "amount",
+        splitValues: {
+          [representative.id]: "20",
+          [dependent.id]: "20",
+          [newSource.id]: "20",
+          [newTarget.id]: "20",
+        },
       }),
       method: "POST",
       headers: { cookie },
