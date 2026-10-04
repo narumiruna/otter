@@ -12,12 +12,14 @@ import {
 import { SectionHeading } from "./workspace-ui.js";
 
 export function MorePage({
+  copyDisabled = false,
   onCopied,
   onDeleted,
   onRestored,
   payload,
   guestShare = false,
 }: {
+  copyDisabled?: boolean;
   onCopied: (payload: TripPayload) => void | Promise<void>;
   onDeleted: () => void;
   onRestored: (payload: TripPayload) => void;
@@ -45,7 +47,11 @@ export function MorePage({
         <TripPreferences payload={payload} />
       ) : null}
       {isOwner && !guestShare ? (
-        <CopyGroup onCopied={onCopied} payload={payload} />
+        <CopyGroup
+          disabled={copyDisabled}
+          onCopied={onCopied}
+          payload={payload}
+        />
       ) : null}
       <DataSettings
         guestShare={guestShare}

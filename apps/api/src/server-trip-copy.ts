@@ -2,6 +2,7 @@ import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
+  apiWritesDisabledMessage,
   type BuildTripPayload,
   currentUser,
   loadTripForUser,
@@ -30,8 +31,8 @@ export function registerTripCopyRoute(
         await withTransaction(pool, async (client) => {
           // Match other same-trip writers' lock order; reject guests before
           // taking the owner's name-allocation lock.
-          const locked = await client.query<{ id: string }>(
-            "SELECT id FROM trips WHERE id = $1 FOR UPDATE",
+          const locked = await client.query<{ allow_api_writes: boolean }>(
+            "SELECT allow_api_writes FROM trips WHERE id = $1 FOR UPDATE",
             [tripId],
           );
           if (!locked.rowCount)
@@ -48,6 +49,12 @@ export function registerTripCopyRoute(
           );
           const template = source.rows[0];
           if (!template) return { error: "找不到旅行", status: 404 } as const;
+          if (
+            context.req.header("authorization") &&
+            !locked.rows[0].allow_api_writes
+          ) {
+            return { error: apiWritesDisabledMessage, status: 403 } as const;
+          }
           if (template.role !== "owner") {
             return { error: "只有擁有者可複製群組", status: 403 } as const;
           }
@@ -60,7 +67,12 @@ export function registerTripCopyRoute(
           let name = "";
           for (let index = 1; ; index += 1) {
             const suffix = ` (copy${index === 1 ? "" : ` ${index}`})`;
-            const candidate = `${template.name.slice(0, 100 - suffix.length).trimEnd()}${suffix}`;
+            let prefix = "";
+            for (const character of template.name) {
+              if (prefix.length + character.length > 100 - suffix.length) break;
+              prefix += character;
+            }
+            const candidate = `${prefix.trimEnd()}${suffix}`;
             if (!(await tripNameExistsForUser(client, user.id, candidate))) {
               name = candidate;
               break;

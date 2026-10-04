@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { TripPayload, TripsResponse } from "@narumitw/otter-contracts";
 import { expect, test } from "vitest";
+import { generateAccessToken, hashApiSecret } from "./server-api-tokens.js";
 import { createSession } from "./server-support.js";
 import { api, postgresTestOptions, withTestApp } from "./server-test-utils.js";
 
@@ -117,6 +118,17 @@ test(
     );
     expect(longCopy.response.status).toBe(201);
     expect(longCopy.data.trip.name).toBe(`${"A".repeat(93)} (copy)`);
+    const emojiTrip = await request<TripPayload>("/api/trips", "POST", {
+      name: "😀".repeat(50),
+    });
+    expect(emojiTrip.response.status).toBe(201);
+    const emojiCopy = await request<TripPayload>(
+      `/api/trips/${emojiTrip.data.trip.id}/copy`,
+      "POST",
+    );
+    expect(emojiCopy.response.status).toBe(201);
+    expect(emojiCopy.data.trip.name).toBe(`${"😀".repeat(46)} (copy)`);
+    expect(emojiCopy.data.trip.name.length).toBeLessThanOrEqual(100);
     const updated = await request<TripPayload>(
       `/api/trips/${copy.id}/participants`,
       "POST",
@@ -246,7 +258,7 @@ test(
           `SELECT EXISTS (
            SELECT 1 FROM pg_stat_activity
            WHERE wait_event_type = 'Lock'
-             AND query LIKE 'SELECT id FROM trips WHERE id = $1 FOR UPDATE%'
+             AND query LIKE 'SELECT allow_api_writes FROM trips WHERE id = $1 FOR UPDATE%'
              AND $1 = ANY(pg_blocking_pids(pid))
          ) AS waiting`,
           [blockerPid.rows[0].pid],
@@ -275,6 +287,93 @@ test(
     } finally {
       await blocker.query("ROLLBACK");
       blocker.release();
+    }
+  },
+);
+
+test(
+  "token copy rechecks API-write permission after waiting for the trip lock",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl, pool } = await withTestApp({
+      prepare: async (db) => {
+        await db.query(
+          "INSERT INTO users (id, name, username, password_hash) VALUES ('owner', 'Owner', 'owner', 'unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(pool, "owner")).id}`;
+    const created = await api<TripPayload>(baseUrl, "/api/trips", {
+      method: "POST",
+      headers: { cookie },
+      body: JSON.stringify({ name: "Tokyo" }),
+    });
+    assert.equal(created.response.status, 201);
+    const path = `/api/trips/${created.data.trip.id}`;
+    const token = generateAccessToken();
+    await pool.query(
+      "INSERT INTO api_tokens (id, user_id, token_hash, name, expires_at) VALUES ('copy-token', 'owner', $1, 'Copy', now() + interval '1 day')",
+      [hashApiSecret(token)],
+    );
+    const asToken = { authorization: `Bearer ${token}` };
+    const denied = await api<{ error: string }>(baseUrl, `${path}/copy`, {
+      method: "POST",
+      headers: asToken,
+    });
+    expect(denied.response.status).toBe(403);
+    const enabled = await api<TripPayload>(baseUrl, path, {
+      method: "PATCH",
+      headers: { cookie },
+      body: JSON.stringify({ allowApiWrites: true }),
+    });
+    expect(enabled.response.status).toBe(200);
+
+    const writer = await pool.connect();
+    await writer.query("BEGIN");
+    try {
+      await writer.query("SELECT id FROM trips WHERE id = $1 FOR UPDATE", [
+        created.data.trip.id,
+      ]);
+      const blockerPid = await writer.query<{ pid: number }>(
+        "SELECT pg_backend_pid() AS pid",
+      );
+      const pending = api<{ error: string }>(baseUrl, `${path}/copy`, {
+        method: "POST",
+        headers: asToken,
+      });
+      let waiting = false;
+      for (let i = 0; i < 200; i += 1) {
+        const result = await pool.query<{ waiting: boolean }>(
+          `SELECT EXISTS (
+           SELECT 1 FROM pg_stat_activity
+           WHERE wait_event_type = 'Lock'
+             AND query LIKE 'SELECT allow_api_writes FROM trips WHERE id = $1 FOR UPDATE%'
+             AND $1 = ANY(pg_blocking_pids(pid))
+         ) AS waiting`,
+          [blockerPid.rows[0].pid],
+        );
+        if (result.rows[0]?.waiting) {
+          waiting = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(true);
+      await writer.query(
+        "UPDATE trips SET allow_api_writes = false WHERE id = $1",
+        [created.data.trip.id],
+      );
+      await writer.query("COMMIT");
+      const rejected = await pending;
+      expect(rejected.response.status).toBe(403);
+      expect(rejected.data.error).toBe("此群組不允許透過 API Token 修改");
+      const listing = await api<TripsResponse>(baseUrl, "/api/trips", {
+        headers: { cookie },
+      });
+      expect(listing.data.trips).toHaveLength(1);
+    } finally {
+      await writer.query("ROLLBACK");
+      writer.release();
     }
   },
 );

@@ -6,9 +6,11 @@ import { useWorkspace } from "./workspace-context.js";
 import { ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 
 export function CopyGroup({
+  disabled = false,
   onCopied,
   payload,
 }: {
+  disabled?: boolean;
   onCopied: (payload: TripPayload) => void | Promise<void>;
   payload: TripPayload;
 }) {
@@ -16,6 +18,7 @@ export function CopyGroup({
   const { announce, offline } = useWorkspace();
 
   async function copy() {
+    if (offline || disabled) return;
     const copied = await api<TripPayload>(
       `/api/trips/${encodeURIComponent(payload.trip.id)}/copy`,
       { method: "POST" },
@@ -32,7 +35,7 @@ export function CopyGroup({
       <ConfirmDialog
         confirmLabel={messages.copyGroup}
         description={messages.copyGroupDescription}
-        disabled={offline}
+        disabled={offline || disabled}
         onConfirm={copy}
         title={messages.copyThisGroup}
         trigger={

@@ -168,6 +168,29 @@ test("read-only shares preserve calculated payment results when payment details 
   ).not.toBeInTheDocument();
 });
 
+test("a recent expense opens its editor from anywhere on the item", async () => {
+  const onEditExpense = vi.fn();
+  render(
+    <OverviewPage
+      payload={{ ...payloadFor(trip), settlements: [] }}
+      onEditExpense={onEditExpense}
+    />,
+  );
+  const recent = screen.getByRole("region", { name: "最近支出" });
+  const lunch = within(recent).getByRole("button", { name: /午餐/ });
+  await userEvent.setup().click(within(lunch).getByText(/1,000/));
+  expect(onEditExpense).toHaveBeenCalledWith(trip.expenses[0]);
+});
+
+test("read-only recent expenses do not offer editing", () => {
+  render(<OverviewPage payload={payloadFor(trip)} readonly />);
+  expect(
+    within(screen.getByRole("region", { name: "最近支出" })).queryByRole(
+      "button",
+    ),
+  ).not.toBeInTheDocument();
+});
+
 test("overview localizes the spending analysis heading", async () => {
   render(
     <I18nProvider initialLocale="en">
