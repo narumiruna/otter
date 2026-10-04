@@ -83,6 +83,7 @@ type TripRow = {
 type ParticipantRow = {
   id: string;
   name: string;
+  settled_by_id: string | null;
 };
 
 type ExpenseRow = {
@@ -554,7 +555,7 @@ async function loadTrip(
 
   const readParticipants = () =>
     db.query<ParticipantRow>(
-      `SELECT id, name
+      `SELECT id, name, settled_by_id
        FROM participants
        WHERE trip_id = $1
        ORDER BY created_at, id`,
@@ -674,6 +675,7 @@ async function loadTrip(
     participants: participantsResult.rows.map((row) => ({
       id: row.id,
       name: row.name,
+      ...(row.settled_by_id ? { settledById: row.settled_by_id } : {}),
     })),
     settlementPayments: settlementPaymentsResult.rows.map((row) => ({
       amountMinor: Number(row.amount_minor),

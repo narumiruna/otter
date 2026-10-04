@@ -290,7 +290,9 @@ function validateTrip(value: unknown): asserts value is Trip {
     if (
       !isRecord(participant) ||
       !isNonEmptyString(participant.id) ||
-      !isNonEmptyString(participant.name)
+      !isNonEmptyString(participant.name) ||
+      (participant.settledById !== undefined &&
+        !isNonEmptyString(participant.settledById))
     ) {
       throw invalidTripPayload();
     }

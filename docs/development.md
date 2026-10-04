@@ -93,7 +93,7 @@ packages/cli    Published non-interactive CLI
 
 依賴方向固定為 `apps/* → packages/*`。Web 與 CLI 不匯入 API implementation；`core` 不依賴 transport 或 app code。Production 由 API process 提供 `apps/web/dist`，因此部署仍只有一個 app service。
 
-Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/scripts/migrate.ts`。
+Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/scripts/migrate.ts`。Migration 022 為 `participants` 新增可空的 `settled_by_id`（同群組外鍵）；舊資料保持自行結算。API 修改成員的 `PATCH /api/trips/:tripId/participants/:participantId` 接受 `settledById` 為另一位直接結算的成員 ID，或 `null` 解除歸屬；既有 `name` 更新不受影響。每筆原始分帳與付款紀錄不改寫，僅餘額計算後將淨額歸至代表人；JSON 備份還原會重新映射歸屬 ID。
 
 ### 共用規則與 HTTP boundary
 

@@ -5,6 +5,7 @@ import { convertExpenseMinor, convertMinorWithRates } from "./money.js";
 export type Participant = {
   id: string;
   name: string;
+  settledById?: string;
 };
 
 export type ExpenseParticipantShare = {
@@ -161,6 +162,24 @@ export function calculateBalances(trip: Trip): Balance[] {
     );
     balances.set(payment.fromId, (balances.get(payment.fromId) ?? 0) + amount);
     balances.set(payment.toId, (balances.get(payment.toId) ?? 0) - amount);
+  }
+
+  // Split and payment records stay with their original people. Only the final
+  // net balance moves to the person responsible for settling it.
+  for (const participant of trip.participants) {
+    const representative = participant.settledById;
+    if (
+      representative &&
+      representative !== participant.id &&
+      balances.has(representative)
+    ) {
+      balances.set(
+        representative,
+        (balances.get(representative) ?? 0) +
+          (balances.get(participant.id) ?? 0),
+      );
+      balances.set(participant.id, 0);
+    }
   }
 
   return trip.participants.map((participant) => ({

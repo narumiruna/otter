@@ -27,6 +27,54 @@ const backup: TripBackupV1 = {
   version: 1,
 };
 
+test("backup validates settlement representatives without chains or missing members", () => {
+  const valid = {
+    ...backup,
+    trip: {
+      ...backup.trip,
+      participants: [
+        { id: "participant_alice", name: "Alice" },
+        {
+          id: "participant_bob",
+          name: "Bob",
+          settledById: "participant_alice",
+        },
+      ],
+    },
+  };
+  assert.equal(validateTripBackupV1(valid).version, 1);
+  for (const settledById of ["participant_bob", "missing", 123, null]) {
+    assert.throws(
+      () =>
+        validateTripBackupV1({
+          ...valid,
+          trip: {
+            ...valid.trip,
+            participants: [
+              valid.trip.participants[0],
+              { ...valid.trip.participants[1], settledById },
+            ],
+          },
+        }),
+      /備份結算歸屬格式錯誤/,
+    );
+  }
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...valid,
+        trip: {
+          ...valid.trip,
+          participants: [
+            { ...valid.trip.participants[0], settledById: "participant_bob" },
+            valid.trip.participants[1],
+          ],
+        },
+      }),
+    /備份結算歸屬格式錯誤/,
+  );
+});
+
 test("v2 requires a positive quote in the matching base; v1 remains importable", () => {
   const modern = {
     ...backup,
