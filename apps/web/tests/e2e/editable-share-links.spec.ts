@@ -42,7 +42,10 @@ test("owner-selected edit links work with and without sign-in, and guest access 
     await guestPage.getByLabel("成員名稱").fill("Guest Person");
     await guestPage.getByRole("button", { name: "新增成員" }).click();
     await expect(
-      guestPage.getByText("Guest Person", { exact: true }).first(),
+      guestPage.getByRole("list").getByRole("strong", {
+        name: "Guest Person",
+        exact: true,
+      }),
     ).toBeVisible();
     expect(
       (
