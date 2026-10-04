@@ -207,6 +207,39 @@ describe("parseTripPayload", () => {
     ).toThrow("Otter returned an unexpected trip payload");
   });
 
+  test("validates direct settlement representatives in trip payloads", () => {
+    const participants = [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob", settledById: "alice" },
+      { id: "carol", name: "Carol", settledById: "alice" },
+    ];
+    const withParticipants = (people: unknown[]) => ({
+      ...validPayload,
+      trip: { ...validPayload.trip, participants: people },
+    });
+    expect(
+      parseTripPayload(withParticipants(participants)).trip.participants,
+    ).toEqual(participants);
+    for (const people of [
+      [{ ...participants[0], settledById: "alice" }, ...participants.slice(1)],
+      [
+        { ...participants[0] },
+        { ...participants[1], settledById: "missing" },
+        participants[2],
+      ],
+      [{ ...participants[0], settledById: "bob" }, ...participants.slice(1)],
+      [
+        participants[0],
+        participants[1],
+        { ...participants[2], settledById: "bob" },
+      ],
+    ]) {
+      expect(() => parseTripPayload(withParticipants(people))).toThrow(
+        "Otter returned an unexpected trip payload",
+      );
+    }
+  });
+
   test("rejects malformed domain values", () => {
     expect(() =>
       parseTripPayload({

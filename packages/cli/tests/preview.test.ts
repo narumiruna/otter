@@ -89,6 +89,22 @@ describe("settlement preview", () => {
     ).rejects.toMatchObject({ code: "INPUT_ERROR" });
   });
 
+  test("rejects unknown settlement representatives as structured input errors", async () => {
+    const invalid = {
+      ...payload,
+      trip: {
+        ...payload.trip,
+        participants: [
+          payload.trip.participants[0],
+          { ...payload.trip.participants[1], settledById: "missing" },
+        ],
+      },
+    };
+    await expect(
+      executeSettlementPreview("-", Readable.from([JSON.stringify(invalid)])),
+    ).rejects.toMatchObject({ code: "INPUT_ERROR" });
+  });
+
   test("rejects oversized stdin before parsing it", async () => {
     await expect(
       executeSettlementPreview("-", Readable.from(["123"]), 2),

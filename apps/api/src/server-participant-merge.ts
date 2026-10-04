@@ -121,10 +121,12 @@ export function registerParticipantMergeRoute(
         const target = trip.participants.find(
           (person) => person.id === targetId,
         );
+        // A target with dependents must remain their direct representative.
         if (
           source?.settledById &&
           !target?.settledById &&
-          source.settledById !== targetId
+          source.settledById !== targetId &&
+          !trip.participants.some((person) => person.settledById === targetId)
         ) {
           await pool.query(
             "UPDATE participants SET settled_by_id = $3 WHERE trip_id = $1 AND id = $2",
