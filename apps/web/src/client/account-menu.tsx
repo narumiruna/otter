@@ -6,7 +6,7 @@ import {
   GlobeIcon,
 } from "@radix-ui/react-icons";
 import { DropdownMenu } from "@radix-ui/themes";
-import { forwardRef } from "react";
+import { forwardRef, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { User } from "./client-support.js";
 import { useI18n } from "./i18n.js";
@@ -33,6 +33,7 @@ export const AccountMenu = forwardRef<HTMLButtonElement, AccountMenuProps>(
     forwardedRef,
   ) {
     const { locale, messages, setLocale } = useI18n();
+    const openSettingsAfterClose = useRef(false);
 
     return (
       <DropdownMenu.Root>
@@ -59,6 +60,12 @@ export const AccountMenu = forwardRef<HTMLButtonElement, AccountMenuProps>(
           aria-label={messages.nameSAccountMenu({ name: user.name })}
           className="account-menu-content"
           sideOffset={8}
+          onCloseAutoFocus={(event) => {
+            if (!openSettingsAfterClose.current) return;
+            event.preventDefault();
+            openSettingsAfterClose.current = false;
+            onOpenAccountSettings();
+          }}
         >
           <DropdownMenu.Label className="account-menu-identity">
             <strong>{user.name}</strong>
@@ -69,7 +76,9 @@ export const AccountMenu = forwardRef<HTMLButtonElement, AccountMenuProps>(
           <DropdownMenu.Separator />
           <DropdownMenu.Item
             aria-current={accountSettingsActive ? "page" : undefined}
-            onSelect={onOpenAccountSettings}
+            onSelect={() => {
+              openSettingsAfterClose.current = true;
+            }}
           >
             <GearIcon aria-hidden="true" />
             {messages.accountSettings}

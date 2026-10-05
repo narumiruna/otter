@@ -11,6 +11,10 @@
 @import "./styles.css";
 @import "./auth.css";
 @import "./workspace/workspace.css";
+@import "./account-settings.css";
+@import "./workspace/expenses.css";
+@import "./workspace/layout.css";
+@import "./workspace/settings.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -83,9 +87,9 @@
   --hero-foreground: var(--accent-1);
   --hero-muted: var(--accent-5);
   --hero-border: var(--accent-11);
-  --surface-shadow:
-    0 2px 8px color-mix(in srgb, var(--gray-12) 3%, transparent),
-    0 12px 32px color-mix(in srgb, var(--gray-12) 3%, transparent);
+  --panel-radius: 14px;
+  --control-radius: 8px;
+  --surface-shadow: 0 2px 8px color-mix(in srgb, var(--gray-12) 3%, transparent);
   --chart-1: var(--accent-9);
   --chart-2: var(--accent-7);
   --chart-3: var(--amber-9);
@@ -147,10 +151,11 @@
 }
 
 .otter-button {
+  box-sizing: border-box;
   min-height: 2.75rem;
   gap: 0.5rem;
-  border-radius: var(--radius-3);
-  font-weight: 650;
+  border-radius: var(--control-radius);
+  font-weight: 600;
   letter-spacing: -0.01em;
   touch-action: manipulation;
   transition:
@@ -161,6 +166,18 @@
 
 .otter-button:where(.rt-variant-outline) {
   background: var(--color-panel-solid);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.otter-button:where(.rt-variant-outline):hover {
+  background: var(--gray-3);
+}
+
+.otter-button:where(.rt-variant-ghost) {
+  color: var(--foreground);
+}
+.otter-button:where(.rt-variant-ghost):hover {
+  background: var(--gray-3);
 }
 
 .otter-button[data-icon-only] {
@@ -175,6 +192,7 @@
 }
 
 .otter-input {
+  min-height: 44px;
   width: 100%;
   min-width: 0;
 }

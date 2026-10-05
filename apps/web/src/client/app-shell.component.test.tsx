@@ -221,15 +221,16 @@ test("account settings preserves non-expense form drafts", async () => {
   });
 
   await user.click(view.getByRole("button", { name: "成員" }));
+  await user.click(view.getByRole("button", { name: "新增成員" }));
   const name = await view.findByLabelText("成員名稱");
   await user.type(name, "尚未新增的朋友");
+  await user.keyboard("{Escape}");
   await user.click(accountButton);
   await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
 
   const settingsUrl = window.location.href;
   expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
-  expect(name).not.toBeVisible();
-  expect(name).toHaveValue("尚未新增的朋友");
+  expect(view.queryByLabelText("成員名稱")).toBeNull();
 
   const workspaceUrl = new URL(settingsUrl);
   workspaceUrl.searchParams.delete("account");
@@ -242,8 +243,8 @@ test("account settings preserves non-expense form drafts", async () => {
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
 
-  await waitFor(() => expect(name).toBeVisible());
-  expect(name).toHaveValue("尚未新增的朋友");
+  await user.click(await view.findByRole("button", { name: "新增成員" }));
+  expect(await view.findByLabelText("成員名稱")).toHaveValue("尚未新增的朋友");
 });
 
 test("account settings uses browser history and manages page focus", async () => {

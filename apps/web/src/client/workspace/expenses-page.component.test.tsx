@@ -4,7 +4,7 @@ import type { Trip } from "@narumitw/otter-core/settlement";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   defaultExpenseFilters,
   type ExpenseFilters,
@@ -34,6 +34,8 @@ const trip: Trip = {
   participants: [{ id: "alice", name: "Alice" }],
   settlementPayments: [],
 };
+
+afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(() => {
   const values = new Map<string, string>();
@@ -72,7 +74,7 @@ function ExpensesHarness({
   );
 }
 
-test("expense row shows the saved quote and converted total after live rates change", () => {
+test("expense details show the saved quote and converted total after live rates change", async () => {
   const quoted: Trip = {
     ...trip,
     exchangeRates: { TWD: 1, USD: 80 },
@@ -96,6 +98,13 @@ test("expense row shows the saved quote and converted total after live rates cha
     <I18nProvider initialLocale="en">
       <ExpensesHarness currentTrip={quoted} />
     </I18nProvider>,
+  );
+  expect(screen.queryByText(/1 USD = 32 TWD/)).toBeNull();
+  expect(screen.getByText("≈ NT$32")).toBeVisible();
+  await userEvent.setup().click(
+    screen.getByRole("button", {
+      name: "View amount and exchange rate for Dinner",
+    }),
   );
   expect(screen.getByText(/1 USD = 32 TWD/)).toHaveTextContent(
     "Bank of Taiwan",
@@ -367,12 +376,77 @@ test("category filter chips translate stored domain values", async () => {
     </I18nProvider>,
   );
 
-  await user.click(screen.getByText("More filters"));
+  await user.click(screen.getByRole("button", { name: "Filters" }));
   await user.selectOptions(
     screen.getByRole("combobox", { name: "Category" }),
     "餐飲",
   );
 
+  await user.click(screen.getByRole("button", { name: "Done" }));
   expect(screen.getByRole("button", { name: /^Category: Food/ })).toBeVisible();
   expect(screen.queryByText("Category: 餐飲")).not.toBeInTheDocument();
+});
+
+test("mobile rows and filter sheet never replace desktop column preferences", async () => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+  window.localStorage.setItem("otter.expense-columns.user-1", '["tags"]');
+  const user = userEvent.setup();
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness />
+    </I18nProvider>,
+  );
+  expect(screen.queryByRole("table")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+  expect(screen.getByText("Dinner")).toBeVisible();
+  expect(
+    screen.getByText("Alice", { selector: "p > span" }).closest("p"),
+  ).toHaveTextContent("Alice · Alice");
+  expect(screen.queryByRole("combobox", { name: "Sort" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Filters" }));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Sort" }),
+    "amount-desc",
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Group by" }),
+    "date",
+  );
+  await user.click(screen.getByRole("button", { name: "Done" }));
+  expect(screen.getByText("Amount: high to low · Group by date")).toBeVisible();
+  expect(window.localStorage.getItem("otter.expense-columns.user-1")).toBe(
+    '["tags"]',
+  );
+});
+
+test("same-currency rows keep quote details behind an accessible amount button", async () => {
+  const currentTrip: Trip = {
+    ...trip,
+    expenses: [
+      {
+        ...trip.expenses[0],
+        exchangeRate: { baseCurrency: "TWD", rateToBase: 1, source: "fixed" },
+      },
+    ],
+  };
+  render(
+    <I18nProvider initialLocale="en">
+      <ExpensesHarness currentTrip={currentTrip} />
+    </I18nProvider>,
+  );
+  expect(screen.queryByText(/1 TWD = 1 TWD/)).toBeNull();
+  expect(screen.queryByText(/≈/)).toBeNull();
+  await userEvent.setup().click(
+    screen.getByRole("button", {
+      name: "View amount and exchange rate for Dinner",
+    }),
+  );
+  expect(screen.getByText(/1 TWD = 1 TWD/)).toBeVisible();
 });

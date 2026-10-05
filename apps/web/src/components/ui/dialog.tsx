@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "../../client/i18n.js";
 import { Button } from "./button";
 
 type RenderElement = ReactElement<{
@@ -61,13 +62,14 @@ function DialogClose({ children, render, ...props }: CloseProps) {
 function DialogContent({
   children,
   className,
-  closeLabel = "關閉",
+  closeLabel,
   showCloseButton = true,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
   closeLabel?: string;
   showCloseButton?: boolean;
 }) {
+  const { messages } = useI18n();
   return (
     <DialogPrimitive.Portal>
       <Theme className="radix-dialog-theme">
@@ -80,7 +82,7 @@ function DialogContent({
           {showCloseButton ? (
             <DialogPrimitive.Close asChild>
               <Button
-                aria-label={closeLabel}
+                aria-label={closeLabel ?? messages.close}
                 className="radix-dialog-close"
                 size="icon"
                 variant="ghost"

@@ -767,6 +767,7 @@ test("guest mutations update the trip summary without loading the account collec
     </I18nProvider>,
   );
   const user = userEvent.setup();
+  await user.click(view.getByRole("button", { name: "Add person" }));
   await user.type(await view.findByLabelText("Person's name"), "Bob");
   await user.click(view.getByRole("button", { name: "Add person" }));
   await waitFor(() =>

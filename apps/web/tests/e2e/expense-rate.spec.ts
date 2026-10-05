@@ -56,6 +56,9 @@ test("expense rows retain the saved quote after group rates change", async ({
     ).toBe(200);
     const page = await context.newPage();
     await page.goto(`/?trip=${trip.trip.id}&view=expenses`);
+    await page
+      .getByRole("button", { name: "查看「Saved quote」的金額與匯率明細" })
+      .click();
     await expect(page.getByText(/1 USD = 30 TWD/)).toBeVisible();
     await expect(page.getByText(/1 USD = 30 TWD/)).toContainText("$30");
     await expect(page.getByText(/1 USD = 30 TWD/)).toContainText("無報價時間");

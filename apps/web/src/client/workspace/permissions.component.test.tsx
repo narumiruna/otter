@@ -46,7 +46,7 @@ test("guest More view retains trip data tools but hides account and owner backup
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  view.getByText("資料與匯出").click();
+  view.container.querySelector("details")?.setAttribute("open", "");
   assert.ok(view.getByText("匯出支出 CSV"));
   assert.equal(view.queryByText("下載完整備份"), null);
   assert.equal(view.queryByText("還原 JSON 備份"), null);
@@ -76,7 +76,7 @@ test("editor More view omits every owner-only mutation surface", () => {
     </QueryClientProvider>,
   );
 
-  assert.ok(view.getByText("資料與匯出"));
+  assert.ok(view.getAllByText("資料與匯出").length);
   assert.equal(view.queryByText("分享與權限"), null);
   assert.equal(view.queryByText("群組偏好"), null);
   assert.equal(view.queryByText("換算方式"), null);

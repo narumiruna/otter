@@ -30,11 +30,13 @@ import {
 import { BusyButton, ConfirmDialog, SectionHeading } from "./workspace-ui.js";
 
 export function DataSettings({
+  expanded = false,
   onRestored,
   payload,
   guestShare = false,
 }: {
   onRestored: (payload: TripPayload) => void;
+  expanded?: boolean;
   payload: TripPayload;
   guestShare?: boolean;
 }) {
@@ -42,7 +44,11 @@ export function DataSettings({
   const { announce } = useWorkspace();
   const { trip } = payload;
   return (
-    <details className="surface disclosure" name="trip-settings">
+    <details
+      className="surface disclosure"
+      name={expanded ? undefined : "trip-settings"}
+      open={expanded || undefined}
+    >
       <summary>
         <Download aria-hidden="true" />
         <span>{messages.dataAndExport}</span>
