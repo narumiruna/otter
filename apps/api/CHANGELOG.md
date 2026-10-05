@@ -1,5 +1,13 @@
 # @narumitw/otter-api
 
+## 0.1.2
+
+### Patch Changes
+
+- dd29121: Allow selecting or taking a receipt photo while creating an expense, and return the created expense ID for safe attachment and retry.
+- Updated dependencies [dd29121]
+  - @narumitw/otter-contracts@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
