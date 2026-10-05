@@ -112,7 +112,13 @@ function customRateInputsFromValues(
   return rates;
 }
 
-export function TripPreferences({ payload }: { payload: TripPayload }) {
+export function TripPreferences({
+  payload,
+  expanded = false,
+}: {
+  payload: TripPayload;
+  expanded?: boolean;
+}) {
   const { formatMoney, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
@@ -159,7 +165,11 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <details className="surface disclosure" name="trip-settings">
+    <details
+      className="surface disclosure"
+      name={expanded ? undefined : "trip-settings"}
+      open={expanded || undefined}
+    >
       <summary>
         <Settings2 aria-hidden="true" />
         <span>{messages.groupPreferences}</span>
@@ -248,7 +258,13 @@ export function TripPreferences({ payload }: { payload: TripPayload }) {
   );
 }
 
-export function ApiWriteSettings({ payload }: { payload: TripPayload }) {
+export function ApiWriteSettings({
+  payload,
+  expanded = false,
+}: {
+  payload: TripPayload;
+  expanded?: boolean;
+}) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useState("");
@@ -272,7 +288,11 @@ export function ApiWriteSettings({ payload }: { payload: TripPayload }) {
   }
 
   return (
-    <details className="surface disclosure" name="trip-settings">
+    <details
+      className="surface disclosure"
+      name={expanded ? undefined : "trip-settings"}
+      open={expanded || undefined}
+    >
       <summary>
         <Lock aria-hidden="true" />
         <span>{messages.apiWriteSettings}</span>
@@ -299,7 +319,13 @@ export function ApiWriteSettings({ payload }: { payload: TripPayload }) {
   );
 }
 
-export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
+export function ExchangeRateSettings({
+  payload,
+  expanded = false,
+}: {
+  payload: TripPayload;
+  expanded?: boolean;
+}) {
   const { formatMoney, locale, messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const initialValues = customRateValues(payload);
@@ -427,7 +453,11 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
     }
   }
   return (
-    <details className="surface disclosure" name="trip-settings">
+    <details
+      className="surface disclosure"
+      name={expanded ? undefined : "trip-settings"}
+      open={expanded || undefined}
+    >
       <summary>
         <Calculator aria-hidden="true" />
         <span>{messages.currencyConversion}</span>
@@ -547,9 +577,11 @@ export function ExchangeRateSettings({ payload }: { payload: TripPayload }) {
 
 export function LifecycleSettings({
   onDeleted,
+  expanded = false,
   payload,
 }: {
   onDeleted: () => void;
+  expanded?: boolean;
   payload: TripPayload;
 }) {
   const { messages } = useI18n();
@@ -575,7 +607,11 @@ export function LifecycleSettings({
     }
   }
   return (
-    <details className="surface disclosure danger-surface" name="trip-settings">
+    <details
+      className="surface disclosure danger-surface"
+      name={expanded ? undefined : "trip-settings"}
+      open={expanded || undefined}
+    >
       <summary>
         <Archive aria-hidden="true" />
         <span>{messages.groupLifecycle}</span>

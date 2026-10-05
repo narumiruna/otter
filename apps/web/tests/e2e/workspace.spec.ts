@@ -36,7 +36,13 @@ async function login(page: Page, groupName: string | RegExp = "東京賞櫻五�
     .locator("#login-form")
     .getByRole("button", { name: "登入", exact: true })
     .click();
-  await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
+  if (await page.evaluate(() => matchMedia("(max-width: 900px)").matches)) {
+    const groupSwitch = page.locator(".group-switch-trigger");
+    await expect(groupSwitch).toBeVisible();
+    await expect(groupSwitch).toContainText(groupName);
+  } else {
+    await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
+  }
 }
 
 test("goal-first workspace navigation and expense preview are safe", async ({
@@ -142,8 +148,12 @@ test("mobile new expense attaches a camera photo to the expense it created", asy
   await createDialog.getByLabel("群組名稱").fill(groupName);
   await createDialog.getByRole("button", { name: "建立群組" }).click();
   await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
-  await page.getByLabel("成員名稱").fill("Bob");
   await page.getByRole("button", { name: "新增成員" }).click();
+  await page.getByLabel("成員名稱").fill("Bob");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "新增成員" })
+    .click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "記一筆" }).click();
   await page.getByLabel("描述").fill("相機收據測試");
@@ -177,7 +187,12 @@ test("mobile new expense attaches a camera photo to the expense it created", asy
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "群組設定" }).click();
-  await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
+  const dataNavigation = page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "資料與匯出", exact: true });
+  if (await dataNavigation.isVisible()) await dataNavigation.click();
+  else
+    await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
   await page.getByLabel(`輸入「${groupName}」確認`).fill(groupName);
   await page.getByRole("button", { name: "永久刪除群組" }).click();
   await page
@@ -254,25 +269,37 @@ test("consequential settings preview without mutating until apply", async ({
   await login(page);
   await page.getByRole("button", { name: "群組設定" }).click();
 
-  await page.locator("summary").filter({ hasText: "群組偏好" }).click();
+  await page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "群組偏好", exact: true })
+    .click();
   await page.locator('select[name="baseCurrency"]').selectOption("JPY");
   await expect(page.getByText("變更預覽", { exact: true })).toBeVisible();
   expect(settingMutations).toBe(0);
   await page.getByRole("button", { name: "取消變更" }).first().click();
 
-  await page.locator("summary").filter({ hasText: "分享與權限" }).click();
+  await page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "分享與權限", exact: true })
+    .click();
   await page.getByRole("button", { name: "建立分享連結" }).click();
   const shareDialog = page.getByRole("dialog", { name: "建立分享連結？" });
   await expect(shareDialog.getByText(/任何取得連結的人/)).toBeVisible();
   await shareDialog.getByRole("button", { name: "取消" }).click();
   expect(settingMutations).toBe(0);
 
-  await page.locator("summary").filter({ hasText: "換算方式" }).click();
+  await page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "群組偏好", exact: true })
+    .click();
   await page.getByLabel("JPY → TWD").fill("0.22");
   await expect(page.getByText("換算預覽", { exact: true })).toBeVisible();
   expect(settingMutations).toBe(0);
 
-  await page.locator("summary").filter({ hasText: "資料與匯出" }).click();
+  await page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "資料與匯出", exact: true })
+    .click();
   await page.locator('input[accept=".csv,text/csv"]').setInputFiles({
     buffer: Buffer.from(
       "date,description,amount,currency,paid_by,split_participants\n2026-07-25,E2E meal,100,TWD,Admin,Admin;美咲",
@@ -311,7 +338,12 @@ test("consequential settings preview without mutating until apply", async ({
   await expect(page.getByText("還原預覽：預覽還原群組")).toBeVisible();
   expect(settingMutations).toBe(0);
 
-  await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
+  const dataNavigation = page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "資料與匯出", exact: true });
+  if (await dataNavigation.isVisible()) await dataNavigation.click();
+  else
+    await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
   await page.getByRole("button", { name: "封存群組" }).click();
   const archiveDialog = page.getByRole("dialog", { name: "封存這個群組？" });
   await expect(archiveDialog.getByText(/封存期間不能修改/)).toBeVisible();
@@ -330,10 +362,14 @@ test("a new group can record an expense and be safely removed", async ({
   await createDialog.getByRole("button", { name: "建立群組" }).click();
   await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
 
-  await page.getByLabel("成員名稱").fill("Bob");
   await page.getByRole("button", { name: "新增成員" }).click();
+  await page.getByLabel("成員名稱").fill("Bob");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "新增成員" })
+    .click();
   await expect(
-    page.getByRole("list").locator("li > strong").filter({ hasText: /^Bob$/ }),
+    page.locator(".people-identity strong").filter({ hasText: /^Bob$/ }),
   ).toBeVisible();
   await page.getByRole("button", { name: "記一筆" }).click();
   await page.getByLabel("描述").fill("E2E dinner");
@@ -342,7 +378,12 @@ test("a new group can record an expense and be safely removed", async ({
   await expect(page.getByText("E2E dinner", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "群組設定" }).click();
-  await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
+  const dataNavigation = page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "資料與匯出", exact: true });
+  if (await dataNavigation.isVisible()) await dataNavigation.click();
+  else
+    await page.locator("summary").filter({ hasText: "群組生命週期" }).click();
   await page.getByLabel(`輸入「${groupName}」確認`).fill(groupName);
   await page.getByRole("button", { name: "永久刪除群組" }).click();
   const deleteDialog = page.getByRole("dialog", { name: "永久刪除群組？" });

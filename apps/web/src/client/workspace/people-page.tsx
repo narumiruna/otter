@@ -1,10 +1,12 @@
 import type { Participant, Trip } from "@narumitw/otter-core/settlement";
 import {
+  InfoCircledIcon,
   MixIcon as Merge,
   Pencil2Icon as Pencil,
   TrashIcon as Trash2,
   PersonIcon as UserPlus,
 } from "@radix-ui/react-icons";
+import { Popover } from "@radix-ui/themes";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { participantDeleteBlockReason } from "../client-support.js";
 import { useI18n, useLocaleError } from "../i18n.js";
+import { useMediaQuery } from "../use-media-query.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -38,6 +41,8 @@ export function PeoplePage({
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const [error, setError] = useLocaleError();
+  const mobile = useMediaQuery("(max-width: 680px)");
+  const [addOpen, setAddOpen] = useState(false);
   const form = useForm<{ name: string }>({ defaultValues: { name: "" } });
   const submit = form.handleSubmit(async ({ name }) => {
     setError("");
@@ -49,6 +54,7 @@ export function PeoplePage({
         true,
       );
       form.reset();
+      setAddOpen(false);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : messages.unableToAddPerson,
@@ -56,61 +62,115 @@ export function PeoplePage({
     }
   });
   return (
-    <section className="surface grid gap-5" aria-labelledby="people-heading">
-      <SectionHeading
-        description={
-          messages.expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess
-        }
-      >
-        <span id="people-heading">{messages.expenseParticipants}</span>
-      </SectionHeading>
-      {!readonly ? (
-        <form
-          className="grid gap-3 rounded-xl border bg-muted/40 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
-          onSubmit={submit}
+    <section
+      className="surface people-page grid gap-4"
+      aria-labelledby="people-heading"
+    >
+      <div className="section-actions">
+        <SectionHeading
+          description={
+            messages.expenseParticipantsDoNotNeedToSignInManageAccountsWithAccessUnderMoreSharingAndAccess
+          }
         >
-          <FormField label={messages.personsName}>
-            <input
-              className="form-control"
-              maxLength={80}
-              placeholder={messages.friendsName}
-              {...form.register("name", { required: messages.enterAName })}
-            />
-          </FormField>
-          <BusyButton
-            busy={form.formState.isSubmitting}
-            disabled={offline}
-            type="submit"
-          >
-            <UserPlus aria-hidden="true" />
-            {messages.addPerson}
-          </BusyButton>
-          <div className="sm:col-span-2">
-            <ActionError
-              message={error || form.formState.errors.name?.message || ""}
-            />
-          </div>
-        </form>
-      ) : (
-        <p className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+          <span id="people-heading">{messages.expenseParticipants}</span>
+          <span className="count-pill" aria-hidden="true">
+            {messages.countPeople({ count: trip.participants.length })}
+          </span>
+        </SectionHeading>
+        {!readonly ? (
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger render={<Button disabled={offline} />}>
+              <UserPlus aria-hidden="true" />
+              {messages.addPerson}
+            </DialogTrigger>
+            <DialogContent
+              className="responsive-sheet"
+              closeLabel={messages.close}
+            >
+              <DialogHeader>
+                <DialogTitle>{messages.addPerson}</DialogTitle>
+                <DialogDescription>
+                  {messages.settlementRepresentativeHelp}
+                </DialogDescription>
+              </DialogHeader>
+              <form className="grid gap-4" onSubmit={submit}>
+                <FormField label={messages.personsName}>
+                  <input
+                    className="form-control"
+                    maxLength={80}
+                    placeholder={messages.friendsName}
+                    {...form.register("name", {
+                      required: messages.enterAName,
+                    })}
+                  />
+                </FormField>
+                <BusyButton
+                  busy={form.formState.isSubmitting}
+                  disabled={offline}
+                  type="submit"
+                >
+                  <UserPlus aria-hidden="true" />
+                  {messages.addPerson}
+                </BusyButton>
+                <div className="sm:col-span-2">
+                  <ActionError
+                    message={error || form.formState.errors.name?.message || ""}
+                  />
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        ) : null}
+      </div>
+      {readonly ? (
+        <p className="text-sm text-muted-foreground">
           {
             messages.archivedGroupsAreReadOnlyRestoreThisGroupToChangeParticipants
           }
         </p>
-      )}
+      ) : null}
       <p className="text-sm text-muted-foreground">
         {messages.settlementRepresentativeHelp}
       </p>
-      <ul className="divide-y rounded-xl border bg-card">
-        {trip.participants.map((person) => (
-          <ParticipantRow
-            key={person.id}
-            person={person}
-            readonly={readonly}
-            trip={trip}
-          />
-        ))}
-      </ul>
+      {mobile ? (
+        <ul className="people-list">
+          {trip.participants.map((person) => (
+            <ParticipantRow
+              key={person.id}
+              person={person}
+              readonly={readonly}
+              trip={trip}
+              mobile
+            />
+          ))}
+        </ul>
+      ) : (
+        <table className="people-table">
+          <thead>
+            <tr>
+              <th scope="col">{messages.personLabel}</th>
+              <th scope="col">{messages.settlementRepresentative}</th>
+              <th scope="col">{messages.actions}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trip.participants.map((person) => (
+              <ParticipantRow
+                key={person.id}
+                person={person}
+                readonly={readonly}
+                trip={trip}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
+      {!readonly ? (
+        <p className="people-deletion-help text-sm text-muted-foreground">
+          <InfoCircledIcon aria-hidden="true" />
+          {messages.peopleDeletionHelp}
+        </p>
+      ) : null}
       {!readonly && trip.participants.length > 1 ? (
         <MergeParticipants trip={trip} />
       ) : null}
@@ -122,65 +182,100 @@ function ParticipantRow({
   person,
   readonly,
   trip,
+  mobile = false,
 }: {
   person: Participant;
   readonly: boolean;
   trip: Trip;
+  mobile?: boolean;
 }) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
   const blocked = participantDeleteBlockReason(trip, person.id);
-  return (
-    <li className="people-row p-3">
-      <span
-        className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary font-semibold text-secondary-foreground"
-        aria-hidden="true"
-      >
+  const dependents = trip.participants.filter(
+    (candidate) => candidate.settledById === person.id,
+  );
+  const identity = (
+    <span className="people-identity">
+      <span className="person-avatar" aria-hidden="true">
         {person.name.trim().charAt(0).toLocaleUpperCase() || "?"}
       </span>
-      <strong className="people-row-name break-anywhere">{person.name}</strong>
-      <SettlementRepresentative
-        person={person}
-        readonly={readonly}
-        trip={trip}
-      />
-      {!readonly ? (
-        <div className="people-row-actions">
-          <RenameParticipant offline={offline} person={person} trip={trip} />
-          {blocked ? (
-            <span className="text-xs text-muted-foreground">
-              {messages.cannotDeleteReasonUpdateRelatedExpensesFirstOrUseTheMergeToolBelow(
-                { reason: blocked },
-              )}
-            </span>
-          ) : (
-            <ConfirmDialog
-              confirmLabel={messages.deleteName2({ name: person.name })}
-              description={
-                messages.thisPersonHasNoExpensesOrPaymentsDeletionCannotBeUndone
-              }
-              destructive
-              disabled={offline}
-              onConfirm={() =>
-                requestPayload(
-                  `/api/trips/${trip.id}/participants/${person.id}`,
-                  { method: "DELETE" },
-                  messages.expenseParticipantDeleted,
-                  true,
-                )
-              }
-              title={messages.deleteThisExpenseParticipant}
-              trigger={
-                <Button size="sm" variant="ghost">
-                  <Trash2 aria-hidden="true" />
-                  {messages.delete}
-                </Button>
-              }
-            />
-          )}
-        </div>
-      ) : null}
+      <span className="min-w-0">
+        <strong className="break-anywhere">{person.name}</strong>
+        {dependents.length ? (
+          <small>
+            {messages.representsPeople({
+              names: dependents.map((p) => p.name).join(", "),
+            })}
+          </small>
+        ) : null}
+      </span>
+    </span>
+  );
+  const settlement = (
+    <SettlementRepresentative person={person} readonly={readonly} trip={trip} />
+  );
+  const actions = !readonly ? (
+    <div className="people-row-actions">
+      <RenameParticipant offline={offline} person={person} trip={trip} />
+      {blocked ? (
+        <Popover.Root>
+          <Popover.Trigger>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={messages.personRestriction({ name: person.name })}
+            >
+              <InfoCircledIcon aria-hidden="true" />
+            </Button>
+          </Popover.Trigger>
+          <Popover.Content className="group-details-popover">
+            {messages.cannotDeleteReasonUpdateRelatedExpensesFirstOrUseTheMergeToolBelow(
+              { reason: blocked },
+            )}
+          </Popover.Content>
+        </Popover.Root>
+      ) : (
+        <ConfirmDialog
+          confirmLabel={messages.deleteName2({ name: person.name })}
+          description={
+            messages.thisPersonHasNoExpensesOrPaymentsDeletionCannotBeUndone
+          }
+          destructive
+          disabled={offline}
+          onConfirm={() =>
+            requestPayload(
+              `/api/trips/${trip.id}/participants/${person.id}`,
+              { method: "DELETE" },
+              messages.expenseParticipantDeleted,
+              true,
+            )
+          }
+          title={messages.deleteThisExpenseParticipant}
+          trigger={
+            <Button size="sm" variant="ghost">
+              <Trash2 aria-hidden="true" />
+              {messages.delete}
+            </Button>
+          }
+        />
+      )}
+    </div>
+  ) : null;
+  return mobile ? (
+    <li className="people-row">
+      <div className="people-mobile-heading">
+        {identity}
+        {actions}
+      </div>
+      {settlement}
     </li>
+  ) : (
+    <tr>
+      <th scope="row">{identity}</th>
+      <td>{settlement}</td>
+      <td>{actions}</td>
+    </tr>
   );
 }
 
@@ -312,10 +407,16 @@ function RenameParticipant({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         disabled={offline}
-        render={<Button disabled={offline} size="sm" variant="outline" />}
+        render={
+          <Button
+            disabled={offline}
+            size="icon"
+            variant="ghost"
+            aria-label={messages.renameName({ name: person.name })}
+          />
+        }
       >
         <Pencil aria-hidden="true" />
-        {messages.rename}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -374,89 +475,98 @@ function MergeParticipants({ trip }: { trip: Trip }) {
     [sourceId, trip.expenses, trip.settlementPayments],
   );
   return (
-    <details className="disclosure">
-      <summary>
+    <Dialog>
+      <DialogTrigger
+        render={<Button variant="outline" className="people-merge-trigger" />}
+      >
         <Merge aria-hidden="true" />
-        {messages.advancedPeopleTools}{" "}
-        <span className="summary-meta">{messages.mergeDuplicatePeople}</span>
-      </summary>
-      <div className="grid gap-4 pt-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label={messages.sourcePerson}>
-            <select
-              className="form-control"
-              value={sourceId}
-              onChange={(event) => setSourceId(event.target.value)}
-            >
-              {trip.participants.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label={messages.mergeInto}>
-            <select
-              className="form-control"
-              value={targetId}
-              onChange={(event) => setTargetId(event.target.value)}
-            >
-              {trip.participants.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </div>
-        <div className="rounded-xl border bg-muted/50 p-4 text-sm">
-          <strong>{messages.changePreview}</strong>
-          <p className="mt-1">
-            {messages.expensesRelatedExpensesAndPaymentsPaymentsForSourceWillMoveToTargetThenTheSourcePersonWillBeDeleted(
+        {messages.advancedPeopleTools}
+      </DialogTrigger>
+      <DialogContent className="responsive-sheet" closeLabel={messages.close}>
+        <DialogHeader>
+          <DialogTitle>{messages.mergeDuplicatePeople}</DialogTitle>
+          <DialogDescription>{messages.advancedPeopleTools}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label={messages.sourcePerson}>
+              <select
+                className="form-control"
+                value={sourceId}
+                onChange={(event) => setSourceId(event.target.value)}
+              >
+                {trip.participants.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label={messages.mergeInto}>
+              <select
+                className="form-control"
+                value={targetId}
+                onChange={(event) => setTargetId(event.target.value)}
+              >
+                {trip.participants.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
+          <div className="rounded-xl border bg-muted/50 p-4 text-sm">
+            <strong>{messages.changePreview}</strong>
+            <p className="mt-1">
+              {messages.expensesRelatedExpensesAndPaymentsPaymentsForSourceWillMoveToTargetThenTheSourcePersonWillBeDeleted(
+                {
+                  source: source?.name ?? messages.sourcePerson,
+                  expenses: counts.expenses,
+                  payments: counts.payments,
+                  target: target?.name ?? messages.targetPerson,
+                },
+              )}
+            </p>
+          </div>
+          <ActionError message={error} />
+          <ConfirmDialog
+            confirmLabel={messages.mergePeople}
+            disabled={offline || !source || !target || sourceId === targetId}
+            description={messages.sourceWillBeDeletedAndRelatedDataWillBeTransferredToTargetAtomically(
               {
                 source: source?.name ?? messages.sourcePerson,
-                expenses: counts.expenses,
-                payments: counts.payments,
                 target: target?.name ?? messages.targetPerson,
               },
             )}
-          </p>
-        </div>
-        <ActionError message={error} />
-        <ConfirmDialog
-          confirmLabel={messages.mergePeople}
-          disabled={offline || !source || !target || sourceId === targetId}
-          description={messages.sourceWillBeDeletedAndRelatedDataWillBeTransferredToTargetAtomically(
-            {
-              source: source?.name ?? messages.sourcePerson,
-              target: target?.name ?? messages.targetPerson,
-            },
-          )}
-          destructive
-          onConfirm={async () => {
-            try {
-              setError("");
-              await requestPayload(
-                `/api/trips/${trip.id}/participants/${sourceId}/merge`,
-                {
-                  body: JSON.stringify({ targetParticipantId: targetId }),
-                  method: "POST",
-                },
-                messages.expenseParticipantsMerged,
-                true,
-              );
-            } catch (caught) {
-              setError(
-                caught instanceof Error ? caught.message : messages.mergeFailed,
-              );
+            destructive
+            onConfirm={async () => {
+              try {
+                setError("");
+                await requestPayload(
+                  `/api/trips/${trip.id}/participants/${sourceId}/merge`,
+                  {
+                    body: JSON.stringify({ targetParticipantId: targetId }),
+                    method: "POST",
+                  },
+                  messages.expenseParticipantsMerged,
+                  true,
+                );
+              } catch (caught) {
+                setError(
+                  caught instanceof Error
+                    ? caught.message
+                    : messages.mergeFailed,
+                );
+              }
+            }}
+            title={messages.applyMerge}
+            trigger={
+              <Button variant="outline">{messages.previewAndMerge}</Button>
             }
-          }}
-          title={messages.applyMerge}
-          trigger={
-            <Button variant="outline">{messages.previewAndMerge}</Button>
-          }
-        />
-      </div>
-    </details>
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

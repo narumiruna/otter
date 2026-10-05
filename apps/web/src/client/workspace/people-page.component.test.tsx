@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TripPayload } from "../client-support.js";
@@ -101,7 +101,7 @@ test.each([
     payment: null,
     reason: "last",
   },
-] as const)("deletion affordance: $name", (scenario) => {
+] as const)("deletion affordance: $name", async (scenario) => {
   const trip: TripPayload["trip"] = {
     ...payload.trip,
     participants: [
@@ -166,15 +166,24 @@ test.each([
         </QueryClientProvider>
       </I18nProvider>,
     );
-    const row = within(screen.getAllByRole("listitem")[0]);
+    const row = within(screen.getAllByRole("row").slice(1)[0]);
     const deleteButton = row.queryByRole("button", {
       name: locale === "en" ? "Delete" : "刪除",
     });
     if (scenario.reason) {
       expect(deleteButton).toBeNull();
+      await userEvent.setup().click(
+        row.getByRole("button", {
+          name:
+            locale === "en"
+              ? "Deletion restrictions for Target"
+              : "Target 的刪除限制",
+        }),
+      );
       expect(
-        row.getByText(new RegExp(reasons[locale][scenario.reason])),
+        screen.getByText(new RegExp(reasons[locale][scenario.reason])),
       ).toBeVisible();
+      await userEvent.setup().keyboard("{Escape}");
     } else expect(deleteButton).toBeVisible();
     view.unmount();
   }
@@ -205,7 +214,7 @@ test("a family member can settle through another participant without merging", a
       </QueryClientProvider>
     </I18nProvider>,
   );
-  const childRow = within(screen.getAllByRole("listitem")[1]);
+  const childRow = within(screen.getAllByRole("row").slice(1)[1]);
   await user.selectOptions(
     childRow.getByLabelText("Settlement assigned to"),
     "parent",
@@ -249,7 +258,7 @@ test("failed settlement assignment keeps the previous selection and shows an err
     </I18nProvider>,
   );
 
-  const child = within(screen.getAllByRole("listitem")[1]);
+  const child = within(screen.getAllByRole("row").slice(1)[1]);
   const select = child.getByRole("combobox", { name: "結算歸屬" });
   await user.selectOptions(select, "parent");
   expect(await child.findByRole("alert")).toHaveTextContent("無法更新結算歸屬");
@@ -295,7 +304,8 @@ test.each([
   );
 
   const [parent, child, other] = screen
-    .getAllByRole("listitem")
+    .getAllByRole("row")
+    .slice(1)
     .map((row) => within(row));
   const parentSelect = parent.getByRole("combobox", { name: locale.label });
   expect(parentSelect).toBeDisabled();
@@ -358,11 +368,13 @@ test("switching locale clears participant errors from the previous locale", asyn
     </I18nProvider>,
   );
 
+  await user.click(screen.getByRole("button", { name: "新增成員" }));
   await user.type(screen.getByLabelText("成員名稱"), "Alice");
   await user.click(screen.getByRole("button", { name: "新增成員" }));
   expect(await screen.findByText("參與者名稱已存在")).toBeVisible();
 
-  await user.click(screen.getByRole("button", { name: "Switch to English" }));
+  fireEvent.click(screen.getByText("Switch to English"));
+  await user.keyboard("{Escape}");
 
   expect(screen.queryByText("參與者名稱已存在")).toBeNull();
   expect(

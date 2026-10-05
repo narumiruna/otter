@@ -3,7 +3,7 @@ import {
   BackpackIcon,
   BookmarkIcon,
   CookieIcon,
-  FileTextIcon,
+  DotsHorizontalIcon,
   HomeIcon,
   RocketIcon,
 } from "@radix-ui/react-icons";
@@ -11,11 +11,11 @@ import {
 const categoryIcons = {
   交通: RocketIcon,
   住宿: HomeIcon,
-  其他: FileTextIcon,
+  其他: DotsHorizontalIcon,
   購物: BackpackIcon,
   門票: BookmarkIcon,
   餐飲: CookieIcon,
-} satisfies Record<ExpenseCategory, typeof FileTextIcon>;
+} satisfies Record<ExpenseCategory, typeof DotsHorizontalIcon>;
 
 export function ExpenseCategoryIcon({
   category = "其他",

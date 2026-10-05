@@ -153,6 +153,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     );
     await page.reload();
 
+    await page.setViewportSize({ width: 1440, height: 900 });
     trip.expenses.push({
       id: "lunch",
       description: "午餐",
@@ -259,13 +260,15 @@ for (const colorScheme of ["light", "dark"] as const) {
         0,
       );
     await expect
-      .poll(async () => (await accountMenu.boundingBox())?.y)
-      .toBeCloseTo(
-        (accountMenuTriggerBounds?.y ?? 0) +
-          (accountMenuTriggerBounds?.height ?? 0) +
-          8,
-        0,
-      );
+      .poll(async () =>
+        Math.abs(
+          ((await accountMenu.boundingBox())?.y ?? 0) -
+            ((accountMenuTriggerBounds?.y ?? 0) +
+              (accountMenuTriggerBounds?.height ?? 0) +
+              8),
+        ),
+      )
+      .toBeLessThanOrEqual(1); // browser device-pixel rounding
     await page.getByRole("menuitem", { name: "帳號設定" }).click();
     await page.getByRole("combobox", { name: "語言" }).selectOption("en");
     await page.getByRole("button", { name: "Cancel" }).click();

@@ -22,6 +22,10 @@ test("owner duplicates a group into an independent empty workspace", async ({
   expect(source.expenses.length).toBeGreaterThan(0);
 
   await page.getByRole("button", { name: "群組設定" }).click();
+  await page
+    .locator(".section-navigation")
+    .getByRole("link", { name: "資料與匯出", exact: true })
+    .click();
   await page.getByRole("button", { name: "複製群組" }).click();
   const dialog = page.getByRole("dialog", { name: "複製這個群組？" });
   await expect(dialog).toContainText(

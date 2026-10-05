@@ -1,20 +1,13 @@
 import {
   ArchiveIcon as Archive,
-  ChevronDownIcon as ChevronDown,
   TokensIcon as CircleDollarSign,
-  FileTextIcon,
-  GearIcon,
-  GlobeIcon,
-  DashboardIcon as LayoutDashboard,
   PlusIcon as Plus,
-  PersonIcon as Users,
 } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -46,6 +39,11 @@ import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
 import { WebMcpTools } from "./webmcp-tools.js";
 import { WorkspaceProvider } from "./workspace-context.js";
+import {
+  TripHeader,
+  TripList,
+  WorkspaceNavigation,
+} from "./workspace-layout.js";
 import { BusyButton, FormField } from "./workspace-ui.js";
 
 type TripCollection = { archivedTrips: TripSummary[]; trips: TripSummary[] };
@@ -370,6 +368,37 @@ export function AuthenticatedWorkspace({
             payload={payload}
             pendingTripId={pendingTripId}
             selectTrip={selectTrip}
+            onAdd={() => navigate({ mode: "add-expense" })}
+            showAdd={
+              !archived &&
+              !needsPeople &&
+              !location.mode &&
+              !draftDirty &&
+              !(
+                location.view === "overview" &&
+                !payload.trip.expenses.length &&
+                !payload.trip.settlementPayments?.length
+              )
+            }
+            groupActions={
+              !guestShare ? (
+                <CreateTrip
+                  offline={offline || draftDirty}
+                  onCreated={async (created) => {
+                    queryClient.setQueryData(
+                      ["trip", created.trip.id],
+                      created,
+                    );
+                    await refreshCollection();
+                    navigate({
+                      mode: null,
+                      tripId: created.trip.id,
+                      view: "people",
+                    });
+                  }}
+                />
+              ) : null
+            }
           />
           {archived ? (
             <div className="status-strip" role="status">
@@ -383,14 +412,7 @@ export function AuthenticatedWorkspace({
             <WorkspaceNavigation
               archived={archived}
               location={location}
-              showAdd={
-                !needsPeople &&
-                !(
-                  location.view === "overview" &&
-                  payload.trip.expenses.length === 0 &&
-                  !payload.trip.settlementPayments?.length
-                )
-              }
+              showAdd
               onAdd={() => navigate({ mode: "add-expense" })}
               onNavigate={go}
             />
@@ -438,6 +460,7 @@ export function AuthenticatedWorkspace({
                         }
                   }
                   onPeople={() => go("people")}
+                  onExpenses={() => go("expenses")}
                   payload={payload}
                   readonly={archived}
                 />
@@ -535,210 +558,6 @@ export function AuthenticatedWorkspace({
         </section>
       </div>
     </WorkspaceProvider>
-  );
-}
-
-function TripHeader({
-  allTrips,
-  archived,
-  payload,
-  pendingTripId,
-  selectTrip,
-}: {
-  allTrips: TripSummary[];
-  archived: boolean;
-  payload: TripPayload;
-  pendingTripId: string;
-  selectTrip: (id: string) => Promise<void>;
-}) {
-  const { messages } = useI18n();
-  return (
-    <header className="trip-header">
-      <div className="mobile-group-switch">
-        <Dialog>
-          <DialogTrigger
-            render={
-              <Button className="w-full justify-between" variant="outline" />
-            }
-          >
-            <span className="min-w-0 truncate">{payload.trip.name}</span>
-            <ChevronDown aria-hidden="true" />
-          </DialogTrigger>
-          <DialogContent className="top-auto bottom-0 max-h-[85dvh] w-full max-w-none translate-y-0 rounded-b-none sm:top-1/2 sm:bottom-auto sm:max-w-lg sm:-translate-y-1/2 sm:rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>{messages.switchGroups}</DialogTitle>
-              <DialogDescription>
-                {messages.youWillLeaveTheCurrentGroupOnlyAfterTheNewOneLoads}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-2">
-              {allTrips.map((trip) => (
-                <DialogClose
-                  key={trip.id}
-                  render={
-                    <Button
-                      className="h-auto justify-start py-3 text-left"
-                      variant={
-                        trip.id === payload.trip.id ? "secondary" : "ghost"
-                      }
-                    />
-                  }
-                  onClick={() => void selectTrip(trip.id)}
-                >
-                  <span>
-                    <strong className="block">{trip.name}</strong>
-                    <span className="text-xs text-muted-foreground">
-                      {messages.participantsPeopleExpensesExpensesCurrency({
-                        participants: trip.participantCount,
-                        expenses: trip.expenseCount,
-                        currency: trip.baseCurrency,
-                      })}
-                      {trip.archivedAt ? ` · ${messages.archived}` : ""}
-                    </span>
-                  </span>
-                </DialogClose>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-      <div className="trip-heading">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold tracking-tight break-anywhere">
-              {payload.trip.name}
-            </h2>
-            {archived ? (
-              <span className="status-badge">{messages.archived}</span>
-            ) : null}
-            <span className="status-badge">
-              {payload.currentUserRole === "editor"
-                ? messages.collaborator
-                : messages.owner}
-            </span>
-          </div>
-          <p className="trip-description">
-            <GlobeIcon aria-hidden="true" />
-            <span>
-              {messages.baseCurrencyCurrency({
-                currency: payload.trip.baseCurrency,
-              })}{" "}
-              ·{" "}
-              {payload.exchangeRateInfo?.source === "custom"
-                ? messages.usingCustomExchangeRates
-                : payload.exchangeRateInfo?.source === "bank"
-                  ? messages.usingBankOfTaiwanExchangeRates
-                  : messages.usingFixedFallbackRates}
-              {pendingTripId ? ` · ${messages.loadingGroup2}` : ""}
-            </span>
-          </p>
-        </div>
-      </div>
-    </header>
-  );
-}
-function WorkspaceNavigation({
-  archived,
-  location,
-  onAdd,
-  onNavigate,
-  showAdd,
-}: {
-  archived: boolean;
-  showAdd: boolean;
-  location: WorkspaceLocation;
-  onAdd: () => void;
-  onNavigate: (view: WorkspaceView) => void;
-}) {
-  const { messages } = useI18n();
-  const items = [
-    { icon: LayoutDashboard, label: messages.overview, view: "overview" },
-    { icon: FileTextIcon, label: messages.expenses, view: "expenses" },
-    { icon: Users, label: messages.people, view: "people" },
-    { icon: GearIcon, label: messages.groupSettings, view: "more" },
-  ] as const;
-  return (
-    <nav className="workspace-nav" aria-label={messages.groupWorkspace}>
-      {items.map(({ icon: Icon, label, view }) => (
-        <Button
-          aria-current={
-            !location.mode && location.view === view ? "page" : undefined
-          }
-          className="workspace-nav-item"
-          key={view}
-          onClick={() => onNavigate(view)}
-          variant={
-            !location.mode && location.view === view ? "secondary" : "ghost"
-          }
-        >
-          <Icon aria-hidden="true" />
-          {label}
-        </Button>
-      ))}
-      {!archived && showAdd ? (
-        <Button className="record-expense-button" onClick={onAdd}>
-          <Plus aria-hidden="true" />
-          {messages.addExpense}
-        </Button>
-      ) : null}
-    </nav>
-  );
-}
-
-function TripList({
-  archivedTrips,
-  pendingTripId,
-  selectedTripId,
-  selectTrip,
-  trips,
-}: {
-  archivedTrips: TripSummary[];
-  pendingTripId: string;
-  selectedTripId: string;
-  selectTrip: (id: string) => Promise<void>;
-  trips: TripSummary[];
-}) {
-  const { messages } = useI18n();
-  const row = (trip: TripSummary) => (
-    <BusyButton
-      aria-current={trip.id === selectedTripId ? "true" : undefined}
-      busy={pendingTripId === trip.id}
-      busyLabel={messages.loading}
-      className="trip-switcher-item"
-      title={trip.name}
-      data-active={trip.id === selectedTripId || undefined}
-      key={trip.id}
-      onClick={() => void selectTrip(trip.id)}
-      variant={trip.id === selectedTripId ? "secondary" : "ghost"}
-    >
-      <span className="trip-list-icon" aria-hidden="true">
-        <GlobeIcon />
-      </span>
-      <span className="trip-list-copy">
-        <strong>{trip.name}</strong>
-        <small>
-          {messages.participantsPeopleExpensesExpensesCurrency({
-            participants: trip.participantCount,
-            expenses: trip.expenseCount,
-            currency: trip.baseCurrency,
-          })}
-        </small>
-      </span>
-    </BusyButton>
-  );
-  return (
-    <div className="trip-list">
-      <div className="trip-list">{trips.map(row)}</div>
-      {archivedTrips.length ? (
-        <details className="disclosure compact">
-          <summary>
-            {messages.archivedGroups}{" "}
-            <span className="summary-meta">{archivedTrips.length}</span>
-          </summary>
-          <div className="trip-list">{archivedTrips.map(row)}</div>
-        </details>
-      ) : null}
-    </div>
   );
 }
 

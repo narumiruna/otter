@@ -39,12 +39,12 @@ test("owner-selected edit links work with and without sign-in, and guest access 
     await expect(
       guestPage.getByRole("heading", { name: "分帳成員管理" }),
     ).toBeVisible();
+    await guestPage.getByRole("button", { name: "新增成員" }).click();
     await guestPage.getByLabel("成員名稱").fill("Guest Person");
     await guestPage.getByRole("button", { name: "新增成員" }).click();
     await expect(
       guestPage
-        .getByRole("list")
-        .locator("li > strong")
+        .locator(".people-identity strong")
         .filter({ hasText: /^Guest Person$/ }),
     ).toBeVisible();
     expect(
@@ -52,6 +52,7 @@ test("owner-selected edit links work with and without sign-in, and guest access 
         await owner.request.delete(`${root}/share-links/${anonymousLink.id}`)
       ).status(),
     ).toBe(200);
+    await guestPage.getByRole("button", { name: "新增成員" }).click();
     await guestPage.getByLabel("成員名稱").fill("After revoke");
     await guestPage.getByRole("button", { name: "新增成員" }).click();
     await expect(guestPage.getByRole("alert")).toContainText(

@@ -48,12 +48,14 @@ export function OverviewPage({
   onAddExpense,
   onEditExpense,
   onPeople,
+  onExpenses,
   payload,
   readonly = false,
 }: {
   onAddExpense?: () => void;
   onEditExpense?: (expense: Expense) => void;
   onPeople?: () => void;
+  onExpenses?: () => void;
   payload: TripPayload;
   readonly?: boolean;
 }) {
@@ -108,9 +110,17 @@ export function OverviewPage({
         className="surface overview-recent grid gap-4"
         aria-labelledby="recent-heading"
       >
-        <SectionHeading>
-          <span id="recent-heading">{messages.recentExpenses}</span>
-        </SectionHeading>
+        <div className="section-actions">
+          <SectionHeading>
+            <span id="recent-heading">{messages.recentExpenses}</span>
+          </SectionHeading>
+          {onExpenses ? (
+            <Button variant="ghost" onClick={onExpenses}>
+              {messages.viewAll}
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          ) : null}
+        </div>
         <RecentExpenses
           onEditExpense={readonly ? undefined : onEditExpense}
           trip={trip}
@@ -215,7 +225,10 @@ function SettlementList({
           className="settlement-item"
           key={`${settlement.fromId}:${settlement.toId}`}
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="settlement-route">
+            <span className="person-avatar" aria-hidden="true">
+              {settlement.fromName.charAt(0).toLocaleUpperCase()}
+            </span>
             <strong>{settlement.fromName}</strong>
             <ArrowRight
               className="size-4 text-muted-foreground"
@@ -286,7 +299,7 @@ function PaymentDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        className="mt-3"
+        className="settlement-record-button"
         disabled={offline}
         render={<Button disabled={offline} size="sm" variant="outline" />}
       >

@@ -58,9 +58,21 @@ export function AppearanceSettings() {
                 value={id}
               />
               <span className="theme-palette-preview" aria-hidden="true">
-                <span />
-                <span />
-                <span />
+                <span className="theme-preview-top">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="theme-preview-sidebar">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="theme-preview-content">
+                  <i />
+                  <i />
+                  <i />
+                </span>
               </span>
               <span className="theme-palette-name">
                 {messages[paletteMessageKeys[id]]}

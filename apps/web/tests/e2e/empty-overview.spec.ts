@@ -123,13 +123,17 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(page).toHaveURL(/view=people/);
     await expect(
       navigation.getByRole("button", { name: "記一筆", exact: true }),
-    ).toHaveCount(0);
-    await page.getByLabel("成員名稱").fill("Alice");
+    ).toHaveCount(1);
     await page.getByRole("button", { name: "新增成員", exact: true }).click();
+    await page.getByLabel("成員名稱").fill("Alice");
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "新增成員", exact: true })
+      .click();
     await expect(
       page
         .getByRole("list")
-        .locator("li > strong")
+        .locator("li .people-identity strong")
         .filter({ hasText: /^Alice$/ }),
     ).toBeVisible();
     await expect(
@@ -141,8 +145,10 @@ for (const colorScheme of ["light", "dark"] as const) {
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "記一筆", exact: true }),
-    ).toHaveCount(1);
-    await page.getByRole("button", { name: "記一筆", exact: true }).click();
+    ).toHaveCount(2);
+    await navigation
+      .getByRole("button", { name: "記一筆", exact: true })
+      .click();
     await expect(page).toHaveURL(/mode=add-expense/);
     await expect(
       page.getByRole("button", { name: "記錄支出", exact: true }),
