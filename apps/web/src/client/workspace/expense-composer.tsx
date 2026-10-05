@@ -259,6 +259,9 @@ export function ExpenseComposer({
           throw error;
         }
         replacePayload(created);
+        const collectionRefresh = refreshCollection().catch(() =>
+          announce(messages.loadingFailed),
+        );
         const newExpense = created.trip.expenses.find(
           (item) => item.id === created.createdExpenseId,
         );
@@ -274,6 +277,7 @@ export function ExpenseComposer({
             file,
           );
           replacePayload(uploaded);
+          await collectionRefresh;
           await refreshCollection().catch(() =>
             announce(messages.loadingFailed),
           );

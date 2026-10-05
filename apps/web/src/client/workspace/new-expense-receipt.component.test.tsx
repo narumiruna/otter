@@ -56,7 +56,12 @@ function setup(fetcher: typeof fetch, offline = false) {
   vi.stubGlobal("fetch", fetcher);
   const client = new QueryClient();
   const saved = vi.fn();
-  const refreshed = vi.fn(async () => undefined);
+  const refreshed = vi.fn(async () => {
+    client.setQueryData(["trips"], {
+      archivedTrips: [],
+      trips: [{ id: empty.trip.id, expenseCount: 1 }],
+    });
+  });
   const announce = vi.fn();
   const content = (isOffline: boolean) => (
     <I18nProvider initialLocale="en">
@@ -198,7 +203,50 @@ test("uploads to the returned ID and version, not another expense in the payload
     view.client.getQueryData<TripPayload>(["trip", empty.trip.id])?.trip
       .expenses[0]?.receiptId,
   ).toBe("receipt");
-  expect(view.refreshed).toHaveBeenCalledOnce();
+  expect(view.refreshed).toHaveBeenCalledTimes(2);
+});
+
+test("refreshes again after upload to include changes made while it was in progress", async () => {
+  let finishUpload: (response: Response) => void = () => {
+    throw new Error("Upload did not start");
+  };
+  const pendingUpload = new Promise<Response>((resolve) => {
+    finishUpload = resolve;
+  });
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json(created, { status: 201 }))
+    .mockReturnValueOnce(pendingUpload);
+  const view = setup(fetcher);
+  const collection = {
+    archivedTrips: [],
+    trips: [{ id: empty.trip.id, expenseCount: 0 }],
+  };
+  view.client.setQueryData(["trips"], collection);
+  let serverExpenseCount = 1;
+  view.refreshed.mockImplementation(async () => {
+    view.client.setQueryData(["trips"], {
+      ...collection,
+      trips: [{ ...collection.trips[0], expenseCount: serverExpenseCount }],
+    });
+  });
+  const user = userEvent.setup();
+  await fill(view, user);
+  await user.upload(view.getByLabelText("Upload photo"), image());
+  await user.click(view.getByRole("button", { name: "Record expense" }));
+  await waitFor(() => expect(view.refreshed).toHaveBeenCalledOnce());
+  expect(
+    view.client.getQueryData<typeof collection>(["trips"])?.trips[0]
+      ?.expenseCount,
+  ).toBe(1);
+  serverExpenseCount = 2;
+  finishUpload(Response.json(uploaded, { status: 201 }));
+  await waitFor(() => expect(view.saved).toHaveBeenCalledOnce());
+  expect(view.refreshed).toHaveBeenCalledTimes(2);
+  expect(
+    view.client.getQueryData<typeof collection>(["trips"])?.trips[0]
+      ?.expenseCount,
+  ).toBe(2);
 });
 
 test("failed upload leaves the created expense in place and retries PUT only", async () => {
@@ -311,6 +359,11 @@ test("upload later preserves the created expense; an uncertain create cannot be 
       Response.json({ error: "no receipt" }, { status: 415 }),
     );
   const view = setup(fetcher);
+  const collection = {
+    archivedTrips: [],
+    trips: [{ id: empty.trip.id, expenseCount: 0 }],
+  };
+  view.client.setQueryData(["trips"], collection);
   const user = userEvent.setup();
   await fill(view, user);
   await user.upload(view.getByLabelText("Upload photo"), image());
@@ -318,6 +371,11 @@ test("upload later preserves the created expense; an uncertain create cannot be 
   await view.findByText(/Expense created, but receipt upload failed/);
   await user.click(view.getByRole("button", { name: "Upload later" }));
   expect(view.saved).toHaveBeenCalledOnce();
+  expect(view.refreshed).toHaveBeenCalledOnce();
+  expect(
+    view.client.getQueryData<typeof collection>(["trips"])?.trips[0]
+      .expenseCount,
+  ).toBe(1);
   expect(fetcher).toHaveBeenCalledTimes(2);
   view.unmount();
 
