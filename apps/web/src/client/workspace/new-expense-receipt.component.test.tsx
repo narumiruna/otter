@@ -56,7 +56,12 @@ function setup(fetcher: typeof fetch, offline = false) {
   vi.stubGlobal("fetch", fetcher);
   const client = new QueryClient();
   const saved = vi.fn();
-  const refreshed = vi.fn(async () => undefined);
+  const refreshed = vi.fn(async () => {
+    client.setQueryData(["trips"], {
+      archivedTrips: [],
+      trips: [{ id: empty.trip.id, expenseCount: 1 }],
+    });
+  });
   const announce = vi.fn();
   const content = (isOffline: boolean) => (
     <I18nProvider initialLocale="en">
@@ -311,6 +316,11 @@ test("upload later preserves the created expense; an uncertain create cannot be 
       Response.json({ error: "no receipt" }, { status: 415 }),
     );
   const view = setup(fetcher);
+  const collection = {
+    archivedTrips: [],
+    trips: [{ id: empty.trip.id, expenseCount: 0 }],
+  };
+  view.client.setQueryData(["trips"], collection);
   const user = userEvent.setup();
   await fill(view, user);
   await user.upload(view.getByLabelText("Upload photo"), image());
@@ -318,6 +328,11 @@ test("upload later preserves the created expense; an uncertain create cannot be 
   await view.findByText(/Expense created, but receipt upload failed/);
   await user.click(view.getByRole("button", { name: "Upload later" }));
   expect(view.saved).toHaveBeenCalledOnce();
+  expect(view.refreshed).toHaveBeenCalledOnce();
+  expect(
+    view.client.getQueryData<typeof collection>(["trips"])?.trips[0]
+      .expenseCount,
+  ).toBe(1);
   expect(fetcher).toHaveBeenCalledTimes(2);
   view.unmount();
 
