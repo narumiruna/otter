@@ -141,15 +141,22 @@ export function registerExpenseRoutes(
           ? createHash("sha256").update(canonicalJson(body)).digest("hex")
           : undefined;
         if (operationId) {
-          const prior = await pool.query<{ request_hash: string }>(
-            `SELECT request_hash FROM expense_create_operations
+          const prior = await pool.query<{
+            request_hash: string;
+            expense_id: string;
+          }>(
+            `SELECT request_hash, expense_id FROM expense_create_operations
              WHERE trip_id = $1 AND user_id = $2 AND operation_id = $3`,
             [trip.id, user.id, operationId],
           );
           if (prior.rowCount) {
             if (prior.rows[0].request_hash !== requestHash)
               return sendError(context, 409, "操作 ID 已用於不同的支出");
-            return async () => context.json(await buildTripPayload(trip));
+            return async () =>
+              context.json({
+                ...(await buildTripPayload(trip)),
+                createdExpenseId: prior.rows[0].expense_id,
+              });
           }
         }
         const description = stringField(body, "description");
@@ -262,7 +269,14 @@ export function registerExpenseRoutes(
         if (!updated) {
           throw new Error("Trip disappeared after expense insert");
         }
-        return async () => context.json(await buildTripPayload(updated), 201);
+        return async () =>
+          context.json(
+            {
+              ...(await buildTripPayload(updated)),
+              createdExpenseId: expenseId,
+            },
+            201,
+          );
       },
       prefetch,
     ),

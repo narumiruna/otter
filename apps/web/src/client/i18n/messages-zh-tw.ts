@@ -469,6 +469,20 @@ export const zhTW = {
   uploading: "上傳中…",
   uploadReceipt: "上傳收據",
   receiptFileRequirements: "JPEG、PNG 或 WebP · 最大 5 MB",
+  selectReceiptPhoto: "上傳照片",
+  takeReceiptPhoto: "拍照",
+  removeReceiptPhoto: "移除照片",
+  receiptOnlineOnly:
+    "照片需上線後才能上傳；離線草稿不會儲存照片。請先移除照片或重新連線。",
+  receiptFileTooLarge: "照片不可超過 5 MB",
+  expenseSavedReceiptFailed:
+    "支出已建立，但收據上傳失敗。可以重試，或稍後從支出清單補傳。",
+  retryReceiptUpload: "重試上傳收據",
+  receiptAlreadyAttached:
+    "這筆支出目前已有收據。請先查看支出清單中的收據，不會自動覆蓋它。",
+  uploadReceiptLater: "稍後再傳",
+  expenseCreationUncertain:
+    "無法確認支出是否已建立。請先查看支出清單，再決定是否重新新增；不要直接重試。",
   viewReceipt: "查看收據",
   noReceipt: "沒有收據",
   deleteReceipt: "刪除收據",
