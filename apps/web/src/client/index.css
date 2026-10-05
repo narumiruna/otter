@@ -317,6 +317,7 @@
     --background: white;
     --card: white;
     --foreground: black;
+    --card-foreground: black;
     --muted-foreground: black;
     --surface-shadow: none;
     background: white;

@@ -460,6 +460,76 @@ for (const colorScheme of ["light", "dark"] as const) {
   });
 }
 
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`${colorScheme} sticky tabs preserve Back scroll and print keeps ledger content`, async ({
+    page,
+  }) => {
+    await mockWorkspace(page);
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 700 });
+    await page.goto("/?trip=interface-trip");
+    await expect(
+      page.getByRole("heading", { name: "Recent expenses" }),
+    ).toBeVisible();
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await page.evaluate(() =>
+      window.scrollTo({ top: 900, behavior: "instant" }),
+    );
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(200);
+    const previousScroll = await page.evaluate(() => window.scrollY);
+    const navigation = page.getByRole("navigation", {
+      name: "Group workspace",
+    });
+    const settings = navigation.getByRole("button", {
+      name: "Group settings",
+      exact: true,
+    });
+    const bounds = await settings.boundingBox();
+    expect(bounds?.y).toBeGreaterThanOrEqual(72);
+    expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(700);
+    await settings.click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await page.goBack();
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBe(previousScroll);
+    await navigation
+      .getByRole("button", { name: "Expenses", exact: true })
+      .click();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ media: "print" });
+      await expect(navigation).toBeHidden();
+      await expect(page.locator(".app-header")).toBeHidden();
+      await expect(page.locator(".workspace-sidebar")).toBeHidden();
+      await expect(page.locator(".group-switch-trigger")).toBeHidden();
+      await expect(
+        page.getByRole("heading", { name: "Autumn in Kyoto · 京都秋旅" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Expenses", exact: true }),
+      ).toHaveCSS("color", "rgb(0, 0, 0)");
+      await expect(
+        page.getByRole("button", { name: "Dinner at the market", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", {
+          name: "View amount and exchange rate for Dinner at the market",
+        }),
+      ).toBeVisible();
+      await expect(page.locator(".expense-toolbar")).toBeHidden();
+      await page.emulateMedia({ media: "screen" });
+    }
+  });
+}
+
 test("read-only share keeps viewing available without edit controls", async ({
   page,
 }) => {

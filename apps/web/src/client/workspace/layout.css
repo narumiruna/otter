@@ -151,14 +151,19 @@
   display: none;
 }
 .workspace-nav {
+  position: sticky;
+  z-index: 30;
+  top: 72px;
   display: flex;
   min-width: 0;
   gap: 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--background);
 }
 .otter-button.workspace-nav-item {
   position: relative;
   flex-shrink: 0;
+  min-width: 44px;
   margin: 0;
   padding: 12px 8px;
   border-radius: 0;
@@ -420,14 +425,28 @@
   }
 }
 @media print {
+  .app-header,
+  .workspace-sidebar,
+  .workspace-nav,
+  .mobile-group-switch,
+  .mobile-trip-meta,
   .desktop-add-expense,
   .section-navigation {
     display: none;
   }
+  .app-shell,
   .workspace-main {
     padding: 0;
   }
+  .workspace-layout,
+  .trip-header,
   .settings-sections {
     display: block;
+  }
+  .desktop-trip-title {
+    display: flex;
+  }
+  .desktop-trip-meta {
+    display: inline;
   }
 }

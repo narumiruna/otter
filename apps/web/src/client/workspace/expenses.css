@@ -636,3 +636,27 @@
     min-height: 18rem;
   }
 }
+@media print {
+  .expense-toolbar,
+  .expense-view-status,
+  .applied-filters,
+  .expenses-heading-actions {
+    display: none;
+  }
+  .expense-description-cell > button,
+  .otter-button.expense-mobile-name,
+  .expense-mobile-history > button,
+  .otter-button.expense-rate-trigger {
+    display: inline-block;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    outline: none;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .expense-mobile-row {
+    break-inside: avoid;
+  }
+}

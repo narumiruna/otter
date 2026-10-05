@@ -36,7 +36,13 @@ async function login(page: Page, groupName: string | RegExp = "東京賞櫻五�
     .locator("#login-form")
     .getByRole("button", { name: "登入", exact: true })
     .click();
-  await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
+  if (await page.evaluate(() => matchMedia("(max-width: 900px)").matches)) {
+    const groupSwitch = page.locator(".group-switch-trigger");
+    await expect(groupSwitch).toBeVisible();
+    await expect(groupSwitch).toContainText(groupName);
+  } else {
+    await expect(page.getByRole("heading", { name: groupName })).toBeVisible();
+  }
 }
 
 test("goal-first workspace navigation and expense preview are safe", async ({
