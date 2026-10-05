@@ -278,6 +278,9 @@ export function ExpenseComposer({
           );
           replacePayload(uploaded);
           await collectionRefresh;
+          await refreshCollection().catch(() =>
+            announce(messages.loadingFailed),
+          );
           announce(messages.expenseRecorded);
           setFile(undefined);
           form.reset(defaults(trip));
