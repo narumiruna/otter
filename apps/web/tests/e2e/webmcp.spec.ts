@@ -1,8 +1,8 @@
 import type { TripPayload } from "@narumitw/otter-contracts";
 import { expect, test } from "@playwright/test";
 
-// Chrome 153 exposes document.modelContext with the testing flag enabled.
-// Its executeTool currently accepts JSON text rather than the documented object.
+// Playwright's Chromium exposes document.modelContext with the testing flag.
+// executeTool accepts an object input.
 test.use({
   launchOptions: {
     args: ["--enable-features=WebMCP,WebMCPTesting", "--enable-webmcp-testing"],
@@ -25,13 +25,16 @@ async function runTool(page: import("@playwright/test").Page, name: string) {
   return page.evaluate(async (toolName) => {
     const context = Reflect.get(document, "modelContext") as {
       getTools: () => Promise<{ name: string }[]>;
-      executeTool: (tool: { name: string }, input: string) => Promise<string>;
+      executeTool: (
+        tool: { name: string },
+        input: Record<string, never>,
+      ) => Promise<string>;
     };
     const tool = (await context.getTools()).find(
       (item) => item.name === toolName,
     );
     if (!tool) throw new Error(`Tool not found: ${toolName}`);
-    return JSON.parse(await context.executeTool(tool, "{}"));
+    return JSON.parse(await context.executeTool(tool, {}));
   }, name);
 }
 
@@ -155,10 +158,13 @@ test("WebMCP reads only the selected group and unregisters on switch and logout"
   expect(
     await page.evaluate(async () => {
       const context = Reflect.get(document, "modelContext") as {
-        executeTool: (tool: { name: string }, input: string) => Promise<string>;
+        executeTool: (
+          tool: { name: string },
+          input: Record<string, never>,
+        ) => Promise<string>;
       };
       try {
-        await context.executeTool(Reflect.get(window, "oldWebMcpTool"), "{}");
+        await context.executeTool(Reflect.get(window, "oldWebMcpTool"), {});
         return false;
       } catch {
         return true;
