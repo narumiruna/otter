@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:25-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 COPY apps/api/package.json ./apps/api/package.json
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:25-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=17463

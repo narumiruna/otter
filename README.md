@@ -4,7 +4,7 @@
 
 ## 快速開始
 
-建議使用 Node.js 25（與 CI 相同），另需 npm 與 Docker Compose。
+建議使用 Node.js 26（與 CI 相同），另需 npm 與 Docker Compose。
 
 ```bash
 npm install
