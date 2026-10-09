@@ -28,13 +28,6 @@
   --theme-preview-strong: var(--green-11);
 }
 
-.expense-composer .section-heading h3,
-.expense-step-heading {
-  font-family: Georgia, "Noto Serif TC", "Songti TC", serif;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-}
-
 .radix-themes[data-theme-palette="parchment"] .app-header {
   background: var(--background);
 }

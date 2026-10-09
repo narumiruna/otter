@@ -1,60 +1,20 @@
 .expense-composer {
+  padding: 1.25rem;
+}
+.expense-composer form {
+  gap: 0.875rem;
+}
+.expense-composer label {
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--panel-radius);
-  background: var(--card);
-  padding: clamp(1rem, 2vw, 1.5rem);
-  color: var(--foreground);
-}
-.expense-composer-header {
-  padding-block: 0.25rem 0.5rem;
-}
-.expense-composer-header .section-heading {
-  border-left: 6px solid var(--border);
-  padding-left: 1.5rem;
+  align-content: start;
 }
 .expense-composer-header .section-heading h3 {
-  font-size: clamp(1.6rem, 3vw, 2rem);
-}
-.expense-step {
-  min-width: 0;
-  border-top: 1px solid var(--border);
-  padding-block: 1.25rem 0.25rem;
-}
-.expense-step-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-.expense-step-heading {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  margin: 0;
   font-size: 1.5rem;
-}
-.expense-step-number {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--gray-4);
-  font-size: 1.15rem;
-}
-.expense-step-body {
-  min-width: 0;
-  margin: 1.1rem 0 0 0.95rem;
-  border-left: 1px solid var(--border);
-  padding-left: 2.5rem;
 }
 .expense-basic-fields {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 1.5rem 1rem;
+  gap: 1rem 1.25rem;
 }
 .expense-basic-fields > :first-child {
   grid-column: span 4;
@@ -62,103 +22,142 @@
 .expense-basic-fields > :nth-child(n + 2) {
   grid-column: span 2;
 }
-.expense-composer label {
+.expense-composer .form-control {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 1rem;
   font-weight: 400;
 }
-.expense-composer input,
-.expense-composer select {
-  font-size: 1rem;
+.expense-section {
+  position: relative;
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
 }
-.expense-composer .form-control {
-  min-height: 3.1rem;
-  border-radius: var(--control-radius);
-  background: var(--card);
+.expense-section-summary {
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+}
+.expense-section-summary::-webkit-details-marker {
+  display: none;
+}
+.expense-section-summary > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  transform: rotate(-90deg);
+}
+.expense-section[open] > .expense-section-summary > svg {
+  transform: none;
+}
+.expense-composer .expense-section-summary h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.expense-section-summary p {
+  margin-top: 0.15rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.expense-section-body {
+  min-width: 0;
+  margin-top: 0.65rem;
+  padding-left: 2rem;
+}
+.expense-split-section > summary {
+  padding-right: 11rem;
+}
+.expense-participant-actions {
+  position: absolute;
+  top: 0.9rem;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.expense-participant-actions .otter-button {
+  margin: 0;
+  color: var(--accent-11);
+  font-weight: 400;
 }
 .expense-composer .choice-grid {
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.65rem;
 }
 .expense-composer .choice {
-  min-height: 3.75rem;
+  min-height: 3.25rem;
   gap: 0.75rem;
   border-radius: var(--control-radius);
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 .expense-composer .choice:has(input:checked) {
   border-color: var(--accent-6);
-  background: color-mix(in srgb, var(--accent-3) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-3) 45%, transparent);
 }
 .expense-person-avatar {
   display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
   background: var(--accent-4);
   color: var(--accent-12);
-  font-size: 1rem;
-}
-.expense-split-method legend {
-  margin-bottom: 0.6rem;
   font-size: 0.875rem;
+  font-weight: 500;
 }
-.expense-method-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  padding: 0.4rem;
-}
-.expense-method-options label {
+.expense-payer-control {
   position: relative;
-  display: grid;
-  min-height: 2.75rem;
-  place-items: center;
-  border-radius: 6px;
-  padding: 0.5rem;
-  color: var(--muted-foreground);
-  font-size: 0.875rem;
-  text-align: center;
-  cursor: pointer;
 }
-.expense-method-options input {
+.expense-payer-control .expense-person-avatar {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+  top: 50%;
+  left: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
-.expense-method-options label:has(input:checked) {
-  background: var(--accent-3);
-  color: var(--foreground);
+.expense-payer-control select {
+  padding-left: 3.25rem;
 }
-.expense-method-options label:has(input:focus-visible) {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.expense-split-method > label {
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr);
+  align-items: center;
 }
 .expense-split-preview {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) minmax(0, 3fr);
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 3fr);
   align-items: center;
-  column-gap: 1rem;
+  gap: 0.25rem 1rem;
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--muted) 35%, transparent);
-  padding: 1.2rem;
+  padding: 1rem;
 }
 .expense-split-preview > :first-child {
   grid-column: 1;
-  margin-bottom: 0.35rem;
+  margin: 0;
 }
 .expense-split-preview > p {
   grid-column: 1;
-  margin-bottom: 0;
+  margin: 0;
   color: var(--muted-foreground);
+  font-size: 0.8rem;
 }
 .expense-share-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  gap: 0.75rem;
 }
 .expense-split-preview > .expense-share-grid {
   grid-column: 2;
@@ -168,50 +167,21 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.4rem 0.75rem;
+  gap: 0.15rem 0.65rem;
   border-left: 1px solid var(--border);
-  padding-left: 1rem;
+  padding-left: 0.75rem;
+  font-size: 0.8rem;
   overflow-wrap: anywhere;
 }
 .expense-share .expense-person-avatar {
   grid-row: span 2;
 }
-.expense-share strong {
-  font-size: 1.4rem;
-  font-weight: 500;
-}
-.expense-composer-footer {
-  position: static;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding-block: 1.5rem;
-  background: var(--card);
-}
-.expense-composer-footer > :not(.expense-total) {
-  order: 1;
-}
-.expense-composer-footer > :last-child {
-  order: 3;
-}
-.expense-total {
-  order: 2;
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: baseline;
-  gap: 0.3rem 1rem;
-  margin-left: auto;
-}
-.expense-total strong {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-.expense-total small {
-  grid-column: 1 / -1;
+.expense-share > span:not(.expense-person-avatar) {
   color: var(--muted-foreground);
-  text-align: right;
+}
+.expense-share strong {
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 .expense-composer .choice:nth-of-type(4n + 2) .expense-person-avatar,
 .expense-composer .expense-share:nth-child(4n + 2) .expense-person-avatar {
@@ -228,19 +198,70 @@
   background: var(--tomato-4);
   color: var(--tomato-12);
 }
-.expense-composer .receipt-picker {
-  border-style: dashed;
-  border-radius: var(--control-radius);
+.expense-receipt-section .receipt-picker,
+.expense-existing-receipt {
+  border: 0;
   background: transparent;
-  padding: 1.25rem;
+  padding: 0;
 }
-@media (min-width: 1100px) {
-  .expense-composer .receipt-picker {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+.expense-composer-footer {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  background: var(--card);
+}
+.expense-composer-footer > :not(.expense-total) {
+  order: 1;
+}
+.expense-composer-footer > :last-child {
+  order: 3;
+}
+.expense-total {
+  order: 2;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 0.15rem 1rem;
+  margin-left: auto;
+}
+.expense-total strong {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.expense-total small {
+  grid-column: 1 / -1;
+  color: var(--muted-foreground);
+  text-align: right;
+}
+@media (min-width: 901px) {
+  html:has(.app-shell .expense-composer) {
+    scroll-padding-bottom: 8rem;
   }
-  .expense-composer .receipt-picker > :nth-child(n + 3) {
-    grid-column: 1 / -1;
+  .app-shell:has(.expense-composer) {
+    padding-bottom: 8rem;
+  }
+  .app-shell .expense-composer-footer {
+    position: fixed;
+    z-index: 50;
+    inset: auto 0 0;
+    margin: 0;
+    padding: 1rem 2rem;
+  }
+  .expense-composer-footer > .otter-button {
+    min-height: 3rem;
+  }
+  .expense-receipt-section > .expense-section-body {
+    margin-top: 0;
+    min-height: 2rem;
+  }
+  .expense-receipt-section .receipt-picker > :nth-child(2) {
+    position: absolute;
+    top: 0.9rem;
+    right: 0;
   }
 }
 @media (max-width: 1100px) {
@@ -254,25 +275,24 @@
   }
 }
 @media (max-width: 680px) {
-  .expense-step-heading {
-    gap: 0.75rem;
-    font-size: 1.25rem;
-  }
-  .expense-step-body {
-    margin-left: 0;
-    border-left: 0;
+  .expense-section-body {
     padding-left: 0;
+  }
+  .expense-split-section > summary {
+    padding-right: 0;
+  }
+  .expense-participant-actions {
+    position: static;
+    justify-content: end;
   }
   .expense-basic-fields {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
   }
   .expense-basic-fields > :nth-child(n) {
     grid-column: auto;
-    order: initial;
   }
-  .expense-method-options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .expense-split-method > label {
+    grid-template-columns: minmax(0, 1fr);
   }
   .expense-composer-footer {
     gap: 0.75rem;
@@ -286,5 +306,10 @@
   }
   .expense-composer-footer > :last-child {
     flex: 1;
+  }
+}
+@media print {
+  .expense-composer-footer {
+    display: none;
   }
 }

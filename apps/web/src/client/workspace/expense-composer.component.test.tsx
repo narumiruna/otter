@@ -77,7 +77,7 @@ test("expense composer previews the default equal split without a mutation", asy
   globalThis.fetch = originalFetch;
 });
 
-test("numbered sections expose details and selectable split methods", async () => {
+test("compact sections expose details and a selectable split method", async () => {
   const user = userEvent.setup();
   const client = new QueryClient();
   const view = render(
@@ -93,20 +93,24 @@ test("numbered sections expose details and selectable split methods", async () =
     </QueryClientProvider>,
   );
 
-  expect(view.getByRole("heading", { name: "基本資料" })).toBeVisible();
-  expect(view.getByRole("heading", { name: "分攤支出" })).toBeVisible();
-  expect(view.getByRole("heading", { name: "更多資料" })).toBeVisible();
+  expect(view.getByRole("heading", { name: "分攤對象" })).toBeVisible();
+  const heading = view.getByRole("heading", { name: "更多資料" });
+  const details = heading.closest("details");
+  const summary = heading.closest("summary");
+  assert.ok(details);
+  assert.ok(summary);
+  expect(details.open).toBe(true);
   expect(view.getByLabelText("分類")).toBeVisible();
   expect(view.getByLabelText(/標籤/)).toBeVisible();
+  await user.click(summary);
+  expect(details.open).toBe(false);
+  await user.click(summary);
+  expect(details.open).toBe(true);
 
-  const methods = view.getByRole("group", { name: "分帳方式" });
-  expect(methods.querySelectorAll('input[type="radio"]')).toHaveLength(4);
-  const custom = methods.querySelector<HTMLInputElement>(
-    'input[value="amount"]',
-  );
-  assert.ok(custom);
-  await user.click(custom);
-  expect(custom).toBeChecked();
+  const methods = view.getByRole("combobox", { name: "分帳方式" });
+  expect(methods.querySelectorAll("option")).toHaveLength(4);
+  await user.selectOptions(methods, "amount");
+  expect(methods).toHaveValue("amount");
   expect(view.getByLabelText(/Alice.*金額/)).toBeVisible();
   expect(view.getByLabelText(/Bob.*金額/)).toBeVisible();
 

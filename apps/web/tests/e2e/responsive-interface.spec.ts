@@ -589,3 +589,103 @@ test("long names, multiple currencies, editor and archived permissions reflow", 
       ).toBeDisabled();
   }
 });
+
+for (const palette of ["forest", "parchment"] as const) {
+  for (const appearance of ["light", "dark"] as const) {
+    test(`${palette} ${appearance} expense composer matches workspace typography and reflows`, async ({
+      page,
+    }, testInfo) => {
+      await mockWorkspace(page);
+      await page.addInitScript(
+        ({ palette, appearance }) => {
+          localStorage.setItem(
+            "otter.theme",
+            JSON.stringify({ palette, appearance }),
+          );
+        },
+        { palette, appearance },
+      );
+      await page.setViewportSize({ width: 1440, height: 1086 });
+      await page.goto("/?trip=interface-trip&view=people");
+      const siblingHeading = page.locator(".section-heading h3").first();
+      await expect(siblingHeading).toBeVisible();
+      const fontFamily = await siblingHeading.evaluate(
+        (element) => getComputedStyle(element).fontFamily,
+      );
+      await page
+        .getByRole("button", { name: "Add expense", exact: true })
+        .click();
+      const composer = page.getByRole("region", {
+        name: "Add expense",
+        exact: true,
+      });
+      await expect(composer).toBeVisible();
+      const heading = composer.getByRole("heading", {
+        name: "Add expense",
+        exact: true,
+      });
+      await expect(heading).toHaveCSS("font-family", fontFamily);
+      await expect(heading).toHaveCSS("font-size", "24px");
+      await expect(composer.locator(".expense-step-number")).toHaveCount(0);
+      await expect(
+        composer.getByRole("combobox", { name: "Split method" }),
+      ).toHaveValue("equal");
+      await composer
+        .getByRole("textbox", { name: "Description", exact: true })
+        .fill("Dinner at the market");
+      await composer
+        .getByRole("textbox", { name: "Amount", exact: true })
+        .fill("1000");
+      await expect(composer.locator(".expense-share")).toHaveCount(4);
+      await expect(composer.locator(".expense-total")).toContainText(
+        "4 people",
+      );
+      await expect(composer.locator(".expense-total")).toContainText(
+        "¥250 each",
+      );
+      const moreDetails = composer.locator(".expense-more-details");
+      await moreDetails.locator("summary").click();
+      await expect(
+        composer.getByRole("combobox", { name: "Category" }),
+      ).toBeHidden();
+      await moreDetails.locator("summary").click();
+      await expect(
+        composer.getByRole("combobox", { name: "Category" }),
+      ).toBeVisible();
+      await accessible(page);
+      await page.screenshot({
+        path: testInfo.outputPath("composer-desktop.png"),
+      });
+      await composer
+        .locator(".receipt-picker")
+        .evaluate((element) =>
+          element.scrollIntoView({ block: "center", behavior: "instant" }),
+        );
+      const receipt = await composer.locator(".receipt-picker").boundingBox();
+      const footer = await composer
+        .locator(".expense-composer-footer")
+        .boundingBox();
+      expect(receipt).not.toBeNull();
+      expect(footer).not.toBeNull();
+      expect((receipt?.y ?? 0) + (receipt?.height ?? 0)).toBeLessThanOrEqual(
+        footer?.y ?? 0,
+      );
+      for (const width of [901, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectNoOverflow(page);
+      }
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expectNoOverflow(page);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      });
+      await accessible(page);
+      await page.screenshot({
+        path: testInfo.outputPath("composer-mobile.png"),
+        fullPage: true,
+      });
+    });
+  }
+}
