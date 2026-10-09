@@ -300,13 +300,11 @@ test("collapsed valid receipt explains disconnection in the mobile footer", asyn
   const composer = page.locator(".expense-composer");
   await composer.getByLabel("Description").fill("Dinner");
   await composer.getByLabel("Amount", { exact: true }).fill("1000");
-  await composer
-    .getByLabel("Upload photo")
-    .setInputFiles({
-      name: "photo.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("photo"),
-    });
+  await composer.getByLabel("Upload photo").setInputFiles({
+    name: "photo.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("photo"),
+  });
   const receipt = composer.locator(".expense-receipt-section");
   await receipt.locator("summary").click();
   await context.setOffline(true);
