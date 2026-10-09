@@ -2,7 +2,13 @@
 import "fake-indexeddb/auto";
 import type { Expense, TripPayload } from "@narumitw/otter-contracts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { I18nProvider } from "../i18n.js";
@@ -154,7 +160,12 @@ test("rejects unsupported, empty and oversized photos before creating anything",
     fireEvent.change(view.getByLabelText("Upload photo"), {
       target: { files: [file] },
     });
-    expect(view.getByRole("alert")).toHaveTextContent(message);
+    const error = view.container.querySelector(
+      ".expense-composer-footer .expense-validation-error",
+    );
+    expect(error).toHaveTextContent(message);
+    expect(error).toBeVisible();
+    expect(view.getByRole("button", { name: "Record expense" })).toBeDisabled();
     expect(view.getByText(file.name)).toBeVisible();
     await user.click(view.getByRole("button", { name: "Record expense" }));
     expect(fetcher, file.name).not.toHaveBeenCalled();
@@ -410,4 +421,50 @@ test("going offline after choosing a photo blocks queueing until it is removed",
   await user.click(view.getByRole("button", { name: "Remove photo" }));
   await user.click(view.getByRole("button", { name: "Save on this device" }));
   await waitFor(() => expect(view.saved).toHaveBeenCalledOnce());
+});
+
+test("collapsed receipt validation explains disabled Save and recovers without mutations", async () => {
+  const fetcher = vi.fn<typeof fetch>();
+  const view = setup(fetcher);
+  const user = userEvent.setup();
+  await fill(view, user);
+  const invalid = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.jpg", {
+    type: "image/jpeg",
+  });
+  await user.upload(view.getByLabelText("Upload photo"), invalid);
+  const receipt = view.container.querySelector<HTMLDetailsElement>(
+    ".expense-receipt-section",
+  );
+  const footer = view.container.querySelector<HTMLDivElement>(
+    ".expense-composer-footer",
+  );
+  expect(receipt).not.toBeNull();
+  expect(footer).not.toBeNull();
+  if (!receipt || !footer) throw new Error("Missing receipt or footer");
+  const summary = receipt.querySelector("summary");
+  if (!summary) throw new Error("Missing receipt disclosure");
+  await user.click(summary);
+  expect(receipt.open).toBe(false);
+  const message = "Photos must be 5 MB or smaller";
+  expect(within(footer).getByText(message)).toBeVisible();
+  const save = view.getByRole("button", { name: "Record expense" });
+  expect(save).toBeDisabled();
+  expect(save).toHaveAccessibleDescription(message);
+  expect(view.container.querySelectorAll('[aria-live="polite"]')).toHaveLength(
+    1,
+  );
+  expect(view.queryByRole("alert")).toBeNull();
+  await user.click(save);
+  expect(
+    fetcher.mock.calls.filter(([url]) => String(url).includes("/expenses")),
+  ).toHaveLength(0);
+  await user.click(summary);
+  await user.click(view.getByRole("button", { name: "Remove photo" }));
+  await user.click(summary);
+  expect(receipt.open).toBe(false);
+  expect(within(footer).queryByText(message)).toBeNull();
+  expect(save).toBeEnabled();
+  expect(
+    fetcher.mock.calls.filter(([url]) => String(url).includes("/expenses")),
+  ).toHaveLength(0);
 });

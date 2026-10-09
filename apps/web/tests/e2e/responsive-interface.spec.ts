@@ -764,3 +764,147 @@ test("localized compact preview retains total, people and shares without mutatio
   await expect(preview.locator(".expense-share").first()).toContainText("$250");
   expect(mutations).toBe(0);
 });
+
+test("mobile expense actions stay reachable while scrolling expanded sections", async ({
+  page,
+}) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?trip=interface-trip&mode=add-expense");
+  const composer = page.getByRole("region", {
+    name: "Add expense",
+    exact: true,
+  });
+  const footer = composer.locator(".expense-composer-footer");
+  await expect(footer).toHaveCSS("position", "sticky");
+  const assertActionsReachable = async () => {
+    for (const name of ["Cancel", "Record expense"]) {
+      const action = composer.getByRole("button", { name });
+      const box = await action.boundingBox();
+      if (!box) throw new Error("Missing expense action");
+      expect(box.y).toBeGreaterThanOrEqual(64);
+      expect(box.y + box.height).toBeLessThanOrEqual(844);
+      expect(
+        await action.evaluate((element) => {
+          const r = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            r.x + r.width / 2,
+            r.y + r.height / 2,
+          );
+          return hit === element || element.contains(hit);
+        }),
+      ).toBe(true);
+    }
+  };
+  await assertActionsReachable();
+  await composer.getByLabel("Amount", { exact: true }).fill("1000");
+  await composer.getByLabel("Split method").scrollIntoViewIfNeeded();
+  await assertActionsReachable();
+  const photo = composer.getByLabel("Take photo");
+  await photo.scrollIntoViewIfNeeded();
+  const label = await photo.evaluate((element) => {
+    const label = element.closest("label");
+    if (!label) throw new Error("Missing photo label");
+    return label.getBoundingClientRect().bottom;
+  });
+  const bar = await footer.boundingBox();
+  if (!bar) throw new Error("Missing expense footer");
+  expect(label).toBeLessThanOrEqual(bar.y);
+  await assertActionsReachable();
+  await expectNoOverflow(page);
+});
+
+test("desktop expense footer leaves independently scrolling sidebar actions clear", async ({
+  page,
+}) => {
+  const trip = exampleTrip();
+  await mockWorkspace(page, trip);
+  await page.route("**/api/trips", async (route) => {
+    await route.fulfill({
+      json: {
+        archivedTrips: [],
+        trips: Array.from({ length: 24 }, (_, i) => ({
+          id: i === 0 ? trip.id : `extra-${i}`,
+          name: `Group ${i + 1}`,
+          baseCurrency: trip.baseCurrency,
+          createdAt: trip.createdAt,
+          ownerId: trip.ownerId,
+          participantCount: 4,
+          expenseCount: 1,
+        })),
+      },
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto("/?trip=interface-trip&mode=add-expense");
+  const sidebar = page.locator(".workspace-sidebar");
+  await expect(sidebar.locator(".trip-switcher-item")).toHaveCount(24);
+  await sidebar.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const create = sidebar.getByRole("button", {
+    name: "Create group",
+    exact: true,
+  });
+  const button = await create.boundingBox();
+  const footer = await page.locator(".expense-composer-footer").boundingBox();
+  if (!button || !footer) throw new Error("Missing sidebar action or footer");
+  expect(button.y + button.height).toBeLessThanOrEqual(footer.y);
+  expect(
+    await create.evaluate((element) => {
+      const r = element.getBoundingClientRect();
+      return element.contains(
+        document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+      );
+    }),
+  ).toBe(true);
+  await create.click();
+  await expect(
+    page.getByRole("dialog", { name: "Create group" }),
+  ).toBeVisible();
+});
+
+test("collapsed oversized receipt stays explained without submitting", async ({
+  page,
+}) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let mutations = 0;
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/expenses"))
+      mutations += 1;
+  });
+  await page.goto("/?trip=interface-trip&mode=add-expense");
+  const composer = page.getByRole("region", {
+    name: "Add expense",
+    exact: true,
+  });
+  await composer.getByLabel("Description").fill("Dinner");
+  await composer.getByLabel("Amount", { exact: true }).fill("1000");
+  await composer.getByLabel("Upload photo").setInputFiles({
+    name: "big.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+  });
+  const receipt = composer.locator(".expense-receipt-section");
+  await receipt.locator("summary").click();
+  const footer = composer.locator(".expense-composer-footer");
+  await expect(
+    footer.getByText("Photos must be 5 MB or smaller"),
+  ).toBeVisible();
+  const save = composer.getByRole("button", { name: "Record expense" });
+  await expect(save).toBeDisabled();
+  await expect(save).toHaveAccessibleDescription(
+    "Photos must be 5 MB or smaller",
+  );
+  await expect(composer.locator('[aria-live="polite"]')).toHaveCount(1);
+  await receipt.locator("summary").click();
+  await composer.getByRole("button", { name: "Remove photo" }).click();
+  await receipt.locator("summary").click();
+  await expect(save).toBeEnabled();
+  await expect(footer.getByText("Photos must be 5 MB or smaller")).toHaveCount(
+    0,
+  );
+  expect(mutations).toBe(0);
+  await accessible(page);
+});

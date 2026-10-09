@@ -98,7 +98,7 @@ export function ExpenseComposer({
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
-  const splitErrorId = useId();
+  const saveErrorId = useId();
   const {
     offline,
     canQueue,
@@ -201,6 +201,7 @@ export function ExpenseComposer({
       };
     }
   })();
+  const saveError = preview?.error || fileError;
 
   const submit = form.handleSubmit(async (draft) => {
     setServerError("");
@@ -648,24 +649,21 @@ export function ExpenseComposer({
           </summary>
           <div className="expense-section-body">
             {!expense ? (
-              <>
-                <NewExpenseReceiptPicker
-                  busy={form.formState.isSubmitting}
-                  disabled={
-                    offline ||
-                    !!queued ||
-                    creationUncertain ||
-                    form.formState.isSubmitting
-                  }
-                  file={file}
-                  onlineOnly={offline || !!queued}
-                  onChange={(next) => {
-                    setFile(next);
-                    setFileError(next ? receiptFileError(next, messages) : "");
-                  }}
-                />
-                <ActionError message={fileError} />
-              </>
+              <NewExpenseReceiptPicker
+                busy={form.formState.isSubmitting}
+                disabled={
+                  offline ||
+                  !!queued ||
+                  creationUncertain ||
+                  form.formState.isSubmitting
+                }
+                file={file}
+                onlineOnly={offline || !!queued}
+                onChange={(next) => {
+                  setFile(next);
+                  setFileError(next ? receiptFileError(next, messages) : "");
+                }}
+              />
             ) : null}
 
             {expense ? (
@@ -703,9 +701,12 @@ export function ExpenseComposer({
 
         <div className="sticky-submit expense-composer-footer">
           <div className="expense-total" aria-live="polite" aria-atomic="true">
-            {preview?.error ? (
-              <p className="field-error expense-split-error" id={splitErrorId}>
-                {preview.error}
+            {saveError ? (
+              <p
+                className="field-error expense-validation-error"
+                id={saveErrorId}
+              >
+                {saveError}
               </p>
             ) : (
               <>
@@ -756,10 +757,10 @@ export function ExpenseComposer({
           <BusyButton
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
-            aria-describedby={preview?.error ? splitErrorId : undefined}
+            aria-describedby={saveError ? saveErrorId : undefined}
             disabled={
               (offline && (!!expense || !canQueue)) ||
-              !!preview?.error ||
+              !!saveError ||
               versionState.conflict ||
               versionState.missing ||
               creationUncertain
