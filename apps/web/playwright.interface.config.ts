@@ -6,6 +6,7 @@ export default defineConfig({
   ...config,
   testMatch: [
     "responsive-interface.spec.ts",
+    "expense-footer.spec.ts",
     "expenses-layout.spec.ts",
     "empty-overview.spec.ts",
     "dialog.spec.ts",

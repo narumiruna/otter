@@ -20,12 +20,8 @@ import {
   isCurrency,
   parseAmountToMinor,
 } from "@narumitw/otter-core/money";
-import {
-  ChevronLeftIcon as ChevronLeft,
-  ReaderIcon as ReceiptText,
-  GroupIcon as Users,
-} from "@radix-ui/react-icons";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { ApiResponseError, api, todayDate } from "../client-support.js";
@@ -102,6 +98,7 @@ export function ExpenseComposer({
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
+  const saveErrorId = useId();
   const {
     offline,
     canQueue,
@@ -204,6 +201,10 @@ export function ExpenseComposer({
       };
     }
   })();
+  const saveError =
+    preview?.error ||
+    fileError ||
+    (file && (offline || queued) ? messages.receiptOnlineOnly : "");
 
   const submit = form.handleSubmit(async (draft) => {
     setServerError("");
@@ -340,17 +341,16 @@ export function ExpenseComposer({
       variant="outline"
       onClick={isDirty ? undefined : onCancel}
     >
-      <ChevronLeft aria-hidden="true" />
       {messages.cancel}
     </Button>
   );
 
   return (
     <section
-      className="surface grid gap-5"
+      className="surface expense-composer grid gap-4"
       aria-labelledby="expense-composer-heading"
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="expense-composer-header flex flex-wrap items-start justify-between gap-4">
         <SectionHeading
           description={
             expense
@@ -372,22 +372,6 @@ export function ExpenseComposer({
               onRestored={onCancel}
             />
           ) : null}
-          {isDirty ? (
-            <ConfirmDialog
-              confirmLabel={messages.discardDraft}
-              description={
-                creationUncertain
-                  ? messages.expenseCreationUncertain
-                  : messages.unsavedChangesWillBeLostExistingDataWillNotChange
-              }
-              destructive
-              onConfirm={onCancel}
-              title={messages.discardThisDraft}
-              trigger={cancelButton}
-            />
-          ) : (
-            cancelButton
-          )}
         </div>
       </div>
 
@@ -410,7 +394,7 @@ export function ExpenseComposer({
               : undefined
           }
         />
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="expense-basic-fields">
           <FormField label={messages.description}>
             <input
               className="form-control"
@@ -449,16 +433,24 @@ export function ExpenseComposer({
             />
           </FormField>
           <FormField label={messages.paidBy}>
-            <select
-              className="form-control"
-              {...form.register("paidById", { required: true })}
-            >
-              {trip.participants.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
+            <div className="expense-payer-control">
+              <span className="expense-person-avatar" aria-hidden="true">
+                {trip.participants
+                  .find((person) => person.id === values.paidById)
+                  ?.name.slice(0, 1)
+                  .toLocaleUpperCase(locale)}
+              </span>
+              <select
+                className="form-control"
+                {...form.register("paidById", { required: true })}
+              >
+                {trip.participants.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </FormField>
           <FormField label={messages.currency2}>
             <select className="form-control" {...form.register("currency")}>
@@ -470,69 +462,20 @@ export function ExpenseComposer({
             </select>
           </FormField>
         </div>
-
-        <div className="rounded-xl border bg-muted/50 p-4" aria-live="polite">
-          <div className="mb-3 flex items-center gap-2 font-semibold">
-            <ReceiptText aria-hidden="true" />
-            {messages.splitPreview}
-          </div>
-          {!preview ? (
-            <p className="text-sm text-muted-foreground">
-              {messages.enterAnAmountToPreviewEachPersonsShare}
-            </p>
-          ) : preview.error ? (
-            <p className="field-error">{preview.error}</p>
-          ) : (
-            <>
-              <p className="mb-3 text-sm">
-                {messages.namePaidAmount({
-                  name:
-                    trip.participants.find(
-                      (person) => person.id === values.paidById,
-                    )?.name ?? messages.paidBy,
-                  amount: formatMoney(preview.amountMinor, values.currency),
-                })}
-              </p>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {preview.shares.map((share) => (
-                  <li
-                    className="flex justify-between rounded-lg bg-card px-3 py-2 text-sm"
-                    key={share.participantId}
-                  >
-                    <span>
-                      {
-                        trip.participants.find(
-                          (person) => person.id === share.participantId,
-                        )?.name
-                      }
-                    </span>
-                    <strong className="tabular-nums">
-                      {formatMoney(share.shareMinor, values.currency)}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-
-        <details className="disclosure">
-          <summary>
-            <Users aria-hidden="true" />
-            {messages.changePeopleAndSplitMethod}{" "}
-            <span className="summary-meta">
-              {messages.selectedSelectedOfTotal({
-                selected: values.participantIds.length,
-                total: trip.participants.length,
-              })}
-            </span>
+        <details className="expense-section expense-split-section" open>
+          <summary className="expense-section-summary">
+            <ChevronDownIcon aria-hidden="true" />
+            <div>
+              <h3 id="expense-split-heading">{messages.expenseSplitSection}</h3>
+              <p>{messages.expenseSplitHelp}</p>
+            </div>
           </summary>
-          <div className="grid gap-4 pt-4">
-            <div className="flex flex-wrap gap-2">
+          <div className="expense-section-body grid gap-4">
+            <div className="expense-participant-actions">
               <Button
                 size="sm"
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() =>
                   form.setValue(
                     "participantIds",
@@ -546,7 +489,7 @@ export function ExpenseComposer({
               <Button
                 size="sm"
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() =>
                   form.setValue("participantIds", [], { shouldDirty: true })
                 }
@@ -563,18 +506,26 @@ export function ExpenseComposer({
                     value={person.id}
                     {...form.register("participantIds")}
                   />{" "}
+                  <span className="expense-person-avatar" aria-hidden="true">
+                    {person.name.slice(0, 1).toLocaleUpperCase(locale)}
+                  </span>
                   <span>{person.name}</span>
                 </label>
               ))}
             </fieldset>
-            <FormField label={messages.splitMethod}>
-              <select className="form-control" {...form.register("splitMode")}>
-                <option value="equal">{messages.splitEqually}</option>
-                <option value="amount">{messages.exactAmounts}</option>
-                <option value="ratio">{messages.percentages}</option>
-                <option value="shares">{messages.shares}</option>
-              </select>
-            </FormField>
+            <div className="expense-split-method">
+              <FormField label={messages.splitMethod}>
+                <select
+                  className="form-control"
+                  {...form.register("splitMode")}
+                >
+                  <option value="equal">{messages.splitEqually}</option>
+                  <option value="amount">{messages.exactAmounts}</option>
+                  <option value="ratio">{messages.percentages}</option>
+                  <option value="shares">{messages.shares}</option>
+                </select>
+              </FormField>
+            </div>
             {values.splitMode !== "equal" ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {trip.participants
@@ -601,79 +552,143 @@ export function ExpenseComposer({
                   ))}
               </div>
             ) : null}
-          </div>
-        </details>
-
-        <details className="disclosure expense-more-details">
-          <summary>
-            <span>{messages.moreDetails}</span>
-            <span className="summary-meta">{messages.categoryAndTags}</span>
-          </summary>
-          <div className="grid gap-4 pt-4 sm:grid-cols-2">
-            <FormField label={messages.category}>
-              <select className="form-control" {...form.register("category")}>
-                {expenseCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {localizeMessage(category)}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField
-              label={messages.tag}
-              hint={messages.separateWithCommasForExampleBreakfastTransport}
-            >
-              <input
-                className="form-control"
-                maxLength={249}
-                {...form.register("tags")}
-              />
-            </FormField>
-          </div>
-        </details>
-
-        {!expense ? (
-          <>
-            <NewExpenseReceiptPicker
-              busy={form.formState.isSubmitting}
-              disabled={
-                offline ||
-                !!queued ||
-                creationUncertain ||
-                form.formState.isSubmitting
-              }
-              file={file}
-              onlineOnly={offline || !!queued}
-              onChange={(next) => {
-                setFile(next);
-                setFileError(next ? receiptFileError(next, messages) : "");
-              }}
-            />
-            <ActionError message={fileError} />
-          </>
-        ) : null}
-
-        {expense ? (
-          <section
-            aria-labelledby="expense-receipt-heading"
-            className="grid gap-3 rounded-xl border bg-muted/50 p-4"
-          >
-            <div className="grid gap-1">
-              <h3 className="font-semibold" id="expense-receipt-heading">
-                {messages.receipt}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {messages.receiptFileRequirements}
-              </p>
+            <div className="expense-split-preview">
+              <div className="mb-3 flex items-center gap-2 font-semibold">
+                {messages.splitPreview}
+              </div>
+              {!preview ? (
+                <p className="text-sm text-muted-foreground">
+                  {messages.enterAnAmountToPreviewEachPersonsShare}
+                </p>
+              ) : preview.error ? (
+                <p className="field-error">{preview.error}</p>
+              ) : (
+                <>
+                  <p className="mb-3 text-sm">
+                    {messages.totalAmount({
+                      amount: formatMoney(preview.amountMinor, values.currency),
+                    })}
+                    {" · "}
+                    {messages.countPeople({ count: preview.shares.length })}
+                    {preview.shares.length > 0 &&
+                    preview.shares.every(
+                      (share) =>
+                        share.shareMinor === preview.shares[0]?.shareMinor,
+                    ) ? (
+                      <>
+                        {" · "}
+                        {formatMoney(
+                          preview.shares[0]?.shareMinor ?? 0,
+                          values.currency,
+                        )}{" "}
+                        {messages.each}
+                      </>
+                    ) : null}
+                  </p>
+                  <ul className="expense-share-grid">
+                    {preview.shares.map((share) => (
+                      <li className="expense-share" key={share.participantId}>
+                        <span
+                          className="expense-person-avatar"
+                          aria-hidden="true"
+                        >
+                          {trip.participants
+                            .find((person) => person.id === share.participantId)
+                            ?.name.slice(0, 1)
+                            .toLocaleUpperCase(locale)}
+                        </span>
+                        <span>
+                          {
+                            trip.participants.find(
+                              (person) => person.id === share.participantId,
+                            )?.name
+                          }
+                        </span>
+                        <strong className="tabular-nums">
+                          {formatMoney(share.shareMinor, values.currency)}
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
-            <ReceiptControls
-              expense={expense}
-              onVersionConfirm={confirmReviewedVersion}
-              trip={trip}
-              versionState={versionState}
-            />
-          </section>
-        ) : null}
+          </div>
+        </details>
+        <details className="expense-section expense-more-details" open>
+          <summary className="expense-section-summary">
+            <ChevronDownIcon aria-hidden="true" />
+            <h3 id="expense-details-heading">{messages.moreDetails}</h3>
+          </summary>
+          <div className="expense-section-body">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label={messages.category}>
+                <select className="form-control" {...form.register("category")}>
+                  {expenseCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {localizeMessage(category)}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField
+                label={messages.tag}
+                hint={messages.separateWithCommasForExampleBreakfastTransport}
+              >
+                <input
+                  className="form-control"
+                  placeholder={messages.expenseTagPlaceholder}
+                  maxLength={249}
+                  {...form.register("tags")}
+                />
+              </FormField>
+            </div>
+          </div>
+        </details>
+        <details className="expense-section expense-receipt-section" open>
+          <summary className="expense-section-summary">
+            <ChevronDownIcon aria-hidden="true" />
+            <h3>{messages.receipt}</h3>
+          </summary>
+          <div className="expense-section-body">
+            {!expense ? (
+              <NewExpenseReceiptPicker
+                busy={form.formState.isSubmitting}
+                disabled={
+                  offline ||
+                  !!queued ||
+                  creationUncertain ||
+                  form.formState.isSubmitting
+                }
+                file={file}
+                onlineOnly={offline || !!queued}
+                onChange={(next) => {
+                  setFile(next);
+                  setFileError(next ? receiptFileError(next, messages) : "");
+                }}
+              />
+            ) : null}
+
+            {expense ? (
+              <section
+                aria-label={messages.receipt}
+                className="expense-existing-receipt grid gap-3"
+              >
+                <div className="grid gap-1">
+                  <p className="text-sm text-muted-foreground">
+                    {messages.receiptFileRequirements}
+                  </p>
+                </div>
+                <ReceiptControls
+                  expense={expense}
+                  onVersionConfirm={confirmReviewedVersion}
+                  trip={trip}
+                  versionState={versionState}
+                />
+              </section>
+            ) : null}
+          </div>
+        </details>
 
         {expense ? (
           <div className="flex justify-start">
@@ -687,14 +702,56 @@ export function ExpenseComposer({
           </div>
         ) : null}
 
-        <div className="sticky-submit flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="sticky-submit expense-composer-footer">
+          <div className="expense-total" aria-live="polite" aria-atomic="true">
+            {saveError ? (
+              <p
+                className="field-error expense-validation-error"
+                id={saveErrorId}
+              >
+                {saveError}
+              </p>
+            ) : (
+              <>
+                <span>{messages.expenseTotalLabel}</span>
+                <strong>
+                  {formatMoney(preview?.amountMinor ?? 0, values.currency)}
+                </strong>
+                <small>
+                  {messages.countPeople({
+                    count: values.participantIds.length,
+                  })}
+                  {preview &&
+                  !preview.error &&
+                  preview.shares.length > 0 &&
+                  preview.shares.every(
+                    (share) =>
+                      share.shareMinor === preview.shares[0]?.shareMinor,
+                  ) ? (
+                    <>
+                      {" · "}
+                      {formatMoney(
+                        preview.shares[0]?.shareMinor ?? 0,
+                        values.currency,
+                      )}{" "}
+                      {messages.each}
+                    </>
+                  ) : null}
+                </small>
+              </>
+            )}
+          </div>
           {isDirty ? (
             <ConfirmDialog
               confirmLabel={messages.discardDraft}
-              description={messages.unsavedChangesWillBeLost}
+              description={
+                creationUncertain
+                  ? messages.expenseCreationUncertain
+                  : messages.unsavedChangesWillBeLost
+              }
               destructive
               onConfirm={onCancel}
-              title={messages.cancelEditing}
+              title={messages.discardThisDraft}
               trigger={cancelButton}
             />
           ) : (
@@ -703,9 +760,10 @@ export function ExpenseComposer({
           <BusyButton
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
+            aria-describedby={saveError ? saveErrorId : undefined}
             disabled={
               (offline && (!!expense || !canQueue)) ||
-              !!preview?.error ||
+              !!saveError ||
               versionState.conflict ||
               versionState.missing ||
               creationUncertain

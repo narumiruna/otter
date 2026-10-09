@@ -1,6 +1,11 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 
 export const zhTWInterface = {
+  parchmentTheme: "暖紙",
+  expenseTotalLabel: "合計",
+  expenseSplitSection: "分攤對象",
+  expenseSplitHelp: "選擇分攤成員與方式，並確認分帳結果。",
+  expenseTagPlaceholder: "新增標籤…",
   addShort: "新增",
   settingsShort: "設定",
   close: "關閉",
@@ -26,6 +31,12 @@ export const zhTWInterface = {
 };
 
 export const enInterface = {
+  parchmentTheme: "Parchment",
+  expenseTotalLabel: "Total",
+  expenseSplitSection: "Split among people",
+  expenseSplitHelp:
+    "Select who will split this expense, choose a method, and see the result.",
+  expenseTagPlaceholder: "Add a tag…",
   addShort: "Add",
   settingsShort: "Settings",
   close: "Close",

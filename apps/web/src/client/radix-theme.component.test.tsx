@@ -141,6 +141,27 @@ test("passes the selected theme through portal content", () => {
   expect(portalTheme).toHaveClass("dark");
 });
 
+test("passes the Parchment palette identity through dialog portals", () => {
+  storedValues.set(
+    "otter.theme",
+    '{"appearance":"light","palette":"parchment"}',
+  );
+  render(
+    <RadixTheme>
+      <Dialog open>
+        <DialogContent showCloseButton={false}>
+          <DialogTitle>Parchment preview</DialogTitle>
+          <DialogDescription>Warm palette in a portal</DialogDescription>
+        </DialogContent>
+      </Dialog>
+    </RadixTheme>,
+  );
+  const portalTheme = document.querySelector(".radix-dialog-theme");
+  expect(portalTheme).toHaveAttribute("data-theme-palette", "parchment");
+  expect(portalTheme).toHaveAttribute("data-gray-color", "sand");
+  expect(portalTheme).toHaveClass("light");
+});
+
 test("ignores invalid storage and keeps switching when storage is unavailable", async () => {
   storedValues.set(
     "otter.theme",

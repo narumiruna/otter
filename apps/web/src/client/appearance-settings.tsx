@@ -14,6 +14,7 @@ import {
 
 const paletteMessageKeys = {
   forest: "forestTheme",
+  parchment: "parchmentTheme",
   lavender: "lavenderTheme",
   ocean: "oceanTheme",
   rose: "roseTheme",

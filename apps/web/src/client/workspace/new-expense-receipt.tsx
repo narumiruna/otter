@@ -58,10 +58,9 @@ export function NewExpenseReceiptPicker({
   return (
     <section
       aria-label={messages.receipt}
-      className="grid gap-3 rounded-xl border bg-muted/50 p-4"
+      className="receipt-picker grid gap-3 rounded-xl border bg-muted/50 p-4"
     >
       <div>
-        <h3 className="font-semibold">{messages.receipt}</h3>
         <p className="text-sm text-muted-foreground">
           {messages.receiptFileRequirements}
         </p>

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "../../client/i18n.js";
+import { useThemePreference } from "../../client/radix-theme.js";
 import { Button } from "./button";
 
 type RenderElement = ReactElement<{
@@ -70,9 +71,10 @@ function DialogContent({
   showCloseButton?: boolean;
 }) {
   const { messages } = useI18n();
+  const { palette } = useThemePreference();
   return (
     <DialogPrimitive.Portal>
-      <Theme className="radix-dialog-theme">
+      <Theme className="radix-dialog-theme" data-theme-palette={palette}>
         <DialogPrimitive.Overlay className="radix-dialog-overlay" />
         <DialogPrimitive.Content
           className={cn("radix-dialog-content", className)}

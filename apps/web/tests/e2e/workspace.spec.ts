@@ -70,8 +70,10 @@ test("goal-first workspace navigation and expense preview are safe", async ({
   await page.getByRole("button", { name: "記一筆" }).click();
   await expect(page).toHaveURL(/mode=add-expense/);
   await page.getByLabel("金額", { exact: true }).fill("1000");
-  await expect(page.getByText("Admin 支付 $1,000")).toBeVisible();
-  await expect(page.getByText("$250").first()).toBeVisible();
+  const preview = page.locator(".expense-split-preview");
+  await expect(preview).toContainText("總支出 $1,000");
+  await expect(preview).toContainText("4 人");
+  await expect(preview.locator(".expense-share").first()).toContainText("$250");
   expect(expenseMutations).toBe(0);
 
   page.once("dialog", async (dialog) => {
@@ -186,6 +188,8 @@ test("mobile new expense attaches a camera photo to the expense it created", asy
     page.getByRole("dialog", { name: "「相機收據測試」的收據" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(page.locator(".workspace-nav")).toBeVisible();
   await page.getByRole("button", { name: "群組設定" }).click();
   const dataNavigation = page
     .locator(".section-navigation")

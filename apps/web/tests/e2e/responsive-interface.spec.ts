@@ -1,185 +1,18 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import AxeBuilder from "@axe-core/playwright";
 import {
   calculateBalances,
   calculateSettlements,
-  type Trip,
 } from "@narumitw/otter-core/settlement";
 import { expect, type Page, test } from "@playwright/test";
-import type { TripPayload } from "../../src/client/client-support.js";
+import {
+  accessible,
+  exampleTrip,
+  mockWorkspace,
+} from "./interface-fixtures.js";
 import { expectNoOverflow } from "./layout-assertions.js";
 
 const screenshotDirectory = process.env.OTTER_UI_SCREENSHOTS;
-
-function exampleTrip(): Trip {
-  const participants = [
-    { id: "a", name: "Alex" },
-    { id: "b", name: "Morgan" },
-    { id: "c", name: "Jamie" },
-    { id: "d", name: "Sam", settledById: "c" },
-  ];
-  return {
-    id: "interface-trip",
-    name: "Autumn in Kyoto · 京都秋旅",
-    baseCurrency: "JPY",
-    ownerId: "owner",
-    createdAt: "2026-10-01T00:00:00Z",
-    participants,
-    exchangeRates: { JPY: 1, USD: 250 },
-    expenses: [
-      {
-        id: "dinner",
-        description: "Dinner at the market",
-        amountMinor: 5700,
-        currency: "JPY",
-        category: "餐飲",
-        expenseDate: "2026-10-04",
-        paidById: "a",
-        participantIds: ["a", "b"],
-        receiptUrl: "/icon.svg",
-        createdAt: "2026-10-04T10:00:00Z",
-        exchangeRate: { baseCurrency: "JPY", rateToBase: 1, source: "fixed" },
-      },
-      {
-        id: "train",
-        description: "Train to the mountains",
-        amountMinor: 17150,
-        currency: "JPY",
-        category: "交通",
-        expenseDate: "2026-10-04",
-        paidById: "b",
-        participantIds: ["a", "b", "c", "d"],
-        createdAt: "2026-10-04T09:00:00Z",
-      },
-      {
-        id: "stay",
-        description: "A quiet place to stay",
-        amountMinor: 89640,
-        currency: "JPY",
-        category: "住宿",
-        expenseDate: "2026-10-04",
-        paidById: "a",
-        participantIds: ["a", "b", "c", "d"],
-        createdAt: "2026-10-04T08:00:00Z",
-      },
-      {
-        id: "usd",
-        description: "Travel booking",
-        amountMinor: 4250,
-        currency: "USD",
-        category: "其他",
-        expenseDate: "2026-10-02",
-        paidById: "a",
-        participantIds: ["a", "b", "c", "d"],
-        createdAt: "2026-10-02T08:00:00Z",
-        exchangeRate: {
-          baseCurrency: "JPY",
-          rateToBase: 150,
-          source: "bank",
-          provider: "BANK_OF_TAIWAN",
-          rateType: "spotMid",
-          fetchedAt: "2026-10-01T12:00:00Z",
-        },
-      },
-      {
-        id: "coffee",
-        description: "Coffee and a slow morning",
-        amountMinor: 2100,
-        currency: "JPY",
-        category: "餐飲",
-        expenseDate: "2026-10-01",
-        paidById: "c",
-        participantIds: ["a", "b", "c"],
-        createdAt: "2026-10-01T08:00:00Z",
-      },
-    ],
-  };
-}
-
-async function mockWorkspace(
-  page: Page,
-  trip = exampleTrip(),
-  role: "owner" | "editor" = "owner",
-) {
-  const payload = (): TripPayload => ({
-    trip,
-    balances: calculateBalances(trip),
-    settlements: calculateSettlements(trip),
-    currentUserRole: role,
-    exchangeRateInfo: {
-      source: "bank",
-      provider: "BANK_OF_TAIWAN",
-      rateType: "spotMid",
-      fetchedAt: "2026-10-01T12:00:00Z",
-    },
-    collaborators: [
-      { userId: "owner", username: "alex", name: "Alex", role: "owner" },
-    ],
-    shareLinks: [
-      {
-        id: "link-1",
-        mode: "readonly",
-        createdAt: "2026-10-01T12:00:00Z",
-        revokedAt: null,
-      },
-      {
-        id: "link-2",
-        mode: "anyone-edit",
-        createdAt: "2026-09-28T12:00:00Z",
-        revokedAt: "2026-10-01T12:00:00Z",
-      },
-    ],
-  });
-  await page.route("**/api/**", async (route) => {
-    const path = new URL(route.request().url()).pathname;
-    if (path === "/api/config")
-      await route.fulfill({ json: { devLoginCredentials: null } });
-    else if (path === "/api/me")
-      await route.fulfill({
-        json: { user: { id: "owner", username: "alex", name: "Alex" } },
-      });
-    else if (path === "/api/trips")
-      await route.fulfill({
-        json: {
-          archivedTrips: [],
-          trips: [
-            {
-              id: trip.id,
-              name: trip.name,
-              baseCurrency: trip.baseCurrency,
-              participantCount: trip.participants.length,
-              expenseCount: trip.expenses.length,
-            },
-          ],
-        },
-      });
-    else if (path === `/api/trips/${trip.id}`)
-      await route.fulfill({ json: payload() });
-    else if (path === `/api/trips/${trip.id}/expense-history`)
-      await route.fulfill({ json: { revisions: [], nextCursor: null } });
-    else if (path === "/api/passkeys")
-      await route.fulfill({ json: { passkeys: [] } });
-    else if (path === "/api/auth/tokens")
-      await route.fulfill({ json: { tokens: [] } });
-    else
-      throw new Error(
-        `Unexpected request: ${route.request().method()} ${path}`,
-      );
-  });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("otter.locale", "en");
-  });
-}
-
-async function accessible(page: Page) {
-  const result = await new AxeBuilder({ page }).analyze();
-  expect(
-    result.violations.filter(
-      (v) => v.impact === "serious" || v.impact === "critical",
-    ),
-  ).toEqual([]);
-}
 
 async function screenshot(page: Page, name: string) {
   if (!screenshotDirectory) return;
@@ -589,3 +422,103 @@ test("long names, multiple currencies, editor and archived permissions reflow", 
       ).toBeDisabled();
   }
 });
+
+for (const palette of ["forest", "parchment"] as const) {
+  for (const appearance of ["light", "dark"] as const) {
+    test(`${palette} ${appearance} expense composer matches workspace typography and reflows`, async ({
+      page,
+    }, testInfo) => {
+      await mockWorkspace(page);
+      await page.addInitScript(
+        ({ palette, appearance }) => {
+          localStorage.setItem(
+            "otter.theme",
+            JSON.stringify({ palette, appearance }),
+          );
+        },
+        { palette, appearance },
+      );
+      await page.setViewportSize({ width: 1440, height: 1086 });
+      await page.goto("/?trip=interface-trip&view=people");
+      const siblingHeading = page.locator(".section-heading h3").first();
+      await expect(siblingHeading).toBeVisible();
+      const fontFamily = await siblingHeading.evaluate(
+        (element) => getComputedStyle(element).fontFamily,
+      );
+      await page
+        .getByRole("button", { name: "Add expense", exact: true })
+        .click();
+      const composer = page.getByRole("region", {
+        name: "Add expense",
+        exact: true,
+      });
+      await expect(composer).toBeVisible();
+      const heading = composer.getByRole("heading", {
+        name: "Add expense",
+        exact: true,
+      });
+      await expect(heading).toHaveCSS("font-family", fontFamily);
+      await expect(heading).toHaveCSS("font-size", "24px");
+      await expect(composer.locator(".expense-step-number")).toHaveCount(0);
+      await expect(
+        composer.getByRole("combobox", { name: "Split method" }),
+      ).toHaveValue("equal");
+      await composer
+        .getByRole("textbox", { name: "Description", exact: true })
+        .fill("Dinner at the market");
+      await composer
+        .getByRole("textbox", { name: "Amount", exact: true })
+        .fill("1000");
+      await expect(composer.locator(".expense-share")).toHaveCount(4);
+      await expect(composer.locator(".expense-total")).toContainText(
+        "4 people",
+      );
+      await expect(composer.locator(".expense-total")).toContainText(
+        "¥250 each",
+      );
+      const moreDetails = composer.locator(".expense-more-details");
+      await moreDetails.locator("summary").click();
+      await expect(
+        composer.getByRole("combobox", { name: "Category" }),
+      ).toBeHidden();
+      await moreDetails.locator("summary").click();
+      await expect(
+        composer.getByRole("combobox", { name: "Category" }),
+      ).toBeVisible();
+      await accessible(page);
+      await page.screenshot({
+        path: testInfo.outputPath("composer-desktop.png"),
+      });
+      await composer
+        .locator(".receipt-picker")
+        .evaluate((element) =>
+          element.scrollIntoView({ block: "center", behavior: "instant" }),
+        );
+      const receipt = await composer.locator(".receipt-picker").boundingBox();
+      const footer = await composer
+        .locator(".expense-composer-footer")
+        .boundingBox();
+      expect(receipt).not.toBeNull();
+      expect(footer).not.toBeNull();
+      expect((receipt?.y ?? 0) + (receipt?.height ?? 0)).toBeLessThanOrEqual(
+        footer?.y ?? 0,
+      );
+      for (const width of [901, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectNoOverflow(page);
+      }
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expectNoOverflow(page);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      });
+      await accessible(page);
+      await page.screenshot({
+        path: testInfo.outputPath("composer-mobile.png"),
+        fullPage: true,
+      });
+    });
+  }
+}

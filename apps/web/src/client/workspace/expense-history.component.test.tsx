@@ -266,7 +266,6 @@ for (const split of ["equal", "amount", "valid-amount"] as const) {
     await user.clear(view.getByLabelText("Amount", { exact: true }));
     await user.type(view.getByLabelText("Amount", { exact: true }), "150");
     if (explicit) {
-      await user.click(view.getByText(/Change people and split method/));
       if (split === "amount") {
         await user.clear(view.getByLabelText("Alice's Amount"));
         await user.type(view.getByLabelText("Alice's Amount"), "90");
