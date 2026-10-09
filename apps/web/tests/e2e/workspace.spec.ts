@@ -70,8 +70,10 @@ test("goal-first workspace navigation and expense preview are safe", async ({
   await page.getByRole("button", { name: "記一筆" }).click();
   await expect(page).toHaveURL(/mode=add-expense/);
   await page.getByLabel("金額", { exact: true }).fill("1000");
-  await expect(page.getByText("Admin 支付 $1,000")).toBeVisible();
-  await expect(page.getByText("$250").first()).toBeVisible();
+  const preview = page.locator(".expense-split-preview");
+  await expect(preview).toContainText("總支出 $1,000");
+  await expect(preview).toContainText("4 人");
+  await expect(preview.locator(".expense-share").first()).toContainText("$250");
   expect(expenseMutations).toBe(0);
 
   page.once("dialog", async (dialog) => {

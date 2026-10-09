@@ -21,7 +21,7 @@ import {
   parseAmountToMinor,
 } from "@narumitw/otter-core/money";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { ApiResponseError, api, todayDate } from "../client-support.js";
@@ -98,6 +98,7 @@ export function ExpenseComposer({
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
+  const splitErrorId = useId();
   const {
     offline,
     canQueue,
@@ -547,7 +548,7 @@ export function ExpenseComposer({
                   ))}
               </div>
             ) : null}
-            <div className="expense-split-preview" aria-live="polite">
+            <div className="expense-split-preview">
               <div className="mb-3 flex items-center gap-2 font-semibold">
                 {messages.splitPreview}
               </div>
@@ -701,29 +702,40 @@ export function ExpenseComposer({
         ) : null}
 
         <div className="sticky-submit expense-composer-footer">
-          <div className="expense-total" aria-live="polite">
-            <span>{messages.expenseTotalLabel}</span>
-            <strong>
-              {formatMoney(preview?.amountMinor ?? 0, values.currency)}
-            </strong>
-            <small>
-              {messages.countPeople({ count: values.participantIds.length })}
-              {preview &&
-              !preview.error &&
-              preview.shares.length > 0 &&
-              preview.shares.every(
-                (share) => share.shareMinor === preview.shares[0]?.shareMinor,
-              ) ? (
-                <>
-                  {" · "}
-                  {formatMoney(
-                    preview.shares[0]?.shareMinor ?? 0,
-                    values.currency,
-                  )}{" "}
-                  {messages.each}
-                </>
-              ) : null}
-            </small>
+          <div className="expense-total" aria-live="polite" aria-atomic="true">
+            {preview?.error ? (
+              <p className="field-error expense-split-error" id={splitErrorId}>
+                {preview.error}
+              </p>
+            ) : (
+              <>
+                <span>{messages.expenseTotalLabel}</span>
+                <strong>
+                  {formatMoney(preview?.amountMinor ?? 0, values.currency)}
+                </strong>
+                <small>
+                  {messages.countPeople({
+                    count: values.participantIds.length,
+                  })}
+                  {preview &&
+                  !preview.error &&
+                  preview.shares.length > 0 &&
+                  preview.shares.every(
+                    (share) =>
+                      share.shareMinor === preview.shares[0]?.shareMinor,
+                  ) ? (
+                    <>
+                      {" · "}
+                      {formatMoney(
+                        preview.shares[0]?.shareMinor ?? 0,
+                        values.currency,
+                      )}{" "}
+                      {messages.each}
+                    </>
+                  ) : null}
+                </small>
+              </>
+            )}
           </div>
           {isDirty ? (
             <ConfirmDialog
@@ -744,6 +756,7 @@ export function ExpenseComposer({
           <BusyButton
             busy={form.formState.isSubmitting}
             busyLabel={messages.saving}
+            aria-describedby={preview?.error ? splitErrorId : undefined}
             disabled={
               (offline && (!!expense || !canQueue)) ||
               !!preview?.error ||

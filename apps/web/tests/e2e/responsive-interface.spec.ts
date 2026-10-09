@@ -101,6 +101,7 @@ async function mockWorkspace(
   page: Page,
   trip = exampleTrip(),
   role: "owner" | "editor" = "owner",
+  locale: "en" | "zh-TW" = "en",
 ) {
   const payload = (): TripPayload => ({
     trip,
@@ -167,9 +168,9 @@ async function mockWorkspace(
         `Unexpected request: ${route.request().method()} ${path}`,
       );
   });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("otter.locale", "en");
-  });
+  await page.addInitScript((locale) => {
+    window.localStorage.setItem("otter.locale", locale);
+  }, locale);
 }
 
 async function accessible(page: Page) {
@@ -689,3 +690,77 @@ for (const palette of ["forest", "parchment"] as const) {
     });
   }
 }
+
+for (const width of [1440, 390]) {
+  test(`collapsed split errors remain visible at ${width}px without mutations`, async ({
+    page,
+  }) => {
+    await mockWorkspace(page);
+    await page.setViewportSize({ width, height: 1086 });
+    let mutations = 0;
+    page.on("request", (request) => {
+      if (request.method() !== "GET" && request.url().includes("/expenses"))
+        mutations += 1;
+    });
+    await page.goto("/?trip=interface-trip&mode=add-expense");
+    const composer = page.getByRole("region", {
+      name: "Add expense",
+      exact: true,
+    });
+    await composer
+      .getByRole("textbox", { name: "Amount", exact: true })
+      .fill("1000");
+    await composer
+      .getByRole("combobox", { name: "Split method" })
+      .selectOption("amount");
+    for (const id of ["a", "b", "c", "d"]) {
+      await composer.locator(`input[name="splitValues.${id}"]`).fill("250");
+    }
+    const save = composer.getByRole("button", { name: "Record expense" });
+    await expect(save).toBeEnabled();
+    const split = composer.locator(".expense-split-section");
+    await split.locator("summary").click();
+    await composer
+      .getByRole("textbox", { name: "Amount", exact: true })
+      .fill("1200");
+    const footer = composer.locator(".expense-composer-footer");
+    const error = "Split amounts must add up to the expense amount";
+    await expect(footer.getByText(error, { exact: true })).toBeVisible();
+    await expect(save).toBeDisabled();
+    await expect(save).toHaveAccessibleDescription(error);
+    await expect(footer.getByText("Total", { exact: true })).toHaveCount(0);
+    await expect(composer.locator('[aria-live="polite"]')).toHaveCount(1);
+    await expect(composer.locator('[aria-live="polite"]')).toContainText(error);
+    await expect(split).not.toHaveAttribute("open");
+    await save.scrollIntoViewIfNeeded();
+    await accessible(page);
+    await expectNoOverflow(page);
+    await composer
+      .getByRole("textbox", { name: "Amount", exact: true })
+      .fill("1000");
+    await expect(save).toBeEnabled();
+    await expect(footer.getByText(error, { exact: true })).toHaveCount(0);
+    await expect(split).not.toHaveAttribute("open");
+    expect(mutations).toBe(0);
+  });
+}
+
+test("localized compact preview retains total, people and shares without mutations", async ({
+  page,
+}) => {
+  const trip = exampleTrip();
+  trip.baseCurrency = "TWD";
+  await mockWorkspace(page, trip, "owner", "zh-TW");
+  let mutations = 0;
+  page.on("request", (request) => {
+    if (request.method() !== "GET" && request.url().includes("/expenses"))
+      mutations += 1;
+  });
+  await page.goto("/?trip=interface-trip&mode=add-expense");
+  await page.getByLabel("金額", { exact: true }).fill("1000");
+  const preview = page.locator(".expense-split-preview");
+  await expect(preview).toContainText("總支出 $1,000");
+  await expect(preview).toContainText("4 人");
+  await expect(preview.locator(".expense-share").first()).toContainText("$250");
+  expect(mutations).toBe(0);
+});

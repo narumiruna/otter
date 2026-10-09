@@ -232,6 +232,11 @@
   font-size: 1.5rem;
   font-weight: 600;
 }
+.expense-split-error {
+  grid-column: 1 / -1;
+  max-width: 40rem;
+  margin: 0;
+}
 .expense-total small {
   grid-column: 1 / -1;
   color: var(--muted-foreground);

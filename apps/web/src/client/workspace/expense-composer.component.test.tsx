@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 import type { TripPayload } from "../client-support.js";
@@ -152,3 +152,75 @@ test("switching locale clears expense validation from the previous locale", asyn
   view.unmount();
   client.clear();
 });
+
+for (const mode of ["amount", "ratio", "shares"] as const) {
+  test(`collapsed ${mode} split keeps one live summary and visible validation`, async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient();
+    const view = render(
+      <I18nProvider initialLocale="en">
+        <QueryClientProvider client={client}>
+          <WorkspaceProvider
+            announce={() => undefined}
+            offline={false}
+            payload={payload}
+            refreshCollection={async () => undefined}
+          >
+            <ExpenseComposer onCancel={() => undefined} trip={payload.trip} />
+          </WorkspaceProvider>
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    await user.type(view.getByLabelText("Amount", { exact: true }), "1000");
+    await user.selectOptions(
+      view.getByRole("combobox", { name: "Split method" }),
+      mode,
+    );
+    await user.type(
+      view.getByLabelText(/Alice's/),
+      mode === "amount" ? "500" : "1",
+    );
+    await user.type(
+      view.getByLabelText(/Bob's/),
+      mode === "amount" ? "500" : "1",
+    );
+    const composer = view.getByRole("region", { name: "Add expense" });
+    const footer = composer.querySelector<HTMLDivElement>(
+      ".expense-composer-footer",
+    );
+    assert.ok(footer);
+    const save = view.getByRole("button", { name: "Record expense" });
+    expect(save).toBeEnabled();
+    expect(composer.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    const liveSummary = composer.querySelector('[aria-live="polite"]');
+    expect(liveSummary).toHaveAttribute("aria-atomic", "true");
+    const summary = view
+      .getByRole("heading", { name: "Split among people" })
+      .closest("summary");
+    assert.ok(summary);
+    await user.click(summary);
+    expect(summary.closest("details")?.open).toBe(false);
+    await user.clear(view.getByLabelText("Amount", { exact: true }));
+    await user.type(
+      view.getByLabelText("Amount", { exact: true }),
+      mode === "amount" ? "1200" : "1",
+    );
+    const error =
+      mode === "amount"
+        ? "Split amounts must add up to the expense amount"
+        : "Split amounts must be greater than 0";
+    expect(within(footer).getByText(error)).toBeVisible();
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription(error);
+    expect(within(footer).queryByText("Total", { exact: true })).toBeNull();
+    expect(composer.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    await user.clear(view.getByLabelText("Amount", { exact: true }));
+    await user.type(view.getByLabelText("Amount", { exact: true }), "1000");
+    expect(within(footer).queryByText(error)).toBeNull();
+    expect(within(footer).getByText("Total", { exact: true })).toBeVisible();
+    expect(save).toBeEnabled();
+    expect(summary.closest("details")?.open).toBe(false);
+    view.unmount();
+    client.clear();
+  });
+}
