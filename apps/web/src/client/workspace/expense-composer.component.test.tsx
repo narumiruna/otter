@@ -77,7 +77,7 @@ test("expense composer previews the default equal split without a mutation", asy
   globalThis.fetch = originalFetch;
 });
 
-test("more details toggles category and tags without changing its summary", async () => {
+test("numbered sections expose details and selectable split methods", async () => {
   const user = userEvent.setup();
   const client = new QueryClient();
   const view = render(
@@ -93,20 +93,22 @@ test("more details toggles category and tags without changing its summary", asyn
     </QueryClientProvider>,
   );
 
-  const summary = view.getByText("更多資料").closest("summary");
-  const details = summary?.closest("details");
-  assert.ok(summary);
-  assert.ok(details);
-  expect(summary).toHaveTextContent("更多資料分類、標籤");
-  expect(details.open).toBe(false);
-
-  await user.click(summary);
-  expect(details.open).toBe(true);
+  expect(view.getByRole("heading", { name: "基本資料" })).toBeVisible();
+  expect(view.getByRole("heading", { name: "分攤支出" })).toBeVisible();
+  expect(view.getByRole("heading", { name: "更多資料" })).toBeVisible();
   expect(view.getByLabelText("分類")).toBeVisible();
   expect(view.getByLabelText(/標籤/)).toBeVisible();
 
-  await user.click(summary);
-  expect(details.open).toBe(false);
+  const methods = view.getByRole("group", { name: "分帳方式" });
+  expect(methods.querySelectorAll('input[type="radio"]')).toHaveLength(4);
+  const custom = methods.querySelector<HTMLInputElement>(
+    'input[value="amount"]',
+  );
+  assert.ok(custom);
+  await user.click(custom);
+  expect(custom).toBeChecked();
+  expect(view.getByLabelText(/Alice.*金額/)).toBeVisible();
+  expect(view.getByLabelText(/Bob.*金額/)).toBeVisible();
 
   view.unmount();
   client.clear();

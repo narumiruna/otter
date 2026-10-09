@@ -1,0 +1,40 @@
+/* Keep the reference palette opt-in; existing themes retain their colors. */
+.radix-themes[data-theme-palette="parchment"] {
+  --background: color-mix(in srgb, var(--sand-3) 70%, var(--amber-2));
+  --card: color-mix(in srgb, var(--sand-1) 65%, var(--amber-2));
+  --accent-3: color-mix(in srgb, var(--green-3) 55%, var(--sand-3));
+  --accent-4: color-mix(in srgb, var(--green-4) 55%, var(--sand-4));
+  --foreground: var(--slate-12);
+  --card-foreground: var(--foreground);
+  --muted: var(--sand-3);
+  --muted-foreground: var(--slate-11);
+  --border: var(--sand-6);
+  --input: var(--sand-7);
+  --primary: var(--green-11);
+  --primary-foreground: var(--sand-1);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --surface-shadow: none;
+}
+
+.radix-themes[data-theme-palette="parchment"]:where(.dark, .dark-theme) {
+  --primary-foreground: var(--green-1);
+}
+
+.theme-palette-option[data-palette="parchment"] {
+  --theme-preview-soft: var(--sand-3);
+  --theme-preview-muted: var(--sand-8);
+  --theme-preview-accent: var(--green-8);
+  --theme-preview-strong: var(--green-11);
+}
+
+.expense-composer .section-heading h3,
+.expense-step-heading {
+  font-family: Georgia, "Noto Serif TC", "Songti TC", serif;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.radix-themes[data-theme-palette="parchment"] .app-header {
+  background: var(--background);
+}

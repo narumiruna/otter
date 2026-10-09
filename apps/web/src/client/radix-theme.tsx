@@ -10,6 +10,7 @@ import {
 
 export const themePalettes = [
   { accentColor: "green", grayColor: "sage", id: "forest" },
+  { accentColor: "green", grayColor: "sand", id: "parchment" },
   { accentColor: "blue", grayColor: "slate", id: "ocean" },
   { accentColor: "violet", grayColor: "mauve", id: "lavender" },
   { accentColor: "orange", grayColor: "sand", id: "sunset" },

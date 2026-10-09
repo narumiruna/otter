@@ -1,6 +1,10 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 
 export const zhTWInterface = {
+  parchmentTheme: "暖紙",
+  expenseTotalLabel: "合計",
+  expenseBasicInformation: "基本資料",
+  expenseSplitSection: "分攤支出",
   addShort: "新增",
   settingsShort: "設定",
   close: "關閉",
@@ -26,6 +30,10 @@ export const zhTWInterface = {
 };
 
 export const enInterface = {
+  parchmentTheme: "Parchment",
+  expenseTotalLabel: "Total",
+  expenseBasicInformation: "Basic information",
+  expenseSplitSection: "Split expense",
   addShort: "Add",
   settingsShort: "Settings",
   close: "Close",
