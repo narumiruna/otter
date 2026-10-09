@@ -188,6 +188,8 @@ test("mobile new expense attaches a camera photo to the expense it created", asy
     page.getByRole("dialog", { name: "「相機收據測試」的收據" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(page.locator(".workspace-nav")).toBeVisible();
   await page.getByRole("button", { name: "群組設定" }).click();
   const dataNavigation = page
     .locator(".section-navigation")
