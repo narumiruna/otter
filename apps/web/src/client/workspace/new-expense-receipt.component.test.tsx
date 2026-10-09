@@ -468,3 +468,54 @@ test("collapsed receipt validation explains disabled Save and recovers without m
     fetcher.mock.calls.filter(([url]) => String(url).includes("/expenses")),
   ).toHaveLength(0);
 });
+
+for (const recovery of ["reconnect", "remove"] as const) {
+  test(`collapsed valid receipt explains offline restriction and recovers on ${recovery}`, async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const view = setup(fetcher);
+    const user = userEvent.setup();
+    await fill(view, user);
+    await user.upload(view.getByLabelText("Upload photo"), image());
+    const receipt = view.container.querySelector<HTMLDetailsElement>(
+      ".expense-receipt-section",
+    );
+    const footer = view.container.querySelector<HTMLDivElement>(
+      ".expense-composer-footer",
+    );
+    const summary = receipt?.querySelector("summary");
+    if (!receipt || !footer || !summary)
+      throw new Error("Missing receipt or footer");
+    await user.click(summary);
+    expect(receipt.open).toBe(false);
+    view.setOffline(true);
+    const save = view.getByRole("button", { name: "Save on this device" });
+    const message =
+      "Photos require a connection; offline drafts do not store photos. Remove the photo or reconnect first.";
+    expect(within(footer).getByText(message)).toBeVisible();
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription(message);
+    expect(
+      view.container.querySelectorAll('[aria-live="polite"]'),
+    ).toHaveLength(1);
+    await user.click(save);
+    expect(view.queryByRole("alert")).toBeNull();
+    if (recovery === "reconnect") {
+      view.setOffline(false);
+    } else {
+      await user.click(summary);
+      await user.click(view.getByRole("button", { name: "Remove photo" }));
+      await user.click(summary);
+    }
+    expect(receipt.open).toBe(false);
+    expect(within(footer).queryByText(message)).toBeNull();
+    expect(
+      view.getByRole("button", {
+        name:
+          recovery === "reconnect" ? "Record expense" : "Save on this device",
+      }),
+    ).toBeEnabled();
+    expect(
+      fetcher.mock.calls.filter(([url]) => String(url).includes("/expenses")),
+    ).toHaveLength(0);
+  });
+}

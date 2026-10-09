@@ -201,7 +201,10 @@ export function ExpenseComposer({
       };
     }
   })();
-  const saveError = preview?.error || fileError;
+  const saveError =
+    preview?.error ||
+    fileError ||
+    (file && (offline || queued) ? messages.receiptOnlineOnly : "");
 
   const submit = form.handleSubmit(async (draft) => {
     setServerError("");

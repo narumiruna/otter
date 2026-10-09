@@ -408,7 +408,10 @@ export function AuthenticatedWorkspace({
               }
             </div>
           ) : null}
-          {location.mode || draftDirty ? null : (
+          {location.mode ||
+          draftDirty ||
+          recordedEditing ||
+          queuedEditing ? null : (
             <WorkspaceNavigation
               archived={archived}
               location={location}
