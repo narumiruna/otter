@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { apiProxy } from "../../vite.config.js";
+import config, { apiProxy } from "../../vite.config.js";
 
-describe("Vite API proxy", () => {
+describe("Vite server", () => {
+  test("allows the public development host without allowing all hosts", () => {
+    expect(config.server?.allowedHosts).toEqual(["otter.narumi.dev"]);
+  });
+
   test("preserves the browser host used in generated share URLs", () => {
     expect(apiProxy.changeOrigin).toBe(false);
   });
