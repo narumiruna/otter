@@ -9,9 +9,15 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { AppShell } from "./app-shell.js";
 import { api } from "./client-support.js";
 import { translations } from "./i18n/messages.js";
-import { currentLocale, I18nProvider, translate, useI18n } from "./i18n.js";
+import {
+  currentLocale,
+  I18nProvider,
+  type Locale,
+  translate,
+  useI18n,
+} from "./i18n.js";
 
-function renderApp(initialLocale?: "en" | "zh-TW") {
+function renderApp(initialLocale?: Locale) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -48,6 +54,72 @@ function CurrentLocale() {
   return <span>{locale}</span>;
 }
 
+test.each([
+  { languages: ["ja-JP", "en-US"], saved: null, expected: "ja" },
+  { languages: ["ko-KR", "ja-JP"], saved: null, expected: "ko" },
+  { languages: ["en-US"], saved: "ja", expected: "ja" },
+  { languages: ["ja-JP"], saved: "ko", expected: "ko" },
+  { languages: ["ko-KR"], saved: "fr", expected: "ko" },
+])(
+  "provider resolves $expected from browser and stored preferences",
+  ({ languages, saved, expected }) => {
+    vi.spyOn(window.navigator, "languages", "get").mockReturnValue(languages);
+    if (saved) storedValues.set("otter.locale", saved);
+    const view = render(
+      <I18nProvider>
+        <CurrentLocale />
+      </I18nProvider>,
+    );
+    expect(view.getByText(expected)).toBeVisible();
+    expect(document.documentElement.lang).toBe(expected);
+  },
+);
+
+test.each(["ja", "ko"] as const)(
+  "%s formats money and translates API errors and parameters",
+  (locale) => {
+    function Money() {
+      const { formatMoney } = useI18n();
+      return <span>{formatMoney(123456, "USD")}</span>;
+    }
+    const view = render(
+      <I18nProvider initialLocale={locale}>
+        <Money />
+      </I18nProvider>,
+    );
+    expect(
+      view.getByText(
+        new Intl.NumberFormat(locale, {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(1234.56),
+      ),
+    ).toBeVisible();
+    expect(translate(locale, "Username 或密碼錯誤")).toBe(
+      translations[locale].incorrectUsernameOrPassword,
+    );
+    expect(translate(locale, "找不到參與者：Alice")).toBe(
+      translations[locale].participantNotFoundName({ name: "Alice" }),
+    );
+    expect(translate(locale, "缺少欄位：description, currency")).toBe(
+      translations[locale].missingColumnsColumns({
+        columns: "description, currency",
+      }),
+    );
+    expect(
+      translate(locale, "顯示 {shown} / {total} 筆支出", {
+        shown: 2,
+        total: 5,
+      }),
+    ).toBe(
+      translations[locale].showingShownOfTotalExpenses({ shown: 2, total: 5 }),
+    );
+    expect(translate(locale, "unmapped error")).toBe("unmapped error");
+  },
+);
+
 test("browser language detection honors the user's preference order", () => {
   vi.spyOn(window.navigator, "languages", "get").mockReturnValue([
     "en-US",
@@ -63,39 +135,50 @@ test("browser language detection honors the user's preference order", () => {
   expect(view.getByText("en")).toBeVisible();
 });
 
-test("guest can choose a language before signing in and keep it on reload", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      if (url.endsWith("/api/config")) {
-        return Response.json({ devLoginCredentials: null });
-      }
-      if (url.endsWith("/api/me")) return Response.json({ user: null });
-      return Response.json({ error: "找不到 API" }, { status: 404 });
-    }),
-  );
-  const user = userEvent.setup();
-  const view = renderApp("zh-TW");
+test.each(["en", "ja", "ko"] as const)(
+  "guest can choose %s before signing in and keep it on reload",
+  async (locale) => {
+    const messages = translations[locale];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.endsWith("/api/config")) {
+          return Response.json({ devLoginCredentials: null });
+        }
+        if (url.endsWith("/api/me")) return Response.json({ user: null });
+        return Response.json({ error: "找不到 API" }, { status: 404 });
+      }),
+    );
+    const user = userEvent.setup();
+    const view = renderApp("zh-TW");
 
-  await user.selectOptions(
-    await view.findByRole("combobox", { name: "語言" }),
-    "en",
-  );
-  expect(view.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  expect(view.getByLabelText("Username")).toBeVisible();
-  assert.equal(document.documentElement.lang, "en");
-  assert.equal(window.localStorage.getItem("otter.locale"), "en");
+    await user.selectOptions(
+      await view.findByRole("combobox", { name: "語言" }),
+      locale,
+    );
+    expect(view.getByRole("heading", { name: messages.signIn })).toBeVisible();
+    expect(view.getByLabelText(messages.username)).toBeVisible();
+    assert.equal(document.documentElement.lang, locale);
+    assert.equal(window.localStorage.getItem("otter.locale"), locale);
+    await expect(api("/api/missing")).rejects.toThrow(
+      messages.apiEndpointNotFound,
+    );
+    const call = vi
+      .mocked(fetch)
+      .mock.calls.find(([input]) => String(input).endsWith("/api/missing"));
+    expect(new Headers(call?.[1]?.headers).get("Accept-Language")).toBe(locale);
 
-  view.unmount();
-  const persisted = renderApp();
-  expect(
-    await persisted.findByRole("heading", { name: "Sign in" }),
-  ).toBeVisible();
-  expect(persisted.getByRole("combobox", { name: "Language" })).toHaveValue(
-    "en",
-  );
-});
+    view.unmount();
+    const persisted = renderApp();
+    expect(
+      await persisted.findByRole("heading", { name: messages.signIn }),
+    ).toBeVisible();
+    expect(
+      persisted.getByRole("combobox", { name: messages.language }),
+    ).toHaveValue(locale);
+  },
+);
 
 test("guest language changes clear localized login and registration errors", async () => {
   vi.stubGlobal(
@@ -175,9 +258,7 @@ test("app switches between Traditional Chinese and English in account settings a
   await user.selectOptions(view.getByRole("combobox", { name: "語言" }), "en");
 
   expect(view.getByRole("heading", { name: "Account settings" })).toBeVisible();
-  expect(
-    view.getByRole("option", { name: "Traditional Chinese" }),
-  ).toBeVisible();
+  expect(view.getByRole("option", { name: "正體中文" })).toBeVisible();
   assert.equal(document.documentElement.lang, "en");
   assert.equal(window.localStorage.getItem("otter.locale"), "en");
 

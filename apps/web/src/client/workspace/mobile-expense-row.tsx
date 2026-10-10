@@ -25,7 +25,7 @@ export function MobileExpenseRow({
   const payer = names.get(expense.paidById) ?? messages.unknown;
   const namesLabel = expense.participantIds
     .map((id) => names.get(id) ?? messages.unknown)
-    .join(locale === "en" ? ", " : "、");
+    .join(locale === "zh-TW" || locale === "ja" ? "、" : ", ");
   const split =
     expense.participantIds.length > 2 || namesLabel.length > 36
       ? messages.countPeople({ count: expense.participantIds.length })

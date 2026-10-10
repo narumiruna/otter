@@ -1,6 +1,8 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 
 export const zhTWInterface = {
+  welcomeBackEyebrow: "歡迎回來",
+  startNewJourneyEyebrow: "開始新旅程",
   parchmentTheme: "暖紙",
   expenseTotalLabel: "合計",
   expenseSplitSection: "分攤對象",
@@ -31,6 +33,8 @@ export const zhTWInterface = {
 };
 
 export const enInterface = {
+  welcomeBackEyebrow: "WELCOME BACK",
+  startNewJourneyEyebrow: "START A NEW JOURNEY",
   parchmentTheme: "Parchment",
   expenseTotalLabel: "Total",
   expenseSplitSection: "Split among people",

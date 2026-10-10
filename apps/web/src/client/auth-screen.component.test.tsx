@@ -5,6 +5,7 @@ import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AuthScreen } from "./auth-screen.js";
+import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
 test("auth screen progressively discloses registration and returns to login", async () => {
@@ -15,14 +16,11 @@ test("auth screen progressively discloses registration and returns to login", as
 
   assert.ok(view.getByRole("heading", { name: "登入" }));
   assert.equal(view.queryByLabelText("名稱"), null);
-  assert.equal(view.getByText("WELCOME BACK").getAttribute("lang"), "en");
+  assert.equal(view.getByText("歡迎回來").getAttribute("lang"), "zh-TW");
   await user.click(view.getByRole("button", { name: "建立帳號" }));
   assert.ok(view.getByRole("heading", { name: "建立帳號" }));
   assert.equal(view.queryByLabelText("名稱"), null);
-  assert.equal(
-    view.getByText("START A NEW JOURNEY").getAttribute("lang"),
-    "en",
-  );
+  assert.equal(view.getByText("開始新旅程").getAttribute("lang"), "zh-TW");
   await user.click(view.getByRole("button", { name: "返回登入" }));
   assert.ok(view.getByRole("heading", { name: "登入" }));
 
@@ -143,6 +141,51 @@ test("language can be changed from login and registration without losing entered
   expect(view.getByRole("heading", { name: "建立帳號" })).toBeVisible();
   view.unmount();
 });
+
+test.each(["ja", "ko"] as const)(
+  "switches login and registration to %s without losing inputs",
+  async (locale) => {
+    const user = userEvent.setup();
+    const messages = translations[locale];
+    const view = render(
+      <I18nProvider initialLocale="en">
+        <AuthScreen onLogin={() => undefined} onRegister={() => undefined} />
+      </I18nProvider>,
+    );
+    await user.type(view.getByLabelText("Username"), "alice");
+    await user.selectOptions(
+      view.getByRole("combobox", { name: "Language" }),
+      locale,
+    );
+    expect(view.getByLabelText(messages.username)).toHaveValue("alice");
+    expect(view.getByText(messages.welcomeBackEyebrow)).toHaveAttribute(
+      "lang",
+      locale,
+    );
+    expect(view.getByRole("heading", { name: messages.signIn })).toBeVisible();
+    await user.click(
+      view.getByRole("button", { name: messages.createAccount }),
+    );
+    await user.type(view.getByLabelText(messages.username), "new-alice");
+    await user.selectOptions(
+      view.getByRole("combobox", { name: messages.language }),
+      "en",
+    );
+    expect(view.getByLabelText("Username")).toHaveValue("new-alice");
+    await user.selectOptions(
+      view.getByRole("combobox", { name: "Language" }),
+      locale,
+    );
+    expect(
+      view.getByRole("heading", { name: messages.createAccount }),
+    ).toBeVisible();
+    expect(view.getByLabelText(messages.username)).toHaveValue("new-alice");
+    expect(view.getByText(messages.startNewJourneyEyebrow)).toHaveAttribute(
+      "lang",
+      locale,
+    );
+  },
+);
 
 test("passkey login is offered only when supported and invokes its callback", async () => {
   const user = userEvent.setup();
