@@ -79,7 +79,6 @@ export function AuthScreen({
         </p>
         <h2>
           {messages.spendYourTimeOnTheJourney}
-          <br />
           <span>{messages.andLeaveTheSplittingToOtter}</span>
         </h2>
         <p className="auth-description">
