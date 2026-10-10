@@ -3,6 +3,36 @@ name: design-taste-frontend
 description: Anti-slop frontend skill for landing pages, portfolios, and redesigns. The agent reads the brief, infers the right design direction, and ships interfaces that do not look templated. Real design systems when applicable, audit-first on redesigns, strict pre-flight check.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+
 # tasteskill: Anti-Slop Frontend Skill
 
 > Landing pages, portfolios, and redesigns. Not dashboards, not data tables, not multi-step product UI.
@@ -81,68 +111,43 @@ Use these (or user-overridden values) as global variables. Cross-references thro
 
 ## 2. BRIEF → DESIGN SYSTEM MAP
 
-Once you have the design read (Section 0) and dials (Section 1), pick the right foundation. Do not invent CSS for things that have an official package. Do not pretend an aesthetic trend is an official system.
+Use the existing Radix foundation for every otter surface.
+A visual reference does not authorize a framework or component-system migration.
 
-### 2.A When to reach for a real design system (use official packages)
-| Brief reads as… | Reach for | Why |
-|---|---|---|
-| Microsoft / enterprise SaaS / dashboards | `@fluentui/react-components` or `@fluentui/web-components` | Official Fluent UI, Microsoft tokens, accessibility done |
-| Google-ish UI, Material-flavored product | `@material/web` + Material 3 tokens | Official, theme-able via Material Theming |
-| IBM-style B2B / enterprise analytics | `@carbon/react` + `@carbon/styles` | Official Carbon, mature data-density patterns |
-| Shopify app surfaces | `polaris.js` web components / Polaris React | Required for Shopify admin UI |
-| Atlassian / Jira-style product | `@atlaskit/*` + `@atlaskit/tokens` | Official Atlassian DS |
-| GitHub-style devtool / community page | `@primer/css` or `@primer/react-brand` | Official Primer; Brand variant for marketing |
-| Public-sector UK service | `govuk-frontend` | Legally / regulatorily expected |
-| US public-sector / trust-first | `uswds` | Same |
-| Fast local-business / agency MVP | Bootstrap 5.3 | Boring, fast, works |
-| Modern accessible React foundation | `@radix-ui/themes` | Primitives + polished theme |
-| Modern SaaS where you own the components | shadcn/ui (`npx shadcn@latest add ...`) | You own the code, easy to customise; never ship default state |
-| Tailwind-based modern SaaS / AI marketing | Tailwind v4 utilities + `dark:` variant | Default for indie + small team builds |
-
-**Honesty rule:** if the brief reads as one of the systems above, install and use the **official** package. Do not recreate its CSS by hand. Do not import a system's tokens but then override 90% of them.
-
-**One system per project.** Do not mix Fluent React with Carbon in the same tree. Do not import shadcn/ui components into a Material 3 app.
-
-### 2.B When the brief is an aesthetic, not a system
-For these directions, there is **no single official package**. Build with native CSS + Tailwind + a maintained component library. Be honest in code comments about what is borrowed inspiration vs. official material.
-
-| Aesthetic | Honest implementation |
+| Surface | Foundation |
 |---|---|
-| Glassmorphism / "frosted glass" | `backdrop-filter`, layered borders, highlight overlays. Provide solid-fill fallback for `prefers-reduced-transparency`. |
-| Bento (Apple-style tile grids) | CSS Grid with mixed cell sizes. No single library owns this. |
-| Brutalism | Native CSS, monospace, raw borders. No library. |
-| Editorial / magazine | Serif type, asymmetric grid, generous whitespace. No library. |
-| Dark tech / hacker | Mono + accent neon, terminal motifs. No library. |
-| Aurora / mesh gradients | SVG or layered radial gradients. No library. |
-| Kinetic typography | Native CSS animations, scroll-driven animations, GSAP for hijacks. No library. |
-| **Apple Liquid Glass** | Apple documents this for Apple platforms only. **There is no official `liquid-glass.css`.** Web implementations are approximations using `backdrop-filter` + layered borders + highlights. Label clearly as approximation. |
+| Buttons, cards, tables, dialogs, inputs | `@radix-ui/themes` |
+| Behavior not covered by Themes | Installed `radix-ui` Primitives |
+| Colors and theme variants | `@radix-ui/colors` through existing semantic tokens |
+| Product icons | `@radix-ui/react-icons` |
+| Responsive layout and effects | Existing CSS and Tailwind v4 utilities |
+
+Adapt glass, editorial, brutalist, and bento directions on this foundation.
+Label web glass effects as approximations, not official Apple Liquid Glass.
 
 ---
 
 ## 3. DEFAULT ARCHITECTURE & CONVENTIONS
 
-Unless the design read picks a real design system (Section 2.A), these are the defaults:
+Use the Otter Technology Stack above for all implementations.
 
 ### 3.A Stack
-* **Framework:** React or Next.js. Default to Server Components (RSC).
-  * **RSC SAFETY:** Global state works ONLY in Client Components. In Next.js, wrap providers in a `"use client"` component.
-  * **INTERACTIVITY ISOLATION:** Any component using Motion, scroll listeners, or pointer physics MUST be an isolated leaf with `'use client'` at the top. Server Components render static layouts only.
-* **Styling:** **Tailwind v4** (default). Tailwind v3 only if the existing project demands it.
-  * For v4: do NOT use `tailwindcss` plugin in `postcss.config.js`. Use `@tailwindcss/postcss` or the Vite plugin.
-* **Animation:** **Motion** (the library formerly known as Framer Motion). Import from `motion/react` (`import { motion } from "motion/react"`). The `framer-motion` package still works as a legacy alias - prefer `motion/react` in new code.
-* **Fonts:** Always use `next/font` (Next.js) or self-host with `@font-face` + `font-display: swap`. Never link Google Fonts via `<link>` in production.
+* Use strict TypeScript and React in the Vite browser app.
+* Use Radix Themes first, then installed Radix Primitives.
+* Use CSS and existing Tailwind v4 utilities through the configured Vite plugin.
+* Use CSS transitions and keyframes by default.
+* Reuse the installed Geist Variable font and language fallbacks.
 
 ### 3.B State
-* Local `useState` / `useReducer` for isolated UI.
-* Global state ONLY for deep prop-drilling avoidance - Zustand, Jotai, or React context.
-* **NEVER** use `useState` to track continuous values driven by user input (mouse position, scroll progress, pointer physics, magnetic hover). Use Motion's `useMotionValue` / `useTransform` / `useScroll`. `useState` re-renders the React tree on every change and collapses on mobile.
+* Use local `useState` or `useReducer` for isolated UI.
+* Use existing React context for shared preferences and TanStack Query for server state.
+* Reuse React Hook Form for form behavior where applicable.
+* Do not store pointer coordinates or per-frame scroll progress in React state.
 
 ### 3.C Icons
-* **Allowed libraries (priority order):** `@phosphor-icons/react`, `hugeicons-react`, `@radix-ui/react-icons`, `@tabler/icons-react`.
-* **Discouraged:** `lucide-react`. Acceptable only when the user explicitly asks for it or the project already depends on it.
-* **NEVER hand-roll SVG icons.** If a glyph is missing, install a second library or compose from primitives - do not draw icon paths from scratch.
-* **One family per project.** Do not mix Phosphor with Lucide in the same component tree.
-* **Standardize `strokeWidth` globally** (e.g. `1.5` or `2.0`).
+* Use `@radix-ui/react-icons` for product icons.
+* Keep size and alignment consistent; Radix Icons do not use configurable stroke weights.
+* Do not install a second icon family or draw product icon paths by hand.
 
 ### 3.D Emoji Policy
 Discouraged by default in code, markup, and visible text. Replace symbols with icon-library glyphs. **Override:** allow emojis only when the user explicitly asks for a playful / chat-style / social-native vibe - and even then use them sparingly with intent.
@@ -154,7 +159,8 @@ Discouraged by default in code, markup, and visible text. Replace symbols with i
 * **Grid over Flex-Math:** NEVER use complex flexbox percentage math (`w-[calc(33%-1rem)]`). ALWAYS use CSS Grid (`grid grid-cols-1 md:grid-cols-3 gap-6`).
 
 ### 3.F Dependency Verification (mandatory)
-Before importing ANY 3rd-party library, check `package.json`. If the package is missing, output the install command first. **Never** assume a library exists.
+Read the root and target workspace `package.json` before importing a third-party package.
+Prefer installed packages; add a dependency in the correct npm workspace only when the requested feature requires it.
 
 ---
 
@@ -345,174 +351,47 @@ The page has ONE theme. Sections do not invert.
 * If the page is dark mode, ALL sections are dark mode. No light-mode-warm-paper section sandwiched between dark sections (or vice versa). The user must not feel they walked into a different website mid-scroll.
 * The exception: if the brief explicitly calls for a "Color Block Story" or "Theme Switch on Scroll" device AND that is a deliberate composition (one full theme switch with a strong transition, not random alternation), it is allowed once per page.
 * Default behaviour: pick light, dark, or auto (`prefers-color-scheme`) at the page level and lock it. Section-level background tints within the same theme family are fine (`bg-zinc-950` next to `bg-zinc-900`); flipping to `bg-amber-50` in the middle of a `bg-zinc-950` page is broken.
-* When using a design system with built-in theming (Radix Themes, shadcn/ui with `<Theme>`), set the theme ONCE in `layout.tsx` or the page root. Do not let individual sections override.
+* Reuse `RadixTheme` at the app root and its existing palette and appearance preferences.
+Do not add a separate theme provider or let individual sections override the selected appearance.
 
 ---
 
 ## 5. CONTEXT-AWARE PROACTIVITY
 
-These are tools, not defaults. Use them when the design read calls for them. **None of these fire automatically.**
+Use effects only when they communicate hierarchy, feedback, or a state change.
+Leave informational content still.
+Do not animate balances, reorder expense lists, or delay form access for decoration.
 
-* **Liquid Glass / Glassmorphism:** Appropriate for premium consumer, Apple-adjacent, luxury brand, or media-overlay vibes. Inappropriate for dashboards, public-sector, or "boring B2B." When used, go beyond `backdrop-blur`: add a 1px inner border (`border-white/10`) and a subtle inner shadow (`shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]`) for physical edge refraction. Provide a solid-fill fallback under `prefers-reduced-transparency`.
-* **Magnetic Micro-physics:** Use when `MOTION_INTENSITY > 5` AND the brief reads premium / playful / agency. Implement EXCLUSIVELY with Motion's `useMotionValue` / `useTransform` outside the React render cycle. Never `useState`. See Section 3.B.
-* **Perpetual Micro-Interactions** (Pulse, Typewriter, Float, Shimmer, Carousel): Use when `MOTION_INTENSITY > 5` AND the section actively benefits from motion (status indicators, live feeds, AI-feel). **Not every card needs an infinite loop.** If a section is informational, leave it still. Apply Spring Physics (`type: "spring", stiffness: 100, damping: 20`) - no linear easing.
-* **"Motion claimed, motion shown."** If `MOTION_INTENSITY > 4`, the page must actually move: entry transitions on hero, scroll-reveal on key sections, hover physics on CTAs, at minimum. A static page that claims `MOTION_INTENSITY: 7` is broken. Conversely, if you cannot ship working motion in the available scope, drop the dial to 3 and ship a clean static page. Never half-build motion that breaks (cut-off ScrollTriggers, jumpy enters, missing cleanups).
-* **MOTION MUST BE MOTIVATED (mandatory).** Before adding any animation, ask: "what does this animation communicate?" Valid answers: hierarchy (drawing attention to the right thing), storytelling (revealing content in sequence that matches a narrative), feedback (acknowledging a user action), state transition (showing something changed). Invalid answer: "it looked cool". GSAP everywhere because GSAP is available is amateur. Each ScrollTrigger, each marquee, each pinned section needs a reason. If you cannot articulate the reason in one sentence, drop the animation.
-* **MARQUEE MAX-ONE-PER-PAGE (mandatory).** Horizontal scrolling text marquees ("logos endlessly scrolling", "manifesto scrolling sideways", "kinetic word strip") are appropriate at most ONCE per page. Two or more marquees on the same page reads as lazy filler. Pick the one section where the marquee actually serves the content; the others get a different layout.
-* **GSAP Sticky-Stack Pattern (when scroll-stack is used).** A "card stack on scroll" must be a REAL sticky-stack, not a sequential reveal list. See Section 5.A below for the canonical code skeleton. Common failure: trigger fires halfway through scroll instead of pinning at viewport top. Fix: `start: "top top"` not `start: "top center"` or `"top 80%"`.
-* **GSAP Horizontal-Pan Pattern (when horizontal scroll-hijack is used).** See Section 5.B below for the canonical skeleton. Common failure: animation starts before the section is pinned, so the user sees half a slide. Same fix: `start: "top top"`, pin the wrapper, scrub the inner track.
+### 5.A CSS Feedback
 
-### 5.A Sticky-Stack - Canonical Skeleton
+Use existing Radix components and CSS selectors for hover, focus, and active states.
 
-```tsx
-"use client";
-import { useRef, useEffect } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useReducedMotion } from "motion/react";
+```css
+@media (prefers-reduced-motion: no-preference) {
+  .expense-submit {
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
-gsap.registerPlugin(ScrollTrigger);
-
-export function StickyStack({ cards }: { cards: React.ReactNode[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-
-  useEffect(() => {
-    if (reduce || !ref.current) return;
-    const ctx = gsap.context(() => {
-      const cardEls = gsap.utils.toArray<HTMLElement>(".stack-card");
-      cardEls.forEach((card, i) => {
-        if (i === cardEls.length - 1) return;
-        ScrollTrigger.create({
-          trigger: card,
-          start: "top top",                              // pin at viewport top
-          endTrigger: cardEls[cardEls.length - 1],
-          end: "top top",
-          pin: true,
-          pinSpacing: false,
-        });
-        gsap.to(card, {
-          scale: 0.92,
-          opacity: 0.55,
-          ease: "none",
-          scrollTrigger: {
-            trigger: cardEls[i + 1],
-            start: "top bottom",
-            end: "top top",
-            scrub: true,
-          },
-        });
-      });
-    }, ref);
-    return () => ctx.revert();
-  }, [reduce]);
-
-  return (
-    <div ref={ref} className="relative">
-      {cards.map((card, i) => (
-        <div
-          key={i}
-          className="stack-card sticky top-0 min-h-[100dvh] flex items-center justify-center"
-        >
-          {card}
-        </div>
-      ))}
-    </div>
-  );
+  .expense-submit:active:not(:disabled) {
+    transform: scale(0.98);
+  }
 }
 ```
 
-Critical points: `start: "top top"`, `pin: true`, every card except the last is pinned, the scale/opacity transform is driven by the NEXT card's scroll trigger (so previous card shrinks as next one arrives).
+### 5.B Viewport Effects
 
-### 5.B Horizontal-Pan - Canonical Skeleton
+For a requested marketing-page reveal, use CSS with IntersectionObserver.
+Keep content visible without JavaScript.
+Disconnect observers in effect cleanup and skip reveals when reduced motion is active.
+Use native scrolling and CSS `position: sticky` when needed.
+Do not intercept scrolling for product flows.
 
-```tsx
-"use client";
-import { useRef, useEffect } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useReducedMotion } from "motion/react";
+### 5.C Forbidden Animation Patterns
 
-gsap.registerPlugin(ScrollTrigger);
-
-export function HorizontalPan({ children }: { children: React.ReactNode }) {
-  const wrap = useRef<HTMLDivElement>(null);
-  const track = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-
-  useEffect(() => {
-    if (reduce || !wrap.current || !track.current) return;
-    const ctx = gsap.context(() => {
-      const distance = track.current!.scrollWidth - window.innerWidth;
-      gsap.to(track.current, {
-        x: -distance,
-        ease: "none",
-        scrollTrigger: {
-          trigger: wrap.current,
-          start: "top top",                              // pin starts when section top hits viewport top
-          end: () => `+=${distance}`,                    // scroll distance = track width minus viewport
-          pin: true,
-          scrub: 1,
-          invalidateOnRefresh: true,
-        },
-      });
-    }, wrap);
-    return () => ctx.revert();
-  }, [reduce]);
-
-  return (
-    <section ref={wrap} className="relative overflow-hidden">
-      <div ref={track} className="flex h-[100dvh] items-center">
-        {children}
-      </div>
-    </section>
-  );
-}
-```
-
-Critical points: `start: "top top"`, `pin: true`, `end: "+=${distance}"` (scroll length = horizontal travel needed), `scrub: 1`. The wrapper is pinned, the inner track slides horizontally as the user scrolls vertically.
-
-### 5.C Scroll-Reveal Stagger - Canonical Skeleton (lighter alternative)
-
-For simple "items appear as they enter viewport" (no pinning), prefer Motion's `whileInView` over GSAP - lighter, no ScrollTrigger needed:
-
-```tsx
-"use client";
-import { motion, useReducedMotion } from "motion/react";
-
-export function RevealStagger({ items }: { items: string[] }) {
-  const reduce = useReducedMotion();
-  return (
-    <ul className="grid gap-6">
-      {items.map((item, i) => (
-        <motion.li
-          key={item}
-          initial={reduce ? false : { opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{
-            duration: 0.6,
-            delay: i * 0.06,
-            ease: [0.16, 1, 0.3, 1],
-          }}
-        >
-          {item}
-        </motion.li>
-      ))}
-    </ul>
-  );
-}
-```
-
-Use this for: feature lists, testimonial grids, logo walls, anything that just needs "enter on scroll." Save GSAP for actual pin/scrub work.
-
-### 5.D Forbidden Animation Patterns
-
-* **`window.addEventListener("scroll", ...)`** is banned. It runs on every scroll frame, jank-prone, no batching. Use Motion's `useScroll()`, GSAP's `ScrollTrigger`, IntersectionObserver, or CSS `scroll-driven animations` (`animation-timeline: view()`).
-* **Custom scroll progress calculations using `window.scrollY`** in React state. Same reason. Re-renders on every frame.
-* **`requestAnimationFrame` loops that touch React state.** Use motion values (`useMotionValue` + `useTransform`) instead.
-* **Layout Transitions:** Use Motion's `layout` and `layoutId` props for visible state changes (re-ordering lists, expanding modals, shared elements between routes). Do not wrap static content in `layout` props "for safety" - it costs measurement work.
-* **Staggered Orchestration:** Use `staggerChildren` (Motion) or CSS cascade (`animation-delay: calc(var(--index) * 100ms)`) for reveal moments where sequence matters. For `staggerChildren`, parent (`variants`) and children MUST share the same Client Component tree.
+* Do not use per-frame scroll or pointer updates in React state.
+* Do not add an animation engine for decorative effects.
+* Do not require infinite loops, magnetic controls, or scroll-controlled pinning.
+* Do not make essential content depend on an animation completing.
 
 ---
 
@@ -524,25 +403,26 @@ Use this for: feature lists, testimonial grids, logo walls, anything that just n
 
 ### 6.B Reduced Motion (mandatory)
 * **Any motion above `MOTION_INTENSITY > 3` MUST honor `prefers-reduced-motion`.** This is non-negotiable.
-* In Motion: wrap with `useReducedMotion()` and degrade to static.
 * In CSS: gate animations behind `@media (prefers-reduced-motion: no-preference)` or provide an override block under `@media (prefers-reduced-motion: reduce)` that disables.
 * Infinite loops, parallax, scroll-hijack, and magnetic physics MUST collapse to static / instant under reduced motion.
 
 ### 6.C Dark Mode (mandatory for any consumer-facing page)
 * Design for **both modes from the start**. Never ship light-only or dark-only without explicit user instruction.
-* Use Tailwind `dark:` variant OR CSS variables for tokens. Pick one strategy per project.
+* Reuse the existing Radix semantic CSS tokens and app theme preferences for both modes.
 * **Do not prescribe specific dark-mode colors here.** The brief decides. Maintain visual hierarchy, brand identity, and WCAG AA contrast (AAA for body) across both modes.
 * Respect `prefers-color-scheme: dark`. Default to system preference unless the brand insists on one mode.
 
 ### 6.D Core Web Vitals Targets
-* **LCP** < 2.5s. Hero image must be `next/image priority` or preloaded.
+* **LCP** < 2.5s target.
+Use native `<img>` with explicit dimensions and `fetchPriority="high"` for the actual LCP image; lazy-load below-the-fold images.
 * **INP** < 200ms. Heavy work off main thread.
 * **CLS** < 0.1. Reserve space for images, fonts, embeds.
 * Run Lighthouse before declaring a page done.
 
 ### 6.E DOM Cost
 * Apply grain / noise filters EXCLUSIVELY to fixed, `pointer-events-none` pseudo-elements (e.g., `fixed inset-0 z-[60] pointer-events-none`). NEVER on scrolling containers - continuous GPU repaints destroy mobile FPS.
-* Be aware of bundle size. Motion is not tiny. Three.js is large. Lazy-load anything that's not above-the-fold.
+* Keep bundle size small; do not add an animation library for decorative effects.
+Lazy-load nonessential assets below the fold.
 
 ### 6.F Z-Index Restraint
 NEVER spam arbitrary `z-50` or `z-10`. Use z-index strictly for systemic layer contexts (sticky navbars, modals, overlays, grain). Document the z-index scale in a project constants file.
@@ -560,7 +440,8 @@ NEVER spam arbitrary `z-50` or `z-10`. Use z-index strictly for systemic layer c
 ### MOTION_INTENSITY (Level 1-10)
 * **1-3 (Static):** No automatic animations. CSS `:hover` and `:active` states only. `prefers-reduced-motion` is the default mode anyway.
 * **4-7 (Fluid CSS):** `transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1)`. `animation-delay` cascades for load-ins. Focus on `transform` and `opacity`.
-* **8-10 (Advanced Choreography):** Complex scroll-triggered reveals, parallax, scroll-driven animation (CSS `animation-timeline` or GSAP ScrollTrigger). Use Motion hooks. **NEVER use `window.addEventListener('scroll')`** - it is a hard ban, not a "prefer-not." See Section 5.D for the allowed alternatives.
+* **8-10 (Advanced Choreography):** Use only for explicitly requested marketing effects that fit the installed stack.
+Prefer CSS with static fallbacks and IntersectionObserver; do not apply scroll-controlled effects to product forms or data.
 
 ### VISUAL_DENSITY (Level 1-10)
 * **1-3 (Art Gallery):** Lots of white space. Huge section gaps (`py-32` to `py-48`). Expensive, clean.
@@ -573,9 +454,11 @@ NEVER spam arbitrary `z-50` or `z-10`. Use z-index strictly for systemic layer c
 
 Dual-mode by default. Never assume light-only unless the brief is print-emulating editorial.
 
-### 8.A Token Strategy (pick one, stick to it)
-* **Tailwind `dark:` variant** (default for utility-first projects): every color utility paired with its dark variant (`bg-white dark:bg-zinc-950`, `text-gray-900 dark:text-gray-100`).
-* **CSS variables** (for shadcn/ui, Radix Themes, or component libraries with theming): define semantic tokens (`--surface`, `--surface-elevated`, `--text-primary`, `--accent`) and swap values under `[data-theme="dark"]` or `@media (prefers-color-scheme: dark)`.
+### 8.A Token Strategy
+
+Reuse semantic CSS variables mapped to Radix Colors in `apps/web/src/client/index.css`.
+Keep appearance and palette selection in `RadixTheme`.
+Do not create a separate theme controller or utility-only color palette.
 
 ### 8.B Do Not Prescribe Specific Colors Here
 The brief and brand decide. This skill enforces only:
@@ -620,11 +503,12 @@ Avoid these signatures unless the brief explicitly asks for them.
 * **NO filler verbs.** "Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize" → concrete verbs only.
 
 ### 9.E External Resources & Components
-* **NO hand-rolled SVG icons.** Use Phosphor / HugeIcons / Radix / Tabler. Lucide on explicit request only.
+* **NO hand-rolled product SVG icons.** Use `@radix-ui/react-icons`.
 * **Hand-rolled decorative SVGs strongly discouraged** as default (see Section 4.8).
 * **NO div-based fake screenshots.** Never build a fake product UI out of `<div>` rectangles to simulate a screenshot. Use real images, generated images, or skip the preview.
 * **NO broken Unsplash links.** Use `https://picsum.photos/seed/{descriptive-string}/{w}/{h}`, or generated photo placeholders, or actual assets.
-* **shadcn/ui customization:** Allowed, but NEVER in default state. Customize radii, colors, shadows, typography to the project aesthetic.
+* **Radix customization:** Use Themes props and semantic CSS tokens to match the existing app.
+Do not introduce shadcn/ui.
 * **Production-Ready Cleanliness:** Code visually clean, memorable, meticulously refined.
 
 ### 9.F Production-Test Tells (banned outright)
@@ -772,11 +656,11 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 * **Mesh Gradient Background** - Organic lava-lamp blobs.
 * **Lens Blur Depth** - Background UI blurred to focus foreground action.
 
-### Animation Library Choice
-* **Motion (`motion/react`)** - default for UI / Bento / state-change motion.
-* **GSAP + ScrollTrigger** - for full-page scrolltelling and scroll hijacks. Isolate in dedicated leaf components with `useEffect` cleanup.
-* **Three.js / WebGL** - for canvas backgrounds and 3D scenes. Same isolation rule.
-* **NEVER mix GSAP / Three.js with Motion in the same component tree.** They fight over the same frames.
+### Animation Implementation
+
+Use CSS transitions and keyframes for UI feedback.
+Use IntersectionObserver only for requested viewport effects, with cleanup and reduced-motion handling.
+Do not introduce Motion, GSAP, or Three.js to implement reference patterns.
 
 ---
 
@@ -871,14 +755,14 @@ dial_compatibility:
   density: [2, 5]
 when_to_use: "Landing pages with one strong asset and one strong message. Default hero for SaaS, agency, premium consumer."
 not_for: "Editorial / manifesto launches where the message IS the design."
-stack: ["react", "next", "tailwind", "motion"]
+stack: ["typescript", "react", "vite", "radix-themes", "tailwind-v4", "css"]
 ---
 ```
 
 ### 12.C Required Body Sections
-1. **Visual sketch** - short ASCII or description of the layout.
+1. **Visual sketch** - short description of the layout; use Mermaid if a diagram is needed.
 2. **Props API** - the component's interface.
-3. **Code sketch** - minimal working implementation (Server Component default, Client island for motion).
+3. **Code sketch** - strict TypeScript React implementation for Vite, using installed Radix components and CSS motion.
 4. **Mobile fallback** - explicit collapse rules for `< 768px`.
 5. **Motion variants** - one variant per `MOTION_INTENSITY` band (1-3, 4-7, 8-10). Reduced-motion fallback explicit.
 6. **Dark-mode notes** - token strategy specific to this block.
@@ -889,16 +773,16 @@ stack: ["react", "next", "tailwind", "motion"]
 * One block per file. No multi-block files.
 * Every block must work standalone (drop it into a page, it renders).
 * Every block must pass the Pre-Flight Check (Section 14).
-* Blocks that depend on a design system from Section 2.A live under `blocks/<category>/<name>--<system>.md` (e.g. `feature/bento-grid--material.md`).
+* Blocks use the otter Radix foundation from Section 2; do not add variants for another design system.
 
 ---
 
 ## 13. OUT OF SCOPE
 
 This skill is NOT for:
-* Dashboards / dense product UI / admin panels (use Fluent, Carbon, Atlassian, or Polaris from Section 2.A).
-* Data tables (use TanStack Table or AG Grid).
-* Multi-step forms / wizards (use Form-specific patterns; this skill won't make them better).
+* Dense product workflows: use existing Radix components and product-specific patterns instead of marketing layout rules.
+* Data tables: use Radix Themes Table; do not add a table engine for simple expense lists.
+* Multi-step forms: preserve existing React Hook Form behavior and validation rather than applying hero or storytelling rules.
 * Code editors (use Monaco / CodeMirror with their official skinning).
 * Native mobile (use Apple HIG / Material directly).
 * Realtime collab UIs (presence, cursors, OT-aware - different problem class).
@@ -961,8 +845,8 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Content density** sane: no 20-row data tables, no fake-precise specs without justification, ≤ 25-word sub-paragraphs by default?
 - [ ] **Quotes ≤ 3 lines** of body, attribution clean (no em-dash)?
 - [ ] **Motion claimed = motion shown**: if `MOTION_INTENSITY > 4`, page actually animates, not just claimed?
-- [ ] **GSAP sticky-stack / horizontal-pan** implemented per Section 5.A / 5.B canonical skeleton (`start: "top top"`, `pin: true`, correct scrub)?
-- [ ] **No `window.addEventListener('scroll')`** - using Motion `useScroll()` / ScrollTrigger / IntersectionObserver / CSS scroll-driven animations only?
+- [ ] **Animation scope** leaves expense, balance, and settlement workflows usable without motion?
+- [ ] **Viewport effects** use CSS or IntersectionObserver without per-frame React state?
 - [ ] **Reduced motion** wrapped for everything `MOTION_INTENSITY > 3`?
 - [ ] **Dark mode** tokens defined and tested in both modes?
 - [ ] **Mobile collapse** explicit (`w-full`, `px-4`, `max-w-7xl mx-auto`) for high-variance layouts?
@@ -970,237 +854,32 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **`useEffect` animations** have strict cleanup functions?
 - [ ] **Empty / loading / error** states provided?
 - [ ] **Cards omitted** in favor of spacing where possible?
-- [ ] **Icons** from an allowed library only (Phosphor / HugeIcons / Radix / Tabler), no hand-rolled SVG paths?
-- [ ] **Motion** isolated in client-leaf components with `'use client'` at the top, memoized?
+- [ ] **Product icons** from `@radix-ui/react-icons`, with consistent size and alignment?
+- [ ] **Motion** uses CSS by default, honors reduced motion, and cleans up any observers?
 - [ ] **No AI Tells** from Section 9 (Inter as default, AI-purple, three-equal cards, Jane Doe, Acme, "Quietly in use at")?
 - [ ] **Core Web Vitals** plausibly hit (LCP < 2.5s, INP < 200ms, CLS < 0.1)?
-- [ ] **One design system** per project (no Material + shadcn mixed)?
+- [ ] **One design system** uses the existing Radix Themes and Primitives foundation?
 
 If a single checkbox cannot be honestly ticked, the page is not done. Fix it before delivering.
 
 ---
 
-# APPENDICES - Real Source-Backed Reference Material
+# APPENDIX - Otter Reference Sources
 
-The sections below are vendored reference content. They give the agent real install commands, real canonical doc links, and real working starter snippets for each design system named in Section 2. Use them to ground decisions in production reality, not training-data fiction.
+Read the root and target workspace `package.json` before adding imports.
+Installed packages are the implementation baseline.
+Use npm workspace installs only when the requested feature requires a missing dependency.
 
-## Appendix A - Install Commands per Design System
+- React: https://react.dev/
+- Vite: https://vite.dev/guide/
+- Radix Themes: https://www.radix-ui.com/themes/docs/overview/getting-started
+- Radix Primitives: https://www.radix-ui.com/primitives/docs/overview/introduction
+- Radix Colors: https://www.radix-ui.com/colors/docs/overview/usage
+- Radix Icons: https://www.radix-ui.com/icons
+- Tailwind CSS with Vite: https://tailwindcss.com/docs/installation/using-vite
+- TanStack Query: https://tanstack.com/query/latest/docs/framework/react/overview
+- React Hook Form: https://react-hook-form.com/get-started
+- CSS reduced motion: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion
 
-```bash
-# Material Web (Material 3)
-npm install @material/web
-
-# Fluent UI React (v9)
-npm install @fluentui/react-components
-
-# Fluent UI Web Components (framework-free)
-npm install @fluentui/web-components @fluentui/tokens
-
-# IBM Carbon
-npm install @carbon/react @carbon/styles
-
-# Radix Themes
-npm install @radix-ui/themes
-
-# shadcn/ui (open code, owned components)
-npx shadcn@latest init
-npx shadcn@latest add button card badge separator input
-
-# Primer CSS (GitHub product/devtool UI)
-npm install --save @primer/css
-
-# Primer Brand (GitHub marketing UI)
-npm install @primer/react-brand
-
-# GOV.UK Frontend
-npm install govuk-frontend
-
-# USWDS (US Web Design System)
-npm install uswds
-
-# Atlassian Design System (Atlaskit)
-yarn add @atlaskit/css-reset @atlaskit/tokens @atlaskit/button @atlaskit/badge @atlaskit/section-message @atlaskit/card
-
-# Bootstrap 5.3
-npm install bootstrap
-
-# Shopify Polaris Web Components (Shopify apps only)
-# Add this to your app HTML head:
-#   <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
-#   <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
-```
-
-## Appendix B - Canonical Sources (read these before reinventing)
-
-### Material Web
-- https://github.com/material-components/material-web
-- https://material-web.dev/theming/material-theming/
-- https://m3.material.io/develop/web
-
-### Fluent UI
-- https://fluent2.microsoft.design/get-started/develop
-- https://fluent2.microsoft.design/components/web/react/
-- https://github.com/microsoft/fluentui
-- https://learn.microsoft.com/en-us/fluent-ui/web-components/
-
-### Carbon
-- https://carbondesignsystem.com/
-- https://github.com/carbon-design-system/carbon
-- https://carbondesignsystem.com/developing/react-tutorial/overview/
-- https://carbondesignsystem.com/developing/web-components-tutorial/overview/
-
-### Shopify Polaris
-- https://shopify.dev/docs/api/app-home/web-components
-- https://github.com/Shopify/polaris-react
-- https://polaris-react.shopify.com/components
-
-### Atlassian
-- https://atlassian.design/get-started/develop
-- https://atlassian.design/components/button/examples
-- https://atlaskit.atlassian.com/packages/design-system/button/example/disabled
-- https://atlassian.design/tokens/design-tokens
-
-### Primer
-- https://primer.style/
-- https://github.com/primer/css
-- https://github.com/primer/brand
-
-### GOV.UK
-- https://design-system.service.gov.uk/components/button/
-- https://design-system.service.gov.uk/styles/layout/
-- https://github.com/alphagov/govuk-frontend
-
-### USWDS
-- https://designsystem.digital.gov/documentation/developers/
-- https://designsystem.digital.gov/components/button/
-- https://designsystem.digital.gov/components/card/
-- https://github.com/uswds/uswds
-
-### Bootstrap
-- https://getbootstrap.com/docs/5.3/layout/grid/
-- https://getbootstrap.com/docs/5.3/components/card/
-
-### Tailwind
-- https://tailwindcss.com/docs/dark-mode
-- https://tailwindcss.com/blog/tailwindcss-v4
-
-### Radix
-- https://www.radix-ui.com/themes/docs/components/theme
-- https://www.radix-ui.com/themes/docs/components/card
-- https://github.com/radix-ui/themes
-
-### shadcn/ui
-- https://ui.shadcn.com/docs
-- https://ui.shadcn.com/docs/components/card
-- https://github.com/shadcn-ui/ui
-
-### Native CSS / W3C standards
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-color-scheme
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout
-- https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Scroll-driven_animations
-- https://drafts.csswg.org/scroll-animations-1/
-
-### Apple Liquid Glass (Apple platforms only)
-- https://developer.apple.com/design/human-interface-guidelines/materials
-- https://developer.apple.com/documentation/TechnologyOverviews/liquid-glass
-- https://developer.apple.com/documentation/TechnologyOverviews/adopting-liquid-glass
-- https://developer.apple.com/documentation/SwiftUI/Material
-
----
-
-## Appendix C - Apple Liquid Glass: Honest Web Approximation
-
-Do **not** treat random CSS snippets as official Apple Liquid Glass.
-
-### What is official
-Apple documents Liquid Glass inside Apple's Human Interface Guidelines and Developer Documentation for **Apple platforms**. It is a dynamic material used across Apple platform UI. Apple's native implementation belongs to Apple platform APIs and system components, **not a public web CSS package**.
-
-Relevant official docs:
-- Apple Human Interface Guidelines → Materials
-- Apple Developer Documentation → Liquid Glass
-- Apple Developer Documentation → Adopting Liquid Glass
-- SwiftUI → Material
-
-### What is NOT official
-There is no `liquid-glass.css` from Apple for normal websites.
-
-A web approximation can use:
-- `backdrop-filter`
-- transparent backgrounds
-- layered borders
-- highlight overlays
-- gradients
-- motion
-- strong contrast fallbacks
-
-But that is **web glassmorphism / frosted-glass approximation**, not official Apple Liquid Glass. Label it as such in comments.
-
-### Safer web approximation skeleton
-
-```css
-.liquid-glass-web-approx {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / .32);
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / .30), rgb(255 255 255 / .08)),
-    rgb(255 255 255 / .12);
-  backdrop-filter: blur(24px) saturate(180%) contrast(1.05);
-  -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(1.05);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / .48),
-    inset 0 -1px 0 rgb(255 255 255 / .12),
-    0 18px 60px rgb(0 0 0 / .18);
-}
-
-.liquid-glass-web-approx::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 20% 0%, rgb(255 255 255 / .55), transparent 34%),
-    linear-gradient(90deg, rgb(255 255 255 / .18), transparent 42%, rgb(255 255 255 / .14));
-  pointer-events: none;
-}
-
-.liquid-glass-web-approx::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border-radius: inherit;
-  border: 1px solid rgb(255 255 255 / .14);
-  pointer-events: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .liquid-glass-web-approx {
-    border-color: rgb(255 255 255 / .18);
-    background:
-      linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .04)),
-      rgb(15 23 42 / .42);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / .22),
-      0 18px 60px rgb(0 0 0 / .42);
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .liquid-glass-web-approx {
-    background: rgb(255 255 255 / .96);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-```
-
-**Important:** `prefers-reduced-transparency` has uneven browser support; test it. Always provide enough contrast even without blur.
-
----
-
-**End of appendices.** Install commands above are reality anchors. The Apple Liquid Glass skeleton is a labeled approximation, not an Apple-issued package. For canonical docs per design system, consult the system's official docs (links in Section 2 plus Appendix B).
+Apple Liquid Glass is an Apple-platform material, not a web CSS package.
+If requested, label CSS glass effects as web approximations and preserve contrast without blur.

@@ -1,5 +1,16 @@
-# Design System: Taste Standard
+# Design System: Otter Taste Standard
 **Skill:** stitch-design-taste
+
+## Implementation Stack
+
+Use strict TypeScript and React with Vite in `apps/web`.
+Use Radix Themes first, installed `radix-ui` Primitives for missing behavior, and Radix Icons for product icons.
+Style with existing CSS and Tailwind v4 through `@tailwindcss/vite`.
+Reuse `RadixTheme`, Radix Colors semantic tokens, Geist Variable, and existing language fallbacks.
+Use TanStack Query for server state and React Hook Form where applicable.
+Use CSS feedback with reduced-motion states; do not add Next.js, shadcn/ui, or an animation engine.
+Keep Hono and PostgreSQL in `apps/api`, domain rules in `packages/core`, and HTTP contracts in `packages/contracts`.
+Use npm workspaces, Biome, Vitest, Testing Library, and Playwright.
 
 ---
 
@@ -18,47 +29,54 @@ Adjust these dials before using this design system. They control how creative, d
 ---
 
 ## 1. Visual Theme & Atmosphere
-A restrained, gallery-airy interface with confident asymmetric layouts and fluid spring-physics motion. The atmosphere is clinical yet warm — like a well-lit architecture studio where every element earns its place through function. Density is balanced (Level 4), variance runs high (Level 8) to prevent symmetrical boredom, and motion is fluid but never theatrical (Level 6). The overall impression: expensive, intentional, alive.
+A restrained, gallery-airy interface with confident asymmetric layouts and restrained CSS feedback. The atmosphere is clinical yet warm — like a well-lit architecture studio where every element earns its place through function. Density is balanced (Level 4), variance runs high (Level 8) to prevent symmetrical boredom, and motion is fluid but never theatrical (Level 6). The overall impression: expensive, intentional, alive.
 
 ## 2. Color Palette & Roles
-- **Canvas White** (#F9FAFB) — Primary background surface. Warm-neutral, never clinical blue-white
-- **Pure Surface** (#FFFFFF) — Card and container fill. Used with whisper shadow for elevation
-- **Charcoal Ink** (#18181B) — Primary text. Zinc-950 depth — never pure black
-- **Steel Secondary** (#71717A) — Body text, descriptions, metadata. Zinc-500 warmth
-- **Muted Slate** (#94A3B8) — Tertiary text, timestamps, disabled states
-- **Whisper Border** (rgba(226,232,240,0.5)) — Card borders, structural 1px lines. Semi-transparent for depth
-- **Diffused Shadow** (rgba(0,0,0,0.05)) — Card elevation. Wide-spreading, 40px blur, -15px offset. Never harsh
 
-### Accent Selection (Pick ONE per project)
-- **Emerald Signal** (#10B981) — For growth, success, positive data dashboards
-- **Electric Blue** (#3B82F6) — For productivity, SaaS, developer tools
-- **Deep Rose** (#E11D48) — For creative, editorial, fashion-adjacent projects
-- **Amber Warmth** (#F59E0B) — For community, social, warm-toned products
+Read `apps/web/src/client/index.css` and the selected palette before implementation.
+These are the base mappings in `index.css`, not the final values for every palette.
+Read `apps/web/src/client/reference-theme.css` for the parchment overrides before resolving a preview.
 
-### Banned Colors
-- Purple/Violet neon gradients — the "AI Purple" aesthetic
-- Pure Black (#000000) — always Off-Black or Zinc-950
-- Oversaturated accents above 80% saturation
-- Mixed warm/cool gray systems within one project
+| Role | Semantic token | Radix source |
+|---|---|---|
+| Canvas | `--background` | `--gray-2` |
+| Surface | `--card` | `--color-panel-solid` |
+| Text | `--foreground` | `--gray-12` |
+| Secondary text | `--muted-foreground` | `--gray-11` |
+| Border | `--border` | `--gray-6` |
+| Primary action | `--primary` | `--accent-12` (light), `--accent-11` (dark) |
+| Action text | `--primary-foreground` | `--gray-1` |
+| Error text | `--destructive` | `--red-11` |
+| Focus ring | `--ring` | `--accent-9` |
+
+For parchment, `--primary` is `--green-11` in both appearances.
+Its `--primary-foreground` is `--sand-1` in light and `--green-1` in dark.
+Parchment also overrides canvas, surface, text, border, and input tokens; use the selected palette’s resolved values rather than copying the base table.
+Preserve existing palette overrides and light, dark, and system preferences.
+Use resolved hex values only for static design previews.
+Check text and control contrast in both appearances.
 
 ## 3. Typography Rules
-- **Display:** `Geist`, `Satoshi`, `Cabinet Grotesk`, or `Outfit` — Track-tight (`-0.025em`), controlled fluid scale, weight-driven hierarchy (700–900). Not screaming. Leading compressed (`1.1`). Alternatives forced — `Inter` is BANNED for premium contexts
-- **Body:** Same family at weight 400 — Relaxed leading (`1.65`), 65ch max-width, Steel Secondary color (#71717A)
-- **Mono:** `Geist Mono` or `JetBrains Mono` — For code blocks, metadata, timestamps. When density exceeds Level 7, all numbers switch to monospace
-- **Scale:** Display at `clamp(2.25rem, 5vw, 3.75rem)`. Body at `1rem/1.125rem`. Mono metadata at `0.8125rem`
 
-### Banned Fonts
-- `Inter` — banned everywhere in premium/creative contexts
-- Generic serif fonts (`Times New Roman`, `Georgia`, `Garamond`, `Palatino`) — BANNED. If serif is needed for editorial/creative, use only distinctive modern serifs like `Fraunces`, `Gambarino`, `Editorial New`, or `Instrument Serif`. Never use default browser serif stacks. Serif is always BANNED in dashboards or software UIs regardless
+- **Display and body:** Installed `@fontsource-variable/geist` with existing language fallbacks.
+- **Hierarchy:** Use weight, spacing, and controlled fluid scale.
+- **Amounts:** Use `font-variant-numeric: tabular-nums` for stable alignment.
+- **Code and technical metadata:** Use the existing system monospace stack.
+- **Font loading:** Do not assume or install another font to match a reference.
 
 ## 4. Component Stylings
-* **Buttons:** Flat surface, no outer glow. Primary: accent fill with white text. Secondary: ghost/outline. Active state: `-1px translateY` or `scale(0.98)` for tactile push. Hover: subtle background shift, never glow
-* **Cards/Containers:** Generously rounded corners (`2.5rem`). Pure white fill. Whisper border (`1px`, semi-transparent). Diffused shadow (`0 20px 40px -15px rgba(0,0,0,0.05)`). Internal padding `2rem–2.5rem`. Used ONLY when elevation communicates hierarchy — high-density layouts replace cards with `border-top` dividers or negative space
-* **Inputs/Forms:** Label positioned above input. Helper text optional. Error text below in Deep Rose. Focus ring in accent color, `2px` offset. No floating labels. Standard `0.5rem` gap between label-input-error stack
+* **Buttons:** Use Radix Themes Button and existing primary/foreground tokens.
+Keep text contrast in both appearances and provide visible keyboard focus.
+* **Cards/Containers:** Use Radix Themes Card with existing `--panel-radius`, `--card`, `--border`, and `--surface-shadow` tokens.
+Use dividers or space where a card does not improve grouping.
+* **Inputs/Forms:** Position the label above the input and optional helper text.
+Use `var(--destructive)` for error text below the input and `var(--ring)` for the focus ring with a `2px` offset.
+Do not use floating labels; keep a `0.5rem` gap between label, input, and error.
 * **Navigation:** Sleek, sticky. Icons scale on hover (Dock Magnification optional). No hamburger on desktop. Clean horizontal with generous spacing
 * **Loaders:** Skeletal shimmer matching exact layout dimensions and rounded corners. Shifting light reflection across placeholder shapes. Never circular spinners
 * **Empty States:** Composed illustration or icon composition with guidance text. Never just "No data found"
-* **Error States:** Inline, contextual. Red accent underline or border. Clear recovery action
+* **Error States:** Use inline, contextual text and any error underline or border in `var(--destructive)`.
+Provide a clear recovery action.
 
 ## 5. Hero Section
 The Hero is the first impression — it must be striking, creative, and never generic.
@@ -74,7 +92,8 @@ The Hero is the first impression — it must be striking, creative, and never ge
 - **Feature Sections:** The "3 equal cards in a row" pattern is BANNED. Use 2-column Zig-Zag, asymmetric Bento grids (2fr 1fr 1fr), or horizontal scroll galleries
 - **Containment:** All content within `max-width: 1400px`, centered. Generous horizontal padding (`1rem` mobile, `2rem` tablet, `4rem` desktop)
 - **Full-Height:** Use `min-height: 100dvh` — never `height: 100vh` (iOS Safari address bar jump)
-- **Bento Architecture:** For feature grids, use Row 1: 3 columns | Row 2: 2 columns (70/30 split). Each tile contains a perpetual micro-animation
+- **Bento Architecture:** For marketing feature grids, use varied cell sizes with explicit mobile collapse.
+Keep informational tiles static.
 
 ## 7. Responsive Rules
 Every screen must work flawlessly across all viewports. **Responsive is not optional — it is a hard requirement. Every single element must be tested at 375px, 768px, and 1440px.**
@@ -89,18 +108,20 @@ Every screen must work flawlessly across all viewports. **Responsive is not opti
 - **Testing Viewports:** Designs must be verified at: `375px` (iPhone SE), `390px` (iPhone 14), `768px` (iPad), `1024px` (small laptop), `1440px` (desktop)
 
 ## 8. Motion & Interaction (Code-Phase Intent)
-> **Note:** Stitch generates static screens — it does not animate. This section documents the **intended motion behavior** so that the coding agent (Antigravity, Cursor, etc.) knows exactly how to implement animations when building the exported design into a live product.
 
-- **Physics Engine:** Spring-based exclusively. `stiffness: 100, damping: 20`. No linear easing anywhere. Premium, weighty feel on all interactive elements
-- **Perpetual Micro-Loops:** Every active dashboard component has an infinite-loop state — Pulse on status dots, Typewriter on search bars, Float on feature icons, Shimmer on loading states
-- **Staggered Orchestration:** Lists and grids mount with cascaded delays (`animation-delay: calc(var(--index) * 100ms)`). Waterfall reveals, never instant mount
-- **Layout Transitions:** Smooth re-ordering via shared element IDs. Items swap positions with physics, simulating real-time intelligence
-- **Hardware Rules:** Animate ONLY `transform` and `opacity`. Never `top`, `left`, `width`, `height`. Grain/noise filters on fixed, pointer-events-none pseudo-elements only
-- **Performance:** CPU-heavy perpetual animations isolated in microscopic leaf components. Never trigger parent re-renders. Target 60fps minimum
+Stitch generates static screens.
+This section specifies optional CSS feedback for implementation.
+
+- Use short transitions for hover, focus, active, and real state changes.
+- Keep expense order, balances, and settlement data stable.
+- Animate transform and opacity only.
+- Honor `prefers-reduced-motion` with static states.
+- Use IntersectionObserver only for requested viewport effects and disconnect it in cleanup.
+- Do not add Motion, Framer Motion, GSAP, or Three.js for visual polish.
 
 ## 9. Anti-Patterns (Banned)
 - No emojis — anywhere in UI, code, or alt text
-- No `Inter` font — use `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`
+- Do not replace installed Geist Variable or remove language fallbacks.
 - No generic serif fonts (`Times New Roman`, `Georgia`, `Garamond`) — if serif is needed, use distinctive modern serifs only (`Fraunces`, `Instrument Serif`)
 - No pure black (`#000000`) — Off-Black or Zinc-950 only
 - No neon outer glows or default box-shadow glows
@@ -115,7 +136,7 @@ Every screen must work flawlessly across all viewports. **Responsive is not opti
 - No fake round numbers: `99.99%`, `50%`, `1234567` — use organic data: `47.2%`, `+1 (312) 847-1928`
 - No AI copywriting clichés: "Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize"
 - No broken Unsplash links — use `picsum.photos/seed/{id}/800/600` or SVG UI Avatars
-- No generic `shadcn/ui` defaults — customize radii, colors, shadows to match this system
+- Do not introduce shadcn/ui; customize existing Radix components with props and semantic tokens.
 - No `z-index` spam — use only for Navbar, Modal, Overlay layer contexts
 - No `h-screen` — always `min-h-[100dvh]`
 - No circular loading spinners — skeletal shimmer only

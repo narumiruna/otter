@@ -3,11 +3,42 @@ name: minimalist-ui
 description: Clean editorial-style interfaces. Warm monochrome palette, typographic contrast, flat bento grids, muted pastels. No gradients, no heavy shadows.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+
 # Protocol: Premium Utilitarian Minimalism UI Architect
 
 ## 1. Protocol Overview
 Name: Premium Utilitarian Minimalism & Editorial UI
-Description: An advanced frontend engineering directive for generating highly refined, ultra-minimalist, "document-style" web interfaces analogous to top-tier workspace platforms. This protocol strictly enforces a high-contrast warm monochrome palette, bespoke typographic hierarchies, meticulous structural macro-whitespace, bento-grid layouts, and an ultra-flat component architecture with deliberate muted pastel accents. It actively rejects standard generic SaaS design trends.
+Description: Design refined, minimal, document-style interfaces with clear typography, generous space, flat components, and restrained accents.
+Apply this direction through otter’s selected Radix palette and appearance rather than forcing a light-only warm palette.
 
 ## 2. Absolute Negative Constraints (Banned Elements)
 The AI must strictly avoid the following generic web development defaults:
@@ -23,45 +54,56 @@ The AI must strictly avoid the following generic web development defaults:
 
 ## 3. Typographic Architecture
 The interface must rely on extreme typographic contrast and premium font selection to establish an editorial feel.
-- Primary Sans-Serif (Body, UI, Buttons): Use clean, geometric, or system-native fonts with character. Target: `font-family: 'SF Pro Display', 'Geist Sans', 'Helvetica Neue', 'Switzer', sans-serif`.
-- Editorial Serif (Hero Headings & Quotes): Target: `font-family: 'Lyon Text', 'Newsreader', 'Playfair Display', 'Instrument Serif', serif`. Apply tight tracking (`letter-spacing: -0.02em` to `-0.04em`) and tight line-height (`1.1`).
-- Monospace (Code, Keystrokes, Meta-data): Target: `font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', monospace`.
-- Text Colors: Body text must never be absolute black (`#000000`). Use off-black/charcoal (`#111111` or `#2F3437`) with a generous `line-height` of `1.6` for legibility. Secondary text should be muted gray (`#787774`).
+- Primary Sans-Serif (Body, UI, Buttons): Reuse the installed Geist Variable and existing language fallbacks.
+- Editorial Headings: Use Geist weight, scale, and spacing for contrast rather than introducing a serif font.
+- Monospace (Code and Keystrokes): Use the existing system monospace stack.
+Use Geist tabular numerals for financial data.
+- Text Colors: Use `var(--foreground)` for body text and `var(--muted-foreground)` for secondary text.
+Use a readable line-height near `1.6` and check contrast in both appearances.
 
-## 4. Color Palette (Warm Monochrome + Spot Pastels)
-Color is a scarce resource, utilized only for semantic meaning or subtle accents.
-- Canvas / Background: Pure White `#FFFFFF` or Warm Bone/Off-White `#F7F6F3` / `#FBFBFA`.
-- Primary Surface (Cards): `#FFFFFF` or `#F9F9F8`.
-- Structural Borders / Dividers: Ultra-light gray `#EAEAEA` or `rgba(0,0,0,0.06)`.
-- Accent Colors: Exclusively use highly desaturated, washed-out pastels for tags, inline code backgrounds, or subtle icon backgrounds.
-  - Pale Red: `#FDEBEC` (Text: `#9F2F2D`)
-  - Pale Blue: `#E1F3FE` (Text: `#1F6C9F`)
-  - Pale Green: `#EDF3EC` (Text: `#346538`)
-  - Pale Yellow: `#FBF3DB` (Text: `#956400`)
+## 4. Semantic Palette
+
+Use color only for meaning or restrained accents.
+Read the selected palette and appearance from the existing theme; do not replace them with fixed light colors.
+
+- Canvas: `var(--background)`.
+- Card surface and text: `var(--card)` and `var(--card-foreground)`.
+- Structural borders: `var(--border)`.
+- Primary action and text: `var(--primary)` and `var(--primary-foreground)`.
+- Subtle accents: Existing Radix soft variants and semantic accent tokens.
+- Error text and focus: `var(--destructive)` and `var(--ring)`.
+
+Keep palette overrides, including parchment, intact.
+Muted accents must remain readable in light and dark appearances.
 
 ## 5. Component Specifications
+
 - Bento Box Feature Grids:
-  - Utilize asymmetrical CSS Grid layouts.
-  - Cards must have exactly `border: 1px solid #EAEAEA`.
-  - Border-radius must be crisp: `8px` or `12px` maximum.
-  - Internal padding must be generous (e.g., `24px` to `40px`).
-- Primary Call-To-Action (Buttons):
-  - Solid background `#111111`, text `#FFFFFF`. 
-  - Slight border-radius (`4px` to `6px`). No box-shadow. 
-  - Hover state should be a subtle color shift to `#333333` or a micro-scale `transform: scale(0.98)`.
+  - Use asymmetrical CSS Grid only when it improves grouping.
+  - Use Radix Themes Card with a 1px `var(--border)` border when needed.
+  - Use `var(--card)` and `var(--card-foreground)` for the surface and text.
+  - Reuse the existing panel radius and responsive spacing.
+- Primary Call-To-Action:
+  - Use Radix Themes Button with the selected theme.
+  - If custom styling is needed, use `var(--primary)` and `var(--primary-foreground)`.
+  - Keep shadows minimal and preserve visible hover and keyboard focus states.
+  - Use optional active-state transforms only when reduced motion is not requested.
 - Tags & Status Badges:
-  - Pill-shaped (`border-radius: 9999px`), very small typography (`text-xs`), uppercase with wide tracking (`letter-spacing: 0.05em`).
-  - Background must use the defined Muted Pastels.
-- Accordions (FAQ):
-  - Strip all container boxes. Separate items only with a `border-bottom: 1px solid #EAEAEA`.
-  - Use a clean, sharp `+` and `-` icon for the toggle state.
+  - Use Radix Themes Badge soft variants with semantic status colors.
+  - Keep labels readable; do not force pale backgrounds from a fixed light palette.
+- Accordions:
+  - Use installed Radix Primitives for behavior and Radix Icons for toggles.
+  - Separate items with `border-bottom: 1px solid var(--border)`.
 - Keystroke Micro-UIs:
-  - Render shortcuts as physical keys using `<kbd>` tags: `border: 1px solid #EAEAEA`, `border-radius: 4px`, `background: #F7F6F3`, using the Monospace font.
-- Faux-OS Window Chrome:
-  - When mocking up software, wrap it in a minimalist container with a white top bar containing three small, light gray circles (replicating macOS window controls).
+  - Use `<kbd>` with `var(--border)`, `var(--muted)`, and `var(--foreground)`.
+  - Use a small radius and the existing system monospace stack.
+- Software Preview Frames:
+  - Use semantic surface and border tokens.
+  - Keep device decoration separate from the actual product controls.
 
 ## 6. Iconography & Imagery Directives
-- System Icons: Use "Phosphor Icons (Bold or Fill weights)" or "Radix UI Icons" for a technical, slightly thicker-stroke aesthetic. Standardize stroke width across all icons.
+- System Icons: Use `@radix-ui/react-icons` with consistent size and alignment.
+Do not set unsupported stroke-weight props or add another icon family.
 - Illustrations: Monochromatic, rough continuous-line ink sketches on a white background, featuring a single offset geometric shape filled with a muted pastel color.
 - Photography: Use high-quality, desaturated images with a warm tone. Apply subtle overlays (`opacity: 0.04` warm grain) to blend photos into the monochrome palette. Never use oversaturated stock photos. Use reliable placeholders like `https://picsum.photos/seed/{context}/1200/800` when real assets are unavailable.
 - Hero & Section Backgrounds: Sections should not feel empty and flat. Use subtle full-width background imagery at very low opacity, soft radial light spots (`radial-gradient` with warm tones at `opacity: 0.03`), or minimal geometric line patterns to add depth without breaking the clean aesthetic.
@@ -70,16 +112,17 @@ Color is a scarce resource, utilized only for semantic meaning or subtle accents
 Motion should feel invisible — present but never distracting. The goal is quiet sophistication, not spectacle.
 - Scroll Entry: Elements fade in gently as they enter the viewport. Use `translateY(12px)` + `opacity: 0` resolving over `600ms` with `cubic-bezier(0.16, 1, 0.3, 1)`. Use `IntersectionObserver`, never `window.addEventListener('scroll')`.
 - Hover States: Cards lift with an ultra-subtle shadow shift (`box-shadow` transitioning from `0 0 0` to `0 2px 8px rgba(0,0,0,0.04)` over `200ms`). Buttons respond with `scale(0.98)` on `:active`.
-- Staggered Reveals: Lists and grid items enter with a cascade delay (`animation-delay: calc(var(--index) * 80ms)`). Never mount everything at once.
+- Staggered Reveals: Optional for marketing content only.
+Show product lists immediately and honor reduced motion.
 - Background Ambient Motion: Optional. A single, very slow-moving radial gradient blob (`animation-duration: 20s+`, `opacity: 0.02-0.04`) drifting behind hero sections. Must be applied to a `position: fixed; pointer-events: none` layer. Never on scrolling containers.
 - Performance: Animate exclusively via `transform` and `opacity`. No layout-triggering properties (`top`, `left`, `width`, `height`). Use `will-change: transform` sparingly and only on actively animating elements.
 
 ## 8. Execution Protocol
-When tasked with writing frontend code (HTML, React, Tailwind, Vue) or designing a layout:
+When writing strict TypeScript React code for the Vite app or designing a layout:
 1. Establish the macro-whitespace first. Use massive vertical padding between sections (e.g., `py-24` or `py-32` in Tailwind).
 2. Constrain the main typography content width to `max-w-4xl` or `max-w-5xl`.
 3. Apply the custom typographic hierarchy and monochromatic color variables immediately.
-4. Ensure every card, divider, and border adheres strictly to the `1px solid #EAEAEA` rule.
-5. Add scroll-entry animations to all major content blocks.
+4. Use a 1px border mapped to the existing semantic border token rather than hard-coded `#EAEAEA`.
+5. Add optional CSS feedback only where it explains a state change; keep static reduced-motion states.
 6. Ensure sections have visual depth through imagery, ambient gradients, or subtle textures — no empty flat backgrounds.
 7. Provide code that reflects this high-end, uncluttered, editorial aesthetic natively without requiring manual adjustments.
