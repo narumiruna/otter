@@ -27,6 +27,85 @@ const payload: TripPayload = {
   },
 };
 
+test.each([
+  {
+    locale: "en" as const,
+    heading: "Add travel companions first",
+    action: "Add person",
+    offline: false,
+  },
+  {
+    locale: "zh-TW" as const,
+    heading: "先新增同行成員",
+    action: "新增成員",
+    offline: true,
+  },
+])(
+  "empty participant state guides the next step in $locale",
+  async ({ locale, heading, action, offline }) => {
+    const trip = { ...payload.trip, participants: [] };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(
+      <I18nProvider initialLocale={locale}>
+        <QueryClientProvider client={new QueryClient()}>
+          <WorkspaceProvider
+            announce={() => undefined}
+            offline={offline}
+            payload={{ ...payload, trip }}
+            refreshCollection={async () => undefined}
+          >
+            <PeoplePage trip={trip} />
+          </WorkspaceProvider>
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    expect(screen.getByRole("heading", { name: heading })).toBeVisible();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
+    expect(document.querySelector(".people-deletion-help")).toBeNull();
+    const add = screen.getByRole("button", { name: action });
+    if (offline) {
+      expect(add).toBeDisabled();
+    } else {
+      await user.click(add);
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: action,
+        }),
+      );
+      expect(screen.getByLabelText("Person's name")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  },
+);
+
+test("read-only empty participant state has no edit guidance or controls", () => {
+  const trip = { ...payload.trip, participants: [] };
+  render(
+    <I18nProvider initialLocale="en">
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkspaceProvider
+          announce={() => undefined}
+          offline={false}
+          payload={{ ...payload, trip }}
+          refreshCollection={async () => undefined}
+        >
+          <PeoplePage readonly trip={trip} />
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </I18nProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "0 people" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Add person" })).toBeNull();
+  expect(screen.queryByText("Add travel companions first")).toBeNull();
+  expect(screen.queryByRole("table")).toBeNull();
+});
+
 function LocaleSwitch() {
   const { setLocale } = useI18n();
   return (

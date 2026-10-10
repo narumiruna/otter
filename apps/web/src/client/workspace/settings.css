@@ -1,3 +1,43 @@
+.surface.people-page {
+  box-shadow: none;
+}
+:where(.people-page) .section-heading > p,
+.people-page > p {
+  max-width: 65ch;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+.people-empty-state {
+  display: grid;
+  min-height: 16rem;
+  align-content: center;
+  justify-items: start;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--gray-2);
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+.people-empty-state > svg {
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.5rem;
+  color: var(--accent-11);
+}
+.people-empty-state h4 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.people-empty-state p {
+  max-width: 55ch;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
 .people-table {
   width: 100%;
   table-layout: fixed;
@@ -39,6 +79,7 @@
   min-width: 0;
 }
 .people-settlement-select {
+  max-width: 24rem;
   min-height: 44px;
   font-size: 14px;
 }
@@ -54,6 +95,10 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+.people-table .people-settlement > span {
+  max-width: 45ch;
+  line-height: 1.6;
 }
 .people-row-actions {
   display: flex;
