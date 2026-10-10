@@ -163,7 +163,17 @@
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
-    color 160ms ease;
+    color 200ms ease,
+    transform 200ms ease;
+}
+
+/* Keep solid-button contrast stable when disabled state changes. */
+.otter-button:where(.rt-variant-solid) {
+  transition: transform 200ms ease;
+}
+
+.otter-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .otter-button:where(.rt-variant-outline) {
