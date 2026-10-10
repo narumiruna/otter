@@ -69,11 +69,14 @@ Check text and control contrast in both appearances.
 Keep text contrast in both appearances and provide visible keyboard focus.
 * **Cards/Containers:** Use Radix Themes Card with existing `--panel-radius`, `--card`, `--border`, and `--surface-shadow` tokens.
 Use dividers or space where a card does not improve grouping.
-* **Inputs/Forms:** Label positioned above input. Helper text optional. Error text below in Deep Rose. Focus ring in accent color, `2px` offset. No floating labels. Standard `0.5rem` gap between label-input-error stack
+* **Inputs/Forms:** Position the label above the input and optional helper text.
+Use `var(--destructive)` for error text below the input and `var(--ring)` for the focus ring with a `2px` offset.
+Do not use floating labels; keep a `0.5rem` gap between label, input, and error.
 * **Navigation:** Sleek, sticky. Icons scale on hover (Dock Magnification optional). No hamburger on desktop. Clean horizontal with generous spacing
 * **Loaders:** Skeletal shimmer matching exact layout dimensions and rounded corners. Shifting light reflection across placeholder shapes. Never circular spinners
 * **Empty States:** Composed illustration or icon composition with guidance text. Never just "No data found"
-* **Error States:** Inline, contextual. Red accent underline or border. Clear recovery action
+* **Error States:** Use inline, contextual text and any error underline or border in `var(--destructive)`.
+Provide a clear recovery action.
 
 ## 5. Hero Section
 The Hero is the first impression — it must be striking, creative, and never generic.

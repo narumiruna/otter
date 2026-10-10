@@ -55,7 +55,9 @@ Before writing code, silently "roll the dice" and select ONE combination from th
 
 ### A. Vibe & Texture Archetypes (Pick 1)
 1. **Ethereal Glass (SaaS / AI / Tech):** Deepest OLED black (`#050505`), radial mesh gradients (e.g., subtle glowing purple/emerald orbs) in the background. Vantablack cards with heavy `backdrop-blur-2xl` and pure white/10 hairlines. Wide geometric Grotesk typography.
-2. **Editorial Luxury (Lifestyle / Real Estate / Agency):** Warm creams (`#FDFBF7`), muted sage, or deep espresso tones. High-contrast Variable Serif fonts for massive headings. Subtle CSS noise/film-grain overlay (`opacity-[0.03]`) for a physical paper feel.
+2. **Editorial Luxury (Lifestyle / Real Estate / Agency):** Warm creams (`#FDFBF7`), muted sage, or deep espresso tones as palette references.
+Use the installed Geist Variable for headings, with contrast from weight, scale, and spacing rather than a new serif font.
+Use subtle CSS noise/film-grain overlay (`opacity-[0.03]`) for a physical paper feel.
 3. **Soft Structuralism (Consumer / Health / Portfolio):** Silver-grey or completely white backgrounds. Massive bold Grotesk typography. Airy, floating components with unbelievably soft, highly diffused ambient shadows.
 
 ### B. Layout Archetypes (Pick 1)
@@ -77,7 +79,9 @@ Never place a premium card, image, or container flatly on the background. They m
 
 ### B. Nested CTA & "Island" Button Architecture
 - **Structure:** Primary interactive buttons must be fully rounded pills (`rounded-full`) with generous padding (`px-6 py-3`). 
-- **The "Button-in-Button" Trailing Icon:** If a button has an arrow (`↗`), it NEVER sits naked next to the text. It must be nested inside its own distinct circular wrapper (e.g., `w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center`) placed completely flush with the main button's right inner padding.
+- **The "Button-in-Button" Trailing Icon:** Use `ArrowTopRightIcon` from `@radix-ui/react-icons` when the action needs a trailing arrow.
+Place it in a non-interactive circular wrapper aligned with the button’s inner padding; do not use a text glyph or a nested button.
+Mark the decorative icon `aria-hidden` and keep the action’s accessible label on the button.
 
 ### C. Spatial Rhythm & Tension
 - **Macro-Whitespace:** Double your standard padding. Use `py-24` to `py-40` for sections. Allow the design to breathe heavily.
@@ -90,7 +94,10 @@ Honor `prefers-reduced-motion` and keep product data and controls accessible wit
 
 ### A. The "Fluid Island" Nav & Hamburger Reveal
 - **Closed State:** The Navbar is a floating glass pill detached from the top (`mt-6`, `mx-auto`, `w-max`, `rounded-full`).
-- **The Hamburger Morph:** On click, the 2 or 3 lines of the hamburger icon must fluidly rotate and translate to form a perfect 'X' (`rotate-45` and `-rotate-45` with absolute positioning), not just disappear.
+- **Menu Toggle Icons:** Use `HamburgerMenuIcon` when closed and `Cross1Icon` when open, both from `@radix-ui/react-icons`.
+Keep one labeled toggle button with `aria-expanded`; mark the icons `aria-hidden`.
+Swap the complete icons when the menu state changes rather than drawing or transforming individual SVG paths.
+An optional short CSS opacity transition must become an immediate swap under `prefers-reduced-motion`.
 - **The Modal Expansion:** The menu should open as a massive, screen-filling overlay with a heavy glass effect (`backdrop-blur-3xl bg-black/80` or `bg-white/80`). 
 - **Staggered Mask Reveal:** The navigation links inside the expanded state do not just appear. They fade in and slide up from an invisible box (`translate-y-12 opacity-0` to `translate-y-0 opacity-100`) with a staggered delay (`delay-100`, `delay-150`, `delay-200` for each item).
 
