@@ -3,6 +3,36 @@ name: high-end-visual-design
 description: Teaches the AI to design like a high-end agency. Defines the exact fonts, spacing, shadows, card structures, and animations that make a website feel expensive. Blocks all the common defaults that make AI designs look cheap or generic.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+
 # Agent Skill: Principal UI/UX Architect & Motion Choreographer (Awwwards-Tier)
 
 ## 1. Meta Information & Core Directive
@@ -12,11 +42,13 @@ description: Teaches the AI to design like a high-end agency. Defines the exact 
 
 ## 2. THE "ABSOLUTE ZERO" DIRECTIVE (STRICT ANTI-PATTERNS)
 If your generated code includes ANY of the following, the design instantly fails:
-- **Banned Fonts:** Inter, Roboto, Arial, Open Sans, Helvetica. (Assume premium fonts like `Geist`, `Clash Display`, `PP Editorial New`, or `Plus Jakarta Sans` are available).
-- **Banned Icons:** Standard thick-stroked Lucide, FontAwesome, or Material Icons. Use only ultra-light, precise lines (e.g., Phosphor Light, Remix Line).
+- **Fonts:** Reuse the installed Geist Variable font and existing language fallbacks.
+Do not assume commercial or uninstalled fonts are available.
+- **Icons:** Use `@radix-ui/react-icons` with consistent size and alignment.
+Do not install Phosphor, Remix, Lucide, FontAwesome, or Material Icons.
 - **Banned Borders & Shadows:** Generic 1px solid gray borders. Harsh, dark drop shadows (`shadow-md`, `rgba(0,0,0,0.3)`). 
 - **Banned Layouts:** Edge-to-edge sticky navbars glued to the top. Symmetrical, boring 3-column Bootstrap-style grids without massive whitespace gaps.
-- **Banned Motion:** Standard `linear` or `ease-in-out` transitions. Instant state changes without interpolation.
+- **Motion Constraint:** Do not add an animation engine or delay essential state changes for decoration.
 
 ## 3. THE CREATIVE VARIANCE ENGINE
 Before writing code, silently "roll the dice" and select ONE combination from the following archetypes based on the prompt's context to ensure the output is uniquely tailored but always premium:
@@ -52,7 +84,9 @@ Never place a premium card, image, or container flatly on the background. They m
 - **Eyebrow Tags:** Precede major H1/H2s with a microscopic, pill-shaped badge (`rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-medium`).
 
 ## 5. MOTION CHOREOGRAPHY (FLUID DYNAMICS)
-Never use default transitions. All motion must simulate real-world mass and spring physics. Use custom cubic-beziers (e.g., `transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]`).
+Use optional CSS transitions for meaningful feedback, with a controlled cubic-bezier curve.
+Do not require spring physics or animate every element.
+Honor `prefers-reduced-motion` and keep product data and controls accessible without animation.
 
 ### A. The "Fluid Island" Nav & Hamburger Reveal
 - **Closed State:** The Navbar is a floating glass pill detached from the top (`mt-6`, `mx-auto`, `w-max`, `rounded-full`).
@@ -66,8 +100,11 @@ Never use default transitions. All motion must simulate real-world mass and spri
 - The nested inner icon circle should translate diagonally (`group-hover:translate-x-1 group-hover:-translate-y-[1px]`) and scale up slightly (`scale-105`), creating internal kinetic tension.
 
 ### C. Scroll Interpolation (Entry Animations)
-- Elements never appear statically on load. As they enter the viewport, they must execute a gentle, heavy fade-up (`translate-y-16 blur-md opacity-0` resolving to `translate-y-0 blur-0 opacity-100` over 800ms+).
-- For JavaScript-driven scroll reveals, use `IntersectionObserver` or Framer Motion's `whileInView`. Never use `window.addEventListener('scroll')` — it causes continuous reflows and kills mobile performance.
+- Keep elements visible on load by default.
+Use optional transform and opacity reveals only for requested marketing sections, not product records or forms.
+- For requested viewport reveals, use CSS with IntersectionObserver and effect cleanup.
+Keep content visible without JavaScript and honor reduced motion.
+Do not add Framer Motion or per-frame scroll updates.
 
 ## 6. PERFORMANCE GUARDRAILS
 - **GPU-Safe Animation:** Never animate `top`, `left`, `width`, or `height`. Animate exclusively via `transform` and `opacity`. Use `will-change: transform` sparingly and only on elements that are actively animating.
@@ -81,7 +118,8 @@ When generating UI code, follow this exact sequence:
 2. **[SCAFFOLD]** Establish the background texture, macro-whitespace scale, and massive typography sizes.
 3. **[ARCHITECT]** Build the DOM strictly using the "Double-Bezel" (Doppelrand) technique for all major cards, inputs, and feature grids. Use exaggerated squircle radii (`rounded-[2rem]`).
 4. **[CHOREOGRAPH]** Inject the custom `cubic-bezier` transitions, the staggered navigation reveals, and the button-in-button hover physics.
-5. **[OUTPUT]** Deliver flawless, pixel-perfect React/Tailwind/HTML code. Do not include basic, generic fallbacks.
+5. **[OUTPUT]** Deliver strict TypeScript React code for Vite with Radix components, existing CSS, and Tailwind v4.
+Include accessible reduced-motion and no-animation states.
 
 ## 8. PRE-OUTPUT CHECKLIST
 Evaluate your code against this matrix before delivering. This is the last filter.
@@ -91,7 +129,7 @@ Evaluate your code against this matrix before delivering. This is the last filte
 - [ ] CTA buttons use the Button-in-Button trailing icon pattern where applicable
 - [ ] Section padding is at minimum `py-24` — the layout breathes heavily
 - [ ] All transitions use custom cubic-bezier curves — no `linear` or `ease-in-out`
-- [ ] Scroll entry animations are present — no element appears statically
+- [ ] Optional entry effects preserve visible static states and honor reduced motion
 - [ ] Layout collapses gracefully below `768px` to single-column with `w-full` and `px-4`
 - [ ] All animations use only `transform` and `opacity` — no layout-triggering properties
 - [ ] `backdrop-blur` is only applied to fixed/sticky elements, never to scrolling content

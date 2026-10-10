@@ -3,6 +3,36 @@ name: industrial-brutalist-ui
 description: Raw mechanical interfaces fusing Swiss typographic print with military terminal aesthetics. Rigid grids, extreme type scale contrast, utilitarian color, analog degradation effects. For data-heavy dashboards, portfolios, or editorial sites that need to feel like declassified blueprints.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+
 # SKILL: Industrial Brutalism & Tactical Telemetry UI
 
 ## 1. Skill Meta
@@ -25,7 +55,7 @@ Typography is the primary structural and decorative infrastructure. Imagery is s
 
 ### 3.1 Macro-Typography (Structural Headers)
 *   **Classification:** Neo-Grotesque / Heavy Sans-Serif.
-*   **Optimal Web Fonts:** Neue Haas Grotesk (Black), Inter (Extra Bold/Black), Archivo Black, Roboto Flex (Heavy), Monument Extended.
+*   **Otter Font:** Use the installed Geist Variable with heavier weights and existing language fallbacks.
 *   **Implementation Parameters:**
     *   **Scale:** Deployed at massive scales using fluid typography (e.g., `clamp(4rem, 10vw, 15rem)`).
     *   **Tracking (Letter-spacing):** Extremely tight, often negative (`-0.03em` to `-0.06em`), forcing glyphs to form solid architectural blocks.
@@ -34,7 +64,8 @@ Typography is the primary structural and decorative infrastructure. Imagery is s
 
 ### 3.2 Micro-Typography (Data & Telemetry)
 *   **Classification:** Monospace / Technical Sans.
-*   **Optimal Web Fonts:** JetBrains Mono, IBM Plex Mono, Space Mono, VT323, Courier Prime.
+*   **Otter Data Typography:** Use tabular numerals in Geist for amounts.
+Use the existing system monospace stack only for code or technical metadata; do not install a font package.
 *   **Implementation Parameters:**
     *   **Scale:** Fixed and small (`10px` to `14px` / `0.7rem` to `0.875rem`).
     *   **Tracking:** Generous (`0.05em` to `0.1em`) to simulate mechanical typewriter spacing or terminal matrices.
@@ -43,7 +74,8 @@ Typography is the primary structural and decorative infrastructure. Imagery is s
 
 ### 3.3 Textural Contrast (Artistic Disruption)
 *   **Classification:** High-Contrast Serif.
-*   **Optimal Web Fonts:** Playfair Display, EB Garamond, Times New Roman.
+*   **Otter Constraint:** Keep product controls and financial data in Geist.
+Use texture on decorative assets rather than introducing a serif font for product UI.
 *   **Implementation Parameters:** Used exceedingly sparingly. Must be subjected to heavy post-processing (halftone filters, 1-bit dithering) to degrade vector perfection and create textural juxtaposition against the clean sans-serifs.
 
 ## 4. Color System

@@ -1,7 +1,37 @@
 ---
 name: redesign-existing-projects
-description: Upgrades existing websites and apps to premium quality. Audits current design, identifies generic AI patterns, and applies high-end design standards without breaking functionality. Works with any CSS framework or vanilla CSS.
+description: Improve otter’s existing React and Vite interface with Radix components, semantic colors, and responsive layouts. Audit first and preserve product behavior, localization, and accessibility.
 ---
+
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
 
 # Redesign Skill
 
@@ -9,7 +39,7 @@ description: Upgrades existing websites and apps to premium quality. Audits curr
 
 When applied to an existing project, follow this sequence:
 
-1. **Scan** — Read the codebase. Identify the framework, styling method (Tailwind, vanilla CSS, styled-components, etc.), and current design patterns.
+1. **Scan** — Read the React/Vite browser app, Radix components, CSS, Tailwind v4 configuration, and existing theme and data patterns.
 2. **Diagnose** — Run through the audit below. List every generic pattern, weak point, and missing state you find.
 3. **Fix** — Apply targeted upgrades working with the existing stack. Do not rewrite from scratch. Improve what's there.
 
@@ -103,7 +133,7 @@ Check for these problems and fix them:
 
 ### Iconography
 
-- **Lucide or Feather icons exclusively.** These are the "default" AI icon choice. Use Phosphor, Heroicons, or a custom set for differentiation.
+- **Inconsistent product icons.** Reuse `@radix-ui/react-icons` with consistent size and alignment rather than adding an icon family for differentiation.
 - **Rocketship for "Launch", shield for "Security".** Replace cliche metaphors with less obvious icons (bolt, fingerprint, spark, vault).
 - **Inconsistent stroke widths across icons.** Audit all icons and standardize to one stroke weight.
 - **Missing favicon.** Always include a branded favicon.
@@ -147,7 +177,8 @@ When upgrading a project, pull from these high-impact techniques to replace gene
 ### Motion Upgrades
 - **Smooth scroll with inertia.** Decouple scrolling from browser defaults for a heavier, cinematic feel.
 - **Staggered entry.** Elements cascade in with slight delays, combining Y-axis translation with opacity fade. Never mount everything at once.
-- **Spring physics.** Replace linear easing with spring-based motion for a natural, weighty feel on all interactive elements.
+- **CSS feedback.** Use short transitions for meaningful state changes, with static reduced-motion states.
+Do not add a spring animation library for visual polish.
 - **Scroll-driven reveals.** Content entering through expanding masks, wipes, or draw-on SVG paths tied to scroll progress.
 
 ### Surface Upgrades
@@ -173,6 +204,6 @@ Apply changes in this order for maximum visual impact with minimum risk:
 - Work with the existing tech stack. Do not migrate frameworks or styling libraries.
 - Do not break existing functionality. Test after every change.
 - Before importing any new library, check the project's dependency file first.
-- If the project uses Tailwind, check the version (v3 vs v4) before modifying config.
+- Keep Tailwind v4 and the existing `@tailwindcss/vite` plugin; do not introduce PostCSS or a v3 configuration.
 - If the project has no framework, use vanilla CSS.
 - Keep changes reviewable and focused. Small, targeted improvements over big rewrites.

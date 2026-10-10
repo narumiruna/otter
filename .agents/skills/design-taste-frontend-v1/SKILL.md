@@ -1,7 +1,37 @@
 ---
 name: design-taste-frontend-v1
-description: The original v1 taste-skill, preserved for projects depending on its exact behavior. The current default is `design-taste-frontend` (v2 experimental), which is a substantial rewrite. Use this v1 install name only if you need exact backward compatibility.
+description: Legacy v1 design direction adapted to otter’s React, Vite, and Radix stack. Use when the user requests the v1 visual rules; use design-taste-frontend by default. This local variant does not preserve the upstream technology defaults.
 ---
+
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
 
 # High-Agency Frontend Skill
 
@@ -13,24 +43,23 @@ description: The original v1 taste-skill, preserved for projects depending on it
 **AI Instruction:** The standard baseline for all generations is strictly set to these values (8, 6, 4). Do not ask the user to edit this file. Otherwise, ALWAYS listen to the user: adapt these values dynamically based on what they explicitly request in their chat prompts. Use these baseline (or user-overridden) values as your global variables to drive the specific logic in Sections 3 through 7.
 
 ## 2. DEFAULT ARCHITECTURE & CONVENTIONS
-Unless the user explicitly specifies a different stack, adhere to these structural constraints to maintain consistency:
+Use the Otter Technology Stack above.
+This local variant preserves the v1 visual direction, not its upstream framework or animation defaults.
 
-* **DEPENDENCY VERIFICATION [MANDATORY]:** Before importing ANY 3rd party library (e.g. `framer-motion`, `lucide-react`, `zustand`), you MUST check `package.json`. If the package is missing, you MUST output the installation command (e.g. `npm install package-name`) before providing the code. **Never** assume a library exists.
-* **Framework & Interactivity:** React or Next.js. Default to Server Components (`RSC`). 
-    * **RSC SAFETY:** Global state works ONLY in Client Components. In Next.js, wrap providers in a `"use client"` component.
-    * **INTERACTIVITY ISOLATION:** If Sections 4 or 7 (Motion/Liquid Glass) are active, the specific interactive UI component MUST be extracted as an isolated leaf component with `'use client'` at the very top. Server Components must exclusively render static layouts.
-* **State Management:** Use local `useState`/`useReducer` for isolated UI. Use global state strictly for deep prop-drilling avoidance.
-* **Styling Policy:** Use Tailwind CSS (v3/v4) for 90% of styling. 
-    * **TAILWIND VERSION LOCK:** Check `package.json` first. Do not use v4 syntax in v3 projects. 
-    * **T4 CONFIG GUARD:** For v4, do NOT use `tailwindcss` plugin in `postcss.config.js`. Use `@tailwindcss/postcss` or the Vite plugin.
-* **ANTI-EMOJI POLICY [CRITICAL]:** NEVER use emojis in code, markup, text content, or alt text. Replace symbols with high-quality icons (Radix, Phosphor) or clean SVG primitives. Emojis are BANNED.
-* **Responsiveness & Spacing:**
-  * Standardize breakpoints (`sm`, `md`, `lg`, `xl`).
-  * Contain page layouts using `max-w-[1400px] mx-auto` or `max-w-7xl`.
-  * **Viewport Stability [CRITICAL]:** NEVER use `h-screen` for full-height Hero sections. ALWAYS use `min-h-[100dvh]` to prevent catastrophic layout jumping on mobile browsers (iOS Safari).
-  * **Grid over Flex-Math:** NEVER use complex flexbox percentage math (`w-[calc(33%-1rem)]`). ALWAYS use CSS Grid (`grid grid-cols-1 md:grid-cols-3 gap-6`) for reliable structures.
-* **Icons:** You MUST use exactly `@phosphor-icons/react` or `@radix-ui/react-icons` as the import paths (check installed version). Standardize `strokeWidth` globally (e.g., exclusively use `1.5` or `2.0`).
-
+* **Dependencies:** Read the root and `apps/web/package.json` before imports.
+Use installed packages and npm workspaces; do not add packages for visual polish.
+* **Framework:** Use strict TypeScript and React with Vite.
+Keep interactive behavior in focused React components with effect cleanup.
+* **Components and styling:** Use Radix Themes first and installed Radix Primitives when needed.
+Use existing CSS and Tailwind v4 through `@tailwindcss/vite`.
+* **Fonts and icons:** Reuse Geist Variable and language fallbacks.
+Use `@radix-ui/react-icons` at consistent sizes without stroke-weight props.
+* **State and forms:** Use TanStack Query for server state, existing React context for shared preferences, and React Hook Form where applicable.
+* **Motion:** Use CSS transitions and keyframes.
+Honor reduced motion and keep essential content visible without animation.
+* **Responsiveness:** Use CSS Grid rather than flex percentage calculations.
+Collapse asymmetric layouts below 768px and use `min-height: 100dvh` only when a full-height section is needed.
+* **Emoji policy:** Use product icons rather than emojis.
 
 ## 3. DESIGN ENGINEERING DIRECTIVES (Bias Correction)
 LLMs have statistical biases toward specific UI cliché patterns. Proactively construct premium interfaces using these engineered rules:
@@ -64,12 +93,12 @@ LLMs have statistical biases toward specific UI cliché patterns. Proactively co
 * **Forms:** Label MUST sit above input. Helper text is optional but should exist in markup. Error text below input. Use a standard `gap-2` for input blocks.
 
 ## 4. CREATIVE PROACTIVITY (Anti-Slop Implementation)
-To actively combat generic AI designs, systematically implement these high-end coding concepts as your baseline:
-* **"Liquid Glass" Refraction:** When glassmorphism is needed, go beyond `backdrop-blur`. Add a 1px inner border (`border-white/10`) and a subtle inner shadow (`shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]`) to simulate physical edge refraction.
-* **Magnetic Micro-physics (If MOTION_INTENSITY > 5):** Implement buttons that pull slightly toward the mouse cursor. **CRITICAL:** NEVER use React `useState` for magnetic hover or continuous animations. Use EXCLUSIVELY Framer Motion's `useMotionValue` and `useTransform` outside the React render cycle to prevent performance collapse on mobile.
-* **Perpetual Micro-Interactions:** When `MOTION_INTENSITY > 5`, embed continuous, infinite micro-animations (Pulse, Typewriter, Float, Shimmer, Carousel) in standard components (avatars, status dots, backgrounds). Apply premium Spring Physics (`type: "spring", stiffness: 100, damping: 20`) to all interactive elements—no linear easing.
-* **Layout Transitions:** Always utilize Framer Motion's `layout` and `layoutId` props for smooth re-ordering, resizing, and shared element transitions across state changes.
-* **Staggered Orchestration:** Do not mount lists or grids instantly. Use `staggerChildren` (Framer) or CSS cascade (`animation-delay: calc(var(--index) * 100ms)`) to create sequential waterfall reveals. **CRITICAL:** For `staggerChildren`, the Parent (`variants`) and Children MUST reside in the identical Client Component tree. If data is fetched asynchronously, pass the data as props into a centralized Parent Motion wrapper.
+
+* Use CSS feedback for hover, focus, and active states.
+* Use short transform or opacity transitions when they explain a state change.
+* Use IntersectionObserver for requested viewport reveals, with cleanup and reduced-motion handling.
+* Keep informational cards, expense lists, balances, and settlement suggestions still.
+* Do not add an animation library or require infinite loops, magnetic controls, or spring physics.
 
 ## 5. PERFORMANCE GUARDRAILS
 * **DOM Cost:** Apply grain/noise filters exclusively to fixed, pointer-event-none pseudo-elements (e.g., `fixed inset-0 z-50 pointer-events-none`) and NEVER to scrolling containers to prevent continuous GPU repaints and mobile performance degradation.
@@ -87,7 +116,8 @@ To actively combat generic AI designs, systematically implement these high-end c
 ### MOTION_INTENSITY (Level 1-10)
 * **1-3 (Static):** No automatic animations. CSS `:hover` and `:active` states only.
 * **4-7 (Fluid CSS):** Use `transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1)`. Use `animation-delay` cascades for load-ins. Focus strictly on `transform` and `opacity`. Use `will-change: transform` sparingly.
-* **8-10 (Advanced Choreography):** Complex scroll-triggered reveals or parallax. Use Framer Motion hooks. NEVER use `window.addEventListener('scroll')`.
+* **8-10 (Advanced Choreography):** Only for requested marketing effects that fit CSS and IntersectionObserver.
+Do not add an animation engine or intercept scrolling in product workflows.
 
 ### VISUAL_DENSITY (Level 1-10)
 * **1-3 (Art Gallery Mode):** Lots of white space. Huge section gaps. Everything feels very expensive and clean.
@@ -122,11 +152,14 @@ To guarantee a premium, non-generic output, you MUST strictly avoid these common
 
 ### External Resources & Components
 * **NO Broken Unsplash Links:** Do not use Unsplash. Use absolute, reliable placeholders like `https://picsum.photos/seed/{random_string}/800/600` or SVG UI Avatars.
-* **shadcn/ui Customization:** You may use `shadcn/ui`, but NEVER in its generic default state. You MUST customize the radii, colors, and shadows to match the high-end project aesthetic.
+* **Radix Customization:** Use Themes props and existing semantic tokens.
+Do not add shadcn/ui.
 * **Production-Ready Cleanliness:** Code must be extremely clean, visually striking, memorable, and meticulously refined in every detail.
 
 ## 8. THE CREATIVE ARSENAL (High-End Inspiration)
-Do not default to generic UI. Pull from this library of advanced concepts to ensure the output is visually striking and memorable. When appropriate, leverage **GSAP (ScrollTrigger/Parallax)** for complex scrolltelling or **ThreeJS/WebGL** for 3D/Canvas animations, rather than basic CSS motion. **CRITICAL:** Never mix GSAP/ThreeJS with Framer Motion in the same component tree. Default to Framer Motion for UI/Bento interactions. Use GSAP/ThreeJS EXCLUSIVELY for isolated full-page scrolltelling or canvas backgrounds, wrapped in strict useEffect cleanup blocks.
+Use this visual vocabulary only when it supports the requested surface.
+Implement suitable effects with installed Radix components and CSS.
+Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 
 ### The Standard Hero Paradigm
 * Stop doing centered text over a dark image. Try asymmetric Hero sections: Text cleanly aligned to the left or right. The background should feature a high-quality, relevant image with a subtle stylistic fade (darkening or lightening gracefully into the background color depending on if it is Light or Dark mode).
@@ -200,20 +233,14 @@ When generating modern SaaS dashboards or feature sections, you MUST utilize the
 * **Labels:** Titles and descriptions must be placed **outside and below** the cards to maintain a clean, gallery-style presentation.
 * **Pixel-Perfection:** Use generous `p-8` or `p-10` padding inside cards.
 
-### B. The Animation Engine Specs (Perpetual Motion)
-All cards must contain **"Perpetual Micro-Interactions."** Use the following Framer Motion principles:
-* **Spring Physics:** No linear easing. Use `type: "spring", stiffness: 100, damping: 20` for a premium, weighty feel.
-* **Layout Transitions:** Heavily utilize the `layout` and `layoutId` props to ensure smooth re-ordering, resizing, and shared element state transitions.
-* **Infinite Loops:** Every card must have an "Active State" that loops infinitely (Pulse, Typewriter, Float, or Carousel) to ensure the dashboard feels "alive".
-* **Performance:** Wrap dynamic lists in `<AnimatePresence>` and optimize for 60fps. **PERFORMANCE CRITICAL:** Any perpetual motion or infinite loop MUST be memoized (React.memo) and completely isolated in its own microscopic Client Component. Never trigger re-renders in the parent layout.
+### B. Animation and Product Data
 
-### C. The 5-Card Archetypes (Micro-Animation Specs)
-Implement these specific micro-animations when constructing Bento grids (e.g., Row 1: 3 cols | Row 2: 2 cols split 70/30):
-1. **The Intelligent List:** A vertical stack of items with an infinite auto-sorting loop. Items swap positions using `layoutId`, simulating an AI prioritizing tasks in real-time.
-2. **The Command Input:** A search/AI bar with a multi-step Typewriter Effect. It cycles through complex prompts, including a blinking cursor and a "processing" state with a shimmering loading gradient.
-3. **The Live Status:** A scheduling interface with "breathing" status indicators. Include a pop-up notification badge that emerges with an "Overshoot" spring effect, stays for 3 seconds, and vanishes.
-4. **The Wide Data Stream:** A horizontal "Infinite Carousel" of data cards or metrics. Ensure the loop is seamless (using `x: ["0%", "-100%"]`) with a speed that feels effortless.
-5. **The Contextual UI (Focus Mode):** A document view that animates a staggered highlight of a text block, followed by a "Float-in" of a floating action toolbar with micro-icons.
+Use short CSS feedback only for real state changes.
+Do not reorder actual expense lists, simulate live data, or loop status indicators for decoration.
+Use real loading, empty, error, and success states from the existing data flow.
+Honor reduced motion and clean up any IntersectionObserver in effects.
+
+Marketing demonstrations may use labeled sample data, but must not appear to be live expense or settlement records.
 
 ## 10. FINAL PRE-FLIGHT CHECK
 Evaluate your code against this matrix before outputting. This is the **last** filter you apply to your logic.
@@ -223,4 +250,4 @@ Evaluate your code against this matrix before outputting. This is the **last** f
 - [ ] Do `useEffect` animations contain strict cleanup functions?
 - [ ] Are empty, loading, and error states provided?
 - [ ] Are cards omitted in favor of spacing where possible?
-- [ ] Did you strictly isolate CPU-heavy perpetual animations in their own Client Components?
+- [ ] Does motion use CSS by default, honor reduced motion, and keep product data stable?
