@@ -163,7 +163,12 @@
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.otter-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .otter-button:where(.rt-variant-outline) {
@@ -353,5 +358,9 @@
 
   .otter-button {
     transition: none;
+  }
+
+  .otter-button:active:not(:disabled) {
+    transform: none;
   }
 }
