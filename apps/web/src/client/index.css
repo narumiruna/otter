@@ -9,6 +9,7 @@
 @import "@radix-ui/colors/amber-dark.css";
 @import "@fontsource-variable/geist";
 @import "./styles.css";
+@import "./account-settings.css";
 @import "./auth.css";
 @import "./workspace/workspace.css";
 
@@ -79,10 +80,6 @@
   --border: var(--gray-6);
   --input: var(--gray-7);
   --ring: var(--accent-9);
-  --hero-background: var(--accent-12);
-  --hero-foreground: var(--accent-1);
-  --hero-muted: var(--accent-5);
-  --hero-border: var(--accent-11);
   --surface-shadow:
     0 2px 8px color-mix(in srgb, var(--gray-12) 3%, transparent),
     0 12px 32px color-mix(in srgb, var(--gray-12) 3%, transparent);
@@ -108,10 +105,6 @@
 }
 
 .radix-themes:where(.dark, .dark-theme) {
-  --hero-background: var(--accent-3);
-  --hero-foreground: var(--accent-12);
-  --hero-muted: var(--accent-11);
-  --hero-border: var(--accent-7);
   --surface-shadow: none;
   --accent-contrast: var(--gray-1);
   --primary: var(--accent-11);

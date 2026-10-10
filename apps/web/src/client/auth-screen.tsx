@@ -1,8 +1,6 @@
 import { isValidUsername } from "@narumitw/otter-core/username";
 import {
-  ArrowRightIcon,
   CheckCircledIcon as CheckCircle2,
-  GlobeIcon,
   IdCardIcon as KeyIcon,
   LockClosedIcon,
 } from "@radix-ui/react-icons";
@@ -72,10 +70,6 @@ export function AuthScreen({
   return (
     <section className="auth-layout">
       <article className="auth-promise">
-        <p className="eyebrow">
-          <GlobeIcon aria-hidden="true" />{" "}
-          {messages.travelTogetherSplitWithEase}
-        </p>
         <h2>
           {messages.spendYourTimeOnTheJourney}
           <br />
@@ -86,38 +80,6 @@ export function AuthScreen({
             messages.fromDinnerToAFullTripRecordEverySharedExpenseAndKeepGroupFinancesSimpleAndClear
           }
         </p>
-        <div
-          className="auth-example"
-          role="img"
-          aria-label={
-            messages.splitExampleAWeekendTripDinnerCostsTwd1800ForThreePeopleOrTwd600Each
-          }
-        >
-          <div className="auth-example-heading">
-            <span>
-              <GlobeIcon aria-hidden="true" /> {messages.weekendTrip}
-            </span>
-            <span className="auth-example-label">{messages.splitExample}</span>
-          </div>
-          <div className="auth-example-total">
-            <span>{messages.dinnerTogether}</span>
-            <strong>
-              <small>TWD</small> 1,800
-            </strong>
-          </div>
-          <div className="auth-example-split">
-            <div className="example-avatars" aria-hidden="true">
-              <span>{messages.you}</span>
-              <span>{messages.a}</span>
-              <span>{messages.y}</span>
-            </div>
-            <span>
-              {messages.splitEquallyAmong3}{" "}
-              <ArrowRightIcon aria-hidden="true" /> {messages.each}{" "}
-              <strong>$600</strong>
-            </span>
-          </div>
-        </div>
         <ul>
           {[
             messages.quicklyRecordSharedExpenses,
