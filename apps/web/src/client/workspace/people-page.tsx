@@ -99,6 +99,7 @@ export function PeoplePage({
                     className="form-control"
                     maxLength={80}
                     placeholder={messages.friendsName}
+                    aria-invalid={Boolean(form.formState.errors.name)}
                     {...form.register("name", {
                       required: messages.enterAName,
                     })}
@@ -129,10 +130,26 @@ export function PeoplePage({
           }
         </p>
       ) : null}
-      <p className="text-sm text-muted-foreground">
-        {messages.settlementRepresentativeHelp}
-      </p>
-      {mobile ? (
+      {trip.participants.length > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {messages.settlementRepresentativeHelp}
+        </p>
+      ) : null}
+      {trip.participants.length === 0 ? (
+        <div className="people-empty-state">
+          <UserPlus aria-hidden="true" />
+          <h4>
+            {readonly
+              ? messages.countPeople({ count: 0 })
+              : messages.addTravelCompanionsFirst}
+          </h4>
+          {!readonly ? (
+            <p>
+              {messages.addThePeopleSplittingExpensesToCalculateEachBalance}
+            </p>
+          ) : null}
+        </div>
+      ) : mobile ? (
         <ul className="people-list">
           {trip.participants.map((person) => (
             <ParticipantRow
@@ -165,7 +182,7 @@ export function PeoplePage({
           </tbody>
         </table>
       )}
-      {!readonly ? (
+      {!readonly && trip.participants.length > 0 ? (
         <p className="people-deletion-help text-sm text-muted-foreground">
           <InfoCircledIcon aria-hidden="true" />
           {messages.peopleDeletionHelp}

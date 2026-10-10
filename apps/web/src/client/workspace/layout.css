@@ -187,6 +187,11 @@
 .record-expense-button {
   display: none;
 }
+.page-intro > p {
+  max-width: 65ch;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
 .page-intro {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);

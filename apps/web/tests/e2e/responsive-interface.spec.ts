@@ -248,9 +248,16 @@ for (const colorScheme of ["light", "dark"] as const) {
         .locator(".theme-palette-option")
         .filter({ hasText: theme })
         .click();
-      await expect(
-        page.getByRole("radio", { name: theme, exact: true }),
-      ).toBeChecked();
+      const radio = page.getByRole("radio", { name: theme, exact: true });
+      await expect(radio).toBeChecked();
+      await page.keyboard.press("Tab");
+      await radio.focus();
+      await expect(radio).toBeFocused();
+      const option = page
+        .locator(".theme-palette-option")
+        .filter({ has: radio });
+      await expect(option).toHaveCSS("outline-style", "solid");
+      await expect(option).toHaveCSS("outline-width", "3px");
       await expectNoOverflow(page);
       await accessible(page);
     }
@@ -294,6 +301,60 @@ for (const colorScheme of ["light", "dark"] as const) {
 }
 
 for (const colorScheme of ["light", "dark"] as const) {
+  for (const readonly of [false, true]) {
+    test(`${colorScheme} empty people page guides editing and respects archived access: ${readonly}`, async ({
+      page,
+    }) => {
+      const trip = {
+        ...exampleTrip(),
+        participants: [],
+        expenses: [],
+        ...(readonly ? { archivedAt: "2026-10-05T00:00:00Z" } : {}),
+      };
+      await mockWorkspace(page, trip);
+      await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.goto("/?trip=interface-trip&view=people");
+      const people = page.getByRole("region", { name: "Expense participants" });
+      await expect(people.locator(".people-empty-state")).toBeVisible();
+      await expect(people.getByRole("table")).toHaveCount(0);
+      await expect(people.locator(".people-deletion-help")).toHaveCount(0);
+      await expect(
+        people.getByRole("heading", {
+          name: readonly ? "0 people" : "Add travel companions first",
+        }),
+      ).toBeVisible();
+      const add = people.getByRole("button", { name: "Add person" });
+      if (readonly) await expect(add).toHaveCount(0);
+      else await expect(add).toBeEnabled();
+      await accessible(page);
+      await screenshot(page, `people-empty-desktop-${colorScheme}-${readonly}`);
+      for (const width of [768, 390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectNoOverflow(page);
+      }
+      await screenshot(page, `people-empty-mobile-${colorScheme}-${readonly}`);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expectNoOverflow(page);
+      await accessible(page);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      });
+      if (!readonly) {
+        await add.click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByRole("button", { name: "Add person" }).click();
+        await expect(dialog.getByLabel("Person's name")).toHaveAttribute(
+          "aria-invalid",
+          "true",
+        );
+        await accessible(page);
+      }
+    });
+  }
+
   test(`${colorScheme} sticky tabs preserve Back scroll and print keeps ledger content`, async ({
     page,
   }) => {

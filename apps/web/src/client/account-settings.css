@@ -19,8 +19,11 @@
 }
 .account-settings-header p,
 .account-settings-section-heading p {
+  max-width: 65ch;
   margin: 0.35rem 0 0;
   color: var(--muted-foreground);
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 .account-settings-form {
   display: grid;
@@ -70,15 +73,20 @@
   transition:
     border-color 150ms ease,
     background-color 150ms ease,
-    box-shadow 150ms ease;
+    box-shadow 150ms ease,
+    transform 200ms ease;
 }
 .theme-palette-option:hover,
 .appearance-mode-option:hover {
   border-color: var(--accent-8);
 }
+.theme-palette-option:active,
+.appearance-mode-option:active {
+  transform: translateY(1px);
+}
 .theme-palette-option:has(input:focus-visible),
 .appearance-mode-option:has(input:focus-visible) {
-  outline: 3px solid color-mix(in srgb, var(--ring) 25%, transparent);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 .theme-palette-option:has(input:checked),
