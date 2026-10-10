@@ -10,7 +10,6 @@ export default defineConfig({
     "expenses-layout.spec.ts",
     "empty-overview.spec.ts",
     "dialog.spec.ts",
-    "design-refinement.spec.ts",
   ],
   webServer: {
     command: `npm run dev --workspace @narumitw/otter-web -- --strictPort --port ${process.env.OTTER_E2E_WEB_PORT ?? "17463"}`,

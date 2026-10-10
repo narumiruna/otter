@@ -95,12 +95,9 @@
 }
 .workspace-main {
   display: grid;
-  width: 100%;
-  max-width: 90rem;
   min-width: 0;
-  margin-inline: auto;
-  gap: 24px;
-  padding: 32px;
+  gap: 16px;
+  padding: 24px 32px;
 }
 .trip-header {
   display: grid;
@@ -115,7 +112,6 @@
 .trip-heading h2 {
   font-size: clamp(24px, 2.2vw, 32px);
   line-height: 1.3;
-  letter-spacing: -0.035em;
 }
 .trip-description {
   display: flex;
@@ -174,10 +170,6 @@
   background: transparent;
   color: var(--muted-foreground);
   box-shadow: none;
-}
-.otter-button.workspace-nav-item:hover {
-  color: var(--foreground);
-  background: var(--gray-3);
 }
 .workspace-nav-item > svg {
   display: none;
