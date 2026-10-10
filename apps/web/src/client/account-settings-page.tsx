@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { ApiTokenSettings } from "./api-token-settings.js";
 import { AppearanceSettings } from "./appearance-settings.js";
 import type { User } from "./client-support.js";
+import { isLocale, languageOptions } from "./i18n/locales.js";
 import { useI18n } from "./i18n.js";
 import { PasskeySettings } from "./passkey-settings.js";
 import { SettingsNavigation } from "./settings-navigation.js";
@@ -141,12 +142,20 @@ export function AccountSettingsPage({
                 aria-labelledby="language-settings-heading"
                 className="form-control account-language-select"
                 value={locale}
-                onChange={(event) =>
-                  setLocale(event.target.value as "en" | "zh-TW")
-                }
+                onChange={(event) => {
+                  if (isLocale(event.target.value))
+                    setLocale(event.target.value);
+                }}
               >
-                <option value="en">{messages.english}</option>
-                <option value="zh-TW">{messages.traditionalChinese}</option>
+                {languageOptions.map((option) => (
+                  <option
+                    key={option.locale}
+                    value={option.locale}
+                    lang={option.locale}
+                  >
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </section>
             <AppearanceSettings />

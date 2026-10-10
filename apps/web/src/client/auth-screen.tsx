@@ -24,6 +24,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { isLocale, languageOptions } from "./i18n/locales.js";
 import { useI18n } from "./i18n.js";
 
 export type LoginCredentials = { username: string; password: string };
@@ -139,16 +140,25 @@ export function AuthScreen({
               id="auth-language"
               className="form-control"
               value={locale}
-              onChange={(event) =>
-                setLocale(event.target.value as "en" | "zh-TW")
-              }
+              onChange={(event) => {
+                if (isLocale(event.target.value)) setLocale(event.target.value);
+              }}
             >
-              <option value="zh-TW">{messages.traditionalChinese}</option>
-              <option value="en">{messages.english}</option>
+              {languageOptions.map((option) => (
+                <option
+                  key={option.locale}
+                  value={option.locale}
+                  lang={option.locale}
+                >
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
-          <span className="auth-card-eyebrow" lang="en">
-            {mode === "login" ? "WELCOME BACK" : "START A NEW JOURNEY"}
+          <span className="auth-card-eyebrow" lang={locale}>
+            {mode === "login"
+              ? messages.welcomeBackEyebrow
+              : messages.startNewJourneyEyebrow}
           </span>
           <CardTitle>
             <h2>

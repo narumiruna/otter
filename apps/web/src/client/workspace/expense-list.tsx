@@ -272,7 +272,7 @@ function SplitParticipantLabel({
   const [showCount, setShowCount] = useState(false);
   const namesLabel = expense.participantIds
     .map((participantId) => names.get(participantId) ?? messages.unknown)
-    .join(locale === "zh-TW" ? "、" : ", ");
+    .join(locale === "zh-TW" || locale === "ja" ? "、" : ", ");
   const countLabel = messages.countPeople({
     count: expense.participantIds.length,
   });

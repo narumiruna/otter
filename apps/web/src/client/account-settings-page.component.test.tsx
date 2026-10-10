@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AccountSettingsPage } from "./account-settings-page.js";
+import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
 vi.mock("./api-token-settings.js", () => ({
@@ -117,25 +118,31 @@ test("blocks closing and username submission during a token mutation", async () 
   expect(save).toBeEnabled();
 });
 
-test("changes the language from account settings", async () => {
-  const user = userEvent.setup();
-  render(
-    <I18nProvider initialLocale="zh-TW">
-      <AccountSettingsPage
-        offline
-        onClose={vi.fn()}
-        onUpdate={vi.fn()}
-        user={account}
-      />
-    </I18nProvider>,
-  );
+test.each(["en", "ja", "ko"] as const)(
+  "changes the language to %s from account settings",
+  async (locale) => {
+    const user = userEvent.setup();
+    render(
+      <I18nProvider initialLocale="zh-TW">
+        <AccountSettingsPage
+          offline
+          onClose={vi.fn()}
+          onUpdate={vi.fn()}
+          user={account}
+        />
+      </I18nProvider>,
+    );
 
-  await user.selectOptions(
-    screen.getByRole("combobox", { name: "語言" }),
-    "en",
-  );
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "語言" }),
+      locale,
+    );
 
-  expect(
-    screen.getByRole("heading", { level: 2, name: "Account settings" }),
-  ).toBeVisible();
-});
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: translations[locale].accountSettings,
+      }),
+    ).toBeVisible();
+  },
+);
