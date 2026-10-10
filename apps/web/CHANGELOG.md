@@ -1,5 +1,11 @@
 # @narumitw/otter-web
 
+## 0.3.0
+
+### Minor Changes
+
+- c15fa30: Add Japanese and Korean interface translations, language selection, browser language detection, and localized exchange-rate details.
+
 ## 0.2.2
 
 ### Patch Changes
