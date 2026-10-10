@@ -61,7 +61,11 @@ const Button = forwardRef<HTMLButtonElement, OtterButtonProps>(
       color={variant === "destructive" ? "red" : undefined}
       data-icon-only={size.startsWith("icon") || undefined}
       data-slot="button"
-      highContrast={variant === "destructive" || variant === "secondary"}
+      highContrast={
+        variant === "default" ||
+        variant === "destructive" ||
+        variant === "secondary"
+      }
       size={sizeMap[size]}
       variant={variantMap[variant]}
       className={cn(

@@ -65,16 +65,19 @@
 }
 .overview-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 0.85fr);
   gap: 0;
-  padding-block: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  background: var(--card);
+  padding: 1.5rem 0;
 }
 .summary-card {
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 0.4rem;
-  padding-inline: 1rem;
+  gap: 0.5rem;
+  padding-inline: clamp(1rem, 2vw, 1.5rem);
   overflow-wrap: anywhere;
 }
 .summary-card + .summary-card {
@@ -90,7 +93,7 @@
   font-weight: 500;
 }
 .summary-card-value {
-  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-size: clamp(1.5rem, 2vw, 1.875rem);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
@@ -108,6 +111,7 @@
 }
 .summary-card-primary .summary-card-value {
   color: var(--accent-11);
+  font-size: clamp(2rem, 2.75vw, 2.5rem);
 }
 .overview-grid > .surface {
   box-shadow: none;
@@ -317,7 +321,7 @@ button.recent-expense-content:focus-visible {
   }
   .overview-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding-block: 0;
+    padding: 1.25rem;
     gap: 16px;
   }
   .summary-card {

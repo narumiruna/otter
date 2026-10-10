@@ -16,11 +16,12 @@ test("auth screen progressively discloses registration and returns to login", as
 
   assert.ok(view.getByRole("heading", { name: "登入" }));
   assert.equal(view.queryByLabelText("名稱"), null);
-  assert.equal(view.getByText("歡迎回來").getAttribute("lang"), "zh-TW");
+  expect(view.queryByText("歡迎回來", { exact: true })).toBeNull();
+  expect(view.queryByRole("img")).toBeNull();
   await user.click(view.getByRole("button", { name: "建立帳號" }));
   assert.ok(view.getByRole("heading", { name: "建立帳號" }));
   assert.equal(view.queryByLabelText("名稱"), null);
-  assert.equal(view.getByText("開始新旅程").getAttribute("lang"), "zh-TW");
+  expect(view.queryByText("開始新旅程", { exact: true })).toBeNull();
   await user.click(view.getByRole("button", { name: "返回登入" }));
   assert.ok(view.getByRole("heading", { name: "登入" }));
 
@@ -158,10 +159,13 @@ test.each(["ja", "ko"] as const)(
       locale,
     );
     expect(view.getByLabelText(messages.username)).toHaveValue("alice");
-    expect(view.getByText(messages.welcomeBackEyebrow)).toHaveAttribute(
-      "lang",
-      locale,
-    );
+    expect(document.documentElement.lang).toBe(locale);
+    expect(
+      view.getByText(messages.welcomeBackContinueYourJourney),
+    ).toBeVisible();
+    expect(
+      view.queryByText(messages.welcomeBackEyebrow, { exact: true }),
+    ).toBeNull();
     expect(view.getByRole("heading", { name: messages.signIn })).toBeVisible();
     await user.click(
       view.getByRole("button", { name: messages.createAccount }),
@@ -180,10 +184,13 @@ test.each(["ja", "ko"] as const)(
       view.getByRole("heading", { name: messages.createAccount }),
     ).toBeVisible();
     expect(view.getByLabelText(messages.username)).toHaveValue("new-alice");
-    expect(view.getByText(messages.startNewJourneyEyebrow)).toHaveAttribute(
-      "lang",
-      locale,
-    );
+    expect(document.documentElement.lang).toBe(locale);
+    expect(
+      view.getByText(messages.createYourFirstGroupAndStartSplittingWithEase),
+    ).toBeVisible();
+    expect(
+      view.queryByText(messages.startNewJourneyEyebrow, { exact: true }),
+    ).toBeNull();
   },
 );
 

@@ -1,6 +1,5 @@
 import { isValidUsername } from "@narumitw/otter-core/username";
 import {
-  ArrowRightIcon,
   CheckCircledIcon as CheckCircle2,
   GlobeIcon,
   IdCardIcon as KeyIcon,
@@ -78,8 +77,7 @@ export function AuthScreen({
           {messages.travelTogetherSplitWithEase}
         </p>
         <h2>
-          {messages.spendYourTimeOnTheJourney}
-          <br />
+          {messages.spendYourTimeOnTheJourney}{" "}
           <span>{messages.andLeaveTheSplittingToOtter}</span>
         </h2>
         <p className="auth-description">
@@ -87,38 +85,6 @@ export function AuthScreen({
             messages.fromDinnerToAFullTripRecordEverySharedExpenseAndKeepGroupFinancesSimpleAndClear
           }
         </p>
-        <div
-          className="auth-example"
-          role="img"
-          aria-label={
-            messages.splitExampleAWeekendTripDinnerCostsTwd1800ForThreePeopleOrTwd600Each
-          }
-        >
-          <div className="auth-example-heading">
-            <span>
-              <GlobeIcon aria-hidden="true" /> {messages.weekendTrip}
-            </span>
-            <span className="auth-example-label">{messages.splitExample}</span>
-          </div>
-          <div className="auth-example-total">
-            <span>{messages.dinnerTogether}</span>
-            <strong>
-              <small>TWD</small> 1,800
-            </strong>
-          </div>
-          <div className="auth-example-split">
-            <div className="example-avatars" aria-hidden="true">
-              <span>{messages.you}</span>
-              <span>{messages.a}</span>
-              <span>{messages.y}</span>
-            </div>
-            <span>
-              {messages.splitEquallyAmong3}{" "}
-              <ArrowRightIcon aria-hidden="true" /> {messages.each}{" "}
-              <strong>$600</strong>
-            </span>
-          </div>
-        </div>
         <ul>
           {[
             messages.quicklyRecordSharedExpenses,
@@ -155,11 +121,6 @@ export function AuthScreen({
               ))}
             </select>
           </div>
-          <span className="auth-card-eyebrow" lang={locale}>
-            {mode === "login"
-              ? messages.welcomeBackEyebrow
-              : messages.startNewJourneyEyebrow}
-          </span>
           <CardTitle>
             <h2>
               {mode === "login" ? messages.signIn : messages.createAccount}
