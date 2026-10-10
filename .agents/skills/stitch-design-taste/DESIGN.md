@@ -34,7 +34,8 @@ A restrained, gallery-airy interface with confident asymmetric layouts and restr
 ## 2. Color Palette & Roles
 
 Read `apps/web/src/client/index.css` and the selected palette before implementation.
-Use these existing semantic mappings rather than fixed light-only hex colors.
+These are the base mappings in `index.css`, not the final values for every palette.
+Read `apps/web/src/client/reference-theme.css` for the parchment overrides before resolving a preview.
 
 | Role | Semantic token | Radix source |
 |---|---|---|
@@ -43,11 +44,14 @@ Use these existing semantic mappings rather than fixed light-only hex colors.
 | Text | `--foreground` | `--gray-12` |
 | Secondary text | `--muted-foreground` | `--gray-11` |
 | Border | `--border` | `--gray-6` |
-| Primary action | `--primary` | `--accent-12` |
+| Primary action | `--primary` | `--accent-12` (light), `--accent-11` (dark) |
 | Action text | `--primary-foreground` | `--gray-1` |
 | Error text | `--destructive` | `--red-11` |
 | Focus ring | `--ring` | `--accent-9` |
 
+For parchment, `--primary` is `--green-11` in both appearances.
+Its `--primary-foreground` is `--sand-1` in light and `--green-1` in dark.
+Parchment also overrides canvas, surface, text, border, and input tokens; use the selected palette’s resolved values rather than copying the base table.
 Preserve existing palette overrides and light, dark, and system preferences.
 Use resolved hex values only for static design previews.
 Check text and control contrast in both appearances.

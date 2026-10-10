@@ -222,14 +222,17 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 * **Mesh Gradient Background:** Organic, lava-lamp-like animated color blobs.
 * **Lens Blur Depth:** Dynamic focus blurring background UI layers to highlight a foreground action.
 
-## 9. THE "MOTION-ENGINE" BENTO PARADIGM
-When generating modern SaaS dashboards or feature sections, you MUST utilize the following "Bento 2.0" architecture and motion philosophy. This goes beyond static cards and enforces a "Vercel-core meets Dribbble-clean" aesthetic heavily reliant on perpetual physics.
+## 9. BENTO LAYOUT AND STATE FEEDBACK
+
+Use bento layouts only when they improve grouping on the requested surface.
+Keep informational cards and financial data static.
+Use the optional state-driven CSS feedback in subsection B; do not require perpetual animation.
 
 ### A. Core Design Philosophy
 * **Aesthetic:** High-end, minimal, and functional.
-* **Palette:** Background in `#f9fafb`. Cards are pure white (`#ffffff`) with a 1px border of `border-slate-200/50`.
-* **Surfaces:** Use `rounded-[2.5rem]` for all major containers. Apply a "diffusion shadow" (a very light, wide-spreading shadow, e.g., `shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]`) to create depth without clutter.
-* **Typography:** Strict `Geist`, `Satoshi`, or `Cabinet Grotesk` font stack. Use subtle tracking (`tracking-tight`) for headers.
+* **Palette:** Use existing `--background`, `--card`, and `--border` tokens in the selected appearance and palette.
+* **Surfaces:** Reuse Radix Themes Card and existing panel radius and surface-shadow tokens.
+* **Typography:** Use installed Geist Variable with existing language fallbacks and subtle header tracking.
 * **Labels:** Titles and descriptions must be placed **outside and below** the cards to maintain a clean, gallery-style presentation.
 * **Pixel-Perfection:** Use generous `p-8` or `p-10` padding inside cards.
 

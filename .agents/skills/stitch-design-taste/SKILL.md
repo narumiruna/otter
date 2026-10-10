@@ -163,8 +163,9 @@ well-lit architecture studio.")
 - **Text:** `--foreground` from `--gray-12`.
 - **Secondary Text:** `--muted-foreground` from `--gray-11`.
 - **Border:** `--border` from `--gray-6`.
-- **Primary Action:** `--primary` from `--accent-12`.
-Read the selected palette mappings before documenting resolved color previews.
+- **Primary Action:** Base `--primary` is `--accent-12` in light and `--accent-11` in dark.
+- **Parchment Override:** `--primary` is `--green-11`; action text is `--sand-1` in light and `--green-1` in dark.
+Read `index.css` and `reference-theme.css` for all selected-palette overrides before documenting resolved color previews.
 
 ## 3. Typography Rules
 - **Display:** Geist Variable with controlled scale and weight-driven hierarchy.

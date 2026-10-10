@@ -37,7 +37,8 @@ Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
 
 ## 1. Protocol Overview
 Name: Premium Utilitarian Minimalism & Editorial UI
-Description: An advanced frontend engineering directive for generating highly refined, ultra-minimalist, "document-style" web interfaces analogous to top-tier workspace platforms. This protocol strictly enforces a high-contrast warm monochrome palette, bespoke typographic hierarchies, meticulous structural macro-whitespace, bento-grid layouts, and an ultra-flat component architecture with deliberate muted pastel accents. It actively rejects standard generic SaaS design trends.
+Description: Design refined, minimal, document-style interfaces with clear typography, generous space, flat components, and restrained accents.
+Apply this direction through otter’s selected Radix palette and appearance rather than forcing a light-only warm palette.
 
 ## 2. Absolute Negative Constraints (Banned Elements)
 The AI must strictly avoid the following generic web development defaults:
@@ -57,39 +58,48 @@ The interface must rely on extreme typographic contrast and premium font selecti
 - Editorial Headings: Use Geist weight, scale, and spacing for contrast rather than introducing a serif font.
 - Monospace (Code and Keystrokes): Use the existing system monospace stack.
 Use Geist tabular numerals for financial data.
-- Text Colors: Body text must never be absolute black (`#000000`). Use off-black/charcoal (`#111111` or `#2F3437`) with a generous `line-height` of `1.6` for legibility. Secondary text should be muted gray (`#787774`).
+- Text Colors: Use `var(--foreground)` for body text and `var(--muted-foreground)` for secondary text.
+Use a readable line-height near `1.6` and check contrast in both appearances.
 
-## 4. Color Palette (Warm Monochrome + Spot Pastels)
-Color is a scarce resource, utilized only for semantic meaning or subtle accents.
-- Canvas / Background: Pure White `#FFFFFF` or Warm Bone/Off-White `#F7F6F3` / `#FBFBFA`.
-- Primary Surface (Cards): `#FFFFFF` or `#F9F9F8`.
-- Structural Borders / Dividers: Ultra-light gray `#EAEAEA` or `rgba(0,0,0,0.06)`.
-- Accent Colors: Exclusively use highly desaturated, washed-out pastels for tags, inline code backgrounds, or subtle icon backgrounds.
-  - Pale Red: `#FDEBEC` (Text: `#9F2F2D`)
-  - Pale Blue: `#E1F3FE` (Text: `#1F6C9F`)
-  - Pale Green: `#EDF3EC` (Text: `#346538`)
-  - Pale Yellow: `#FBF3DB` (Text: `#956400`)
+## 4. Semantic Palette
+
+Use color only for meaning or restrained accents.
+Read the selected palette and appearance from the existing theme; do not replace them with fixed light colors.
+
+- Canvas: `var(--background)`.
+- Card surface and text: `var(--card)` and `var(--card-foreground)`.
+- Structural borders: `var(--border)`.
+- Primary action and text: `var(--primary)` and `var(--primary-foreground)`.
+- Subtle accents: Existing Radix soft variants and semantic accent tokens.
+- Error text and focus: `var(--destructive)` and `var(--ring)`.
+
+Keep palette overrides, including parchment, intact.
+Muted accents must remain readable in light and dark appearances.
 
 ## 5. Component Specifications
+
 - Bento Box Feature Grids:
-  - Utilize asymmetrical CSS Grid layouts.
-  - Cards must have exactly `border: 1px solid #EAEAEA`.
-  - Border-radius must be crisp: `8px` or `12px` maximum.
-  - Internal padding must be generous (e.g., `24px` to `40px`).
-- Primary Call-To-Action (Buttons):
-  - Solid background `#111111`, text `#FFFFFF`. 
-  - Slight border-radius (`4px` to `6px`). No box-shadow. 
-  - Hover state should be a subtle color shift to `#333333` or a micro-scale `transform: scale(0.98)`.
+  - Use asymmetrical CSS Grid only when it improves grouping.
+  - Use Radix Themes Card with a 1px `var(--border)` border when needed.
+  - Use `var(--card)` and `var(--card-foreground)` for the surface and text.
+  - Reuse the existing panel radius and responsive spacing.
+- Primary Call-To-Action:
+  - Use Radix Themes Button with the selected theme.
+  - If custom styling is needed, use `var(--primary)` and `var(--primary-foreground)`.
+  - Keep shadows minimal and preserve visible hover and keyboard focus states.
+  - Use optional active-state transforms only when reduced motion is not requested.
 - Tags & Status Badges:
-  - Pill-shaped (`border-radius: 9999px`), very small typography (`text-xs`), uppercase with wide tracking (`letter-spacing: 0.05em`).
-  - Background must use the defined Muted Pastels.
-- Accordions (FAQ):
-  - Strip all container boxes. Separate items only with a `border-bottom: 1px solid #EAEAEA`.
-  - Use a clean, sharp `+` and `-` icon for the toggle state.
+  - Use Radix Themes Badge soft variants with semantic status colors.
+  - Keep labels readable; do not force pale backgrounds from a fixed light palette.
+- Accordions:
+  - Use installed Radix Primitives for behavior and Radix Icons for toggles.
+  - Separate items with `border-bottom: 1px solid var(--border)`.
 - Keystroke Micro-UIs:
-  - Render shortcuts as physical keys using `<kbd>` tags: `border: 1px solid #EAEAEA`, `border-radius: 4px`, `background: #F7F6F3`, using the Monospace font.
-- Faux-OS Window Chrome:
-  - When mocking up software, wrap it in a minimalist container with a white top bar containing three small, light gray circles (replicating macOS window controls).
+  - Use `<kbd>` with `var(--border)`, `var(--muted)`, and `var(--foreground)`.
+  - Use a small radius and the existing system monospace stack.
+- Software Preview Frames:
+  - Use semantic surface and border tokens.
+  - Keep device decoration separate from the actual product controls.
 
 ## 6. Iconography & Imagery Directives
 - System Icons: Use `@radix-ui/react-icons` with consistent size and alignment.
