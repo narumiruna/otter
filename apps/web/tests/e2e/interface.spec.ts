@@ -23,9 +23,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       page.getByRole("heading", { name: "登入", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("img", { name: /分帳示意/ })).toBeVisible();
-    await expect(
-      page.getByText("WELCOME BACK", { exact: true }),
-    ).toHaveAttribute("lang", "en");
+    await expect(page.getByText("歡迎回來", { exact: true })).toHaveAttribute(
+      "lang",
+      "zh-TW",
+    );
     await expectAccessible(page);
     await page.screenshot({
       path: testInfo.outputPath("auth-desktop.png"),
@@ -48,9 +49,10 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(registration.getByLabel("名稱", { exact: true })).toHaveCount(
       0,
     );
-    await expect(
-      page.getByText("START A NEW JOURNEY", { exact: true }),
-    ).toHaveAttribute("lang", "en");
+    await expect(page.getByText("開始新旅程", { exact: true })).toHaveAttribute(
+      "lang",
+      "zh-TW",
+    );
     await expectAccessible(page);
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "200%";
@@ -77,6 +79,44 @@ for (const colorScheme of ["light", "dark"] as const) {
       "en",
     );
     await expect(page.getByLabel("Username")).toBeVisible();
+    await expect(
+      page.getByText("WELCOME BACK", { exact: true }),
+    ).toHaveAttribute("lang", "en");
+    for (const language of [
+      {
+        locale: "ja",
+        heading: "ログイン",
+        label: "言語",
+        eyebrow: "おかえりなさい",
+      },
+      {
+        locale: "ko",
+        heading: "로그인",
+        label: "언어",
+        eyebrow: "다시 오신 것을 환영합니다",
+      },
+    ]) {
+      await page.locator("#auth-language").selectOption(language.locale);
+      await expect(
+        page.getByRole("heading", { name: language.heading, exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(language.eyebrow, { exact: true }),
+      ).toHaveAttribute("lang", language.locale);
+      await expect(page.locator("html")).toHaveAttribute(
+        "lang",
+        language.locale,
+      );
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await expectNoOverflow(page);
+      await expectAccessible(page);
+      await page.reload();
+      await expect(
+        page.getByRole("combobox", { name: language.label }),
+      ).toHaveValue(language.locale);
+    }
   });
 
   test(`${colorScheme} summary and mobile navigation remain readable and operable`, async ({
