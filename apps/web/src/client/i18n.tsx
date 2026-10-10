@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { isLocale, matchBrowserLocale } from "./i18n/locales.js";
 import { interpolate, type MessageValues } from "./i18n/message-types.js";
 import { type Locale, type Messages, translations } from "./i18n/messages.js";
 import { sourceMessageKeys } from "./i18n/source-message-keys.js";
@@ -33,7 +34,7 @@ function storedLocale(): Locale | null {
     const storage = window.localStorage;
     if (typeof storage?.getItem !== "function") return null;
     const saved = storage.getItem(storageKey);
-    return saved === "en" || saved === "zh-TW" ? saved : null;
+    return isLocale(saved) ? saved : null;
   } catch {
     return null;
   }
@@ -53,12 +54,7 @@ function detectedLocale(): Locale {
   if (typeof window === "undefined") return "zh-TW";
   const saved = storedLocale();
   if (saved) return saved;
-  for (const language of navigator.languages) {
-    const normalized = language.toLowerCase();
-    if (normalized.startsWith("en")) return "en";
-    if (normalized.startsWith("zh")) return "zh-TW";
-  }
-  return "en";
+  return matchBrowserLocale(navigator.languages);
 }
 
 function parameterizedMessage(

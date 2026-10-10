@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { translations } from "../../src/client/i18n/messages.js";
 import { accessible, mockWorkspace } from "./interface-fixtures.js";
 import { expectNoOverflow } from "./layout-assertions.js";
 
-for (const locale of ["en", "zh-TW"] as const) {
+for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`sign-in stays accessible and visible in ${locale} ${colorScheme}`, async ({
       page,
@@ -36,7 +37,7 @@ for (const locale of ["en", "zh-TW"] as const) {
       await page.screenshot({ path: testInfo.outputPath("auth-mobile.png") });
       await page
         .getByRole("button", {
-          name: locale === "en" ? "Create account" : "建立帳號",
+          name: translations[locale].createAccount,
           exact: true,
         })
         .click();

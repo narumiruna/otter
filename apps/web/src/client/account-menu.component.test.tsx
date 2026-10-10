@@ -5,6 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AccountMenu } from "./account-menu.js";
+import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
 const account = { id: "user-1", name: "Alice", username: "alice" };
@@ -97,6 +98,37 @@ test("changes language and signs out from the account menu", async () => {
   await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
   expect(onSignOut).toHaveBeenCalledOnce();
 });
+
+test.each([
+  { locale: "ja", label: "日本語" },
+  { locale: "ko", label: "한국어" },
+] as const)(
+  "selects $locale from the account menu and marks the selected language",
+  async ({ locale, label }) => {
+    const user = userEvent.setup();
+    renderMenu();
+    await user.click(screen.getByRole("button", { name: "Alice 的帳號選單" }));
+    await user.click(screen.getByRole("menuitem", { name: label }));
+    expect(document.documentElement.lang).toBe(locale);
+    await user.click(
+      screen.getByRole("button", {
+        name: translations[locale].nameSAccountMenu({ name: "Alice" }),
+      }),
+    );
+    expect(screen.getByRole("menuitem", { name: label })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "English" }),
+    ).not.toHaveAttribute("aria-current");
+    expect(
+      screen.getByRole("menuitem", {
+        name: translations[locale].accountSettings,
+      }),
+    ).toBeVisible();
+  },
+);
 
 test("disables sign out while it is unavailable", async () => {
   const user = userEvent.setup();

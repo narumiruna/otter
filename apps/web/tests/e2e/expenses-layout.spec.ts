@@ -249,7 +249,16 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(accountMenu).toBeVisible();
     const accountMenuBounds = await accountMenu.boundingBox();
     expect(accountMenuBounds?.width).toBeCloseTo(280, 0);
-    expect(accountMenuBounds?.height).toBeLessThanOrEqual(320);
+    // Four language choices add two rows to the account menu.
+    expect(accountMenuBounds?.height).toBeLessThanOrEqual(400);
+    for (const language of ["正體中文", "English", "日本語", "한국어"]) {
+      await expect(
+        accountMenu.getByRole("menuitem", { name: language, exact: true }),
+      ).toBeVisible();
+    }
+    expect(
+      (accountMenuBounds?.y ?? 0) + (accountMenuBounds?.height ?? 0),
+    ).toBeLessThanOrEqual(900);
     // Radix positions its portal on a later frame after it becomes visible.
     await expect
       .poll(async () => (await accountMenu.boundingBox())?.x)

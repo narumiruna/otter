@@ -9,6 +9,7 @@ import { DropdownMenu } from "@radix-ui/themes";
 import { forwardRef, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { User } from "./client-support.js";
+import { languageOptions } from "./i18n/locales.js";
 import { useI18n } from "./i18n.js";
 
 type AccountMenuProps = {
@@ -87,24 +88,19 @@ export const AccountMenu = forwardRef<HTMLButtonElement, AccountMenuProps>(
             <GlobeIcon aria-hidden="true" />
             {messages.language}
           </DropdownMenu.Label>
-          <DropdownMenu.Item
-            aria-current={locale === "zh-TW" ? "true" : undefined}
-            onSelect={() => setLocale("zh-TW")}
-          >
-            <span className="account-menu-check" aria-hidden="true">
-              {locale === "zh-TW" ? <CheckIcon /> : null}
-            </span>
-            {messages.traditionalChinese}
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            aria-current={locale === "en" ? "true" : undefined}
-            onSelect={() => setLocale("en")}
-          >
-            <span className="account-menu-check" aria-hidden="true">
-              {locale === "en" ? <CheckIcon /> : null}
-            </span>
-            {messages.english}
-          </DropdownMenu.Item>
+          {languageOptions.map((option) => (
+            <DropdownMenu.Item
+              key={option.locale}
+              lang={option.locale}
+              aria-current={locale === option.locale ? "true" : undefined}
+              onSelect={() => setLocale(option.locale)}
+            >
+              <span className="account-menu-check" aria-hidden="true">
+                {locale === option.locale ? <CheckIcon /> : null}
+              </span>
+              {option.label}
+            </DropdownMenu.Item>
+          ))}
           <DropdownMenu.Separator />
           <DropdownMenu.Item
             color="red"
