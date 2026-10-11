@@ -742,16 +742,12 @@ Avoid fake brand slop:
 
 To avoid repetitive mobile design output, choose a clear visual direction and commit to it.
 
-### Theme Paradigm
-Choose 1:
-1. pristine light
-2. deep dark
-3. soft wellness neutral
-4. premium monochrome
-5. rich accent-driven
-6. editorial luxe
-7. playful consumer color
-8. calm productivity minimal
+### Selected Theme
+Derive the concept from the current `RadixTheme` palette and appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+For system appearance, show the resolved appearance and identify it in the concept notes.
+Do not choose an independent light/dark paradigm or override the user's theme for visual variety.
+Vary composition, density, imagery, and texture within the selected theme instead.
 
 ### Typography Character
 Choose 1:
@@ -794,16 +790,12 @@ Choose 1:
 7. tactile monochrome surface
 8. low-opacity technical pattern
 
-### Palette Logic
-Choose 1:
-1. restrained monochrome + one accent
-2. warm neutral palette + sharp dark contrast
-3. cool mineral palette + clean highlight accent
-4. editorial cream / charcoal / muted accent
-5. rich dark base + refined warm accent
-6. wellness soft palette with controlled saturation
-7. bright consumer palette with disciplined balance
-8. desaturated premium palette with one bold hit
+### Palette Mapping
+Use existing background/foreground, card/card-foreground, border, primary-action, supporting-accent, and semantic status roles.
+Resolve them through the selected Radix palette and appearance.
+Forest uses sage, parchment uses sand, and lavender uses mauve with a violet accent.
+Do not rotate palettes, force warm/cool neutrals, desaturate the selected accent, or remove status colors to limit accents.
+Keep the same theme roles across every screen in the flow.
 
 ### Signature Component Set
 Choose exactly 4:
@@ -855,7 +847,8 @@ These are image-direction cues, not code instructions.
 
 ## 23. COLOR PALETTE RULE
 
-Always use a clean, controlled color palette.
+Use the selected Radix palette and appearance with the semantic roles in Section 22.
+Do not choose a replacement palette or impose independent saturation limits.
 
 Color should feel:
 - intentional
@@ -867,13 +860,13 @@ Color should feel:
 Rules:
 - use a strong palette with internal logic
 - keep color relationships clean
-- let one or two accents do real work
+- preserve the selected action/supporting accents and semantic status colors
 - avoid muddy, accidental, or chaotic color combinations
 - avoid generic startup gradients unless they truly fit
-- avoid default purple-blue AI palettes unless specifically justified
+- preserve selected purple or blue palettes; do not add decorative neon effects
 - avoid random bright rainbow color use
 - avoid throwing many unrelated saturated colors together
-- keep saturation under control unless the brand clearly benefits from stronger intensity
+- preserve the selected Radix saturation and verify text/control contrast
 
 A palette can be:
 - bold
@@ -1321,7 +1314,7 @@ When the user asks for a responsive otter mobile image concept:
 5. choose an image art direction bias
 6. choose a texture / surface treatment
 7. choose tasteful decorative assets
-8. choose a clean palette logic
+8. resolve palette roles from the selected RadixTheme preferences; do not choose a replacement palette
 9. lock an internal design bible for consistency
 10. generate the required screen images
 11. generate more screens if needed for a believable flow

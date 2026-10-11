@@ -197,8 +197,11 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 
 ### Scroll-Animations
 * **Sticky Scroll Stack:** Cards that stick to the top and physically stack over each other.
-* **Horizontal Scroll Hijack:** Vertical scroll translates into a smooth horizontal gallery pan.
-* **Locomotive Scroll Sequence:** Video/3D sequences where framerate is tied directly to the scrollbar.
+* **Native Scroll-Snap Gallery:** Use native horizontal scrolling with optional CSS scroll-snap and keyboard-reachable content.
+Do not remap vertical wheel input, intercept touch input, or trap keyboard focus.
+* **Native Sticky Narrative:** Use CSS sticky layout without taking over browser scrolling.
+Keep media static or user-controlled with accessible playback controls; do not tie required content to scrollbar-driven playback.
+Use static states for reduced motion.
 * **Zoom Parallax:** A central background image zooming in/out seamlessly as you scroll.
 * **Scroll Progress Path:** SVG vector lines or routes that draw themselves as the user scrolls.
 * **Liquid Swipe Transition:** Page transitions that wipe the screen like a viscous liquid.

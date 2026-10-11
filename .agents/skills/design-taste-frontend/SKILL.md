@@ -307,12 +307,17 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
   - **Grouped chunks:** group 10 specs into 3 logical clusters (e.g. "Materials", "Cooking", "Warranty"), each cluster gets ONE soft divider and a cluster heading.
   - **Featured-vs-rest:** 3-4 hero specs visualised as large display tiles, the rest collapsed under a "View full specifications" disclosure.
 
-* **COPY SELF-AUDIT (mandatory before ship):** Before declaring any task done, re-read every visible string on the page (headlines, subheads, eyebrows, button labels, body copy, captions, alt text, footer text, error messages). Flag any string that is:
+* **COPY SELF-AUDIT (mandatory before ship):** Review visible text for readability in its actual locale.
+Preserve existing localized strings, source keys, user content, real quotes, alt text, and error messages verbatim.
+Do not judge translations by English phrasing or rewrite preserved copy to satisfy a style preference.
+For newly authored marketing or explicitly labeled mock copy only, flag text that is:
   - **Grammatically broken** ("free on its past", "two plans but one is honest", "to put it on the table" out of context)
   - **Has unclear referents** ("we plan to stay that way" without prior context)
   - **Sounds like AI hallucination** (cute-but-wrong wordplay, forced metaphors that don't track, "elegant nothing" phrases)
   - **Reads like an LLM trying to sound thoughtful** (passive-aggressive humility, fake-craftsman labels, mock-poetic micro-meta)
-  Rewrite every flagged string. If unsure whether a string makes sense, replace it with a plain functional sentence. AI-generated cute copy is worse than boring copy.
+  Rewrite flagged new marketing or labeled mock copy with plain functional sentences.
+For uncertain existing content, report the suspected issue with locale context rather than changing it.
+Fix layout, wrapping, and spacing around preserved strings instead of shortening them.
 * **Fake-precise numbers are flagged.** Numbers like `92%`, `4.1×`, `48k`, `5.8 mm`, `13.4 lb` either:
   - Come from real data (brief, brand guidelines, public metrics) - fine
   - Are explicitly labeled as mock (`<!-- mock -->`, "example", "sample data") - fine
@@ -806,7 +811,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Logo wall = logo only**: no industry / category labels printed below logos?
 - [ ] **Bento Background Diversity**: at least 2-3 bento cells have real visual variation (image, gradient, pattern), not all white-on-white text cards?
 - [ ] **"Used by / Trusted by" logo wall** lives UNDER the hero, not inside it, uses REAL SVG logos (Simple Icons / devicon) or generated SVG marks, NOT plain text wordmarks?
-- [ ] **Copy Self-Audit**: every visible string re-read, no grammatically-broken or AI-hallucinated phrases ("free on its past" type) shipped?
+- [ ] **Copy Self-Audit**: existing/localized strings and source keys are unchanged; automatic rewrites apply only to new marketing or labeled mock copy, and uncertain existing text is reported with locale context?
 - [ ] **Motion motivated**: every animation can be justified in one sentence (hierarchy / storytelling / feedback / state transition), no GSAP-for-show?
 - [ ] **Text bands** remain static or user-controlled, wrap on small screens, and do not require perpetual motion?
 - [ ] **Navigation on ONE line** at desktop, height ≤ 80px?
