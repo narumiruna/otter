@@ -245,7 +245,10 @@ Choose 1 dominant structure:
 6. Asymmetric premium marketing flow
 
 ### Signature Component Set
-Choose exactly 4 unique components:
+Select only components already present in or required by the requested Otter workflow.
+There is no component quota; focused expense, auth, or settings screens can need one component or none.
+Preserve existing actions and data flow; do not add partner rows, testimonials, or product panels merely for visual variety.
+For explicitly requested marketing pages, the following patterns are optional vocabulary, not required features:
 - Diagonal Staggered Square Masonry
 - 3D Cascading Card Deck
 - Accessible Accordion Slice Layout
@@ -951,7 +954,7 @@ When the user asks for a frontend design:
 5. choose Hero Scale for the whole site (giant / mid / mini)
 5. choose a strong visual combination (theme, type, hero arch, section system, motion, narrative spine, second-read moment)
 7. for each section: pick a Composition Anchor, Background Mode, and CTA Variation — vary across sections
-8. choose 4 signature components used appropriately across sections
+8. select only existing or requested workflow components; use marketing patterns only where explicitly requested, without a quota
 9. enforce hero minimalism + section size variety (some giant, some mini)
 10. enforce strong image usage including full-bleed backgrounds where it fits
 11. lock one consistent palette across all images

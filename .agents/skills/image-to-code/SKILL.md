@@ -494,7 +494,10 @@ Choose 1:
 6. asymmetric premium marketing flow
 
 ### Signature Component Set
-Choose exactly 4 unique components:
+Select only components already present in or required by the requested Otter workflow.
+There is no component quota; focused expense, auth, or settings screens can need one component or none.
+Preserve existing actions and data flow; do not add partner rows, testimonials, or product panels merely for visual variety.
+For explicitly requested marketing pages, the following patterns are optional vocabulary, not required features:
 - diagonal staggered square masonry
 - 3D cascading card deck
 - accessible accordion slice layout using the installed `radix-ui` Accordion with labeled trigger buttons and visible focus
@@ -1163,7 +1166,7 @@ When the user asks for a website design in an image-to-code workflow:
 8. do not crop old images for section extraction
 9. regenerate sections as fresh standalone images when needed
 10. choose a strong visual combination
-11. choose 4 signature components
+11. select only existing or requested workflow components; do not impose a signature-component quota
 12. choose 2 motion-implied cues
 13. keep the hero readable; preserve existing localized copy and limit shortening to newly authored labeled mock copy
 14. reduce unnecessary pills, labels, and micro-UI clutter
