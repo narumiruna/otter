@@ -170,7 +170,8 @@ LLMs default to clichés. Override these defaults proactively. Each rule has a c
 
 ### 4.1 Typography
 * **Display / Headlines:** Default `text-4xl md:text-6xl tracking-tighter leading-none`.
-* **Body / Paragraphs:** Default `text-base text-gray-600 leading-relaxed max-w-[65ch]`.
+* **Body / Paragraphs:** Default `text-base text-foreground leading-relaxed max-w-[65ch]`.
+Use `text-muted-foreground` for secondary copy; both colors follow the selected theme.
 * **Sans font choice:**
   * **Discouraged as default:** `Inter`. Pick `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`, or a brand-appropriate serif first.
   * **Override:** Inter is acceptable when the user explicitly asks for a neutral / standard / Linear-style feel, or when the brief is a public-sector / accessibility-first site.

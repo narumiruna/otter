@@ -101,7 +101,8 @@ Check for these problems and fix them:
 - **No error states.** Add clear, inline error messages for forms. Do not use `window.alert()`.
 - **Dead links.** Buttons that link to `#`. Either link to real destinations or visually disable them.
 - **No indication of current page in navigation.** Style the active nav link differently so users know where they are.
-- **Scroll jumping.** Anchor clicks jump instantly. Add `scroll-behavior: smooth`.
+- **Anchor scrolling.** Keep native anchor navigation.
+If smooth scrolling helps, apply `scroll-behavior: smooth` only inside `@media (prefers-reduced-motion: no-preference)`; retain immediate scrolling for reduced motion.
 - **Animations using `top`, `left`, `width`, `height`.** Switch to `transform` and `opacity` for GPU-accelerated, smooth animation.
 
 ### Content
@@ -175,11 +176,14 @@ When upgrading a project, pull from these high-impact techniques to replace gene
 - **Split-screen scroll.** Two halves of the screen sliding in opposite directions.
 
 ### Motion Upgrades
-- **Smooth scroll with inertia.** Decouple scrolling from browser defaults for a heavier, cinematic feel.
-- **Staggered entry.** Elements cascade in with slight delays, combining Y-axis translation with opacity fade. Never mount everything at once.
+- **Native scrolling.** Preserve browser wheel, touch, keyboard, and anchor behavior.
+Do not intercept scroll input or add an inertia-scroll library.
+- **Optional entry feedback.** Keep content visible by default.
+Use short CSS transitions only when they help orientation; show content immediately for reduced motion.
 - **CSS feedback.** Use short transitions for meaningful state changes, with static reduced-motion states.
 Do not add a spring animation library for visual polish.
-- **Scroll-driven reveals.** Content entering through expanding masks, wipes, or draw-on SVG paths tied to scroll progress.
+- **Viewport feedback.** If viewport detection is needed, use `IntersectionObserver` with cleanup without changing native scrolling.
+Do not hide required content behind reveals; use static states for reduced motion.
 
 ### Surface Upgrades
 - **True glassmorphism.** Go beyond `backdrop-filter: blur`. Add a 1px inner border and a subtle inner shadow to simulate edge refraction.

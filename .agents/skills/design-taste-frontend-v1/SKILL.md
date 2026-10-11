@@ -66,9 +66,12 @@ LLMs have statistical biases toward specific UI cliché patterns. Proactively co
 
 **Rule 1: Deterministic Typography**
 * **Display/Headlines:** Default to `text-4xl md:text-6xl tracking-tighter leading-none`.
-    * **ANTI-SLOP:** Discourage `Inter` for "Premium" or "Creative" vibes. Force unique character using `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
-    * **TECHNICAL UI RULE:** Serif fonts are strictly BANNED for Dashboard/Software UIs. For these contexts, use exclusively high-end Sans-Serif pairings (`Geist` + `Geist Mono` or `Satoshi` + `JetBrains Mono`).
-* **Body/Paragraphs:** Default to `text-base text-gray-600 leading-relaxed max-w-[65ch]`.
+    * **Otter Font:** Use installed Geist Variable with existing language fallbacks.
+Create contrast with weight, size, and spacing; do not install a font for visual polish.
+    * **TECHNICAL UI RULE:** Keep controls and financial data in Geist.
+Use `tabular-nums` for amounts and the existing system monospace stack only for code or technical metadata.
+* **Body/Paragraphs:** Default to `text-base text-foreground leading-relaxed max-w-[65ch]`.
+Use `text-muted-foreground` for secondary copy; both colors follow the selected theme.
 
 **Rule 2: Color Calibration**
 * **Constraint:** Max 1 Accent Color. Saturation < 80%.
@@ -122,7 +125,7 @@ Do not add an animation engine or intercept scrolling in product workflows.
 ### VISUAL_DENSITY (Level 1-10)
 * **1-3 (Art Gallery Mode):** Lots of white space. Huge section gaps. Everything feels very expensive and clean.
 * **4-7 (Daily App Mode):** Normal spacing for standard web apps.
-* **8-10 (Cockpit Mode):** Tiny paddings. No card boxes; just 1px lines to separate data. Everything is packed. **Mandatory:** Use Monospace (`font-mono`) for all numbers.
+* **8-10 (Cockpit Mode):** Tiny paddings. No card boxes; just 1px lines to separate data. Everything is packed. Use Geist with `tabular-nums` for financial numbers; reserve system monospace for technical metadata.
 
 ## 7. AI TELLS (Forbidden Patterns)
 To guarantee a premium, non-generic output, you MUST strictly avoid these common AI design signatures unless explicitly requested:
@@ -135,7 +138,7 @@ To guarantee a premium, non-generic output, you MUST strictly avoid these common
 * **NO Custom Mouse Cursors:** They are outdated and ruin performance/accessibility.
 
 ### Typography
-* **NO Inter Font:** Banned. Use `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
+* **Installed Font:** Use Geist Variable with existing language fallbacks; vary weight, scale, and spacing instead of adding fonts.
 * **NO Oversized H1s:** The first heading should not scream. Control hierarchy with weight and color, not just massive scale.
 * **Serif Constraints:** Use Serif fonts ONLY for creative/editorial designs. **NEVER** use Serif on clean Dashboards.
 
