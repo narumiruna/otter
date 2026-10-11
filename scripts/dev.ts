@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 
 const children = [
+  startWorkspace("@narumitw/otter-visa-exchange-rates"),
   startWorkspace("@narumitw/otter-exchange-rates"),
   startWorkspace("@narumitw/otter-core"),
   startWorkspace("@narumitw/otter-contracts"),

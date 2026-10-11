@@ -18,6 +18,7 @@ import {
   LifecycleSettings,
   TripPreferences,
 } from "./trip-settings.js";
+import { VisaSettlementSettings } from "./visa-settlement-settings.js";
 import { SectionHeading } from "./workspace-ui.js";
 
 export function MorePage({
@@ -116,6 +117,7 @@ export function MorePage({
               className="grid gap-4"
             >
               <TripPreferences payload={payload} expanded={desktop} />
+              <VisaSettlementSettings payload={payload} expanded={desktop} />
               <ExchangeRateSettings
                 key={`${payload.trip.id}:${payload.trip.baseCurrency}`}
                 payload={payload}

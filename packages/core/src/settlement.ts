@@ -2,6 +2,11 @@ import type { ExpenseCategory } from "./expense-metadata.js";
 import type { Currency, ExchangeRates, ExpenseExchangeRate } from "./money.js";
 import { convertExpenseMinor, convertMinorWithRates } from "./money.js";
 
+import {
+  convertVisaExpenseMinor,
+  type VisaExpenseRate,
+} from "./visa-settlement.js";
+
 export type Participant = {
   id: string;
   name: string;
@@ -19,6 +24,7 @@ export type Expense = {
   amountMinor: number;
   currency: Currency;
   exchangeRate?: ExpenseExchangeRate;
+  visaExchangeRate?: VisaExpenseRate;
   category?: ExpenseCategory;
   tags?: string[];
   paidById: string;
@@ -48,6 +54,8 @@ export type Trip = {
   baseCurrency: Currency;
   archivedAt?: string | null;
   allowApiWrites?: boolean;
+  visaSettlementEnabled?: boolean;
+  visaSettlementCurrency?: Currency;
   participants: Participant[];
   expenses: Expense[];
   settlementPayments?: SettlementPayment[];
@@ -71,7 +79,35 @@ export type Settlement = {
   currency: Currency;
 };
 
+export function settlementCurrency(
+  trip: Pick<
+    Trip,
+    "baseCurrency" | "visaSettlementEnabled" | "visaSettlementCurrency"
+  >,
+): Currency {
+  return trip.visaSettlementEnabled
+    ? (trip.visaSettlementCurrency ?? trip.baseCurrency)
+    : trip.baseCurrency;
+}
+
 export function calculateBalances(trip: Trip): Balance[] {
+  const currency = settlementCurrency(trip);
+  const convertExpense = (amountMinor: number, expense: Expense) =>
+    trip.visaSettlementEnabled
+      ? convertVisaExpenseMinor(
+          amountMinor,
+          expense.currency,
+          expense.expenseDate,
+          expense.visaExchangeRate,
+          currency,
+        )
+      : convertExpenseMinor(
+          amountMinor,
+          expense.currency,
+          trip.baseCurrency,
+          expense.exchangeRate,
+          trip.exchangeRates,
+        );
   const participantOrder = new Map(
     trip.participants.map((participant, index) => [participant.id, index]),
   );
@@ -92,13 +128,7 @@ export function calculateBalances(trip: Trip): Balance[] {
       continue;
     }
 
-    const amount = convertExpenseMinor(
-      expense.amountMinor,
-      expense.currency,
-      trip.baseCurrency,
-      expense.exchangeRate,
-      trip.exchangeRates,
-    );
+    const amount = convertExpense(expense.amountMinor, expense);
     balances.set(expense.paidById, payerBalance + amount);
 
     const explicitShares = new Map(
@@ -114,13 +144,7 @@ export function calculateBalances(trip: Trip): Balance[] {
 
     if (hasExplicitShares) {
       const shares = splitIds.map((participantId) =>
-        convertExpenseMinor(
-          explicitShares.get(participantId) ?? 0,
-          expense.currency,
-          trip.baseCurrency,
-          expense.exchangeRate,
-          trip.exchangeRates,
-        ),
+        convertExpense(explicitShares.get(participantId) ?? 0, expense),
       );
       let remainder = amount - shares.reduce((sum, share) => sum + share, 0);
       for (const [index, participantId] of splitIds.entries()) {
@@ -154,10 +178,14 @@ export function calculateBalances(trip: Trip): Balance[] {
     if (!balances.has(payment.fromId) || !balances.has(payment.toId)) {
       continue;
     }
+    if (trip.visaSettlementEnabled && payment.currency !== currency)
+      throw new Error(
+        "Visa settlement payments must use the selected currency",
+      );
     const amount = convertMinorWithRates(
       payment.amountMinor,
       payment.currency,
-      trip.baseCurrency,
+      currency,
       trip.exchangeRates,
     );
     balances.set(payment.fromId, (balances.get(payment.fromId) ?? 0) + amount);
@@ -184,13 +212,14 @@ export function calculateBalances(trip: Trip): Balance[] {
 
   return trip.participants.map((participant) => ({
     amountMinor: balances.get(participant.id) ?? 0,
-    currency: trip.baseCurrency,
+    currency,
     name: participant.name,
     participantId: participant.id,
   }));
 }
 
 export function calculateSettlements(trip: Trip): Settlement[] {
+  const currency = settlementCurrency(trip);
   const balances = calculateBalances(trip);
   const debtors = balances
     .filter((balance) => balance.amountMinor < 0)
@@ -212,7 +241,7 @@ export function calculateSettlements(trip: Trip): Settlement[] {
     if (amount > 0) {
       settlements.push({
         amountMinor: amount,
-        currency: trip.baseCurrency,
+        currency,
         fromId: debtor.participantId,
         fromName: debtor.name,
         toId: creditor.participantId,

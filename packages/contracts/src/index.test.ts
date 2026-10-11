@@ -55,6 +55,52 @@ const validPayload: TripPayload = {
   },
 };
 
+test("Visa settlement payloads require dated snapshots and a boolean setting", () => {
+  const expense = validPayload.trip.expenses[0];
+  const valid = {
+    ...validPayload,
+    trip: {
+      ...validPayload.trip,
+      visaSettlementEnabled: true,
+      visaSettlementCurrency: "TWD" as const,
+      expenses: [
+        {
+          ...expense,
+          visaExchangeRate: {
+            sourceCurrency: "TWD",
+            targetCurrency: "TWD" as const,
+            date: expense.expenseDate,
+            rate: 1,
+            fetchedAt: expense.createdAt,
+          },
+        },
+      ],
+    },
+  };
+  expect(parseTripPayload(valid).trip.visaSettlementEnabled).toBe(true);
+  expect(() =>
+    parseTripPayload({
+      ...valid,
+      trip: { ...valid.trip, visaSettlementEnabled: "true" },
+    }),
+  ).toThrow();
+  for (const rate of [
+    undefined,
+    { ...valid.trip.expenses[0].visaExchangeRate, date: "2026-09-21" },
+    { ...valid.trip.expenses[0].visaExchangeRate, rate: 0.5 },
+  ]) {
+    expect(() =>
+      parseTripPayload({
+        ...valid,
+        trip: {
+          ...valid.trip,
+          expenses: [{ ...expense, visaExchangeRate: rate }],
+        },
+      }),
+    ).toThrow();
+  }
+});
+
 test("trip payload accepts older expenses but rejects malformed quote snapshots", () => {
   expect(
     parseTripPayload(validPayload).trip.expenses[0].exchangeRate,

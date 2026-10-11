@@ -91,11 +91,13 @@ export function expenseMutation<
     before: CapturedExpense[],
     candidate: Candidate | null,
   ) => Promise<MutationResult>,
-  prefetch?: () => Promise<Candidate>,
+  prefetch?: (context: Context<OtterEnv, Path>) => Promise<Candidate>,
 ) {
   return async (context: Context<OtterEnv, Path>): Promise<Response> => {
     // Network I/O must finish before tripMutation takes the parent row lock.
-    const candidate = prefetch ? await prefetch().catch(() => null) : null;
+    const candidate = prefetch
+      ? await prefetch(context).catch(() => null)
+      : null;
     return tripMutation<Path>(pool, async (context, client) => {
       const tripId = context.req.param("tripId");
       if (!tripId) throw new Error("Expense mutation requires a trip ID");

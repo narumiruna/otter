@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import {
-  type ExchangeRateSnapshot,
   expenseOperationHeader,
   expenseQueueUserHeader,
   parseExpenseOperationId,
@@ -19,6 +18,7 @@ import {
   parseAmountToMinor,
   toMajor,
 } from "@narumitw/otter-core/money";
+import type { Context } from "hono";
 import type { Pool as PgPool } from "pg";
 import {
   recordExpenseChanges,
@@ -29,7 +29,7 @@ import {
   insertExpense,
   insertExpenseParticipants,
 } from "./server-expense-store.js";
-import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import type { OtterApp, OtterEnv, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
   type ParticipantShare,
@@ -51,6 +51,10 @@ import {
   todayDate,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
+import {
+  type ExpenseRateCandidate,
+  visaExpenseSnapshot,
+} from "./server-visa-settlement.js";
 
 // JSON object order does not change the meaning of a request. Include every
 // supplied field so a replay cannot silently replace an earlier create.
@@ -94,13 +98,13 @@ export function registerExpenseRoutes(
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
-  prefetch: () => Promise<ExchangeRateSnapshot>,
+  prefetch: (context: Context<OtterEnv>) => Promise<ExpenseRateCandidate>,
 ) {
   app.post(
     "/api/trips/:tripId/expenses",
     mustBeSignedIn,
     parseRequestBody,
-    expenseMutation(
+    expenseMutation<"/api/trips/:tripId/expenses", ExpenseRateCandidate>(
       pool,
       async (context, pool, before, candidate) => {
         const user = currentUser(context);
@@ -252,8 +256,13 @@ export function registerExpenseRoutes(
           exchangeRate: expenseExchangeRate(
             trip,
             currencyValue,
-            candidate,
+            candidate?.bank ?? null,
             amountMinor,
+          ),
+          visaExchangeRate: visaExpenseSnapshot(
+            trip,
+            { currency: currencyValue, expenseDate, amountMinor },
+            candidate?.visa,
           ),
         });
 
@@ -286,7 +295,10 @@ export function registerExpenseRoutes(
     "/api/trips/:tripId/expenses/:expenseId",
     mustBeSignedIn,
     parseRequestBody,
-    expenseMutation(
+    expenseMutation<
+      "/api/trips/:tripId/expenses/:expenseId",
+      ExpenseRateCandidate
+    >(
       pool,
       async (context, pool, before, candidate) => {
         const user = currentUser(context);
@@ -451,7 +463,7 @@ export function registerExpenseRoutes(
         const updatedExpense = await pool.query(
           `UPDATE expenses
            SET description = $1, amount_minor = $2, currency = $3, category = $4, tags = $5, paid_by_id = $6, expense_date = $7,
-               exchange_rate = $10
+               exchange_rate = $10, visa_exchange_rate = $11
            WHERE trip_id = $8 AND id = $9`,
           [
             description,
@@ -465,8 +477,18 @@ export function registerExpenseRoutes(
             context.req.param("expenseId"),
             amountMinor !== expense.amountMinor ||
             currencyValue !== expense.currency
-              ? expenseExchangeRate(trip, currencyValue, candidate, amountMinor)
+              ? expenseExchangeRate(
+                  trip,
+                  currencyValue,
+                  candidate?.bank ?? null,
+                  amountMinor,
+                )
               : expense.exchangeRate,
+            visaExpenseSnapshot(
+              trip,
+              { ...expense, currency: currencyValue, expenseDate, amountMinor },
+              candidate?.visa,
+            ) ?? null,
           ],
         );
         if (updatedExpense.rowCount !== 0 && shouldReplaceSplits) {

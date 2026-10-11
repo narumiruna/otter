@@ -1,7 +1,10 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 import { zhTWInterface } from "./messages-interface.js";
 
+import { zhTWVisa } from "./messages-visa.js";
+
 export const zhTW = {
+  ...zhTWVisa,
   ...zhTWInterface,
   offlineQueueBanner:
     "目前離線：已載入資料可閱讀；新增支出可存到此裝置，其他編輯須連線。",

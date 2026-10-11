@@ -6,6 +6,7 @@ import type {
   Trip as DomainTrip,
   Participant,
 } from "@narumitw/otter-core/settlement";
+import { isVisaExpenseRate } from "@narumitw/otter-core/visa-settlement";
 
 // Legacy offline payloads may lack a version. Never infer one for a write.
 export type Expense = DomainExpense & { version?: number };
@@ -29,6 +30,7 @@ export const revisionSources = [
   "development_seed",
   "migration",
   "version_restore",
+  "visa_settlement",
 ] as const;
 export type RevisionSource = (typeof revisionSources)[number];
 export const expenseChangeFields = [
@@ -36,6 +38,7 @@ export const expenseChangeFields = [
   "amountMinor",
   "currency",
   "exchangeRate",
+  "visaExchangeRate",
   "expenseDate",
   "paidById",
   "category",
@@ -118,6 +121,8 @@ export function isExpenseSnapshot(value: unknown): value is ExpenseSnapshot {
     new Set(e.participantIds).size !== e.participantIds.length ||
     !text(e.expenseDate) ||
     !isDateOnly(e.expenseDate) ||
+    (e.visaExchangeRate !== undefined &&
+      !isVisaExpenseRate(e.visaExchangeRate, e.currency, e.expenseDate)) ||
     !timestamp(e.createdAt) ||
     !isExpenseCategory(e.category) ||
     !Array.isArray(e.tags) ||

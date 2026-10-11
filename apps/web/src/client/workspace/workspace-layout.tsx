@@ -133,6 +133,11 @@ export function TripHeader({
               })}{" "}
               · {payload.trip.baseCurrency}
             </span>
+            {payload.trip.visaSettlementEnabled ? (
+              <span className="status-badge">
+                {messages.visaSettlementTitle}
+              </span>
+            ) : null}
             <span className="desktop-rate-source">
               {payload.exchangeRateInfo?.source === "custom"
                 ? messages.usingCustomExchangeRates
