@@ -1,5 +1,18 @@
 # @narumitw/otter-contracts
 
+## 0.2.0
+
+### Minor Changes
+
+- e7f44c8: Support SGD, GBP, AUD, CAD, and KRW for group creation, expenses, and Visa settlements. Preserve currency precision and distinguish missing bank spot quotes from fixed estimates. Keep base-currency previews consistent with saved balances when quotes are missing, and update the agent-facing CLI reference. Apply migration 024 before deployment.
+- a97eea8: Add optional Visa-based settlements in a user-selected currency. Save dated source-to-target rates for all expenses, round in the selected currency, preserve original amounts and base-currency snapshots, and support history and backups. Keep the option off by default.
+
+### Patch Changes
+
+- Updated dependencies [e7f44c8]
+- Updated dependencies [a97eea8]
+  - @narumitw/otter-core@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes
