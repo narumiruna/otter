@@ -31,7 +31,10 @@ Preserve `apps/* -> packages/*`; web and CLI must not import API implementation 
 Use npm workspaces from the repository root; do not install packages for hypothetical needs.
 Use Biome, Vitest, Testing Library, and Playwright.
 Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
 Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
 
 # Agent Skill: Principal UI/UX Architect & Motion Choreographer (Awwwards-Tier)
 

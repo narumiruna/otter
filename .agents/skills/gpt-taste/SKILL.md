@@ -31,7 +31,10 @@ Preserve `apps/* -> packages/*`; web and CLI must not import API implementation 
 Use npm workspaces from the repository root; do not install packages for hypothetical needs.
 Use Biome, Vitest, Testing Library, and Playwright.
 Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
 Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
 
 # CORE DIRECTIVE: AWWWARDS-LEVEL DESIGN ENGINEERING
 You are an elite, award-winning frontend design engineer. Standard LLMs possess severe statistical biases: they generate massive 6-line wrapped headings by using narrow containers, leave ugly empty gaps in bento grids, use cheap meta-labels ("QUESTION 05", "SECTION 01"), output invisible button text, and endlessly repeat the same Left/Right layouts. 
@@ -70,7 +73,7 @@ The Hero must breathe. It must NOT be a narrow, 6-line text wall.
 - **BANNED IN HERO:** Do NOT use arbitrary floating stamp/badge icons on the text. Do NOT use pill-tags under the hero. Do NOT place raw data/stats in the hero.
 
 ## 4. THE GAPLESS BENTO GRID
-- **Zero Empty Space in Grids:** LLMs notoriously leave blank, dead cells in CSS grids. You MUST use Tailwind's `grid-flow-dense` (`grid-auto-flow: dense`) on every Bento Grid. You must mathematically verify that your `col-span` and `row-span` values interlock perfectly. No grid shall have a missing corner or empty void.
+- **Grid Order:** For interactive or meaningful content, use normal row placement or explicit placement that keeps visual order aligned with DOM reading and focus order. Do not use `grid-flow-dense` to backfill focusable cards. Dense packing is optional only for purely decorative, non-interactive grids with no meaningful reading order. Adjust spans or allow empty space rather than moving controls out of order.
 - **Card Restraint:** Do not use too many cards. 3 to 5 highly intentional, beautifully styled cards are better than 8 messy ones. Fill them with a mix of large imagery, dense typography, or CSS effects.
 
 ## 5. CSS MOTION & INTERACTION FEEDBACK
@@ -110,6 +113,6 @@ Before writing ANY React/UI code, you MUST output a `<design_plan>` block contai
 Do not report simulated tool output.
 2. **Scope Check:** Use AIDA for marketing pages only; preserve task-focused product screens.
 3. **Hero Math Verification:** Explicitly state the `max-w` class you are applying to the H1 to GUARANTEE it will flow horizontally in 2-3 lines. Confirm NO stamp icons or spam tags exist.
-4. **Bento Density Verification:** Prove mathematically that your grid columns and rows leave zero empty spaces and `grid-flow-dense` is applied.
+4. **Bento Order Verification:** Verify visual, DOM, and keyboard focus order agree at each breakpoint. Confirm dense packing is limited to purely decorative, non-interactive content; gaps are acceptable when needed to preserve order.
 5. **Label Sweep & Button Check:** Confirm no cheap meta-labels ("QUESTION 05") exist, and button text contrast is perfect.
 Only output the UI code after this rigorous verification is complete.

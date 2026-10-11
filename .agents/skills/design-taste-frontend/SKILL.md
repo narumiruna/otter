@@ -31,7 +31,10 @@ Preserve `apps/* -> packages/*`; web and CLI must not import API implementation 
 Use npm workspaces from the repository root; do not install packages for hypothetical needs.
 Use Biome, Vitest, Testing Library, and Playwright.
 Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
 Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
 
 # tasteskill: Anti-Slop Frontend Skill
 
@@ -212,7 +215,7 @@ LLMs default to "static successful state only." Always implement full cycles:
 * **Error States:** Clear, inline (forms), or contextual (toasts only for transient).
 * **Tactile Feedback:** On `:active`, use `-translate-y-[1px]` or `scale-[0.98]` to simulate a physical push.
 * **BUTTON CONTRAST CHECK (mandatory, a11y):** Before shipping any button, verify the button text is readable against the button background. White button + white text, `bg-white` CTA with `text-white` label, transparent button against the page background with no border → all banned. Audit every CTA: contrast ratio WCAG AA min (4.5:1 for body, 3:1 for large text 18px+). Same rule applies to ghost buttons over photographic backgrounds (use a backdrop, scrim, or stroke).
-* **CTA BUTTON WRAP BAN (mandatory):** Button text MUST fit on one line at desktop. If a label like "VIEW SELECTED WORK" wraps to 2 or 3 lines, the button is broken. Fix by EITHER shortening the label (3 words max for primary CTAs, ideally 1-2) OR widening the button (do not artificially constrain `max-width` on CTAs). Wrapped CTAs at desktop are a Pre-Flight Fail.
+* **CTA Label Preservation:** Preserve existing localized labels verbatim. Use readable type, sufficient width, and wrapping when needed; do not shorten preserved labels to fit. Only newly authored, explicitly labeled mock CTAs may use shorter wording.
 * **NO DUPLICATE CTA INTENT (mandatory):** Two CTAs with the same intent on one page is a Pre-Flight Fail. Examples of same intent: "Get in touch" + "Contact us" + "Let's talk" + "Start a project" + "Start something" + "Reach out" = all "contact" intent → pick ONE label and use it everywhere on the page (nav, hero, footer). Same for "Try free" + "Get started" + "Sign up free" (all "signup" intent) and "View work" + "See selected work" + "Browse projects" (all "portfolio" intent). One label per intent.
 * **FORM CONTRAST CHECK (mandatory, a11y):** Form inputs, placeholder text, focus rings, helper text, and error text all pass WCAG AA contrast against the section background. Light placeholders on a near-white form, white form on white page section, form labels grayer than 4.5:1 contrast → all banned. Audit every form before shipping.
 
@@ -222,10 +225,10 @@ LLMs default to "static successful state only." Always implement full cycles:
 
 ### 4.7 Layout Discipline (Hard Rules. Failing any of these is shipping broken work)
 
-* **Hero MUST fit in the initial viewport.** Headline max 2 lines on desktop, subtext max **20 words** AND max 3-4 lines, CTAs visible without scroll. If the copy is too long: reduce font scale OR cut copy. If you cannot describe the value-prop in 20 words of subtext, the value-prop is unclear, not the rule too tight. Never let the hero overflow and force scroll to find the CTA.
-* **Hero font-scale discipline.** Plan font size and image size *together*. If the hero asset is large and the headline is more than 6 words, do not start at `text-7xl/text-8xl`. Default sensible range: `text-4xl md:text-5xl lg:text-6xl` for most heroes; `text-6xl md:text-7xl` only when the headline is 3-5 words. A 4-line hero headline is always a font-size error, never a copy-length error.
+* **Hero Readability:** Preserve existing localized/product strings and user content verbatim. Adjust readable type scale, width, wrapping, and layout around them; allow a taller hero when needed. For newly authored, explicitly labeled mock copy only, target a two-line headline, subtext of at most 20 words and four lines, and visible CTAs. Never cut preserved copy to meet these targets.
+* **Hero font-scale discipline.** Plan font size and image size *together*. If the hero asset is large and the headline is more than 6 words, do not start at `text-7xl/text-8xl`. Default sensible range: `text-4xl md:text-5xl lg:text-6xl` for most heroes; `text-6xl md:text-7xl` only when the headline is 3-5 words. Existing translations can require additional lines; verify readable wrapping rather than enforcing a line cap.
 * **HERO TOP PADDING CAP (mandatory):** Hero top padding max `pt-24` (≈6rem) at desktop. More than that means the hero content floats halfway down the viewport and reads as a layout bug, not as intentional space. If your hero needs more breathing room, increase font scale or asset size, not top padding.
-* **HERO STACK DISCIPLINE (max 4 text elements).** The hero is a single moment, not a feature list. Allowed text elements, max 4 in total:
+* **HERO STACK DISCIPLINE (new mock content only; max 4 text elements).** Preserve existing product content; use this composition target only for newly authored, explicitly labeled mock copy. Allowed text elements, max 4 in total:
   1. Eyebrow (small uppercase label) OR brand strip OR neither - pick zero or one
   2. Headline (max 2 lines, see above)
   3. Subtext (max 20 words, max 4 lines)
@@ -339,7 +342,7 @@ The page has ONE theme. Sections do not invert.
 
 * If the page is dark mode, ALL sections are dark mode. No light-mode-warm-paper section sandwiched between dark sections (or vice versa). The user must not feel they walked into a different website mid-scroll.
 * The exception: if the brief explicitly calls for a "Color Block Story" or "Theme Switch on Scroll" device AND that is a deliberate composition (one full theme switch with a strong transition, not random alternation), it is allowed once per page.
-* Default behaviour: pick light, dark, or auto (`prefers-color-scheme`) at the page level and lock it. Section-level background tints within the same theme family are fine (`bg-zinc-950` next to `bg-zinc-900`); flipping to `bg-amber-50` in the middle of a `bg-zinc-950` page is broken.
+* Derive the page-wide appearance from the existing `RadixTheme` provider and stored light, dark, or system preference. Resolve system appearance without replacing the preference. Use selected-palette semantic background/card/border roles for section tints; do not choose a new appearance or introduce fixed Zinc/amber colors.
 * Reuse `RadixTheme` at the app root and its existing palette and appearance preferences.
 Do not add a separate theme provider or let individual sections override the selected appearance.
 
@@ -797,18 +800,18 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Design system** chosen from Section 2 if applicable, or aesthetic labeled honestly?
 - [ ] **Redesign mode** detected and audit performed (if applicable, Section 11)?
 - [ ] **New marketing copy** has no decorative em/en dashes, while existing and localized content, source keys, identifiers, user data, real quotes, and missing-value placeholders retain their punctuation (Section 9.G)?
-- [ ] **Page Theme Lock**: ONE theme (light, dark, or auto) for the whole page. No section flips to inverted mode mid-page (Section 4.11)?
+- [ ] **Page Theme Lock**: selected RadixTheme palette and appearance preferences are unchanged; section tints use existing semantic roles without overriding appearance (Section 4.11)?
 - [ ] **Color Consistency Lock**: semantic roles follow the selected Radix palette and appearance across all sections, with status colors preserved (Section 4.2)?
 - [ ] **Shape Consistency Lock**: one corner-radius system applied consistently (Section 4.4)?
 - [ ] **Button Contrast Check**: every CTA text is readable against its background (no white-on-white, WCAG AA 4.5:1)?
-- [ ] **CTA Button Wrap**: no CTA label wraps to 2+ lines at desktop?
+- [ ] **CTA label readability**: existing localized labels are verbatim, fully readable, and allowed to wrap when needed without clipping?
 - [ ] **Form Contrast Check**: form inputs, placeholders, focus rings, labels all pass WCAG AA against the section background?
 - [ ] **Installed typography**: headings, body, and controls use Geist Variable with language fallbacks; amounts use tabular numerals without unavailable font references?
 - [ ] **Selected palette**: existing theme preferences are preserved without palette rotation, forced neutral families, saturation caps, or decorative recoloring of status colors?
 - [ ] **Italic descender clearance**: every italic word with `y g j p q` has `leading-[1.1]` min + `pb-1` reserve?
-- [ ] **Hero fits the viewport**: headline ≤ 2 lines, subtext ≤ 20 words AND ≤ 4 lines, CTA visible without scroll, font scale planned around image?
+- [ ] **Hero readability**: existing/localized copy is verbatim and fully readable; word/line targets apply only to newly authored labeled mock copy, with layout and type planned around preserved content?
 - [ ] **Hero top padding**: max `pt-24` at desktop, hero content does not float halfway down the viewport?
-- [ ] **Hero stack discipline**: max 4 text elements in hero (eyebrow OR brand strip, headline, subtext, CTAs)? No tiny tagline below CTAs, no trust micro-strip in hero?
+- [ ] **Hero stack discipline**: the four-element target applies only to newly authored labeled mock content; existing product strings and user content are preserved?
 - [ ] **EYEBROW COUNT (mechanical)**: count instances of `uppercase tracking` micro-labels above section headlines across all components. Count ≤ ceil(sectionCount / 3)? Hero counts as 1.
 - [ ] **Split-Header Ban**: no "left big headline + right small explainer paragraph" pattern as a section header (vertical stack instead)?
 - [ ] **Zigzag Alternation Cap**: no 3+ consecutive sections with the same image+text-split layout?
