@@ -43,7 +43,7 @@ otter trips update --trip <trip-id> [--name <name>] [--archived true|false]
 otter trips delete --trip <trip-id> --yes
 ```
 
-Supported currencies for new trips are `TWD`, `JPY`, `USD`, and `EUR`.
+Supported currencies for new trips are `TWD`, `JPY`, `USD`, `EUR`, `SGD`, `GBP`, `AUD`, `CAD`, and `KRW`.
 Changing a trip's base currency and exchange rates is not exposed because it can invalidate existing rate configuration; use the browser settings flow.
 Only run `trips delete` after explicit approval because it deletes the whole group and its records.
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import assert from "node:assert/strict";
+import { calculateBalances } from "@narumitw/otter-core/settlement";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -508,6 +509,122 @@ test("reinitializes rate drafts after the base currency changes", () => {
   view.unmount();
   client.clear();
 });
+
+test.each([
+  {
+    baseCurrency: "USD" as const,
+    paymentCurrency: "KRW" as const,
+    paymentMinor: 100000,
+    amountMinor: 7500,
+    display: "$75.00",
+  },
+  {
+    baseCurrency: "KRW" as const,
+    paymentCurrency: "USD" as const,
+    paymentMinor: 10000,
+    amountMinor: 133333,
+    display: "₩133,333",
+  },
+])(
+  "keeps missing-quote payment previews consistent with saved $baseCurrency balances",
+  async ({
+    baseCurrency,
+    paymentCurrency,
+    paymentMinor,
+    amountMinor,
+    display,
+  }) => {
+    const current: TripPayload = {
+      ...payload,
+      exchangeRateInfo: bankRateInfo,
+      trip: {
+        ...payload.trip,
+        exchangeRates: bankRates,
+        participants: [
+          { id: "alice", name: "Alice" },
+          { id: "bob", name: "Bob" },
+        ],
+        settlementPayments: [
+          {
+            id: "payment",
+            fromId: "bob",
+            toId: "alice",
+            amountMinor: paymentMinor,
+            currency: paymentCurrency,
+            paidAt: "2026-09-20",
+            note: "",
+            createdAt: "2026-09-20T00:00:00.000Z",
+          },
+        ],
+      },
+    };
+    const savedTrip = {
+      ...current.trip,
+      baseCurrency,
+      exchangeRates:
+        baseCurrency === "USD"
+          ? {
+              TWD: 1 / bankRates.USD,
+              USD: 1,
+              EUR: bankRates.EUR / bankRates.USD,
+              JPY: bankRates.JPY / bankRates.USD,
+            }
+          : undefined,
+    };
+    const balances = calculateBalances(savedTrip);
+    expect(balances.map((balance) => balance.amountMinor)).toEqual([
+      -amountMinor,
+      amountMinor,
+    ]);
+    const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
+      expect(JSON.parse(String(init.body))).toEqual({ baseCurrency });
+      return Response.json({
+        ...current,
+        trip: savedTrip,
+        balances,
+        settlements: [],
+      });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const client = new QueryClient();
+    const onPayload = vi.fn();
+    const view = render(
+      <I18nProvider initialLocale="en">
+        <QueryClientProvider client={client}>
+          <WorkspaceProvider
+            announce={() => undefined}
+            offline={false}
+            payload={current}
+            onPayload={onPayload}
+            refreshCollection={async () => undefined}
+          >
+            <TripPreferences payload={current} expanded />
+          </WorkspaceProvider>
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    try {
+      const user = userEvent.setup();
+      await user.selectOptions(
+        view.getByLabelText("Base currency"),
+        baseCurrency,
+      );
+      expect(view.getAllByText(display)).toHaveLength(2);
+      await user.click(view.getByRole("button", { name: "Apply changes" }));
+      await user.click(
+        view.getByRole("button", { name: "Apply group preferences" }),
+      );
+      await waitFor(() =>
+        expect(onPayload).toHaveBeenCalledWith(
+          expect.objectContaining({ balances }),
+        ),
+      );
+    } finally {
+      view.unmount();
+      client.clear();
+    }
+  },
+);
 
 test("previews a new base currency with automatic bank rates", async () => {
   const automaticPayload: TripPayload = {

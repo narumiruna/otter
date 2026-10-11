@@ -67,6 +67,87 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+test.each(["SGD", "GBP", "AUD", "CAD", "KRW"] as const)(
+  "creates a group directly in %s",
+  async (baseCurrency) => {
+    window.history.replaceState({}, "", "/");
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    const created: TripPayload = {
+      ...selected,
+      trip: {
+        ...selected.trip,
+        baseCurrency,
+        id: "new_trip",
+        name: "New trip",
+      },
+    };
+    let didCreate = false;
+    const fetcher = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path === "/api/trips" && init?.method === "POST") {
+        didCreate = true;
+        expect(JSON.parse(String(init.body))).toEqual({
+          baseCurrency,
+          name: "New trip",
+        });
+        return Response.json(created, { status: 201 });
+      }
+      if (path === "/api/trips")
+        return Response.json({
+          archivedTrips: [],
+          trips: didCreate
+            ? [
+                {
+                  baseCurrency,
+                  id: "new_trip",
+                  name: "New trip",
+                  expenseCount: 0,
+                  participantCount: 1,
+                },
+              ]
+            : [],
+        });
+      if (path === "/api/trips/new_trip") return Response.json(created);
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const view = render(
+      <I18nProvider initialLocale="en">
+        <QueryClientProvider client={client}>
+          <AuthenticatedWorkspace
+            announce={() => undefined}
+            bootstrap={{ ...bootstrap, selected: null, trips: [] }}
+            offline={false}
+            webMcpEnabled={false}
+          />
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    try {
+      const user = userEvent.setup();
+      await user.click(
+        view.getAllByRole("button", { name: "Create group" })[0],
+      );
+      const dialog = within(view.getByRole("dialog"));
+      await user.type(dialog.getByLabelText("Group name"), "New trip");
+      await user.selectOptions(
+        dialog.getByLabelText("Base currency"),
+        baseCurrency,
+      );
+      await user.click(dialog.getByRole("button", { name: "Create group" }));
+      expect(
+        await view.findByRole("heading", { name: "New trip" }),
+      ).toBeVisible();
+      expect(client.getQueryData(["trip", "new_trip"])).toEqual(created);
+    } finally {
+      view.unmount();
+      client.clear();
+    }
+  },
+);
+
 test("copying a group adds it to the switcher and navigates without reloading the collection", async () => {
   window.history.replaceState({}, "", "/?trip=trip_1&view=more");
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);

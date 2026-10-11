@@ -30,35 +30,33 @@ import {
   SectionHeading,
 } from "./workspace-ui.js";
 
-function automaticExchangeRates(
-  payload: TripPayload,
-): Record<Currency, number> {
+function automaticExchangeRates(payload: TripPayload): ExchangeRates {
   if (payload.exchangeRateInfo?.source === "custom") {
-    return {
-      ...fixedExchangeRates(payload.trip.baseCurrency),
-      ...payload.exchangeRateInfo.defaults.rates,
-    };
+    return payload.exchangeRateInfo.defaults.rates;
   }
   if (
     payload.exchangeRateInfo?.source === "bank" &&
     payload.trip.exchangeRates
   ) {
-    return {
-      ...fixedExchangeRates(payload.trip.baseCurrency),
-      ...payload.trip.exchangeRates,
-    };
+    return payload.trip.exchangeRates;
   }
   return fixedExchangeRates(payload.trip.baseCurrency);
 }
 
 function rebaseExchangeRates(
-  rates: Record<Currency, number>,
+  rates: ExchangeRates,
   baseCurrency: Currency,
-): Record<Currency, number> {
+): ExchangeRates {
   const baseRate = rates[baseCurrency];
+  if (!baseRate) return fixedExchangeRates(baseCurrency);
+  // Preserve missing quotes so domain conversion uses fixed rates for both
+  // currencies instead of mixing a fixed estimate with a bank quote.
   return Object.fromEntries(
-    currencies.map((currency) => [currency, rates[currency] / baseRate]),
-  ) as Record<Currency, number>;
+    Object.entries(rates).map(([currency, rate]) => [
+      currency,
+      Number((rate / baseRate).toPrecision(12)),
+    ]),
+  );
 }
 
 function customRateValues(payload: TripPayload): Record<Currency, string> {
