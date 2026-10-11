@@ -469,7 +469,7 @@ Choose 1:
 2. refined grotesk
 3. expressive display
 4. compressed statement typography
-5. editorial serif + sans
+5. editorial Geist treatment with contrast from weight, scale, and spacing
 6. Swiss rational hierarchy
 
 ### Hero Architecture

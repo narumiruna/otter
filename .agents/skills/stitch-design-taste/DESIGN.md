@@ -133,7 +133,8 @@ This section specifies optional CSS feedback for implementation.
 - No centered Hero sections (at this variance level)
 - No filler UI text: "Scroll to explore", "Swipe down", "Discover more below", scroll arrows, bouncing chevrons — all BANNED
 - No generic names: "John Doe", "Sarah Chan", "Acme", "Nexus", "SmartFlow"
-- No fake round numbers: `99.99%`, `50%`, `1234567` — use organic data: `47.2%`, `+1 (312) 847-1928`
+- Preserve existing and real amounts, percentages, dates, names, and metadata, including round values such as `50%`.
+Invent values only for newly authored, explicitly labeled mock content; never replace records for visual variety.
 - No AI copywriting clichés: "Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize"
 - No broken Unsplash links — use `picsum.photos/seed/{id}/800/600` or SVG UI Avatars
 - Do not introduce shadcn/ui; customize existing Radix components with props and semantic tokens.

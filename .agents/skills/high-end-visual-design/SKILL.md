@@ -54,11 +54,14 @@ Do not install Phosphor, Remix, Lucide, FontAwesome, or Material Icons.
 Before writing code, silently "roll the dice" and select ONE combination from the following archetypes based on the prompt's context to ensure the output is uniquely tailored but always premium:
 
 ### A. Vibe & Texture Archetypes (Pick 1)
-1. **Ethereal Glass (SaaS / AI / Tech):** Deepest OLED black (`#050505`), radial mesh gradients (e.g., subtle glowing purple/emerald orbs) in the background. Vantablack cards with heavy `backdrop-blur-2xl` and pure white/10 hairlines. Wide geometric Grotesk typography.
-2. **Editorial Luxury (Lifestyle / Real Estate / Agency):** Warm creams (`#FDFBF7`), muted sage, or deep espresso tones as palette references.
+1. **Ethereal Glass (SaaS / AI / Tech):** Use existing `--background`/`--foreground` and `--card`/`--card-foreground` pairs in the selected appearance.
+Use `--border` for fine lines and restrained decorative texture for depth; do not force black surfaces or a new accent.
+Use installed Geist Variable for geometric typography.
+2. **Editorial Luxury (Lifestyle / Real Estate / Agency):** Use the selected semantic surface and text tokens with editorial spacing and paper-like texture; preserve palette and appearance preferences.
 Use the installed Geist Variable for headings, with contrast from weight, scale, and spacing rather than a new serif font.
 Use subtle CSS noise/film-grain overlay (`opacity-[0.03]`) for a physical paper feel.
-3. **Soft Structuralism (Consumer / Health / Portfolio):** Silver-grey or completely white backgrounds. Massive bold Grotesk typography. Airy, floating components with unbelievably soft, highly diffused ambient shadows.
+3. **Soft Structuralism (Consumer / Health / Portfolio):** Use existing `--background`, `--card`, and matching foreground tokens with airy spacing and bold Geist typography.
+Use the existing `--surface-shadow` rather than fixed white surfaces or custom dark shadows.
 
 ### B. Layout Archetypes (Pick 1)
 1. **The Asymmetrical Bento:** A masonry-like CSS Grid of varying card sizes (e.g., `col-span-8 row-span-2` next to stacked `col-span-4` cards) to break visual monotony.
@@ -74,8 +77,11 @@ Use subtle CSS noise/film-grain overlay (`opacity-[0.03]`) for a physical paper 
 
 ### A. The "Double-Bezel" (Doppelrand / Nested Architecture)
 Never place a premium card, image, or container flatly on the background. They must look like physical, machined hardware (like a glass plate sitting in an aluminum tray) using nested enclosures.
-- **Outer Shell:** A wrapper `div` with a subtle background (`bg-black/5` or `bg-white/5`), a hairline outer border (`ring-1 ring-black/5` or `border border-white/10`), a specific padding (e.g., `p-1.5` or `p-2`), and a large outer radius (`rounded-[2rem]`).
-- **Inner Core:** The actual content container inside the shell. It has its own distinct background color, its own inner highlight (`shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]`), and a mathematically calculated smaller radius (e.g., `rounded-[calc(2rem-0.375rem)]`) for concentric curves.
+- **Outer Shell:** Use existing `--muted`, `--border`, and `--foreground` tokens for the shell's background, border, and text.
+Keep padding such as `p-1.5` or `p-2` and a radius that fits the existing panel scale.
+- **Inner Core:** Use `--card`, `--card-foreground`, and the existing `--surface-shadow`.
+If an inset line improves grouping, derive it from `--border`, not a fixed white highlight.
+Use a smaller inner radius for concentric curves.
 
 ### B. Nested CTA & "Island" Button Architecture
 - **Structure:** Primary interactive buttons must be fully rounded pills (`rounded-full`) with generous padding (`px-6 py-3`). 
@@ -93,12 +99,14 @@ Do not require spring physics or animate every element.
 Honor `prefers-reduced-motion` and keep product data and controls accessible without animation.
 
 ### A. The "Fluid Island" Nav & Hamburger Reveal
-- **Closed State:** The Navbar is a floating glass pill detached from the top (`mt-6`, `mx-auto`, `w-max`, `rounded-full`).
+- **Closed State:** The Navbar is a floating pill detached from the top (`mt-6`, `mx-auto`, `w-max`, `rounded-full`).
+Use existing `--card`, `--card-foreground`, and `--border` tokens.
 - **Menu Toggle Icons:** Use `HamburgerMenuIcon` when closed and `Cross1Icon` when open, both from `@radix-ui/react-icons`.
 Keep one labeled toggle button with `aria-expanded`; mark the icons `aria-hidden`.
 Swap the complete icons when the menu state changes rather than drawing or transforming individual SVG paths.
 An optional short CSS opacity transition must become an immediate swap under `prefers-reduced-motion`.
-- **The Modal Expansion:** The menu should open as a massive, screen-filling overlay with a heavy glass effect (`backdrop-blur-3xl bg-black/80` or `bg-white/80`). 
+- **The Modal Expansion:** Use Radix Themes Dialog for the expanded menu with existing surface, foreground, border, and overlay styling.
+Preserve focus management and selected appearance; do not replace the overlay with fixed black/white colors.
 - **Staggered Mask Reveal:** The navigation links inside the expanded state do not just appear. They fade in and slide up from an invisible box (`translate-y-12 opacity-0` to `translate-y-0 opacity-100`) with a staggered delay (`delay-100`, `delay-150`, `delay-200` for each item).
 
 ### B. Magnetic Button Hover Physics

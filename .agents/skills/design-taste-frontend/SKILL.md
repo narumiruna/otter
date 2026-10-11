@@ -436,7 +436,7 @@ Prefer CSS with static fallbacks and IntersectionObserver; do not apply scroll-c
 
 ## 8. DARK MODE PROTOCOL
 
-Dual-mode by default. Never assume light-only unless the brief is print-emulating editorial.
+Preserve the selected light, dark, or system appearance and verify both supported appearances.
 
 ### 8.A Token Strategy
 
@@ -449,10 +449,12 @@ The brief and brand decide. This skill enforces only:
 * **Contrast** - WCAG AA minimum for body text, AAA target for hero copy.
 * **Hierarchy parity** - visual hierarchy that works in light must work in dark. If a CTA pops in light, it pops in dark.
 * **Brand fidelity** - primary brand color stays recognisable. Don't desaturate the brand into a dark mode.
-* **No pure `#000000` and no pure `#ffffff`** - use off-black (zinc-950, near-black warm gray) and off-white. Pure values kill depth.
+* **Semantic surfaces and text** - use existing `--background`/`--foreground` and `--card`/`--card-foreground` pairs.
+Preserve the selected Radix gray scale; do not substitute fixed black, white, Zinc, or off-white values.
 
 ### 8.C Default Mode
-Respect `prefers-color-scheme` unless the brand insists. Add a manual toggle if either mode would lose key brand expression.
+Reuse `RadixTheme` and the existing appearance preference controls.
+System appearance follows `prefers-color-scheme`; do not add a separate controller or override the user's selection.
 
 ### 8.D Test in Both Modes Before Finishing
 Open the page in both modes during development. Do not ship a page you've only seen in one mode.

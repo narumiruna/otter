@@ -142,7 +142,8 @@ Encode these as explicit "NEVER DO" rules in the DESIGN.md:
 - No overlapping elements — clean spatial separation always
 - No 3-column equal card layouts
 - No generic names ("John Doe", "Acme", "Nexus")
-- No fake round numbers (`99.99%`, `50%`)
+- Preserve existing and real amounts, percentages, dates, names, and metadata, including round values.
+Invent values only for newly authored, explicitly labeled mock content; never replace records for visual variety.
 - No AI copywriting clichés ("Elevate", "Seamless", "Unleash", "Next-Gen")
 - No filler UI text: "Scroll to explore", "Swipe down", scroll arrows, bouncing chevrons
 - No broken Unsplash links — use `picsum.photos` or SVG avatars
