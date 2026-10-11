@@ -409,7 +409,7 @@ If the user asks for onboarding:
 - vary composition across screens
 - vary the balance of image, text, and CTA
 - keep the flow coherent
-- keep copy short
+- preserve existing localized copy; keep only newly authored labeled mock copy short
 - keep the first screen especially clean
 
 Good onboarding should feel:
@@ -1038,7 +1038,12 @@ The goal is strong media inside a believable mobile system.
 
 ## 28. TEXT RULE
 
-Copy should be:
+Render existing field labels, messages, and localized strings verbatim in the selected locale.
+Do not shorten or rewrite them to fit a concept; adjust layout, wrapping, and spacing instead.
+Keep original source keys and user content unchanged.
+Every shortening recommendation in this skill applies only to newly authored, explicitly labeled mock copy.
+
+New mock copy should be:
 - short
 - clean
 - product-appropriate
@@ -1058,9 +1063,10 @@ Avoid:
 - overloaded onboarding explanations
 - overly technical filler labels
 
-For first screens and onboarding especially:
-- keep copy tight
-- reduce words rather than forcing more lines
+For newly authored mock first screens and onboarding:
+- keep mock copy concise
+- shorten only new mock copy, never existing labels or translations
+For existing screens, preserve all strings and show their actual wrapping.
 
 ---
 
@@ -1276,7 +1282,7 @@ Before finalizing, verify internally:
 1. Does this show a usable responsive otter browser screen rather than a scaled-down desktop page?
 2. Are safe areas respected visually?
 3. Is the first screen clean enough?
-4. Is the copy short enough?
+4. Are existing localized strings verbatim and fully readable, with shortening limited to newly authored labeled mock copy?
 5. Is the type readable?
 6. Are there enough screens for the requested flow?
 7. Were too few screens generated out of laziness?

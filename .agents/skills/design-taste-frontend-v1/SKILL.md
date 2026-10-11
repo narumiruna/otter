@@ -152,7 +152,8 @@ To guarantee a premium, non-generic output, you MUST strictly avoid these common
 ### Content & Data (The "Jane Doe" Effect)
 * **NO Generic Names:** "John Doe", "Sarah Chan", or "Jack Su" are banned. Use highly creative, realistic-sounding names.
 * **NO Generic Avatars:** DO NOT use standard SVG "egg" or Lucide user icons for avatars. Use creative, believable photo placeholders or specific styling.
-* **NO Fake Numbers:** Avoid predictable outputs like `99.99%`, `50%`, or basic phone numbers (`1234567`). Use organic, messy data (`47.2%`, `+1 (312) 847-1928`).
+* **Real Values:** Preserve existing and real amounts, percentages, dates, and record values, including round numbers such as `50%`.
+Invent values only for newly authored, explicitly labeled mock content; never replace records for visual variety.
 * **NO Startup Slop Names:** "Acme", "Nexus", "SmartFlow". Invent premium, contextual brand names.
 * **NO Filler Words:** Avoid AI copywriting clichés like "Elevate", "Seamless", "Unleash", or "Next-Gen". Use concrete verbs.
 

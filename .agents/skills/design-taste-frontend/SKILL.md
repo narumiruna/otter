@@ -291,7 +291,7 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
 * **Default content shape per section:** short headline (≤ 8 words) + short sub-paragraph (≤ 25 words) + one visual asset OR one CTA. Anything more must be justified by the section's job.
 * **No data-dump sections.** A 20-row publication table, a 30-row award list, a giant pricing matrix on a marketing page = wrong layout. Use:
   - Top 3-5 highlights + "View full list" link
-  - Marquee / carousel for breadth
+  - Static wrapping row or user-controlled carousel for breadth
   - Different page entirely if the data is the product
 * **Long lists need a different UI component, not a longer list.** Default `<ul>` with bullets / `divide-y` rows is the lazy choice. If you have > 5 items, reach for one of these instead:
   - 2-column split with grouped items
@@ -299,7 +299,7 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
   - Tabs / accordion if items are categorisable
   - Horizontal scroll-snap pills
   - Carousel for breadth-heavy lists (testimonials, logos, capabilities)
-  - Marquee for "lots-of-things-that-don't-need-individual-attention"
+  - Static wrapping band for broad overviews
   A spec sheet with 10 rows + a hairline under every row is the WORST default. Either group rows into 2-3 chunks with sparse dividers, or move to a card-per-spec layout.
 * **Spec sheets specifically (the Marrow-cookware pattern).** A long product specification table with `border-b` on every row is the AI default for cookware / hardware / apparel / artisan-goods briefs. Banned. Concrete alternatives:
   - **2-col card grid:** each spec gets its own card with the spec name, the value (large display number), and a one-line "why it matters" body. Cards arranged 2-col on desktop, 1-col mobile.
@@ -484,7 +484,8 @@ Avoid these signatures unless the brief explicitly asks for them.
 ### 9.D Content & Data ("Jane Doe" Effect)
 * **NO generic names.** "John Doe", "Sarah Chan", "Jack Su" → use creative, realistic, locale-appropriate names.
 * **NO generic avatars.** No SVG "egg" or Lucide user icons → use believable photo placeholders or specific styling.
-* **NO fake-perfect numbers.** Avoid `99.99%`, `50%`, `1234567`. Use organic, messy data (`47.2%`, `+1 (312) 847-1928`).
+* **Real Values:** Preserve existing and real amounts, percentages, dates, and record values, including round numbers such as `50%`.
+Invent values only for newly authored, explicitly labeled mock content; never replace records for visual variety.
 * **NO startup-slop brand names.** "Acme", "Nexus", "SmartFlow", "Cloudly" → invent contextual, premium names that sound real.
 * **NO filler verbs.** "Elevate", "Seamless", "Unleash", "Next-Gen", "Revolutionize" → concrete verbs only.
 
@@ -590,7 +591,7 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 ### Layout & Grids
 * **Bento Grid** - Asymmetric tile grouping (Apple Control Center).
 * **Masonry Layout** - Staggered grid, no fixed row height.
-* **Chroma Grid** - Borders / tiles with subtle animating gradients.
+* **Chroma Grid** - Static semantic-color borders or tiles with optional short hover/focus feedback.
 * **Split-Screen Scroll** - Two halves sliding in opposite directions.
 * **Sticky-Stack Sections** - Sections that pin and stack on scroll.
 
@@ -614,16 +615,20 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 * **Dome Gallery** - 3D panoramic gallery.
 * **Coverflow Carousel** - 3D carousel with angled edges.
 * **Drag-to-Pan Grid** - Boundless draggable canvas.
-* **Accordion Image Slider** - Narrow strips expanding on hover.
+* **Accordion Image Slider** - Use the installed `radix-ui` Accordion with labeled trigger buttons, visible focus, and Radix-managed expanded state.
+Open panels on click, tap, Enter, or Space; preserve keyboard navigation.
+Hover is optional feedback, not the only way to reveal content.
+Stack panels on small screens and use immediate state changes for reduced motion.
 * **Hover Image Trail** - Mouse leaves popping image trail.
 * **Glitch Effect Image** - RGB-channel shift on hover.
 
 ### Typography & Text
-* **Kinetic Marquee** - Endless text bands reversing on scroll.
+* **Static Text Band** - A readable row that wraps on small screens; do not auto-scroll, loop, or reverse it on scroll.
 * **Text Mask Reveal** - Massive type as transparent window to video.
 * **Text Scramble Effect** - Matrix-style decoding on load / hover.
-* **Circular Text Path** - Text curving along spinning circle.
-* **Gradient Stroke Animation** - Outlined text with running gradient.
+* **Circular Text Path** - Static decorative text on a circular path with an accessible text equivalent.
+* **Stroke Feedback** - Optional short hover/focus feedback rather than a continuously running gradient.
+Use static states for reduced motion.
 * **Kinetic Typography Grid** - Letters dodging the cursor.
 
 ### Micro-Interactions & Effects
@@ -803,7 +808,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **"Used by / Trusted by" logo wall** lives UNDER the hero, not inside it, uses REAL SVG logos (Simple Icons / devicon) or generated SVG marks, NOT plain text wordmarks?
 - [ ] **Copy Self-Audit**: every visible string re-read, no grammatically-broken or AI-hallucinated phrases ("free on its past" type) shipped?
 - [ ] **Motion motivated**: every animation can be justified in one sentence (hierarchy / storytelling / feedback / state transition), no GSAP-for-show?
-- [ ] **Marquee max-one-per-page**: no two horizontal marquees on the same page?
+- [ ] **Text bands** remain static or user-controlled, wrap on small screens, and do not require perpetual motion?
 - [ ] **Navigation on ONE line** at desktop, height ≤ 80px?
 - [ ] **Section-Layout-Repetition** check: no two sections share the same layout family (at least 4 different families across 8 sections)?
 - [ ] **Bento has rhythm AND exact cell count** (N items → N cells, no empty cells in middle or at end)?

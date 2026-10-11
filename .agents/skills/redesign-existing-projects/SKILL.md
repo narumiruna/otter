@@ -146,7 +146,8 @@ For newly authored mock content, use explicitly labeled example dates rather tha
 
 - **Inconsistent product icons.** Reuse `@radix-ui/react-icons` with consistent size and alignment rather than adding an icon family for differentiation.
 - **Rocketship for "Launch", shield for "Security".** Replace cliche metaphors with less obvious icons (bolt, fingerprint, spark, vault).
-- **Inconsistent stroke widths across icons.** Audit all icons and standardize to one stroke weight.
+- **Inconsistent icon size or alignment.** Keep installed Radix Icons at consistent dimensions and optical alignment.
+Do not pass stroke-width/weight props or alter fixed SVG artwork to normalize weight.
 - **Missing favicon.** Always include a branded favicon.
 - **Stock "diverse team" photos.** Use real team photos, candid shots, or a consistent illustration style instead of uncanny stock imagery.
 
