@@ -1,15 +1,15 @@
-import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import { parseExpenseImportCsv } from "@narumitw/otter-core/csv";
 import {
   isExpenseCategory,
   normalizeExpenseTags,
 } from "@narumitw/otter-core/expense-metadata";
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
+import type { Context } from "hono";
 import type { Pool as PgPool } from "pg";
 import { recordExpenseChanges } from "./server-expense-history.js";
 import { expenseExchangeRate } from "./server-expense-rates.js";
 import { insertExpense } from "./server-expense-store.js";
-import type { OtterApp, OtterMiddleware } from "./server-http.js";
+import type { OtterApp, OtterEnv, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
   archivedTripResponse,
@@ -23,19 +23,23 @@ import {
   stringField,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
+import {
+  type ExpenseRateCandidate,
+  visaExpenseSnapshot,
+} from "./server-visa-settlement.js";
 
 export function registerCsvImportRoutes(
   app: OtterApp,
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
-  prefetch: () => Promise<ExchangeRateSnapshot>,
+  prefetch: (context: Context<OtterEnv>) => Promise<ExpenseRateCandidate>,
 ) {
   app.post(
     "/api/trips/:tripId/expenses/import",
     mustBeSignedIn,
     parseRequestBody,
-    expenseMutation(
+    expenseMutation<"/api/trips/:tripId/expenses/import", ExpenseRateCandidate>(
       pool,
       async (context, pool, before, candidate) => {
         const user = currentUser(context);
@@ -132,10 +136,15 @@ export function registerCsvImportRoutes(
             paidById: expense.paidById,
             id: makeId("expense"),
             createdAt: nowIso(),
+            visaExchangeRate: visaExpenseSnapshot(
+              trip,
+              expense,
+              candidate?.visa,
+            ),
             exchangeRate: expenseExchangeRate(
               trip,
               expense.currency,
-              candidate,
+              candidate?.bank ?? null,
               expense.amountMinor,
             ),
           });

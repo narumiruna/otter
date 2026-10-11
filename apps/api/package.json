@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
+    "prebuild": "npm run build --workspace @narumitw/otter-visa-exchange-rates && npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json && cp -R db dist/db",
-    "dev": "tsx watch --include ../../packages/exchange-rates/dist --include ../../packages/core/dist --include ../../packages/contracts/dist src/server.ts",
+    "dev": "tsx watch --include ../../packages/visa-exchange-rates/dist --include ../../packages/exchange-rates/dist --include ../../packages/core/dist --include ../../packages/contracts/dist src/server.ts",
     "start": "NODE_ENV=production node dist/server.js",
     "migrate": "tsx scripts/migrate.ts",
-    "pretypecheck": "npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
+    "pretypecheck": "npm run build --workspace @narumitw/otter-visa-exchange-rates && npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
-    "pretest": "npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
+    "pretest": "npm run build --workspace @narumitw/otter-visa-exchange-rates && npm run build --workspace @narumitw/otter-exchange-rates && npm run build --workspace @narumitw/otter-contracts",
     "test": "vitest run",
     "check": "npm run typecheck && npm test && npm run build"
   },
@@ -20,6 +20,7 @@
     "@narumitw/otter-contracts": "0.1.2",
     "@narumitw/otter-core": "0.1.1",
     "@narumitw/otter-exchange-rates": "0.1.0",
+    "@narumitw/otter-visa-exchange-rates": "0.1.0",
     "@simplewebauthn/server": "^14.0.3",
     "hono": "^4.13.13",
     "pg": "^8.23.1"

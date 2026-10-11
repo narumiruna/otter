@@ -14,6 +14,7 @@ import {
   isValidUsername,
   usernameValidationMessage,
 } from "@narumitw/otter-core/username";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import type { Pool as PgPool } from "pg";
 import { registerBackupRoutes } from "./server-backup.js";
@@ -87,6 +88,12 @@ import {
   isUsernameReserved,
   lockUsernameClaim,
 } from "./server-username-reservations.js";
+import {
+  createVisaSettlementService,
+  type ExpenseRateCandidate,
+  registerVisaSettlementRoute,
+  type VisaSettlementOptions,
+} from "./server-visa-settlement.js";
 
 type TripSummaryRow = {
   id: string;
@@ -138,6 +145,7 @@ const __dirname = path.dirname(__filename);
 export type CreateAppOptions = {
   devLoginCredentials?: DevelopmentAdminCredentials | null;
   exchangeRates?: ExchangeRateRouteOptions;
+  visaSettlement?: VisaSettlementOptions;
   passkeys?: PasskeyRouteOptions;
   passwordVerifier?: typeof verifyPassword;
 };
@@ -151,6 +159,23 @@ export function createApp(
   const mustHaveBrowserSession = requireSessionUser(pool);
   const exchangeRateService = createExchangeRateService(options.exchangeRates);
   const { buildTripPayload } = exchangeRateService;
+  const visaService = createVisaSettlementService(options.visaSettlement);
+  const prefetchExpenseRates = async (
+    context: Context<OtterEnv>,
+  ): Promise<ExpenseRateCandidate> => {
+    const [bank, visa] = await Promise.all([
+      exchangeRateService.getSnapshot("TWD").catch(() => null),
+      visaService.prepareRequest(pool, context),
+    ]);
+    return { bank, visa };
+  };
+  registerVisaSettlementRoute(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    visaService,
+  );
   const passwordVerifier = options.passwordVerifier ?? verifyPassword;
   const passwordRateLimitOptions = {
     trustProxy: process.env.PASSWORD_AUTH_TRUST_PROXY === "true",
@@ -872,11 +897,19 @@ export function createApp(
     mustHaveBrowserSession,
     buildTripPayload,
   );
-  registerCsvImportRoutes(app, pool, mustBeSignedIn, buildTripPayload, () =>
-    exchangeRateService.getSnapshot("TWD"),
+  registerCsvImportRoutes(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    prefetchExpenseRates,
   );
-  registerExpenseRoutes(app, pool, mustBeSignedIn, buildTripPayload, () =>
-    exchangeRateService.getSnapshot("TWD"),
+  registerExpenseRoutes(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    prefetchExpenseRates,
   );
   registerExpenseHistoryRoutes(app, pool, mustBeSignedIn);
   registerExpenseRestoreRoute(
@@ -884,7 +917,7 @@ export function createApp(
     pool,
     mustBeSignedIn,
     buildTripPayload,
-    exchangeRateService.getRates,
+    prefetchExpenseRates,
   );
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);

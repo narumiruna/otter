@@ -1,6 +1,13 @@
 import type { Messages } from "./messages.js";
 
 export const sourceMessageKeys = {
+  "Visa 結清設定格式錯誤": "visaSettingInvalid",
+  既有付款紀錄必須使用所選結清貨幣: "visaIncompatiblePayments",
+  "請選擇 Visa 結清貨幣": "visaSettlementCurrency",
+  "目前無法取得 Visa 匯率，設定未變更，請稍後再試": "visaSettingUnavailable",
+  "Visa 結清付款必須使用所選貨幣": "visaPaymentCurrency",
+  "無法取得 {date} {currency}/{target} Visa 匯率，請稍後再試":
+    "visaRateUnavailable",
   原版本的付款人或分帳參與者已不在群組中: "expenseRestoreMissingPerson",
   找不到支出版本: "expenseRestoreUnavailable",
   請選擇有效的支出版本: "expenseRestoreUnavailable",

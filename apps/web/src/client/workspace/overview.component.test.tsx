@@ -69,6 +69,37 @@ function payloadFor(value: Trip): TripPayload {
   };
 }
 
+test("Visa mode keeps the spending total in JPY but labels outstanding settlements as TWD", () => {
+  const enabled: Trip = {
+    ...trip,
+    baseCurrency: "JPY",
+    expenses: [
+      {
+        ...trip.expenses[0],
+        visaExchangeRate: {
+          sourceCurrency: "JPY",
+          targetCurrency: "TWD" as const,
+          date: trip.expenses[0].expenseDate,
+          rate: 0.2,
+          fetchedAt: trip.createdAt,
+        },
+      },
+    ],
+    settlementPayments: [],
+    visaSettlementEnabled: true,
+    visaSettlementCurrency: "TWD" as const,
+  };
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <OverviewSummary payload={payloadFor(enabled)} />
+    </I18nProvider>,
+  );
+  expect(view.getByText("JPY · Converted to base currency")).toBeVisible();
+  const outstanding = view.getByText("Outstanding").closest(".summary-card");
+  expect(outstanding).toHaveTextContent("NT$100");
+  expect(outstanding).not.toHaveTextContent("¥");
+});
+
 test("summary converts expenses to base currency and accounts for recorded payments", () => {
   render(<OverviewSummary payload={payloadFor(trip)} />);
   const summary = screen.getByRole("region", { name: "群組帳目摘要" });

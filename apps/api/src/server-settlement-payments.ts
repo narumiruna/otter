@@ -1,4 +1,5 @@
 import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
+import { settlementCurrency } from "@narumitw/otter-core/settlement";
 import type { Pool as PgPool } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -45,7 +46,7 @@ export function registerSettlementPaymentRoutes(
       const body = requestBody(context);
       const fromId = stringField(body, "fromId");
       const toId = stringField(body, "toId");
-      const currencyValue = body.currency ?? trip.baseCurrency;
+      const currencyValue = body.currency ?? settlementCurrency(trip);
       const paidAt = stringField(body, "paidAt") ?? todayDate();
       const note = stringField(body, "note") ?? "";
       if (!fromId || !participantExists(trip, fromId)) {
@@ -59,6 +60,12 @@ export function registerSettlementPaymentRoutes(
       }
       if (!isCurrency(currencyValue)) {
         return sendError(context, 400, "不支援的貨幣");
+      }
+      if (
+        trip.visaSettlementEnabled &&
+        currencyValue !== settlementCurrency(trip)
+      ) {
+        return sendError(context, 400, "Visa 結清付款必須使用所選貨幣");
       }
       if (!isDateOnly(paidAt)) {
         return sendError(context, 400, "請輸入有效付款日期");

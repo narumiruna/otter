@@ -1,3 +1,4 @@
+import { settlementCurrency } from "@narumitw/otter-core/settlement";
 import { spendingSummary, type TripPayload } from "../client-support.js";
 import { useI18n } from "../i18n.js";
 
@@ -30,7 +31,7 @@ export function OverviewSummary({ payload }: { payload: TripPayload }) {
           <span>{messages.outstanding}</span>
         </div>
         <strong className="summary-card-value">
-          {formatMoney(outstandingMinor, trip.baseCurrency)}
+          {formatMoney(outstandingMinor, settlementCurrency(trip))}
         </strong>
         <span className="summary-card-hint">
           {settlements.length

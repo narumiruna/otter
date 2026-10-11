@@ -60,6 +60,15 @@ function detectedLocale(): Locale {
 function parameterizedMessage(
   message: string,
 ): { source: keyof typeof sourceMessageKeys; values: MessageValues } | null {
+  const visaRate =
+    /^無法取得 (\d{4}-\d{2}-\d{2}) ([A-Z]{3})\/([A-Z]{3}) Visa 匯率，請稍後再試$/.exec(
+      message,
+    );
+  if (visaRate)
+    return {
+      source: "無法取得 {date} {currency}/{target} Visa 匯率，請稍後再試",
+      values: { date: visaRate[1], currency: visaRate[2], target: visaRate[3] },
+    };
   const missingColumns = /^缺少欄位：(.+)$/.exec(message);
   if (missingColumns)
     return {

@@ -4,9 +4,11 @@ import {
   type MessageValues,
 } from "./message-types.js";
 import { jaSettings } from "./messages-ja-settings.js";
+import { jaVisa } from "./messages-visa.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ja = {
+  ...jaVisa,
   ...jaSettings,
   welcomeBackEyebrow: "おかえりなさい",
   startNewJourneyEyebrow: "新しい旅を始めましょう",

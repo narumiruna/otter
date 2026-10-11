@@ -4,12 +4,9 @@ import {
   isExpenseSnapshot,
 } from "@narumitw/otter-contracts";
 import { convertExpenseMinor } from "@narumitw/otter-core/money";
-import type { Rate } from "@narumitw/otter-exchange-rates";
+import type { Context } from "hono";
 import type { Pool } from "pg";
-import {
-  buildExchangeRateSnapshot,
-  effectiveTripRates,
-} from "./server-exchange-rates.js";
+import { effectiveTripRates } from "./server-exchange-rates.js";
 import {
   recordExpenseChanges,
   requireExpenseVersion,
@@ -20,6 +17,7 @@ import {
 } from "./server-expense-store.js";
 import {
   type OtterApp,
+  type OtterEnv,
   type OtterMiddleware,
   parseRequestBody,
 } from "./server-http.js";
@@ -34,6 +32,10 @@ import {
   stringField,
 } from "./server-support.js";
 import { expenseMutation } from "./server-trip-mutation.js";
+import {
+  type ExpenseRateCandidate,
+  visaExpenseSnapshot,
+} from "./server-visa-settlement.js";
 
 type RevisionRow = {
   action: ExpenseRevision["action"];
@@ -46,13 +48,16 @@ export function registerExpenseRestoreRoute(
   pool: Pool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
-  prefetch: () => Promise<readonly Rate[]>,
+  prefetch: (context: Context<OtterEnv>) => Promise<ExpenseRateCandidate>,
 ) {
   app.post(
     "/api/trips/:tripId/expenses/:expenseId/restore",
     mustBeSignedIn,
     parseRequestBody,
-    expenseMutation(
+    expenseMutation<
+      "/api/trips/:tripId/expenses/:expenseId/restore",
+      ExpenseRateCandidate
+    >(
       pool,
       async (context, client, before, candidate) => {
         const user = currentUser(context);
@@ -96,14 +101,16 @@ export function registerExpenseRestoreRoute(
           current?.version ?? last?.version,
         );
 
-        let quote = null;
-        try {
-          if (candidate)
-            quote = buildExchangeRateSnapshot(candidate, trip.baseCurrency);
-        } catch {
-          // A missing/invalid bank quote uses the same fixed fallback as reads.
-        }
-        const restored = snapshot.expense;
+        const quote = candidate?.bank ?? null;
+        const restored = {
+          ...snapshot.expense,
+          visaExchangeRate: visaExpenseSnapshot(
+            trip,
+            snapshot.expense,
+            candidate?.visa,
+          ),
+        };
+        const restoredSnapshot = { ...snapshot, expense: restored };
         if (!restored.exchangeRate)
           return sendError(context, 409, "支出版本缺少匯率快照，請先遷移資料");
         try {
@@ -131,7 +138,7 @@ export function registerExpenseRestoreRoute(
         if (
           previous &&
           changedExpenseFields(previous.snapshot, {
-            ...snapshot,
+            ...restoredSnapshot,
             receipt: previous.snapshot.receipt,
           }).length === 0
         ) {
@@ -141,7 +148,7 @@ export function registerExpenseRestoreRoute(
         if (current) {
           await client.query(
             `UPDATE expenses SET description = $3, amount_minor = $4, currency = $5,
-            category = $6, tags = $7, paid_by_id = $8, expense_date = $9, exchange_rate = $10
+            category = $6, tags = $7, paid_by_id = $8, expense_date = $9, exchange_rate = $10, visa_exchange_rate = $11
            WHERE trip_id = $1 AND id = $2`,
             [
               tripId,
@@ -154,6 +161,7 @@ export function registerExpenseRestoreRoute(
               restored.paidById,
               restored.expenseDate,
               restored.exchangeRate,
+              restored.visaExchangeRate ?? null,
             ],
           );
           await client.query(
