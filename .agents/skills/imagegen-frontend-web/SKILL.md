@@ -3,6 +3,39 @@ name: imagegen-frontend-web
 description: Elite frontend image-direction skill for generating premium, conversion-aware website design references. CRITICAL OUTPUT RULE — generate ONE separate horizontal image FOR EVERY section. A landing page with 8 sections produces 8 images. Never compress multiple sections into one image. Enforces composition variety (not always left-text / right-image), background-image freedom, varied CTAs, varied hero scales (giant / mid / mini minimalist), narrative concept spine, second-read moments, and a single consistent palette across all images. Optimized for landing pages, marketing sites, and product comps that developers or coding models can accurately recreate.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
+
 # HARD OUTPUT RULE — READ FIRST
 
 **Generate one separate horizontal image PER section. Always. No exceptions.**
@@ -168,16 +201,12 @@ To avoid repetitive AI-looking output, internally choose one option from each ca
 Do not mash everything together into chaos.
 Pick a strong combination and execute it clearly.
 
-### Theme Paradigm
-Choose 1:
-1. Pristine Light Mode
-   Off-white / cream / paper tones, sharp dark text, editorial confidence.
-2. Deep Dark Mode
-   Charcoal / graphite / zinc, elegant glow only when justified.
-3. Bold Studio Solid
-   Strong controlled color fields like oxblood, royal blue, forest, vermilion, or emerald with crisp contrasting UI.
-4. Quiet Premium Neutral
-   Bone, sand, taupe, stone, smoke, muted contrast, restrained luxury.
+### Selected Theme
+Derive all screen references from the current `RadixTheme` palette and light, dark, or system appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+Use existing background/foreground, card/card-foreground, border, action, and semantic status roles.
+Do not choose an independent light/dark paradigm, force a neutral family, or replace the selected palette.
+Vary composition, imagery, and texture within the selected theme instead.
 
 ### Background Character
 Choose 1:
@@ -187,15 +216,15 @@ Choose 1:
 4. Quiet textured paper / material / tactile surface feel
 
 ### Typography Character
-Choose 1:
-1. Satoshi-like clean grotesk
-2. Neue-Montreal-like refined grotesk
-3. Cabinet / Clash-like expressive display
-4. Monument-like compressed statement typography
-5. Elegant editorial serif + sans pairing
-6. Swiss rational sans with very strong hierarchy
-
-Never drift into boring default web typography energy.
+Use installed Geist Variable and existing language fallbacks in all references.
+Choose contrast through weight, scale, spacing, and line length:
+1. clean regular-weight body with medium headings
+2. restrained editorial headings with generous spacing
+3. bold display headings with readable body text
+4. compact hierarchy with controlled line length
+5. editorial weight and scale contrast in Geist
+6. Swiss-style alignment and tabular numerals for amounts
+Do not assume alternative families, a serif pairing, or an unsupported font-width axis.
 
 ### Hero Architecture
 Choose 1:
@@ -216,12 +245,15 @@ Choose 1 dominant structure:
 6. Asymmetric premium marketing flow
 
 ### Signature Component Set
-Choose exactly 4 unique components:
+Select only components already present in or required by the requested Otter workflow.
+There is no component quota; focused expense, auth, or settings screens can need one component or none.
+Preserve existing actions and data flow; do not add partner rows, testimonials, or product panels merely for visual variety.
+For explicitly requested marketing pages, the following patterns are optional vocabulary, not required features:
 - Diagonal Staggered Square Masonry
 - 3D Cascading Card Deck
-- Hover-Accordion Slice Layout
+- Accessible Accordion Slice Layout
 - Pristine Gapless Bento Grid
-- Infinite Brand Marquee Strip
+- Static Partner Row that wraps on small screens; do not imply auto-scrolling or looping
 - Turning Polaroid Arc
 - Vertical Rhythm Lines
 - Off-Grid Editorial Layout
@@ -635,9 +667,11 @@ Should feel curated and graphic, not messy.
 Cards layered as a physical stack with depth logic.
 Should feel premium and tactile, not gimmicky.
 
-### Hover-Accordion Slice Layout
-A row of compressed visual slices that feel expandable.
-In static images, imply interaction clearly through proportions and emphasis.
+### Accessible Accordion Slice Layout
+Depict the installed `radix-ui` Accordion with labeled trigger buttons, visible keyboard focus, and clear collapsed/expanded states.
+Show controls intended for click, tap, Enter, or Space, with Radix-managed expanded state.
+Hover is optional feedback, not the only way to reveal content.
+Stack panels on small screens and show static reduced-motion states.
 
 ### Pristine Gapless Bento Grid
 Mathematically clean grid.
@@ -750,7 +784,7 @@ or a confident flat color field — picked deliberately, not as decoration.
 - avoid rainbow randomness
 - avoid over-neon unless requested
 - keep contrast intentional
-- match accent colors to the chosen theme paradigm
+- resolve accents through the selected Radix palette and semantic action/status roles
 - gradients must always read as professional and intentional, never as visual noise
 
 ### Materiality
@@ -920,7 +954,7 @@ When the user asks for a frontend design:
 5. choose Hero Scale for the whole site (giant / mid / mini)
 5. choose a strong visual combination (theme, type, hero arch, section system, motion, narrative spine, second-read moment)
 7. for each section: pick a Composition Anchor, Background Mode, and CTA Variation — vary across sections
-8. choose 4 signature components used appropriately across sections
+8. select only existing or requested workflow components; use marketing patterns only where explicitly requested, without a quota
 9. enforce hero minimalism + section size variety (some giant, some mini)
 10. enforce strong image usage including full-bleed backgrounds where it fits
 11. lock one consistent palette across all images
@@ -945,7 +979,7 @@ Interpretation:
 - Composition Anchor: bottom-left text over full-bleed product/atmosphere image
 - Background Mode: full-bleed image with dark tonal overlay
 - CTA Variation: outlined inline + small label hint
-- Palette: Deep Dark or Bold Studio Solid, one consistent accent
+- Palette: Existing selected RadixTheme appearance and semantic action/status roles
 - no cliche dashboard spam, no purple AI glow
 
 ### Example 2

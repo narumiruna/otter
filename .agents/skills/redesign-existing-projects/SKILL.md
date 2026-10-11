@@ -1,7 +1,40 @@
 ---
 name: redesign-existing-projects
-description: Upgrades existing websites and apps to premium quality. Audits current design, identifies generic AI patterns, and applies high-end design standards without breaking functionality. Works with any CSS framework or vanilla CSS.
+description: Improve otter’s existing React and Vite interface with Radix components, semantic colors, and responsive layouts. Audit first and preserve product behavior, localization, and accessibility.
 ---
+
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
 
 # Redesign Skill
 
@@ -9,7 +42,7 @@ description: Upgrades existing websites and apps to premium quality. Audits curr
 
 When applied to an existing project, follow this sequence:
 
-1. **Scan** — Read the codebase. Identify the framework, styling method (Tailwind, vanilla CSS, styled-components, etc.), and current design patterns.
+1. **Scan** — Read the React/Vite browser app, Radix components, CSS, Tailwind v4 configuration, and existing theme and data patterns.
 2. **Diagnose** — Run through the audit below. List every generic pattern, weak point, and missing state you find.
 3. **Fix** — Apply targeted upgrades working with the existing stack. Do not rewrite from scratch. Improve what's there.
 
@@ -19,27 +52,32 @@ When applied to an existing project, follow this sequence:
 
 Check for these problems and fix them:
 
-- **Browser default fonts or Inter everywhere.** Replace with a font that has character. Good options: `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`. For editorial/creative projects, pair a serif header with a sans-serif body.
+- **Font mismatch or weak hierarchy.** Reuse installed Geist Variable and existing language fallbacks.
+Use weight, scale, and spacing for editorial contrast; do not add or assume another font.
 - **Headlines lack presence.** Increase size for display text, tighten letter-spacing, reduce line-height. Headlines should feel heavy and intentional.
 - **Body text too wide.** Limit paragraph width to roughly 65 characters. Increase line-height for readability.
 - **Only Regular (400) and Bold (700) weights used.** Introduce Medium (500) and SemiBold (600) for more subtle hierarchy.
-- **Numbers in proportional font.** Use a monospace font or enable tabular figures (`font-variant-numeric: tabular-nums`) for data-heavy interfaces.
+- **Numbers in proportional font.** Use Geist with `font-variant-numeric: tabular-nums` for amounts.
+Reserve the existing system monospace stack for code or technical metadata.
 - **Missing letter-spacing adjustments.** Use negative tracking for large headers, positive tracking for small caps or labels.
 - **All-caps subheaders everywhere.** Try lowercase italics, sentence case, or small-caps instead.
 - **Orphaned words.** Single words sitting alone on the last line. Fix with `text-wrap: balance` or `text-wrap: pretty`.
 
 ### Color and Surfaces
 
-- **Pure `#000000` background.** Replace with off-black, dark charcoal, or tinted dark (`#0a0a0a`, `#121212`, or a dark navy).
-- **Oversaturated accent colors.** Keep saturation below 80%. Desaturate accents so they blend with neutrals instead of screaming.
-- **More than one accent color.** Pick one. Remove the rest. Consistency beats variety.
-- **Mixing warm and cool grays.** Stick to one gray family. Tint all grays with a consistent hue (warm or cool, not both).
-- **Purple/blue "AI gradient" aesthetic.** This is the most common AI design fingerprint. Replace with neutral bases and a single, considered accent.
+- **Hard-coded surfaces or text.** Use existing `--background`, `--foreground`, `--card`, `--card-foreground`, and `--border` tokens.
+Preserve `RadixTheme`, the selected palette, and light, dark, or system appearance.
+- **Accent overrides.** Use existing `--primary`/`--primary-foreground` for actions and `--accent`/`--accent-foreground` for supporting accents.
+Do not impose saturation caps or desaturate the selected Radix accent.
+- **Status colors mistaken for decoration.** Preserve existing semantic status colors and `--destructive` for errors; do not remove them to enforce one accent.
+- **Neutral overrides.** Resolve neutrals through the selected Radix gray scale rather than forcing a warm/cool family.
+- **Decorative neon gradients or glows.** Remove decoration when it weakens hierarchy, without replacing the selected purple or blue palette.
 - **Generic `box-shadow`.** Tint shadows to match the background hue. Use colored shadows (e.g., dark blue shadow on a blue background) instead of pure black at low opacity.
 - **Flat design with zero texture.** Add subtle noise, grain, or micro-patterns to backgrounds. Pure flat vectors feel sterile.
 - **Perfectly even gradients.** Break the uniformity with radial gradients, noise overlays, or mesh gradients instead of standard linear 45-degree fades.
 - **Inconsistent lighting direction.** Audit all shadows to ensure they suggest a single, consistent light source.
-- **Random dark sections in a light mode page (or vice versa).** A single dark-background section breaking an otherwise light page looks like a copy-paste accident. Either commit to a full dark mode or keep a consistent background tone throughout. If contrast is needed, use a slightly darker shade of the same palette — not a sudden jump to `#111` in the middle of a cream page.
+- **Sections that ignore the selected appearance.** Use existing semantic surface and text pairs for section contrast.
+Preserve the user's appearance preference; do not force a mode or insert fixed dark backgrounds.
 - **Empty, flat sections with no visual depth.** Sections that are just text on a plain background feel unfinished. Add high-quality background imagery (blurred, overlaid, or masked), subtle patterns, or ambient gradients. Use reliable placeholder sources like `https://picsum.photos/seed/{name}/1920/1080` when real assets are not available. Experiment with background images behind hero sections, feature blocks, or CTAs — even a subtle full-width photo at low opacity adds presence.
 
 ### Layout
@@ -71,19 +109,25 @@ Check for these problems and fix them:
 - **No error states.** Add clear, inline error messages for forms. Do not use `window.alert()`.
 - **Dead links.** Buttons that link to `#`. Either link to real destinations or visually disable them.
 - **No indication of current page in navigation.** Style the active nav link differently so users know where they are.
-- **Scroll jumping.** Anchor clicks jump instantly. Add `scroll-behavior: smooth`.
+- **Anchor scrolling.** Keep native anchor navigation.
+If smooth scrolling helps, apply `scroll-behavior: smooth` only inside `@media (prefers-reduced-motion: no-preference)`; retain immediate scrolling for reduced motion.
 - **Animations using `top`, `left`, `width`, `height`.** Switch to `transform` and `opacity` for GPU-accelerated, smooth animation.
 
 ### Content
 
-- **Generic names like "John Doe" or "Jane Smith".** Use diverse, realistic-sounding names.
-- **Fake round numbers like `99.99%`, `50%`, `$100.00`.** Use organic, messy data: `47.2%`, `$99.00`, `+1 (312) 847-1928`.
+Preserve all existing and real amounts, dates, names, records, and metadata, including round values and repeated dates.
+Do not alter user or source data to make it appear less artificial.
+Invent values only for newly authored, explicitly labeled mock content; never present them as real records.
+
+- **New mock names.** Use contextual names only in labeled mock content; preserve actual participant names.
+- **New mock numbers.** Use values suitable for the labeled example; round values such as `$100.00` are valid and need no stylistic replacement.
 - **Placeholder company names like "Acme Corp", "Nexus", "SmartFlow".** Invent contextual, believable brand names.
 - **AI copywriting cliches.** Never use "Elevate", "Seamless", "Unleash", "Next-Gen", "Game-changer", "Delve", "Tapestry", or "In the world of...". Write plain, specific language.
 - **Exclamation marks in success messages.** Remove them. Be confident, not loud.
 - **"Oops!" error messages.** Be direct: "Connection failed. Please try again."
 - **Passive voice.** Use active voice: "We couldn't save your changes" instead of "Mistakes were made."
-- **All blog post dates identical.** Randomize dates to appear real.
+- **Repeated dates.** Preserve real and existing dates exactly.
+For newly authored mock content, use explicitly labeled example dates rather than randomizing records to appear real.
 - **Same avatar image for multiple users.** Use unique assets for every distinct person.
 - **Lorem Ipsum.** Never use placeholder latin text. Write real draft copy.
 - **Title Case On Every Header.** Use sentence case instead.
@@ -103,9 +147,10 @@ Check for these problems and fix them:
 
 ### Iconography
 
-- **Lucide or Feather icons exclusively.** These are the "default" AI icon choice. Use Phosphor, Heroicons, or a custom set for differentiation.
+- **Inconsistent product icons.** Reuse `@radix-ui/react-icons` with consistent size and alignment rather than adding an icon family for differentiation.
 - **Rocketship for "Launch", shield for "Security".** Replace cliche metaphors with less obvious icons (bolt, fingerprint, spark, vault).
-- **Inconsistent stroke widths across icons.** Audit all icons and standardize to one stroke weight.
+- **Inconsistent icon size or alignment.** Keep installed Radix Icons at consistent dimensions and optical alignment.
+Do not pass stroke-width/weight props or alter fixed SVG artwork to normalize weight.
 - **Missing favicon.** Always include a branded favicon.
 - **Stock "diverse team" photos.** Use real team photos, candid shots, or a consistent illustration style instead of uncanny stock imagery.
 
@@ -122,9 +167,9 @@ Check for these problems and fix them:
 
 ### Strategic Omissions (What AI Typically Forgets)
 
-- **No legal links.** Add privacy policy and terms of service links in the footer.
+- **Legal destinations.** Preserve existing verified privacy/terms links. Do not invent routes, dead links, or legal content during a visual redesign; add legal features only when explicitly requested by the user.
 - **No "back" navigation.** Dead ends in user flows. Every page needs a way back.
-- **No custom 404 page.** Design a helpful, branded "page not found" experience.
+- **Not-found behavior.** Preserve existing error handling and verified browser routes. Do not add a custom 404 route or page solely for visual completeness; add it only when explicitly requested by the user.
 - **No form validation.** Add client-side validation for emails, required fields, and format checks.
 - **No "skip to content" link.** Essential for keyboard users. Add a hidden skip-link.
 - **No cookie consent.** If required by jurisdiction, add a compliant consent banner.
@@ -145,10 +190,14 @@ When upgrading a project, pull from these high-impact techniques to replace gene
 - **Split-screen scroll.** Two halves of the screen sliding in opposite directions.
 
 ### Motion Upgrades
-- **Smooth scroll with inertia.** Decouple scrolling from browser defaults for a heavier, cinematic feel.
-- **Staggered entry.** Elements cascade in with slight delays, combining Y-axis translation with opacity fade. Never mount everything at once.
-- **Spring physics.** Replace linear easing with spring-based motion for a natural, weighty feel on all interactive elements.
-- **Scroll-driven reveals.** Content entering through expanding masks, wipes, or draw-on SVG paths tied to scroll progress.
+- **Native scrolling.** Preserve browser wheel, touch, keyboard, and anchor behavior.
+Do not intercept scroll input or add an inertia-scroll library.
+- **Optional entry feedback.** Keep content visible by default.
+Use short CSS transitions only when they help orientation; show content immediately for reduced motion.
+- **CSS feedback.** Use short transitions for meaningful state changes, with static reduced-motion states.
+Do not add a spring animation library for visual polish.
+- **Viewport feedback.** If viewport detection is needed, use `IntersectionObserver` with cleanup without changing native scrolling.
+Do not hide required content behind reveals; use static states for reduced motion.
 
 ### Surface Upgrades
 - **True glassmorphism.** Go beyond `backdrop-filter: blur`. Add a 1px inner border and a subtle inner shadow to simulate edge refraction.
@@ -160,8 +209,8 @@ When upgrading a project, pull from these high-impact techniques to replace gene
 
 Apply changes in this order for maximum visual impact with minimum risk:
 
-1. **Font swap** — biggest instant improvement, lowest risk
-2. **Color palette cleanup** — remove clashing or oversaturated colors
+1. **Typography hierarchy** - refine installed Geist weight, scale, spacing, and tabular figures.
+2. **Semantic color cleanup** - replace hard-coded overrides while preserving the selected Radix palette, appearance, and status colors.
 3. **Hover and active states** — makes the interface feel alive
 4. **Layout and spacing** — proper grid, max-width, consistent padding
 5. **Replace generic components** — swap cliche patterns for modern alternatives
@@ -173,6 +222,6 @@ Apply changes in this order for maximum visual impact with minimum risk:
 - Work with the existing tech stack. Do not migrate frameworks or styling libraries.
 - Do not break existing functionality. Test after every change.
 - Before importing any new library, check the project's dependency file first.
-- If the project uses Tailwind, check the version (v3 vs v4) before modifying config.
+- Keep Tailwind v4 and the existing `@tailwindcss/vite` plugin; do not introduce PostCSS or a v3 configuration.
 - If the project has no framework, use vanilla CSS.
 - Keep changes reviewable and focused. Small, targeted improvements over big rewrites.

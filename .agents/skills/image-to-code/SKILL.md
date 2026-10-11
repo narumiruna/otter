@@ -3,6 +3,39 @@ name: image-to-code
 description: Elite website image-to-code skill for Codex. For visually important web tasks, it must first generate the design image(s) itself, deeply analyze them, then implement the website to match them as closely as possible. In Codex, it must prefer large, readable, section-specific images instead of tiny compressed boards, generate fresh standalone images for sections or detail views instead of cropping old ones, avoid lazy under-generation, avoid cards-inside-cards-inside-cards UI, and keep the hero clean, spacious, readable, and visible on a small laptop.
 ---
 
+## Otter Technology Stack
+
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
+
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
+
 # CORE DIRECTIVE: IMAGE-FIRST WEBSITE DESIGN TO CODE
 You are an elite web design art director and implementation strategist.
 
@@ -419,12 +452,12 @@ To avoid repetitive AI-looking output, internally choose a strong combination an
 Do not mash everything into chaos.
 Pick a coherent visual direction and execute it clearly.
 
-### Theme Paradigm
-Choose 1:
-1. Pristine Light Mode
-2. Deep Dark Mode
-3. Bold Studio Solid
-4. Quiet Premium Neutral
+### Selected Theme
+Derive references from the current `RadixTheme` palette and light, dark, or system appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+Use existing semantic surface, foreground, border, action, and status roles throughout reference generation and implementation.
+Do not choose an independent theme or replace the selected palette for visual variety.
+Vary layout, imagery, texture, and Geist hierarchy within the selected theme instead.
 
 ### Background Character
 Choose 1:
@@ -439,7 +472,7 @@ Choose 1:
 2. refined grotesk
 3. expressive display
 4. compressed statement typography
-5. editorial serif + sans
+5. editorial Geist treatment with contrast from weight, scale, and spacing
 6. Swiss rational hierarchy
 
 ### Hero Architecture
@@ -461,12 +494,18 @@ Choose 1:
 6. asymmetric premium marketing flow
 
 ### Signature Component Set
-Choose exactly 4 unique components:
+Select only components already present in or required by the requested Otter workflow.
+There is no component quota; focused expense, auth, or settings screens can need one component or none.
+Preserve existing actions and data flow; do not add partner rows, testimonials, or product panels merely for visual variety.
+For explicitly requested marketing pages, the following patterns are optional vocabulary, not required features:
 - diagonal staggered square masonry
 - 3D cascading card deck
-- hover-accordion slice layout
+- accessible accordion slice layout using the installed `radix-ui` Accordion with labeled trigger buttons and visible focus
+Open panels on click, tap, Enter, or Space; preserve keyboard navigation.
+Hover is optional feedback, not the only way to reveal content.
+Stack panels on small screens and use immediate state changes for reduced motion.
 - pristine gapless bento grid
-- infinite brand marquee strip
+- static partner row that wraps on small screens; do not auto-scroll or loop it
 - turning polaroid arc
 - vertical rhythm lines
 - off-grid editorial layout
@@ -512,13 +551,17 @@ Default to real section comps.
 The hero must feel cinematic, clear, and intentional.
 
 ### Absolute Hero Rules
+Preserve existing product copy, localized strings, source keys, and user content verbatim.
+All shortening and word/line-count recommendations apply only to newly authored, explicitly labeled mock copy.
+Adjust readable type scale, container width, wrapping, and layout around preserved strings; do not cut translations to match a reference.
+
 - the hero must feel like a strong opening scene
 - keep the hero composition very clean
 - do not overcrowd the first viewport
 - the main headline must feel short and powerful
 - the hero headline should ideally stay within 1–3 lines
 - do not allow long wrapped hero headlines
-- if the headline starts becoming too long, reduce words instead of forcing more lines
+- shorten only newly authored labeled mock headlines; accommodate existing strings through layout and wrapping
 - keep supporting text concise
 - prioritize negative space and contrast
 - avoid stuffing the hero with pills, fake stats, badges, tiny logos, and nonsense detail
@@ -1123,9 +1166,9 @@ When the user asks for a website design in an image-to-code workflow:
 8. do not crop old images for section extraction
 9. regenerate sections as fresh standalone images when needed
 10. choose a strong visual combination
-11. choose 4 signature components
+11. select only existing or requested workflow components; do not impose a signature-component quota
 12. choose 2 motion-implied cues
-13. enforce hero cleanliness and short hero line count
+13. keep the hero readable; preserve existing localized copy and limit shortening to newly authored labeled mock copy
 14. reduce unnecessary pills, labels, and micro-UI clutter
 15. avoid cards-inside-cards-inside-cards and giant boxed section wrappers
 16. keep the first screen readable and balanced on a small laptop

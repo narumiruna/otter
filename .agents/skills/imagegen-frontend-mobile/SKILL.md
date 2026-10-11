@@ -1,40 +1,65 @@
 ---
 name: imagegen-frontend-mobile
-description: Elite mobile app image-generation skill for creating premium, app-native screen concepts and flows. Designed for iOS, Android, and cross-platform mobile products. Prioritizes clean hierarchy, comfortably readable text, strong multi-screen consistency, controlled color palettes, non-generic creative direction, textured surfaces, image-led composition, tasteful custom iconography, and clean phone mockup framing. By default, screens should be shown inside a subtle premium iPhone or similar phone mockup with a visible frame, while the main focus stays on the app content itself. This skill generates images only. It does not write code.
+description: Generate premium images of otter’s responsive browser UI at phone sizes. Use for mobile expense, participant, balance, settlement, auth, and settings screen concepts or flows. Match the existing Radix components, Geist typography, and selected palette. Present screens in a clean phone mockup by default. Generate images only, not code or native iOS/Android app designs.
 ---
 
-# CORE DIRECTIVE: PREMIUM MOBILE APP IMAGE DIRECTION
-You are an elite mobile product design art director.
+## Otter Technology Stack
 
-Your job is not to generate generic app mockups.
-Your job is to generate premium, app-native, highly readable mobile app screen images and flow images.
+These repository-specific rules take priority over generic implementation examples below.
+For image-only tasks, use them as design constraints without generating code or installing packages.
+Keep the requested visual direction, but preserve existing product behavior, localization, accessibility, and theme preferences.
 
-This skill is for:
-- onboarding flows
-- auth flows
-- home dashboards
-- profile screens
-- settings screens
-- chat screens
-- ecommerce screens
-- fintech screens
-- health and fitness screens
-- productivity apps
-- social apps
-- utilities
-- multi-screen app concepts
-- premium mobile redesigns
+- **Browser app:** Use strict TypeScript and React with Vite in `apps/web`.
+Do not introduce Next.js, React Server Components, `"use client"`, or native app frameworks.
+- **Components:** Use `@radix-ui/themes` first and the installed `radix-ui` Primitives for behavior not covered by Themes.
+Do not introduce shadcn/ui or another component system.
+- **Styling:** Use existing CSS and Tailwind CSS v4 through `@tailwindcss/vite`.
+Map colors through `@radix-ui/colors` and existing semantic tokens in `apps/web/src/client/index.css`.
+Preserve `RadixTheme` in `apps/web/src/client/radix-theme.tsx` as the theme owner.
+Treat palette examples below as visual references, not hard-coded product colors.
+- **Icons and fonts:** Use `@radix-ui/react-icons` and the installed `@fontsource-variable/geist` with existing language fallbacks.
+Keep Radix Icons at consistent sizes; do not force unsupported stroke-width or weight props.
+Other font examples are references, not instructions to install or assume fonts.
+- **State and forms:** Reuse `@tanstack/react-query` for server state and `react-hook-form` for forms where applicable.
+Use React state or existing context for local UI state; do not add a state library.
+- **Motion:** Prefer CSS transitions and keyframes for meaningful feedback.
+Use `IntersectionObserver` only when viewport detection is needed, with effect cleanup.
+Honor `prefers-reduced-motion`; do not require perpetual animation or add Motion, Framer Motion, GSAP, or Three.js for visual polish.
+- **API and domain:** Keep Hono and PostgreSQL (`pg`) in `apps/api`, raw SQL migrations in `apps/api/db/migrations`, domain rules in `packages/core`, and HTTP DTOs and guards in `packages/contracts`.
+Preserve `apps/* -> packages/*`; web and CLI must not import API implementation files.
+- **Dependencies and checks:** Read the root and target workspace `package.json` before imports.
+Use npm workspaces from the repository root; do not install packages for hypothetical needs.
+Use Biome, Vitest, Testing Library, and Playwright.
+Run `npm run check` for implementation changes and report unavailable checks.
+For responsive layout, interaction, or accessibility implementation changes, also run the relevant browser coverage with `npm run test:e2e` from the repository root.
+`npm run check` does not include Playwright E2E tests.
+Browser E2E tests require a migrated `DATABASE_URL` and installed Chromium.
+If prerequisites are unavailable, state the missing prerequisite and the E2E checks not run; do not report unit tests as browser validation.
+
+# CORE DIRECTIVE: PREMIUM MOBILE WEB IMAGE DIRECTION
+
+Generate readable, art-directed images of otter’s responsive browser interface at phone sizes.
+Keep product screens task-focused rather than shrinking a desktop layout.
+
+This skill is for phone-size concepts of:
+- sign-in and account settings
+- trip and expense groups
+- participants
+- expense entry and editing
+- balances and settlement suggestions
+- multi-screen flows through those tasks
+- responsive mobile redesigns of otter
 
 This skill is not for:
-- websites
-- landing pages
-- desktop dashboards
-- image-to-code
-- frontend implementation
-- code generation
+- native iOS or Android app concepts
+- desktop layouts or marketing landing pages
+- image-to-code, frontend implementation, or code generation
+
+Device frames are presentation props, not a reason to change the app’s platform.
+Use the existing web navigation, Radix components, product icons, and theme preferences.
 
 The output must feel:
-- app-native
+- mobile-web appropriate
 - premium
 - clean
 - highly intentional
@@ -42,7 +67,7 @@ The output must feel:
 - readable
 - believable
 - flow-aware
-- platform-aware
+- browser-viewport aware
 - creatively art-directed
 - non-generic
 - built on a clean, controlled color palette
@@ -55,7 +80,7 @@ Standard AI mobile output tends to collapse into repetitive defaults:
 - too many pills and tags
 - no safe-area awareness
 - weak navigation logic
-- phone-sized websites
+- desktop layouts merely shrunk to phone size
 - gradient-heavy dribbble clones
 - glassmorphism without purpose
 - tiny unreadable text
@@ -92,7 +117,7 @@ Generate mobile screen images and screen-flow images only.
 - ART_DIRECTION: 9  
   `(1 = safe utility UI, 10 = bold premium mobile statement)`
 - PLATFORM_AWARENESS: 9  
-  `(1 = generic phone UI, 10 = strongly app-native)`
+  `(1 = generic phone UI, 10 = clear responsive browser behavior)`
 - FLOW_VARIETY: 8  
   `(1 = repeated screen templates, 10 = clearly differentiated screen rhythm)`
 - IMAGE_GENERATION_EAGERNESS: 10  
@@ -130,8 +155,8 @@ Adapt them to the app category.
 
 Interpretation:
 - If the user says "clean", reduce density and increase clarity.
-- If the user says "premium iOS", bias toward elegant restraint and native-feeling hierarchy.
-- If the user says "Android", bias toward stronger Material-like structure and navigation clarity.
+- If the user names an iPhone or Android phone, use it as the presentation device while keeping otter’s responsive web UI.
+- Keep Radix component behavior and navigation consistent across device frames.
 - If the user says "creative social app", increase visual variance and image creativity without sacrificing readability.
 - If the user says "fintech", "health", or "productivity", increase trust, calmness, and structural clarity.
 - Do not be lazy with screen count.
@@ -149,52 +174,27 @@ Interpretation:
 
 ---
 
-## 2. PLATFORM MODE RULE
+## 2. RESPONSIVE WEB VIEWPORT RULE
 
-Always decide the platform mode first.
+Use responsive otter web concepts in every screen set.
+Choose the requested phone viewport first; if none is specified, use a consistent 390px-wide reference.
 
-Choose one:
-1. iOS-native premium
-2. Android-native premium
-3. cross-platform premium neutral
+- Keep the same Radix component language across iPhone, Android, and generic phone mockups.
+- Use mobile layouts supported by the existing web app, not native platform component replacements.
+- Show browser chrome only when requested, and reserve its space outside the product content.
+- Keep controls away from device cutouts and browser/system UI.
+- Keep labels, amounts, focus states, and touch targets readable.
+- Preserve the selected palette and appearance throughout the flow.
+- Do not imply a native tab bar, app bar, or gesture is implemented unless the web app already supports it.
 
-### iOS-native premium
-Bias toward:
-- cleaner top areas
-- tab-bar clarity
-- safe-area awareness
-- elegant spacing
-- restrained chrome
-- calm hierarchy
-- native-feeling sheets and cards
-- polished but not overdecorated interfaces
-
-### Android-native premium
-Bias toward:
-- stronger component rhythm
-- clearer app bar behavior
-- bottom navigation clarity
-- sheet logic
-- card/list structure
-- slightly firmer layout framing
-- more explicit state clarity where useful
-
-### Cross-platform premium neutral
-Bias toward:
-- clean safe-area handling
-- universal mobile navigation patterns
-- clear hierarchy
-- less platform-specific ornament
-- premium but broadly buildable visual language
-
-Do not mix iOS and Android patterns carelessly.
-Pick one dominant platform feel and stay coherent.
+For a native-only request, explain that this repository skill covers responsive otter web concepts.
+Do not silently reinterpret it as a native design.
 
 ---
 
 ## 3. MANDATORY SCREEN-FIRST RULE
 
-For mobile app requests, generate the screen image or screen set directly.
+For responsive otter phone-screen requests, generate the screen image or screen set directly.
 
 Do not:
 - answer with only text
@@ -262,7 +262,7 @@ Fresh screen-specific generation is strongly preferred over cropping.
 When generating multiple images for the same app, lock an internal design bible before continuing.
 
 This design bible should remain consistent across the whole set:
-- platform mode
+- responsive web viewport
 - device frame style
 - device scale
 - palette logic
@@ -350,10 +350,8 @@ A good screen set should feel like a real product walkthrough, not a loose visua
 
 By default, present the mobile UI inside a clean phone mockup with a visible device border/frame.
 
-This should usually be:
-- a clean iPhone-style mockup for iOS or neutral premium concepts
-- a clean Android-style mockup for Android-native concepts
-- a subtle premium generic phone mockup for cross-platform concepts
+Use a clean iPhone, Android-phone, or generic phone frame as requested.
+All device frames show the same responsive otter web product, not different native platform components.
 
 Do not omit the device frame by default.
 
@@ -414,7 +412,7 @@ If the user asks for onboarding:
 - vary composition across screens
 - vary the balance of image, text, and CTA
 - keep the flow coherent
-- keep copy short
+- preserve existing localized copy; keep only newly authored labeled mock copy short
 - keep the first screen especially clean
 
 Good onboarding should feel:
@@ -476,26 +474,17 @@ Avoid:
 
 ---
 
-## 13. SAFE AREA AND SYSTEM REGION RULE
+## 13. BROWSER VIEWPORT AND SAFE AREA RULE
 
-Respect mobile screen realities.
+Respect the visible browser content area and device frame.
 
-Always design with awareness of:
-- safe areas
-- status bar region
-- top bar or title region
-- bottom navigation region
-- home indicator region
-- sheet docking zone
-- gesture space
+- Keep content clear of device cutouts and visible browser or system chrome.
+- Reserve space for browser chrome only when it is shown.
+- Do not draw status bars, home indicators, or operating-system controls as part of otter.
+- Keep fixed product controls within the visible content area.
+- Show web dialogs and menus with the existing Radix component language.
 
-Do not:
-- cram important content into unsafe areas
-- ignore top and bottom system regions
-- make screens feel like edge-to-edge posters with no functional logic
-- place critical UI where it would be visually unsafe
-
-Mobile images should feel like real app screens, not posters.
+The result should be a usable responsive product screen, not a poster.
 
 ---
 
@@ -503,21 +492,15 @@ Mobile images should feel like real app screens, not posters.
 
 Navigation must feel intentional and believable.
 
-Use familiar mobile patterns when appropriate:
-- tab bar / bottom navigation for major app sections
-- stack navigation feel for drill-down flows
-- sheets for secondary tasks
-- segmented controls for local switching
-- app bars where useful
-- clear primary and secondary actions
+Use the existing otter web navigation and requested flow.
 
-Do not:
-- overload bottom navigation
-- hide the main path through the app
-- make every action equally important
-- create unclear hierarchy between tabs, sheets, and actions
+- Preserve group selection and the main paths to expenses, participants, balances, and settlements.
+- Use Radix dialogs, menus, and local switching controls where the web product already supports them.
+- Keep primary and secondary actions distinct.
+- Do not invent native tab bars, platform app bars, or unsupported gestures.
+- Do not hide the main task behind decorative navigation.
 
-The screen set should imply a believable app flow.
+The screen set should imply a believable browser app flow.
 
 ---
 
@@ -729,7 +712,7 @@ Strictly avoid these unless explicitly requested.
 - a homepage that looks like 12 widgets fighting for attention
 - cloned screens in a flow
 - giant empty cards with weak content
-- phone-shaped websites instead of app screens
+- scaled-down desktop pages instead of responsive product screens
 
 ### Copy AI tells
 Avoid filler phrases like:
@@ -762,16 +745,12 @@ Avoid fake brand slop:
 
 To avoid repetitive mobile design output, choose a clear visual direction and commit to it.
 
-### Theme Paradigm
-Choose 1:
-1. pristine light
-2. deep dark
-3. soft wellness neutral
-4. premium monochrome
-5. rich accent-driven
-6. editorial luxe
-7. playful consumer color
-8. calm productivity minimal
+### Selected Theme
+Derive the concept from the current `RadixTheme` palette and appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+For system appearance, show the resolved appearance and identify it in the concept notes.
+Do not choose an independent light/dark paradigm or override the user's theme for visual variety.
+Vary composition, density, imagery, and texture within the selected theme instead.
 
 ### Typography Character
 Choose 1:
@@ -814,37 +793,25 @@ Choose 1:
 7. tactile monochrome surface
 8. low-opacity technical pattern
 
-### Palette Logic
-Choose 1:
-1. restrained monochrome + one accent
-2. warm neutral palette + sharp dark contrast
-3. cool mineral palette + clean highlight accent
-4. editorial cream / charcoal / muted accent
-5. rich dark base + refined warm accent
-6. wellness soft palette with controlled saturation
-7. bright consumer palette with disciplined balance
-8. desaturated premium palette with one bold hit
+### Palette Mapping
+Use existing background/foreground, card/card-foreground, border, primary-action, supporting-accent, and semantic status roles.
+Resolve them through the selected Radix palette and appearance.
+Forest uses sage, parchment uses sand, and lavender uses mauve with a violet accent.
+Do not rotate palettes, force warm/cool neutrals, desaturate the selected accent, or remove status colors to limit accents.
+Keep the same theme roles across every screen in the flow.
 
-### Signature Component Set
-Choose exactly 4:
-- large hero metric card
-- compact stat strip
-- modular collection grid
-- media carousel
-- layered profile header
-- premium segmented control
-- bottom action sheet
-- framed product card stack
-- progress ring block
-- message bubble system
-- settings group cells
-- photo-led card strip
-- sticky mini player
-- collection shelf
-- habit tracker block
-- checkout summary card
-- journal entry card
-- achievement tile row
+### Workflow Components
+Select components only when they exist in or are required by the requested Otter workflow.
+There is no signature-component quota; a focused screen can need one component or none.
+Do not invent media playback, commerce, wellness, chat, or achievement features for visual variation.
+Use relevant existing behavior, for example:
+- expense-entry fields and split controls
+- participant lists and balances
+- expense lists and receipt details
+- settlement suggestions
+- auth fields and recovery controls
+- account or group settings
+Use Radix components and preserve the current data flow and actions.
 
 ### Decorative Asset Set
 Choose exactly 2:
@@ -875,7 +842,8 @@ These are image-direction cues, not code instructions.
 
 ## 23. COLOR PALETTE RULE
 
-Always use a clean, controlled color palette.
+Use the selected Radix palette and appearance with the semantic roles in Section 22.
+Do not choose a replacement palette or impose independent saturation limits.
 
 Color should feel:
 - intentional
@@ -887,13 +855,13 @@ Color should feel:
 Rules:
 - use a strong palette with internal logic
 - keep color relationships clean
-- let one or two accents do real work
+- preserve the selected action/supporting accents and semantic status colors
 - avoid muddy, accidental, or chaotic color combinations
 - avoid generic startup gradients unless they truly fit
-- avoid default purple-blue AI palettes unless specifically justified
+- preserve selected purple or blue palettes; do not add decorative neon effects
 - avoid random bright rainbow color use
 - avoid throwing many unrelated saturated colors together
-- keep saturation under control unless the brand clearly benefits from stronger intensity
+- preserve the selected Radix saturation and verify text/control contrast
 
 A palette can be:
 - bold
@@ -1058,7 +1026,12 @@ The goal is strong media inside a believable mobile system.
 
 ## 28. TEXT RULE
 
-Copy should be:
+Render existing field labels, messages, and localized strings verbatim in the selected locale.
+Do not shorten or rewrite them to fit a concept; adjust layout, wrapping, and spacing instead.
+Keep original source keys and user content unchanged.
+Every shortening recommendation in this skill applies only to newly authored, explicitly labeled mock copy.
+
+New mock copy should be:
 - short
 - clean
 - product-appropriate
@@ -1078,9 +1051,10 @@ Avoid:
 - overloaded onboarding explanations
 - overly technical filler labels
 
-For first screens and onboarding especially:
-- keep copy tight
-- reduce words rather than forcing more lines
+For newly authored mock first screens and onboarding:
+- keep mock copy concise
+- shorten only new mock copy, never existing labels or translations
+For existing screens, preserve all strings and show their actual wrapping.
 
 ---
 
@@ -1267,7 +1241,7 @@ Regenerate when:
 - text is too small
 - spacing is unclear
 - navigation feels fake
-- the screen looks too much like a website
+- the screen looks like a desktop layout shrunk to a phone
 - the UI is too crowded
 - the onboarding screens are too repetitive
 - image framing is inconsistent
@@ -1293,10 +1267,10 @@ Refine until the screen set feels clean, believable, art-directed, and consisten
 
 Before finalizing, verify internally:
 
-1. Does this feel like a real mobile app, not a website in a phone?
+1. Does this show a usable responsive otter browser screen rather than a scaled-down desktop page?
 2. Are safe areas respected visually?
 3. Is the first screen clean enough?
-4. Is the copy short enough?
+4. Are existing localized strings verbatim and fully readable, with shortening limited to newly authored labeled mock copy?
 5. Is the type readable?
 6. Are there enough screens for the requested flow?
 7. Were too few screens generated out of laziness?
@@ -1306,7 +1280,7 @@ Before finalizing, verify internally:
 11. Are image moments purposeful and consistent?
 12. Does the flow feel coherent?
 13. Do screens vary enough without breaking the design system?
-14. Does the product feel premium and app-native?
+14. Does the product feel premium while matching otter’s Radix web components?
 15. Is there enough creative imagery, texture, or atmosphere for the concept?
 16. If images sit behind text, is readability protected with clean fades or masks?
 17. Are decorative assets clean and restrained?
@@ -1327,21 +1301,21 @@ If not, refine before output.
 
 ## 36. RESPONSE BEHAVIOR
 
-When the user asks for a mobile app image concept:
-1. infer app category
-2. infer platform mode
+When the user asks for a responsive otter mobile image concept:
+1. identify the requested product workflow
+2. choose the browser viewport and presentation device
 3. infer number of screens
 4. choose a strong visual direction
 5. choose an image art direction bias
 6. choose a texture / surface treatment
 7. choose tasteful decorative assets
-8. choose a clean palette logic
+8. resolve palette roles from the selected RadixTheme preferences; do not choose a replacement palette
 9. lock an internal design bible for consistency
 10. generate the required screen images
 11. generate more screens if needed for a believable flow
 12. generate extra detail renders if needed
 13. keep the first screen especially clean
-14. avoid website-like layouts
+14. avoid desktop layouts shrunk to a phone
 15. avoid nested-card clutter
 16. enforce strong and creative image usage where appropriate
 17. use texture, fades, masks, and background imagery when they improve the result
@@ -1367,60 +1341,43 @@ Do not collapse a requested flow into one lazy collage.
 
 ### Example 1
 User:
-"make a premium fitness app"
+"Show a phone-size expense entry concept for otter."
 
 Interpretation:
-- choose iOS-native or cross-platform premium
-- generate multiple screens, not just one
-- include a clean first screen
-- use calm spacing and strong metric hierarchy
-- avoid fake chart spam
-- use tasteful texture or soft imagery if it helps
-- keep the flow believable
-- keep the palette clean and controlled
-- keep all screens and mockups visually consistent
-- keep text readable and not tiny
-- show the screens in a subtle, clean phone mockup
+- generate the requested expense-entry screen
+- use existing field labels, Radix controls, and readable amounts
+- keep the primary save action visible
+- preserve the selected palette and appearance
+- use a subtle phone mockup without native-only controls
 
 ### Example 2
 User:
-"design a 5-screen ecommerce app"
+"Design a five-screen otter trip expense flow."
 
 Interpretation:
-- generate 5 clean screen images
-- include browse, detail, cart or checkout logic
-- use strong product imagery
-- use fixed media frames
-- use tasteful editorial image treatments or background fades where useful
-- keep hierarchy clean and product-first
-- avoid generic commerce templates
-- keep device framing and spacing consistent across all 5 images
-- avoid generic default icon language
-- use a clean visible phone frame without letting it dominate
+- generate five separate readable images
+- show group selection, participants, expense entry, balances, and settlement suggestions
+- keep navigation and data consistent through the flow
+- show sample financial records clearly as sample data
+- keep device scale, frame style, and outer margins consistent
 
 ### Example 3
 User:
-"make an onboarding flow for a social app"
+"Show otter account settings on an Android phone."
 
 Interpretation:
-- generate multiple onboarding screens
-- vary layout across screens
-- keep copy short
-- make the first screen especially clean
-- avoid repetitive slide-template design
-- push imagery, texture, and background fade treatments more creatively
-- keep the palette clean but distinctive
-- keep the screen progression logical and consistent
-- keep typography readable and properly scaled
-- present the flow in consistent phone mockups with balanced outer margins
+- use an Android-phone frame as presentation only
+- show otter’s responsive web settings and Radix controls
+- do not replace the product with Material-native components
+- keep copy, touch targets, and browser content bounds readable
 
 ---
 
 ## 38. FINAL GOAL
 
-Generate mobile app screen images that feel:
+Generate responsive otter phone-screen images that feel:
 - premium
-- app-native
+- mobile-web appropriate
 - clear
 - clean
 - structured
@@ -1430,10 +1387,9 @@ Generate mobile app screen images that feel:
 - believable
 - creatively art-directed
 
-This skill should create strong mobile app image concepts and flow images only.
+This skill creates responsive otter web screen concepts and flow images only.
 
-It should not write code.
-It should not behave like a website skill.
+It must not write code, create native app designs, or substitute marketing layouts for product tasks.
 It should not produce lazy one-board output when multiple screens are clearly needed.
 
 It should actively allow:
@@ -1462,4 +1418,4 @@ It should actively avoid:
 - sloppy or missing phone mockups
 - oversized device framing that distracts from the design
 
-The final result should look like a high-end mobile app concept with clean hierarchy, good flow logic, strong visual taste, richer image direction, a clean controlled color palette, non-generic art direction, strong multi-screen consistency, readable typography, premium phone mockup framing, and clear platform-aware structure.
+The final result must show otter’s responsive browser UI with clear hierarchy, logical flows, consistent Radix components, readable text, the selected palette and appearance, and clean phone mockup framing.
