@@ -172,46 +172,28 @@ LLMs default to clichés. Override these defaults proactively. Each rule has a c
 * **Display / Headlines:** Default `text-4xl md:text-6xl tracking-tighter leading-none`.
 * **Body / Paragraphs:** Default `text-base text-foreground leading-relaxed max-w-[65ch]`.
 Use `text-muted-foreground` for secondary copy; both colors follow the selected theme.
-* **Sans font choice:**
-  * **Discouraged as default:** `Inter`. Pick `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`, or a brand-appropriate serif first.
-  * **Override:** Inter is acceptable when the user explicitly asks for a neutral / standard / Linear-style feel, or when the brief is a public-sector / accessibility-first site.
-* **Pairings to know:** `Geist` + `Geist Mono`, `Satoshi` + `JetBrains Mono`, `Cabinet Grotesk` + `Inter Tight`, `GT America` + `IBM Plex Mono`.
-
-* **SERIF DISCIPLINE (VERY DISCOURAGED AS DEFAULT):**
-  * Serif is **very discouraged as the default font for any project.** "It feels creative / premium / editorial" is NOT a reason to reach for serif. The agent's default mental model that "creative brief = serif" is the single most-tested AI tell in production rounds.
-  * **Serif is only acceptable when ONE of these is explicitly true:**
-    - The brand brief literally names a serif font, OR
-    - The aesthetic family is genuinely editorial / luxury / publication / manuscript / heritage / vintage AND you can articulate why this specific serif fits this specific brand
-  * For everything else (creative agency, design studio, modern brand, premium consumer, portfolio, lifestyle), **default sans-serif display** (Geist Display, ABC Diatype, Söhne Breit, Cabinet Grotesk Display, Migra Sans, GT Walsheim, Inter Display, PP Neue Montreal). Sans display fonts are not "boring" — they are the default for the same reason black is the default in fashion.
-  * **EMPHASIS RULE (related):** When you want to emphasize a word within a headline (the kinetic "and `spatial` design" type move), use **italic or bold of the SAME font**. Do NOT inject a random serif word into a sans headline (or vice versa) just to add visual interest. Mixed-family emphasis is amateur. Italic/bold emphasis in the same family is the right move.
-  * **Specifically BANNED as defaults:** `Fraunces` and `Instrument_Serif` (the two LLM-favorite display serifs).
-  * **If a serif is justified** (rare, per the above), rotate from this pool, do NOT reuse the same serif across consecutive projects: PP Editorial New, GT Sectra Display, Cardinal Grotesque, Reckless Neue, Tiempos Headline, Recoleta, Cormorant Garamond, Playfair Display, EB Garamond, IvyPresto, Migra, Editorial Old, Saol Display, Söhne Breit Kursiv, Domaine Display, Canela, Schnyder, Tobias, NB Architekt, ITC Galliard.
+* **Installed Font:** Use Geist Variable with existing language fallbacks for headings, body, and controls.
+Create editorial or brand contrast through weight, scale, and spacing rather than a new font.
+* **Amounts:** Use Geist with `tabular-nums` for stable numeric alignment.
+Reserve the existing system monospace stack for code or technical metadata.
+* **Emphasis:** Use weight or available emphasis in the same installed font family.
+Do not introduce a serif word or rotate fonts for decoration.
+* **Reference Typography:** Alternative fonts in a brief may describe image-only references, but do not install or assume them for product implementation.
 
 * **ITALIC DESCENDER CLEARANCE (mandatory):** When italic is used in display type and the word contains a descender letter (`y g j p q`), `leading-[1]` or `leading-none` will clip the descender. Use `leading-[1.1]` minimum and add `pb-1` or `mb-1` reserve on the wrapping element. Audit every italic word in display headlines before shipping.
 
 ### 4.2 Color Calibration
-* Max 1 accent color. Saturation < 80% by default.
-* **THE LILA RULE:** The "AI Purple / Blue glow" aesthetic is discouraged as a default. No automatic purple button glows, no random neon gradients. Use neutral bases (Zinc / Slate / Stone) with high-contrast singular accents (Emerald, Electric Blue, Deep Rose, Burnt Orange, etc.).
-* **Override:** if the brand or brief explicitly asks for purple / violet / lila, embrace it. But execute with intent: consistent palette, harmonised neutrals, restrained gradients. Not generic AI gradient slop.
-* **One palette per project.** Do not fluctuate between warm and cool grays within the same project.
-* **COLOR CONSISTENCY LOCK (mandatory):** Once an accent color is chosen for a page, it is used on the WHOLE page. A warm-grey site does not suddenly get a blue CTA in section 7. A rose-accented site does not get a teal status badge in the footer. Pick one accent, lock it, audit every component before shipping.
-
-* **PREMIUM-CONSUMER PALETTE BAN (mandatory, second-most-recurring AI-tell):**
-  * For premium-consumer briefs (cookware, wellness, artisan, luxury, heritage craft, DTC home goods, etc.) the LLM default is **warm beige/cream + brass/clay/oxblood/ochre + espresso/ink dark text**. Concretely banned hex families as default backgrounds and accents:
-    - Backgrounds: `#f5f1ea`, `#f7f5f1`, `#fbf8f1`, `#efeae0`, `#ece6db`, `#faf7f1`, `#e8dfcb` (all "warm paper / cream / chalk / bone")
-    - Accents: `#b08947`, `#b6553a`, `#9a2436`, `#9c6e2a`, `#bc7c3a`, `#7d5621` (all "brass / clay / oxblood / ochre")
-    - Text: `#1a1714`, `#1a1814`, `#1b1814` (all "espresso / warm near-black")
-  * This palette is BANNED as the default reach for premium-consumer briefs. Every premium-consumer site you have ever shipped uses this exact palette. The brand becomes invisible.
-  * **Default alternatives (rotate, do not reuse):**
-    - **Cold Luxury:** silver-grey + chrome + smoke (think Tesla, Apple Watch Hermes-without-the-leather)
-    - **Forest:** deep green + bone + amber accent (think Filson, Patagonia premium)
-    - **Black and Tan:** true off-black + warm tan, sharp contrast, no beige
-    - **Cobalt + Cream:** saturated blue against a single neutral, no brass
-    - **Terracotta + Slate:** warm rust against cool grey, no brass
-    - **Olive + Brick + Paper:** muted olive plus brick-red accent
-    - **Pure monochrome + single saturated pop:** off-white + off-black + one bright accent (electric blue, emerald, hot pink, etc.)
-  * **Palette-rotation rule:** if the previous premium-consumer project you generated used the beige+brass family, this one MUST use a different family. Do not ship the same warm-craft palette twice in a row.
-  * **Override:** the beige+brass+espresso palette is acceptable ONLY when the brand brief explicitly names those colors, or when the brand identity is genuinely vintage / artisan / warm-craft AND you can articulate why this specific palette fits this specific brand. Default-reaching for it because "this is a cookware brief" is banned.
+* **Theme Owner:** Preserve `RadixTheme`, the selected palette, and light, dark, or system appearance.
+Do not rotate palettes between tasks or reject the selected theme because of its visual family.
+* **Semantic Roles:** Use existing `--background`, `--foreground`, `--card`, `--card-foreground`, `--border`, and `--muted-foreground` tokens.
+Resolve neutrals through the selected Radix gray scale: forest uses sage, parchment uses sand, and lavender uses mauve with a violet accent.
+Do not force Zinc, Slate, or Stone, ban the selected purple accent, or impose a saturation cap.
+* **Actions and Status:** Use existing `--primary`/`--primary-foreground` for actions and `--accent`/`--accent-foreground` for supporting accents.
+Preserve semantic status colors and `--destructive` for errors; they are not decorative accents to remove.
+* **Color Consistency Lock:** Use these roles consistently across sections and appearances.
+Check text and control contrast in both appearances without replacing the selected palette.
+* **Decorative Effects:** Do not add neon glows or gradients that weaken hierarchy.
+Document resolved hex values only for previews of the selected theme, not fixed implementation colors.
 
 ### 4.3 Layout Diversification
 * **ANTI-CENTER BIAS:** Centered Hero / H1 sections are avoided when `DESIGN_VARIANCE > 4`. Force "Split Screen" (50/50), "Left-aligned content / right-aligned asset", "Asymmetric white-space", or scroll-pinned structures.
@@ -448,7 +430,7 @@ Prefer CSS with static fallbacks and IntersectionObserver; do not apply scroll-c
 ### VISUAL_DENSITY (Level 1-10)
 * **1-3 (Art Gallery):** Lots of white space. Huge section gaps (`py-32` to `py-48`). Expensive, clean.
 * **4-7 (Daily App):** Standard web app spacing (`py-16` to `py-24`).
-* **8-10 (Cockpit):** Tight paddings. No card boxes; 1px lines separate data. Mandatory: `font-mono` for all numbers.
+* **8-10 (Cockpit):** Tight paddings. No card boxes; 1px lines separate data. Use Geist with `tabular-nums` for amounts; reserve system monospace for technical metadata.
 
 ---
 
@@ -483,15 +465,15 @@ Avoid these signatures unless the brief explicitly asks for them.
 
 ### 9.A Visual & CSS
 * **NO neon / outer glows** by default. Use inner borders or subtle tinted shadows.
-* **NO pure black (`#000000`).** Off-black, zinc-950, or charcoal.
-* **NO oversaturated accents.** Desaturate to blend with neutrals.
+* **Semantic Colors:** Do not replace theme tokens with fixed black, off-black, or neutral-family values.
+* **Selected Accent:** Preserve Radix accent and semantic status colors; do not desaturate them for decoration.
 * **NO excessive gradient text** for large headers.
 * **NO custom mouse cursors.** Outdated, accessibility-hostile, perf-hostile.
 
 ### 9.B Typography
-* **AVOID Inter as default.** See Section 4.1. Override path exists.
+* **Installed Typography:** Reuse Geist Variable and language fallbacks; see Section 4.1.
 * **NO oversized H1s** that just scream. Control hierarchy with weight + color, not raw scale.
-* **Serif constraints:** Serif for editorial / luxury / publication. Not for dashboards.
+* **Editorial Contrast:** Use Geist weight, scale, and spacing rather than adding an unavailable serif.
 
 ### 9.C Layout & Spacing
 * **Mathematically perfect** padding and margins. No floating elements with awkward gaps.
@@ -692,7 +674,7 @@ Document the current state before proposing changes:
 Apply in order - stop when the brief is satisfied:
 1. **Typography refresh** - biggest visual lift per unit of risk.
 2. **Spacing & rhythm** - increase section padding, fix vertical rhythm.
-3. **Color recalibration** - desaturate, unify neutrals, keep brand accent.
+3. **Semantic color cleanup** - replace hard-coded overrides while preserving the selected Radix palette, appearance, and status colors.
 4. **Motion layer** - add `MOTION_INTENSITY`-appropriate micro-interactions to existing components.
 5. **Hero & key-section recomposition** - restructure top-of-funnel using Section 10 vocabulary.
 6. **Full block replacement** - only when the existing block is unsalvageable.
@@ -799,13 +781,13 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Redesign mode** detected and audit performed (if applicable, Section 11)?
 - [ ] **New marketing copy** has no decorative em/en dashes, while existing and localized content, source keys, identifiers, user data, real quotes, and missing-value placeholders retain their punctuation (Section 9.G)?
 - [ ] **Page Theme Lock**: ONE theme (light, dark, or auto) for the whole page. No section flips to inverted mode mid-page (Section 4.11)?
-- [ ] **Color Consistency Lock**: one accent color used identically across all sections (Section 4.2)?
+- [ ] **Color Consistency Lock**: semantic roles follow the selected Radix palette and appearance across all sections, with status colors preserved (Section 4.2)?
 - [ ] **Shape Consistency Lock**: one corner-radius system applied consistently (Section 4.4)?
 - [ ] **Button Contrast Check**: every CTA text is readable against its background (no white-on-white, WCAG AA 4.5:1)?
 - [ ] **CTA Button Wrap**: no CTA label wraps to 2+ lines at desktop?
 - [ ] **Form Contrast Check**: form inputs, placeholders, focus rings, labels all pass WCAG AA against the section background?
-- [ ] **Serif discipline**: if a serif is used, it is NOT Fraunces or Instrument_Serif (or it is, with explicit brand justification)? Different serif from your previous project?
-- [ ] **Premium-consumer palette check**: if the brief is premium-consumer (cookware / wellness / artisan / luxury), the palette is NOT the AI-default beige+brass+oxblood+espresso family? Different family from your previous premium-consumer project?
+- [ ] **Installed typography**: headings, body, and controls use Geist Variable with language fallbacks; amounts use tabular numerals without unavailable font references?
+- [ ] **Selected palette**: existing theme preferences are preserved without palette rotation, forced neutral families, saturation caps, or decorative recoloring of status colors?
 - [ ] **Italic descender clearance**: every italic word with `y g j p q` has `leading-[1.1]` min + `pb-1` reserve?
 - [ ] **Hero fits the viewport**: headline ≤ 2 lines, subtext ≤ 20 words AND ≤ 4 lines, CTA visible without scroll, font scale planned around image?
 - [ ] **Hero top padding**: max `pt-24` at desktop, hero content does not float halfway down the viewport?
