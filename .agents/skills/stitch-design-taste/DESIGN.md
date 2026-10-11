@@ -122,10 +122,10 @@ This section specifies optional CSS feedback for implementation.
 ## 9. Anti-Patterns (Banned)
 - No emojis — anywhere in UI, code, or alt text
 - Do not replace installed Geist Variable or remove language fallbacks.
-- No generic serif fonts (`Times New Roman`, `Georgia`, `Garamond`) — if serif is needed, use distinctive modern serifs only (`Fraunces`, `Instrument Serif`)
-- No pure black (`#000000`) — Off-Black or Zinc-950 only
+- Use Geist weight, scale, and spacing for editorial contrast; do not introduce an unavailable serif font.
+- Do not replace semantic color tokens with fixed palette values.
 - No neon outer glows or default box-shadow glows
-- No oversaturated accent colors above 80%
+- Preserve the selected Radix accent and semantic status colors; do not enforce a fixed saturation cap.
 - No excessive gradient text on large headers
 - No custom mouse cursors
 - No overlapping elements — text never overlaps images or other content. Clean spatial separation always

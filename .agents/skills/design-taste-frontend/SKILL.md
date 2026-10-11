@@ -341,7 +341,8 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
 
 * **Max 3 lines** of quote body. Never 6. If the original quote is longer → cut it. A landing-page quote is a snippet, not the full review.
 * For very small font sizes (e.g. footer-style testimonials), the line cap can stretch slightly. Spirit: "fits in a glance."
-* **No em-dashes inside the quote text** as design flourish (long pauses, kinetic em-dashes, em-dash-bullets). See Section 9.G - em-dash is completely banned.
+* **No decorative em-dashes in newly authored marketing quotes.**
+Preserve punctuation in existing quotes and localized content; see Section 9.G.
 * Attribution: name + role + (optionally) company. Never name only ("- Sarah").
 * Quote marks: use real typographic quotes ( " " ) or none at all. Not straight ASCII ( " ).
 
@@ -531,7 +532,8 @@ These patterns came out of real LLM-generated landing-page tests. They are the s
 * **NO decorative colored status dots on every list/nav/badge.** A colored dot before "ONE Q4 SLOT OPEN" or before every nav link, or every task row - banned by default. Acceptable only when the dot conveys actual semantic state (a server status, an availability flag) and is used sparingly.
 
 **Em-dashes & typography flourishes**
-* **NO em-dash (`—`) as a design element OR anywhere else.** See Section 9.G below for the complete, non-negotiable ban. The em-dash character is forbidden in headlines, eyebrows, pills, body copy, quotes, attribution, captions, button text, and alt text. Use the regular hyphen (`-`).
+* **No decorative em/en dashes in newly authored marketing copy.**
+Section 9.G exempts preserved content, localization, identifiers, and missing-value placeholders.
 * **NO `<br>`-broken-and-italicized headlines** as a default "design move." "for thirty\<br\>*years.*" type splits. Headlines should read naturally first, get clever only when the brief demands it.
 * **NO vertical rotated text** ("INDEX OF WORK, 2018 - 2026" rotated 90°). Agency-portfolio cliché. Use it only when the brief is explicitly agency / Awwwards / experimental AND it serves a real composition purpose.
 * **NO crosshair / hairline grid lines as decoration.** Vertical and horizontal lines drawn just to make the page "feel designed" - banned. Use them only when they organize real content.
@@ -567,23 +569,16 @@ These patterns came out of real LLM-generated landing-page tests. They are the s
 * **Scroll cues are banned.** `Scroll`, `↓ scroll`, `Scroll to explore`, `Scroll to walk through it`, animated mouse-wheel icons. If the user has not scrolled yet, they are looking at the hero. They know what scroll is. The bottom of the viewport does not need a label.
 * **ZERO decorative status dots by default.** A coloured dot before nav items, before list rows, before badges, before status labels is a Tell. Only acceptable when conveying real semantic state (a live indicator on actual server status, a live availability flag) and limited to one per page section.
 
-### 9.G EM-DASH BAN (the single most-violated Tell)
+### 9.G Punctuation in New Marketing Copy
 
-**Em-dash (`—`) is COMPLETELY banned.** It is the LLM's signature stylistic crutch and it is the #1 visual Tell in production tests. There is no "limited use" allowance, no "natural language frequency" allowance, no "in body copy is fine" allowance. None.
+Avoid decorative em dashes (`—`) and en dashes (`–`) in newly authored marketing copy.
+Use periods, commas, parentheses, or line breaks instead.
+Use a normal hyphen for new marketing ranges or attribution when the locale permits it.
 
-* **Banned in headlines.** Use a period or a comma.
-* **Banned in eyebrows / labels / pills / button text / image captions / nav items.** Replace with line breaks, columns, or hairlines.
-* **Banned in body copy.** Restructure the sentence: two sentences with a period, OR a comma, OR parentheses, OR a colon.
-* **Banned in quote attribution.** Use a normal hyphen with spaces (` - `) or a line break + smaller-weight name.
-* **Banned in en-dash form too (`–`) when used as a separator.** Date ranges (`2018-2026`) use a hyphen. Number ranges (`€40-80k`) use a hyphen.
-
-The ONLY permitted dash characters on the page are:
-* Regular hyphen `-` (for compound words, ranges, line dividers in markup)
-* Minus sign in math (`-5°C`)
-
-If your output contains a single `—` or `–` anywhere visible to the user, the output fails the Pre-Flight Check and must be rewritten.
-
-This rule is non-negotiable. The agent has historically ignored em-dash limits when phrased as "use sparingly." The phrasing here is binary: zero em-dashes.
+Preserve existing and localized content, source message keys, identifiers, user data, real quotes, and missing-value placeholders.
+Do not change their punctuation to satisfy this style rule.
+For example, keep the en dash in the existing localized username-range key and the em dash used for a missing receipt.
+Apply punctuation preflight checks only to newly authored marketing copy; preserved punctuation is not a failure.
 
 ---
 
@@ -802,7 +797,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **Dial values** explicit and reasoned from the brief, not silently using baseline?
 - [ ] **Design system** chosen from Section 2 if applicable, or aesthetic labeled honestly?
 - [ ] **Redesign mode** detected and audit performed (if applicable, Section 11)?
-- [ ] **ZERO em-dashes (`—`) anywhere on the page.** Headlines, eyebrows, pills, body, quotes, attribution, captions, buttons, alt text. Zero. (Section 9.G - non-negotiable.)
+- [ ] **New marketing copy** has no decorative em/en dashes, while existing and localized content, source keys, identifiers, user data, real quotes, and missing-value placeholders retain their punctuation (Section 9.G)?
 - [ ] **Page Theme Lock**: ONE theme (light, dark, or auto) for the whole page. No section flips to inverted mode mid-page (Section 4.11)?
 - [ ] **Color Consistency Lock**: one accent color used identically across all sections (Section 4.2)?
 - [ ] **Shape Consistency Lock**: one corner-radius system applied consistently (Section 4.4)?
@@ -844,7 +839,7 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **No decorative dots** (zero by default, only for real semantic state)?
 - [ ] **No `border-t` + `border-b` on every row** of long lists / spec tables?
 - [ ] **Content density** sane: no 20-row data tables, no fake-precise specs without justification, ≤ 25-word sub-paragraphs by default?
-- [ ] **Quotes ≤ 3 lines** of body, attribution clean (no em-dash)?
+- [ ] **Quotes ≤ 3 lines** of body, with readable attribution and preserved original punctuation; new marketing attribution follows Section 9.G?
 - [ ] **Motion claimed = motion shown**: if `MOTION_INTENSITY > 4`, page actually animates, not just claimed?
 - [ ] **Animation scope** leaves expense, balance, and settlement workflows usable without motion?
 - [ ] **Viewport effects** use CSS or IntersectionObserver without per-frame React state?

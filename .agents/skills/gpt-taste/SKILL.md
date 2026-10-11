@@ -86,7 +86,10 @@ Do not require pinning, scroll-controlled text, infinite loops, or animated expe
 ## 6. COMPONENT ARSENAL & CREATIVITY
 Select components from this arsenal based on the brief and existing Radix behavior:
 - **Inline Typography Images:** Embed small, pill-shaped images directly INSIDE massive headings. Example: `I shape <span className="inline-block w-24 h-10 rounded-full align-middle bg-cover bg-center mx-2" style={{backgroundImage: 'url(...)'}}></span> digital spaces.`
-- **Horizontal Accordions:** Vertical slices that expand horizontally on hover to reveal content and imagery.
+- **Horizontal Accordions:** Use the installed `radix-ui` Accordion with labeled trigger buttons, visible focus, and Radix-managed expanded state.
+Reveal content on click, tap, Enter, or Space; keep keyboard navigation intact.
+Hover may provide optional visual feedback, but must not be the only way to open a panel.
+Stack panels vertically on small screens and use immediate state changes for reduced motion.
 - **Trusted Partners Row:** Use a static row of authentic brand assets or readable partner names.
 Wrap it on small screens; do not auto-scroll or loop it.
 - **Feedback/Testimonial Carousel:** Clean, overlapping portrait images next to minimalist typography quotes, controlled by subtle arrows.

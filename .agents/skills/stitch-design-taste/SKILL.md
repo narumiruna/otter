@@ -71,17 +71,19 @@ Include resolved hex values only as previews for the chosen palette and appearan
 Preserve existing palette and appearance preferences.
 
 **Mandatory constraints:**
-- Maximum 1 accent color. Saturation below 80%
-- The "AI Purple/Blue Neon" aesthetic is strictly BANNED — no purple button glows, no neon gradients
-- Use absolute neutral bases (Zinc/Slate) with high-contrast singular accents
-- Stick to one palette for the entire output — no warm/cool gray fluctuation
-- Never use pure black (`#000000`) — use Off-Black, Zinc-950, or Charcoal
+- Use the selected Radix accent consistently; preserve semantic status colors.
+- Do not add decorative neon glows or gradients.
+- Resolve neutral roles through existing semantic tokens and the selected Radix gray scale.
+Forest uses sage, parchment uses sand, and lavender uses mauve; do not replace them with Zinc or Slate.
+- Preserve palette and light, dark, or system appearance preferences across all screens.
+- Check text and control contrast in both appearances; do not substitute fixed color values.
 
 ### 3. Establish Typography Rules
 - **Display/Headlines:** Track-tight, controlled scale. Not screaming. Hierarchy through weight and color, not just massive size
 - **Body:** Relaxed leading, max 65 characters per line
 - **Font Selection:** Reuse installed Geist Variable and existing language fallbacks.
-- **Serif Ban:** Generic serif fonts (`Times New Roman`, `Georgia`, `Garamond`, `Palatino`) are BANNED. If serif is needed for editorial/creative contexts, use only distinctive modern serifs: `Fraunces`, `Gambarino`, `Editorial New`, or `Instrument Serif`. Serif is always BANNED in dashboards or software UIs
+- **Editorial Contrast:** Use Geist weight, scale, and spacing for editorial or creative headings.
+Do not install or assume a serif font for implementation.
 - **Product Constraint:** Keep financial data and controls in Geist with tabular numerals for amounts.
 Use an existing system monospace stack only for code or technical metadata.
 
@@ -131,10 +133,10 @@ Every design must work across all viewports:
 Encode these as explicit "NEVER DO" rules in the DESIGN.md:
 - No emojis anywhere
 - No `Inter` font
-- No generic serif fonts (`Times New Roman`, `Georgia`, `Garamond`) — distinctive modern serifs only if needed
-- No pure black (`#000000`)
+- Do not replace installed Geist or introduce an unavailable serif font.
+- Do not replace semantic color tokens with fixed palette values.
 - No neon/outer glow shadows
-- No oversaturated accents
+- Preserve the selected Radix accent rather than imposing a fixed saturation cap.
 - No excessive gradient text on large headers
 - No custom mouse cursors
 - No overlapping elements — clean spatial separation always
@@ -192,7 +194,7 @@ Static reduced-motion states, stable financial data, and effect cleanup.
 No additional animation engine or Next.js Client Components.)
 
 ## 7. Anti-Patterns (Banned)
-(Explicit list of forbidden patterns: no emojis, no Inter, no pure black,
+(Explicit list of forbidden patterns: no emojis, no uninstalled fonts, no fixed palette values,
 no neon glows, no 3-column equal grids, no AI copywriting clichés,
 no generic placeholder names, no broken image links.)
 ```
