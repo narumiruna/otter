@@ -74,9 +74,12 @@ Use `tabular-nums` for amounts and the existing system monospace stack only for 
 Use `text-muted-foreground` for secondary copy; both colors follow the selected theme.
 
 **Rule 2: Color Calibration**
-* **Constraint:** Max 1 Accent Color. Saturation < 80%.
-* **THE LILA BAN:** The "AI Purple/Blue" aesthetic is strictly BANNED. No purple button glows, no neon gradients. Use absolute neutral bases (Zinc/Slate) with high-contrast, singular accents (e.g. Emerald, Electric Blue, or Deep Rose).
-* **COLOR CONSISTENCY:** Stick to one palette for the entire output. Do not fluctuate between warm and cool grays within the same project.
+* **Theme Owner:** Preserve `RadixTheme` and the selected palette and light, dark, or system appearance.
+* **Semantic Roles:** Use existing `--background`, `--foreground`, `--card`, `--border`, `--primary`, and `--muted-foreground` tokens.
+Resolve neutrals through the selected Radix gray scale: forest uses sage, parchment uses sand, and lavender uses mauve with a violet accent.
+Do not force Zinc/Slate, prohibit the selected purple accent, or impose a fixed saturation cap.
+* **Color Consistency:** Use the selected accent consistently and preserve semantic status colors.
+Do not add decorative neon glows or gradients.
 
 **Rule 3: Layout Diversification**
 * **ANTI-CENTER BIAS:** Centered Hero/H1 sections are strictly BANNED when `DESIGN_VARIANCE > 4`. Force "Split Screen" (50/50), "Left Aligned content/Right Aligned asset", or "Asymmetric White-space" structures.
@@ -132,8 +135,8 @@ To guarantee a premium, non-generic output, you MUST strictly avoid these common
 
 ### Visual & CSS
 * **NO Neon/Outer Glows:** Do not use default `box-shadow` glows or auto-glows. Use inner borders or subtle tinted shadows.
-* **NO Pure Black:** Never use `#000000`. Use Off-Black, Zinc-950, or Charcoal.
-* **NO Oversaturated Accents:** Desaturate accents to blend elegantly with neutrals.
+* **Semantic Colors:** Do not replace theme tokens with fixed black, off-black, Zinc, or Slate values.
+* **Selected Accent:** Preserve the Radix accent and semantic status colors; do not desaturate them for decoration.
 * **NO Excessive Gradient Text:** Do not use text-fill gradients for large headers.
 * **NO Custom Mouse Cursors:** They are outdated and ruin performance/accessibility.
 
@@ -203,7 +206,10 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 * **Dome Gallery:** A 3D gallery feeling like a panoramic dome.
 * **Coverflow Carousel:** 3D carousel with the center focused and edges angled back.
 * **Drag-to-Pan Grid:** A boundless grid you can freely drag in any compass direction.
-* **Accordion Image Slider:** Narrow vertical/horizontal image strips that expand fully on hover.
+* **Accordion Image Slider:** Use the installed `radix-ui` Accordion with labeled trigger buttons, visible focus, and Radix-managed expanded state.
+Open image panels on click, tap, Enter, or Space; preserve keyboard navigation.
+Hover may provide optional visual feedback, but must not be the only way to reveal content.
+Stack panels vertically on small screens and use immediate state changes for reduced motion.
 * **Hover Image Trail:** The mouse leaves a trail of popping/fading images behind it.
 * **Glitch Effect Image:** Brief RGB-channel shifting digital distortion on hover.
 
