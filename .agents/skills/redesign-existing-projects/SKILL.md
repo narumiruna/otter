@@ -49,27 +49,32 @@ When applied to an existing project, follow this sequence:
 
 Check for these problems and fix them:
 
-- **Browser default fonts or Inter everywhere.** Replace with a font that has character. Good options: `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`. For editorial/creative projects, pair a serif header with a sans-serif body.
+- **Font mismatch or weak hierarchy.** Reuse installed Geist Variable and existing language fallbacks.
+Use weight, scale, and spacing for editorial contrast; do not add or assume another font.
 - **Headlines lack presence.** Increase size for display text, tighten letter-spacing, reduce line-height. Headlines should feel heavy and intentional.
 - **Body text too wide.** Limit paragraph width to roughly 65 characters. Increase line-height for readability.
 - **Only Regular (400) and Bold (700) weights used.** Introduce Medium (500) and SemiBold (600) for more subtle hierarchy.
-- **Numbers in proportional font.** Use a monospace font or enable tabular figures (`font-variant-numeric: tabular-nums`) for data-heavy interfaces.
+- **Numbers in proportional font.** Use Geist with `font-variant-numeric: tabular-nums` for amounts.
+Reserve the existing system monospace stack for code or technical metadata.
 - **Missing letter-spacing adjustments.** Use negative tracking for large headers, positive tracking for small caps or labels.
 - **All-caps subheaders everywhere.** Try lowercase italics, sentence case, or small-caps instead.
 - **Orphaned words.** Single words sitting alone on the last line. Fix with `text-wrap: balance` or `text-wrap: pretty`.
 
 ### Color and Surfaces
 
-- **Pure `#000000` background.** Replace with off-black, dark charcoal, or tinted dark (`#0a0a0a`, `#121212`, or a dark navy).
-- **Oversaturated accent colors.** Keep saturation below 80%. Desaturate accents so they blend with neutrals instead of screaming.
-- **More than one accent color.** Pick one. Remove the rest. Consistency beats variety.
-- **Mixing warm and cool grays.** Stick to one gray family. Tint all grays with a consistent hue (warm or cool, not both).
-- **Purple/blue "AI gradient" aesthetic.** This is the most common AI design fingerprint. Replace with neutral bases and a single, considered accent.
+- **Hard-coded surfaces or text.** Use existing `--background`, `--foreground`, `--card`, `--card-foreground`, and `--border` tokens.
+Preserve `RadixTheme`, the selected palette, and light, dark, or system appearance.
+- **Accent overrides.** Use existing `--primary`/`--primary-foreground` for actions and `--accent`/`--accent-foreground` for supporting accents.
+Do not impose saturation caps or desaturate the selected Radix accent.
+- **Status colors mistaken for decoration.** Preserve existing semantic status colors and `--destructive` for errors; do not remove them to enforce one accent.
+- **Neutral overrides.** Resolve neutrals through the selected Radix gray scale rather than forcing a warm/cool family.
+- **Decorative neon gradients or glows.** Remove decoration when it weakens hierarchy, without replacing the selected purple or blue palette.
 - **Generic `box-shadow`.** Tint shadows to match the background hue. Use colored shadows (e.g., dark blue shadow on a blue background) instead of pure black at low opacity.
 - **Flat design with zero texture.** Add subtle noise, grain, or micro-patterns to backgrounds. Pure flat vectors feel sterile.
 - **Perfectly even gradients.** Break the uniformity with radial gradients, noise overlays, or mesh gradients instead of standard linear 45-degree fades.
 - **Inconsistent lighting direction.** Audit all shadows to ensure they suggest a single, consistent light source.
-- **Random dark sections in a light mode page (or vice versa).** A single dark-background section breaking an otherwise light page looks like a copy-paste accident. Either commit to a full dark mode or keep a consistent background tone throughout. If contrast is needed, use a slightly darker shade of the same palette — not a sudden jump to `#111` in the middle of a cream page.
+- **Sections that ignore the selected appearance.** Use existing semantic surface and text pairs for section contrast.
+Preserve the user's appearance preference; do not force a mode or insert fixed dark backgrounds.
 - **Empty, flat sections with no visual depth.** Sections that are just text on a plain background feel unfinished. Add high-quality background imagery (blurred, overlaid, or masked), subtle patterns, or ambient gradients. Use reliable placeholder sources like `https://picsum.photos/seed/{name}/1920/1080` when real assets are not available. Experiment with background images behind hero sections, feature blocks, or CTAs — even a subtle full-width photo at low opacity adds presence.
 
 ### Layout
@@ -195,8 +200,8 @@ Do not hide required content behind reveals; use static states for reduced motio
 
 Apply changes in this order for maximum visual impact with minimum risk:
 
-1. **Font swap** — biggest instant improvement, lowest risk
-2. **Color palette cleanup** — remove clashing or oversaturated colors
+1. **Typography hierarchy** - refine installed Geist weight, scale, spacing, and tabular figures.
+2. **Semantic color cleanup** - replace hard-coded overrides while preserving the selected Radix palette, appearance, and status colors.
 3. **Hover and active states** — makes the interface feel alive
 4. **Layout and spacing** — proper grid, max-width, consistent padding
 5. **Replace generic components** — swap cliche patterns for modern alternatives

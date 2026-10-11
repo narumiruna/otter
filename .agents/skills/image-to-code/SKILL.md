@@ -496,7 +496,7 @@ Choose exactly 4 unique components:
 - 3D cascading card deck
 - hover-accordion slice layout
 - pristine gapless bento grid
-- infinite brand marquee strip
+- static partner row that wraps on small screens; do not auto-scroll or loop it
 - turning polaroid arc
 - vertical rhythm lines
 - off-grid editorial layout
