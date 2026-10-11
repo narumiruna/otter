@@ -34,6 +34,7 @@ export function OverviewSummary({ payload }: { payload: TripPayload }) {
           {formatMoney(outstandingMinor, settlementCurrency(trip))}
         </strong>
         <span className="summary-card-hint">
+          {settlementCurrency(trip)} ·{" "}
           {settlements.length
             ? messages.countSuggestedPaymentsToSettleUp({
                 count: settlements.length,

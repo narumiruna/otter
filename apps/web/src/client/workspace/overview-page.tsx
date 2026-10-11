@@ -236,6 +236,7 @@ function SettlementList({
             />
             <strong>{settlement.toName}</strong>
             <span className="ml-auto font-semibold tabular-nums">
+              {settlement.currency} ·{" "}
               {formatMoney(settlement.amountMinor, settlement.currency)}
             </span>
           </div>
