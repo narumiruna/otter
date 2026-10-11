@@ -449,12 +449,12 @@ To avoid repetitive AI-looking output, internally choose a strong combination an
 Do not mash everything into chaos.
 Pick a coherent visual direction and execute it clearly.
 
-### Theme Paradigm
-Choose 1:
-1. Pristine Light Mode
-2. Deep Dark Mode
-3. Bold Studio Solid
-4. Quiet Premium Neutral
+### Selected Theme
+Derive references from the current `RadixTheme` palette and light, dark, or system appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+Use existing semantic surface, foreground, border, action, and status roles throughout reference generation and implementation.
+Do not choose an independent theme or replace the selected palette for visual variety.
+Vary layout, imagery, texture, and Geist hierarchy within the selected theme instead.
 
 ### Background Character
 Choose 1:
@@ -545,13 +545,17 @@ Default to real section comps.
 The hero must feel cinematic, clear, and intentional.
 
 ### Absolute Hero Rules
+Preserve existing product copy, localized strings, source keys, and user content verbatim.
+All shortening and word/line-count recommendations apply only to newly authored, explicitly labeled mock copy.
+Adjust readable type scale, container width, wrapping, and layout around preserved strings; do not cut translations to match a reference.
+
 - the hero must feel like a strong opening scene
 - keep the hero composition very clean
 - do not overcrowd the first viewport
 - the main headline must feel short and powerful
 - the hero headline should ideally stay within 1–3 lines
 - do not allow long wrapped hero headlines
-- if the headline starts becoming too long, reduce words instead of forcing more lines
+- shorten only newly authored labeled mock headlines; accommodate existing strings through layout and wrapping
 - keep supporting text concise
 - prioritize negative space and contrast
 - avoid stuffing the hero with pills, fake stats, badges, tiny logos, and nonsense detail
@@ -1158,7 +1162,7 @@ When the user asks for a website design in an image-to-code workflow:
 10. choose a strong visual combination
 11. choose 4 signature components
 12. choose 2 motion-implied cues
-13. enforce hero cleanliness and short hero line count
+13. keep the hero readable; preserve existing localized copy and limit shortening to newly authored labeled mock copy
 14. reduce unnecessary pills, labels, and micro-UI clutter
 15. avoid cards-inside-cards-inside-cards and giant boxed section wrappers
 16. keep the first screen readable and balanced on a small laptop

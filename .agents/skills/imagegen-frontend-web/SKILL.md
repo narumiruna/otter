@@ -198,16 +198,12 @@ To avoid repetitive AI-looking output, internally choose one option from each ca
 Do not mash everything together into chaos.
 Pick a strong combination and execute it clearly.
 
-### Theme Paradigm
-Choose 1:
-1. Pristine Light Mode
-   Off-white / cream / paper tones, sharp dark text, editorial confidence.
-2. Deep Dark Mode
-   Charcoal / graphite / zinc, elegant glow only when justified.
-3. Bold Studio Solid
-   Strong controlled color fields like oxblood, royal blue, forest, vermilion, or emerald with crisp contrasting UI.
-4. Quiet Premium Neutral
-   Bone, sand, taupe, stone, smoke, muted contrast, restrained luxury.
+### Selected Theme
+Derive all screen references from the current `RadixTheme` palette and light, dark, or system appearance preferences.
+Read `apps/web/src/client/radix-theme.tsx`, `index.css`, and selected-palette overrides before resolving colors.
+Use existing background/foreground, card/card-foreground, border, action, and semantic status roles.
+Do not choose an independent light/dark paradigm, force a neutral family, or replace the selected palette.
+Vary composition, imagery, and texture within the selected theme instead.
 
 ### Background Character
 Choose 1:
@@ -217,15 +213,15 @@ Choose 1:
 4. Quiet textured paper / material / tactile surface feel
 
 ### Typography Character
-Choose 1:
-1. Satoshi-like clean grotesk
-2. Neue-Montreal-like refined grotesk
-3. Cabinet / Clash-like expressive display
-4. Monument-like compressed statement typography
-5. Elegant editorial serif + sans pairing
-6. Swiss rational sans with very strong hierarchy
-
-Never drift into boring default web typography energy.
+Use installed Geist Variable and existing language fallbacks in all references.
+Choose contrast through weight, scale, spacing, and line length:
+1. clean regular-weight body with medium headings
+2. restrained editorial headings with generous spacing
+3. bold display headings with readable body text
+4. compact hierarchy with controlled line length
+5. editorial weight and scale contrast in Geist
+6. Swiss-style alignment and tabular numerals for amounts
+Do not assume alternative families, a serif pairing, or an unsupported font-width axis.
 
 ### Hero Architecture
 Choose 1:
@@ -249,7 +245,7 @@ Choose 1 dominant structure:
 Choose exactly 4 unique components:
 - Diagonal Staggered Square Masonry
 - 3D Cascading Card Deck
-- Hover-Accordion Slice Layout
+- Accessible Accordion Slice Layout
 - Pristine Gapless Bento Grid
 - Static Partner Row that wraps on small screens; do not imply auto-scrolling or looping
 - Turning Polaroid Arc
@@ -665,9 +661,11 @@ Should feel curated and graphic, not messy.
 Cards layered as a physical stack with depth logic.
 Should feel premium and tactile, not gimmicky.
 
-### Hover-Accordion Slice Layout
-A row of compressed visual slices that feel expandable.
-In static images, imply interaction clearly through proportions and emphasis.
+### Accessible Accordion Slice Layout
+Depict the installed `radix-ui` Accordion with labeled trigger buttons, visible keyboard focus, and clear collapsed/expanded states.
+Show controls intended for click, tap, Enter, or Space, with Radix-managed expanded state.
+Hover is optional feedback, not the only way to reveal content.
+Stack panels on small screens and show static reduced-motion states.
 
 ### Pristine Gapless Bento Grid
 Mathematically clean grid.
@@ -780,7 +778,7 @@ or a confident flat color field — picked deliberately, not as decoration.
 - avoid rainbow randomness
 - avoid over-neon unless requested
 - keep contrast intentional
-- match accent colors to the chosen theme paradigm
+- resolve accents through the selected Radix palette and semantic action/status roles
 - gradients must always read as professional and intentional, never as visual noise
 
 ### Materiality
@@ -975,7 +973,7 @@ Interpretation:
 - Composition Anchor: bottom-left text over full-bleed product/atmosphere image
 - Background Mode: full-bleed image with dark tonal overlay
 - CTA Variation: outlined inline + small label hint
-- Palette: Deep Dark or Bold Studio Solid, one consistent accent
+- Palette: Existing selected RadixTheme appearance and semantic action/status roles
 - no cliche dashboard spam, no purple AI glow
 
 ### Example 2

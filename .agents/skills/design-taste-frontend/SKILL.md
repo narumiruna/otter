@@ -610,8 +610,11 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 
 ### Scroll Animations
 * **Sticky Scroll Stack** - Cards stick and physically stack.
-* **Horizontal Scroll Hijack** - Vertical scroll → horizontal pan.
-* **Locomotive / Sequence Scroll** - Video / 3D sequence tied to scrollbar.
+* **Native Scroll-Snap Gallery** - Use native horizontal scrolling with optional CSS scroll-snap and keyboard-reachable content.
+Preserve wheel, touch, keyboard, and anchor behavior; do not remap vertical scrolling or trap focus.
+* **Native Sticky Narrative** - Use CSS sticky layout without taking over browser scrolling.
+Keep media static or user-controlled with accessible playback controls, not required scrollbar-driven playback.
+Use static states for reduced motion.
 * **Zoom Parallax** - Central background image zooming on scroll.
 * **Scroll Progress Path** - SVG line drawing along scroll.
 * **Liquid Swipe Transition** - Page transition like viscous liquid.

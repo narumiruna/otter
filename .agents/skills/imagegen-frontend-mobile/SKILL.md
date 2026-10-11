@@ -797,26 +797,18 @@ Forest uses sage, parchment uses sand, and lavender uses mauve with a violet acc
 Do not rotate palettes, force warm/cool neutrals, desaturate the selected accent, or remove status colors to limit accents.
 Keep the same theme roles across every screen in the flow.
 
-### Signature Component Set
-Choose exactly 4:
-- large hero metric card
-- compact stat strip
-- modular collection grid
-- media carousel
-- layered profile header
-- premium segmented control
-- bottom action sheet
-- framed product card stack
-- progress ring block
-- message bubble system
-- settings group cells
-- photo-led card strip
-- sticky mini player
-- collection shelf
-- habit tracker block
-- checkout summary card
-- journal entry card
-- achievement tile row
+### Workflow Components
+Select components only when they exist in or are required by the requested Otter workflow.
+There is no signature-component quota; a focused screen can need one component or none.
+Do not invent media playback, commerce, wellness, chat, or achievement features for visual variation.
+Use relevant existing behavior, for example:
+- expense-entry fields and split controls
+- participant lists and balances
+- expense lists and receipt details
+- settlement suggestions
+- auth fields and recovery controls
+- account or group settings
+Use Radix components and preserve the current data flow and actions.
 
 ### Decorative Asset Set
 Choose exactly 2:
