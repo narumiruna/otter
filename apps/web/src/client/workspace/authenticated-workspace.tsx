@@ -1,3 +1,4 @@
+import { currencies } from "@narumitw/otter-core/money";
 import {
   ArchiveIcon as Archive,
   TokensIcon as CircleDollarSign,
@@ -631,10 +632,9 @@ function CreateTrip({
             value={baseCurrency}
             onChange={(event) => setBaseCurrency(event.target.value)}
           >
-            <option>TWD</option>
-            <option>JPY</option>
-            <option>USD</option>
-            <option>EUR</option>
+            {currencies.map((currency) => (
+              <option key={currency}>{currency}</option>
+            ))}
           </select>
         </FormField>
         {error ? (

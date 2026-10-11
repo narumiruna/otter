@@ -4,8 +4,29 @@ import {
   convertExpenseMinor,
   currencies,
   fixedExchangeRates,
+  isCurrency,
   isExpenseExchangeRate,
+  parseAmountToMinor,
+  toMajor,
 } from "./money.js";
+
+test.each([
+  ["SGD", "12.34", 1234],
+  ["GBP", "12.34", 1234],
+  ["AUD", "12.34", 1234],
+  ["CAD", "12.34", 1234],
+  ["KRW", "1234", 1234],
+] as const)(
+  "parses %s with its currency precision",
+  (currency, amount, minor) => {
+    expect(isCurrency(currency)).toBe(true);
+    expect(parseAmountToMinor(amount, currency)).toBe(minor);
+    expect(toMajor(minor, currency)).toBe(Number(amount));
+    expect(() =>
+      parseAmountToMinor(currency === "KRW" ? "1.1" : "1.001", currency),
+    ).toThrow("decimal places");
+  },
+);
 
 test("snapshots round once in minor units and reject incompatible quotes", () => {
   const snapshot = {

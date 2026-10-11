@@ -2,7 +2,7 @@
 
 ## Choose a settlement currency
 
-The group owner can choose **Settlement currency** under **Group settings → Group preferences → Visa-based settlements**. The selector offers the app's supported currencies: TWD, JPY, USD, and EUR. It initially uses the group base currency if no selection has been saved.
+The group owner can choose **Settlement currency** under **Group settings → Group preferences → Visa-based settlements**. The selector offers the app's supported currencies: TWD, JPY, USD, EUR, SGD, GBP, AUD, CAD, and KRW. It initially uses the group base currency if no selection has been saved.
 
 Visa mode is off by default. Choose a currency and enable the option to convert every expense, including cash expenses, with a dated Visa rate. The group keeps its base currency and all original expense amounts. For example, a JPY group can settle in TWD, USD, or EUR.
 
@@ -16,8 +16,10 @@ Visa rates are indicative. The issuer can use a different processing date or add
 - Each expense stores a separate `visaExchangeRate` snapshot: source currency, target currency, date, rate, and fetch time. The existing `exchangeRate` snapshot remains unchanged.
 - Reads do not query Visa or change saved Visa rates. Unrelated edits and amount-only edits keep the saved rate. Date or source currency changes require a matching quote.
 - Rates are reused only for the same source currency, target currency, and date. When source and target are identical, the rate is 1 and Visa is not queried.
-- Each expense is converted and rounded to the selected currency's minor units before splitting. USD and EUR use cents; JPY and TWD use whole units. Explicit shares use the same saved rate. Rounding differences are allocated so the split total equals the converted expense total.
+- Each expense is converted and rounded to the selected currency's minor units before splitting. USD, EUR, SGD, GBP, AUD, and CAD use two decimal places; JPY, TWD, and KRW use whole units. Explicit shares use the same saved rate. Rounding differences are allocated so the split total equals the converted expense total.
 - Missing rates cause an error. There is no bank-rate or fixed-rate fallback in Visa settlement calculations.
+
+Outside Visa mode, bank snapshots contain only available Bank of Taiwan spot quotes. A missing spot quote uses a fixed estimate for that expense and is not saved as a bank quote. The new fixed estimates are SGD 24, GBP 41, AUD 21, CAD 23, and KRW 0.024 TWD per unit; these are not current market quotes.
 
 The public calculator limits date and currency-pair availability. An old trip can fail to enable if its rates are no longer available. Saved snapshots remain usable if the calculator later becomes unavailable.
 
@@ -41,7 +43,7 @@ Use `enabled: false` to disable. The currency can be saved while the option is o
 
 Only owners can change the setting. Archived and read-only groups cannot change it. API tokens remain subject to the group's API write permission.
 
-Run `npm run migrate` before deploying the updated API. Migration `023_visa_settlement.sql` adds a default-false Visa mode, an optional selected currency, and nullable target-aware expense snapshots. Existing amounts, exchange-rate snapshots, payment records, and history remain unchanged.
+Run `npm run migrate` before deploying the updated API. Migration `023_visa_settlement.sql` adds a default-false Visa mode, an optional selected currency, and nullable target-aware expense snapshots. Existing amounts, exchange-rate snapshots, payment records, and history remain unchanged. Migration `024_travel_currencies.sql` extends currency constraints and legacy estimates for SGD, GBP, AUD, CAD, and KRW. Apply it before the new application writes these currencies. Older application versions cannot read records that use the new currencies.
 
 Backup export and restore preserve the setting, selected currency, and snapshots. Expense history records snapshot changes. A restored expense version uses a snapshot that matches the current target, rather than reverting the group to its historical target. CSV imports fetch required quotes before their transaction. Group copies preserve the setting and selected currency but do not copy expenses.
 

@@ -67,6 +67,50 @@ async function setup(
   return { ...app, cookie, path, request, input, fetchRate };
 }
 
+test.each(["SGD", "GBP", "AUD", "CAD", "KRW"] as const)(
+  "settles and records payments in %s",
+  postgresTestOptions,
+  async (currency) => {
+    const s = await setup();
+    await s.request(`${s.path}/expenses`, "POST", s.input);
+    const enabled = await s.request(`${s.path}/visa-settlement`, "PATCH", {
+      enabled: true,
+      currency,
+    });
+    expect(enabled.response.status).toBe(200);
+    const payload = parseTripPayload(enabled.data);
+    const amountMinor = currency === "KRW" ? 100 : 10000;
+    expect(payload.settlements[0]).toMatchObject({ currency, amountMinor });
+    expect(payload.trip.expenses[0].visaExchangeRate?.targetCurrency).toBe(
+      currency,
+    );
+    expect(payload.trip.baseCurrency).toBe("JPY");
+    const payment = {
+      fromId: s.input.participantIds[1],
+      toId: s.input.paidById,
+      amount: currency === "KRW" ? "1.1" : "1.001",
+    };
+    expect(
+      (await s.request(`${s.path}/settlement-payments`, "POST", payment))
+        .response.status,
+    ).toBe(400);
+    const paid = await s.request(`${s.path}/settlement-payments`, "POST", {
+      ...payment,
+      amount: "1",
+    });
+    expect(paid.response.status).toBe(201);
+    expect(
+      parseTripPayload(paid.data).trip.settlementPayments?.[0],
+    ).toMatchObject({
+      currency,
+      amountMinor: currency === "KRW" ? 1 : 100,
+    });
+    expect(paid.data.settlements[0].amountMinor).toBe(
+      amountMinor - (currency === "KRW" ? 1 : 100),
+    );
+  },
+);
+
 test(
   "Visa mode converts dated expenses and preserves snapshots through edits, payments, history, and backups",
   postgresTestOptions,

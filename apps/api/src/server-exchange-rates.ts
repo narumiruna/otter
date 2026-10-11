@@ -4,7 +4,6 @@ import type {
 } from "@narumitw/otter-contracts";
 import {
   type Currency,
-  currencies,
   type ExchangeRates,
   fixedExchangeRates,
   isCurrency,
@@ -112,11 +111,11 @@ export function effectiveTripRates(
       ? candidate.rates
       : base
         ? Object.fromEntries(
-            currencies.map((currency) => [
+            Object.entries(candidate.rates).map(([currency, rate]) => [
               currency,
               currency === trip.baseCurrency
                 ? 1
-                : Number((candidate.rates[currency] / base).toPrecision(12)),
+                : Number((rate / base).toPrecision(12)),
             ]),
           )
         : fixedExchangeRates(trip.baseCurrency);
@@ -174,12 +173,10 @@ export function buildExchangeRateSnapshot(
     throw new Error(`Missing ${baseCurrency}/TWD spot rate`);
   }
 
+  // Return only actual spot quotes. Some currencies, such as KRW, have no
+  // Bank of Taiwan spot rate. Their expenses retain an explicit fixed estimate.
   const normalizedRates = Object.fromEntries(
-    currencies.map((currency) => {
-      const rateToTwd = ratesToTwd.get(currency);
-      if (!rateToTwd) {
-        throw new Error(`Missing ${currency}/TWD spot rate`);
-      }
+    Array.from(ratesToTwd, ([currency, rateToTwd]) => {
       return [
         currency,
         currency === baseCurrency
@@ -187,7 +184,7 @@ export function buildExchangeRateSnapshot(
           : Number((rateToTwd / baseRate).toPrecision(12)),
       ];
     }),
-  ) as Record<Currency, number>;
+  ) as ExchangeRates;
   const fetchedAt = bankRates[0]?.fetchedAt;
   if (!fetchedAt) {
     throw new Error("No exchange rates were returned");

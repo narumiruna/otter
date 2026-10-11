@@ -30,38 +30,33 @@ import {
   SectionHeading,
 } from "./workspace-ui.js";
 
-function automaticExchangeRates(
-  payload: TripPayload,
-): Record<Currency, number> {
+function automaticExchangeRates(payload: TripPayload): ExchangeRates {
   if (payload.exchangeRateInfo?.source === "custom") {
     return payload.exchangeRateInfo.defaults.rates;
   }
   if (
     payload.exchangeRateInfo?.source === "bank" &&
-    hasCompleteExchangeRates(payload.trip.exchangeRates)
+    payload.trip.exchangeRates
   ) {
     return payload.trip.exchangeRates;
   }
   return fixedExchangeRates(payload.trip.baseCurrency);
 }
 
-function hasCompleteExchangeRates(
-  rates: ExchangeRates | undefined,
-): rates is Record<Currency, number> {
-  return currencies.every((currency) => {
-    const rate = rates?.[currency];
-    return typeof rate === "number" && Number.isFinite(rate) && rate > 0;
-  });
-}
-
 function rebaseExchangeRates(
-  rates: Record<Currency, number>,
+  rates: ExchangeRates,
   baseCurrency: Currency,
-): Record<Currency, number> {
+): ExchangeRates {
   const baseRate = rates[baseCurrency];
+  if (!baseRate) return fixedExchangeRates(baseCurrency);
+  // Preserve missing quotes so domain conversion uses fixed rates for both
+  // currencies instead of mixing a fixed estimate with a bank quote.
   return Object.fromEntries(
-    currencies.map((currency) => [currency, rates[currency] / baseRate]),
-  ) as Record<Currency, number>;
+    Object.entries(rates).map(([currency, rate]) => [
+      currency,
+      Number((rate / baseRate).toPrecision(12)),
+    ]),
+  );
 }
 
 function customRateValues(payload: TripPayload): Record<Currency, string> {
@@ -425,7 +420,10 @@ export function ExchangeRateSettings({
       const snapshot = parseExchangeRateSnapshot(
         await api<unknown>(`/api/exchange-rates/${payload.trip.baseCurrency}`),
       );
-      setDefaultRates(snapshot.rates);
+      setDefaultRates({
+        ...fixedExchangeRates(payload.trip.baseCurrency),
+        ...snapshot.rates,
+      });
       setValues(
         Object.fromEntries(
           currencies.map((currency) => [

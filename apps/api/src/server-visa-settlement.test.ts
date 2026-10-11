@@ -1,3 +1,4 @@
+import { currencies } from "@narumitw/otter-core/money";
 import type { Expense } from "@narumitw/otter-core/settlement";
 import type { VisaRateQuery } from "@narumitw/otter-visa-exchange-rates";
 import { expect, test, vi } from "vitest";
@@ -155,7 +156,7 @@ test("does not reuse a snapshot from another target and keys rates by the full p
   expect(snapshot).toMatchObject({ targetCurrency: "USD", rate: 0.0065 });
 });
 
-test.each(["TWD", "JPY", "USD", "EUR"] as const)(
+test.each(currencies)(
   "uses identity rates without requesting Visa for %s",
   async (currency) => {
     const fetchRate = vi.fn(async (query: VisaRateQuery) => quote(query));

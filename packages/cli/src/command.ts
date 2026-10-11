@@ -18,7 +18,7 @@ Resources and actions:
   me
   trips list
   trips get       --trip <id>
-  trips create    --name <name> [--currency TWD|JPY|USD|EUR]
+  trips create    --name <name> [--currency TWD|JPY|USD|EUR|SGD|GBP|AUD|CAD|KRW]
   trips update    --trip <id> [--name <name>] [--archived true|false]
   trips delete    --trip <id> --yes
   participants list   --trip <id>

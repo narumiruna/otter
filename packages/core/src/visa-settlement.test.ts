@@ -49,6 +49,11 @@ describe("Visa settlements", () => {
       ["USD", 0.0065, 325],
       ["EUR", 0.006, 300],
       ["JPY", 1, 500],
+      ["SGD", 0.009, 450],
+      ["GBP", 0.005, 250],
+      ["AUD", 0.01, 500],
+      ["CAD", 0.0095, 475],
+      ["KRW", 9.1, 4550],
     ] as const) {
       const enabled: Trip = {
         ...trip,
