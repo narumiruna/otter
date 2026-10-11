@@ -8,6 +8,12 @@ import {
   isExpenseExchangeRate,
 } from "./money.js";
 
+import {
+  convertVisaExpenseMinor,
+  isVisaExpenseRate,
+  type VisaExpenseRate,
+} from "./visa-settlement.js";
+
 export type TripBackupV1 = {
   version: 1;
   exportedAt: string;
@@ -15,6 +21,7 @@ export type TripBackupV1 = {
     name: string;
     baseCurrency: Currency;
     exchangeRates?: Partial<Record<Currency, number>>;
+    visaSettlementEnabled?: boolean;
     participants: { id: string; name: string; settledById?: string }[];
     expenses: {
       id: string;
@@ -26,6 +33,7 @@ export type TripBackupV1 = {
       paidById: string;
       participantIds: string[];
       participantShares?: { participantId: string; shareMinor: number }[];
+      visaExchangeRate?: VisaExpenseRate;
       expenseDate: string;
       createdAt: string;
     }[];
@@ -74,6 +82,11 @@ export function validateTripBackupV1(
   if (!isCurrency(trip.baseCurrency)) {
     throw new Error("備份基準貨幣錯誤");
   }
+  if (
+    trip.visaSettlementEnabled !== undefined &&
+    typeof trip.visaSettlementEnabled !== "boolean"
+  )
+    throw new Error("備份 Visa 結清設定錯誤");
   if (trip.exchangeRates !== undefined) {
     if (
       !trip.exchangeRates ||
@@ -157,6 +170,22 @@ export function validateTripBackupV1(
     ) {
       throw new Error("備份支出格式錯誤");
     }
+    if (
+      (expense.visaExchangeRate !== undefined || trip.visaSettlementEnabled) &&
+      !isVisaExpenseRate(
+        expense.visaExchangeRate,
+        expense.currency,
+        expense.expenseDate,
+      )
+    )
+      throw new Error("備份 Visa 匯率格式錯誤");
+    if (expense.visaExchangeRate)
+      convertVisaExpenseMinor(
+        expense.amountMinor,
+        expense.currency,
+        expense.expenseDate,
+        expense.visaExchangeRate,
+      );
     const rate = (expense as { exchangeRate?: unknown }).exchangeRate;
     if (
       backup.version === 2 &&
@@ -246,6 +275,7 @@ export function validateTripBackupV1(
       !Number.isSafeInteger(payment.amountMinor) ||
       payment.amountMinor <= 0 ||
       !isCurrency(payment.currency) ||
+      (trip.visaSettlementEnabled === true && payment.currency !== "TWD") ||
       !isDateOnly(payment.paidAt) ||
       typeof payment.note !== "string" ||
       payment.note.length > 160 ||

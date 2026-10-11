@@ -88,6 +88,7 @@ function HistoryDialog({
     development_seed: messages.expenseHistorySourceSeed,
     migration: messages.expenseHistorySourceMigration,
     version_restore: messages.expenseHistorySourceVersionRestore,
+    visa_settlement: messages.visaSettlementTitle,
   };
   const revisions = history.data?.pages.flatMap((page) => page.revisions) ?? [];
   return (

@@ -12,6 +12,7 @@ import {
   isExpenseExchangeRate,
 } from "@narumitw/otter-core/money";
 import type { Balance, Settlement } from "@narumitw/otter-core/settlement";
+import { isVisaExpenseRate } from "@narumitw/otter-core/visa-settlement";
 import {
   isExpenseVersion,
   type Trip,
@@ -281,6 +282,8 @@ function validateTrip(value: unknown): asserts value is Trip {
     !isOptionalString(value.archivedAt, true) ||
     (value.allowApiWrites !== undefined &&
       typeof value.allowApiWrites !== "boolean") ||
+    (value.visaSettlementEnabled !== undefined &&
+      typeof value.visaSettlementEnabled !== "boolean") ||
     !isNonEmptyString(value.createdAt) ||
     !Array.isArray(value.participants) ||
     !Array.isArray(value.expenses)
@@ -333,6 +336,18 @@ function validateTrip(value: unknown): asserts value is Trip {
       !isStringArray(expense.participantIds, false) ||
       typeof expense.expenseDate !== "string" ||
       !isDateOnly(expense.expenseDate) ||
+      (expense.visaExchangeRate !== undefined &&
+        !isVisaExpenseRate(
+          expense.visaExchangeRate,
+          expense.currency,
+          expense.expenseDate,
+        )) ||
+      (value.visaSettlementEnabled === true &&
+        !isVisaExpenseRate(
+          expense.visaExchangeRate,
+          expense.currency,
+          expense.expenseDate,
+        )) ||
       !isNonEmptyString(expense.createdAt) ||
       !isOptionalString(expense.receiptId) ||
       !isOptionalString(expense.receiptUrl)
@@ -367,6 +382,7 @@ function validateTrip(value: unknown): asserts value is Trip {
         !isNonEmptyString(payment.toId) ||
         !isPositiveSafeInteger(payment.amountMinor) ||
         !isCurrency(payment.currency) ||
+        (value.visaSettlementEnabled === true && payment.currency !== "TWD") ||
         typeof payment.paidAt !== "string" ||
         !isDateOnly(payment.paidAt) ||
         typeof payment.note !== "string" ||

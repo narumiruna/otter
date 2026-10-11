@@ -11,6 +11,7 @@ export function ExpenseSnapshotDetails({
     "amountMinor",
     "currency",
     "exchangeRate",
+    "visaExchangeRate",
     "expenseDate",
     "paidById",
     "category",
@@ -32,6 +33,7 @@ export function ExpenseSnapshotDetails({
     amountMinor: messages.amount,
     currency: messages.currency,
     exchangeRate: messages.expenseHistoryRate,
+    visaExchangeRate: messages.visaRateLabel,
     expenseDate: messages.date,
     paidById: messages.paidBy,
     category: messages.category,
@@ -54,6 +56,9 @@ export function ExpenseSnapshotDetails({
     currency: e.currency,
     exchangeRate: e.exchangeRate
       ? `1 ${e.currency} = ${e.exchangeRate.rateToBase} ${e.exchangeRate.baseCurrency} · ${rateSource} · ${e.exchangeRate.fetchedAt ?? messages.expenseHistoryRateTimeUnavailable}`
+      : messages.expenseHistoryRateUnavailable,
+    visaExchangeRate: e.visaExchangeRate
+      ? `1 ${e.currency} = ${e.visaExchangeRate.rateToTwd} TWD · ${e.visaExchangeRate.date} · ${e.visaExchangeRate.fetchedAt}`
       : messages.expenseHistoryRateUnavailable,
     expenseDate: e.expenseDate,
     paidById: names.get(e.paidById) ?? e.paidById,

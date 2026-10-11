@@ -29,6 +29,37 @@ const trip: Trip = {
   createdAt: expense.createdAt,
 };
 
+test("shows the original JPY amount and the saved dated TWD conversion", async () => {
+  const rated: Expense = {
+    ...expense,
+    currency: "JPY",
+    amountMinor: 1000,
+    exchangeRate: { baseCurrency: "JPY", rateToBase: 1, source: "fixed" },
+    visaExchangeRate: {
+      sourceCurrency: "JPY",
+      date: expense.expenseDate,
+      rateToTwd: 0.2,
+      fetchedAt: expense.createdAt,
+    },
+  };
+  const view = render(
+    <Theme>
+      <I18nProvider initialLocale="en">
+        <ExpenseRateDetails
+          expense={rated}
+          trip={{ ...trip, baseCurrency: "JPY", visaSettlementEnabled: true }}
+          showAmount
+        />
+      </I18nProvider>
+    </Theme>,
+  );
+  expect(view.getByRole("button")).toHaveTextContent("1,000");
+  expect(view.getByText(/Visa$/)).toHaveTextContent("200");
+  await userEvent.setup().click(view.getByRole("button"));
+  expect(view.baseElement).toHaveTextContent("1 JPY = 0.2 TWD");
+  expect(view.baseElement).toHaveTextContent("2026-07-17");
+});
+
 test.each(["ja", "ko"] as const)(
   "%s localizes exchange-rate sources, quote times, and missing rates",
   async (locale) => {

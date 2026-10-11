@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./visa-settlement": {
+      "types": "./dist/visa-settlement.d.ts",
+      "import": "./dist/visa-settlement.js"
+    },
     "./backup": {
       "types": "./dist/backup.d.ts",
       "import": "./dist/backup.js"

@@ -1,5 +1,6 @@
 import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { convertExpenseMinor } from "@narumitw/otter-core/money";
+import { convertVisaExpenseMinor } from "@narumitw/otter-core/visa-settlement";
 import { InfoCircledIcon } from "@radix-ui/react-icons";
 import { Popover } from "@radix-ui/themes";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,20 @@ export function ExpenseRateDetails({
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const rate = expense.exchangeRate;
+  const visa = trip.visaSettlementEnabled
+    ? expense.visaExchangeRate
+    : undefined;
+  const visaAmount = visa
+    ? formatMoney(
+        convertVisaExpenseMinor(
+          expense.amountMinor,
+          expense.currency,
+          expense.expenseDate,
+          visa,
+        ),
+        "TWD",
+      )
+    : undefined;
   const converted = formatMoney(
     convertExpenseMinor(
       expense.amountMinor,
@@ -54,6 +69,9 @@ export function ExpenseRateDetails({
         </Popover.Trigger>
         <Popover.Content className="expense-rate-popover" align="end">
           <strong>{messages.expenseHistoryRate}</strong>
+          {visa ? (
+            <p>{`${messages.visaRateLabel} · ${visa.date} · 1 ${expense.currency} = ${visa.rateToTwd} TWD · ${visaAmount}`}</p>
+          ) : null}
           {rate ? (
             <p>{`1 ${expense.currency} = ${rate.rateToBase} ${rate.baseCurrency} · ${source}${rate.provider ? ` (${rate.provider}, ${rate.rateType})` : ""} · ${rate.fetchedAt ? new Date(rate.fetchedAt).toLocaleString(locale) : messages.expenseHistoryRateTimeUnavailable} · ${converted}`}</p>
           ) : (
@@ -61,7 +79,9 @@ export function ExpenseRateDetails({
           )}
         </Popover.Content>
       </Popover.Root>
-      {expense.currency !== trip.baseCurrency ? (
+      {visaAmount ? (
+        <small>≈ {visaAmount} · Visa</small>
+      ) : expense.currency !== trip.baseCurrency ? (
         <small>≈ {converted}</small>
       ) : null}
     </span>

@@ -40,9 +40,10 @@ export function registerTripCopyRoute(
           const source = await client.query<{
             name: string;
             base_currency: string;
+            visa_settlement_enabled: boolean;
             role: string;
           }>(
-            `SELECT trips.name, trips.base_currency, trip_members.role
+            `SELECT trips.name, trips.base_currency, trips.visa_settlement_enabled, trip_members.role
              FROM trips JOIN trip_members ON trip_members.trip_id = trips.id
              WHERE trips.id = $1 AND trip_members.user_id = $2`,
             [tripId, user.id],
@@ -82,9 +83,16 @@ export function registerTripCopyRoute(
           const id = makeId("trip");
           const createdAt = nowIso();
           await client.query(
-            `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
-           VALUES ($1, $2, $3, $4, $5)`,
-            [id, user.id, name, template.base_currency, createdAt],
+            `INSERT INTO trips (id, owner_id, name, base_currency, created_at, visa_settlement_enabled)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              id,
+              user.id,
+              name,
+              template.base_currency,
+              createdAt,
+              template.visa_settlement_enabled,
+            ],
           );
           await client.query(
             `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)

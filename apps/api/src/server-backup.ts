@@ -105,9 +105,16 @@ export function registerBackupRoutes(
             backup.trip.name,
           );
           await client.query(
-            `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
-           VALUES ($1, $2, $3, $4, $5)`,
-            [newTripId, user.id, name, backup.trip.baseCurrency, createdAt],
+            `INSERT INTO trips (id, owner_id, name, base_currency, created_at, visa_settlement_enabled)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              newTripId,
+              user.id,
+              name,
+              backup.trip.baseCurrency,
+              createdAt,
+              backup.trip.visaSettlementEnabled ?? false,
+            ],
           );
           await client.query(
             `INSERT INTO trip_members (id, trip_id, user_id, role, created_at)
@@ -116,13 +123,22 @@ export function registerBackupRoutes(
           );
 
           const participantIds = new Map<string, string>();
-          for (const participant of backup.trip.participants) {
+          for (const [
+            index,
+            participant,
+          ] of backup.trip.participants.entries()) {
             const participantId = makeId("participant");
             participantIds.set(participant.id, participantId);
             await client.query(
               `INSERT INTO participants (id, trip_id, name, created_at)
              VALUES ($1, $2, $3, $4)`,
-              [participantId, newTripId, participant.name, createdAt],
+              // Keep participant order stable because it assigns split rounding remainders.
+              [
+                participantId,
+                newTripId,
+                participant.name,
+                new Date(Date.parse(createdAt) + index).toISOString(),
+              ],
             );
           }
 
@@ -266,12 +282,16 @@ function tripBackupV2(
     exportedAt: nowIso(),
     trip: {
       baseCurrency: trip.baseCurrency,
+      visaSettlementEnabled: trip.visaSettlementEnabled ?? false,
       ...(trip.exchangeRates ? { exchangeRates: trip.exchangeRates } : {}),
       expenses: trip.expenses.map((expense) => ({
         amountMinor: expense.amountMinor,
         category: expense.category,
         createdAt: expense.createdAt,
         currency: expense.currency,
+        ...(expense.visaExchangeRate
+          ? { visaExchangeRate: expense.visaExchangeRate }
+          : {}),
         exchangeRate: expense.exchangeRate ?? {
           baseCurrency: trip.baseCurrency,
           rateToBase: Number(
