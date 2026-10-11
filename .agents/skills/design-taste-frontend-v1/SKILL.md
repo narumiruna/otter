@@ -143,7 +143,7 @@ To guarantee a premium, non-generic output, you MUST strictly avoid these common
 ### Typography
 * **Installed Font:** Use Geist Variable with existing language fallbacks; vary weight, scale, and spacing instead of adding fonts.
 * **NO Oversized H1s:** The first heading should not scream. Control hierarchy with weight and color, not just massive scale.
-* **Serif Constraints:** Use Serif fonts ONLY for creative/editorial designs. **NEVER** use Serif on clean Dashboards.
+* **Editorial Contrast:** Use Geist weight, scale, and spacing for creative/editorial screens; do not assume or add an unavailable serif.
 
 ### Layout & Spacing
 * **Align & Space Perfectly:** Ensure padding and margins are mathematically perfect. Avoid floating elements with awkward gaps.
@@ -173,7 +173,8 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 
 ### Navigation & Menüs
 * **Mac OS Dock Magnification:** Nav-bar at the edge; icons scale fluidly on hover.
-* **Magnetic Button:** Buttons that physically pull toward the cursor.
+* **Button State Feedback:** Keep buttons in place; use optional short CSS hover/focus/pressed feedback, including keyboard and touch activation.
+Do not track pointer coordinates or move controls toward the cursor; use static reduced-motion states.
 * **Gooey Menu:** Sub-items detach from the main button like a viscous liquid.
 * **Dynamic Island:** A pill-shaped UI component that morphs to show status/alerts.
 * **Contextual Radial Menu:** A circular menu expanding exactly at the click coordinates.
@@ -188,8 +189,9 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 * **Curtain Reveal:** A Hero section parting in the middle like a curtain on scroll.
 
 ### Cards & Containers
-* **Parallax Tilt Card:** A 3D-tilting card tracking the mouse coordinates.
-* **Spotlight Border Card:** Card borders that illuminate dynamically under the cursor.
+* **Card State Feedback:** Use optional short CSS hover/focus-within surface feedback, not pointer-tracking tilt.
+Keep content readable and touch controls usable; use static reduced-motion states.
+* **Focus Border Card:** Use a semantic border highlight for focus-within and optional hover; do not track cursor position.
 * **Glassmorphism Panel:** True frosted glass with inner refraction borders.
 * **Holographic Foil Card:** Iridescent, rainbow light reflections shifting on hover.
 * **Tinder Swipe Stack:** A physical stack of cards the user can swipe away.
@@ -214,7 +216,7 @@ Use static states for reduced motion.
 Open image panels on click, tap, Enter, or Space; preserve keyboard navigation.
 Hover may provide optional visual feedback, but must not be the only way to reveal content.
 Stack panels vertically on small screens and use immediate state changes for reduced motion.
-* **Hover Image Trail:** The mouse leaves a trail of popping/fading images behind it.
+* **Static Image Sequence:** Use a composed image row or grid with useful alt text, not a pointer-driven image trail.
 * **Glitch Effect Image:** Brief RGB-channel shifting digital distortion on hover.
 
 ### Typography & Text
@@ -224,7 +226,7 @@ Stack panels vertically on small screens and use immediate state changes for red
 * **Circular Text Path:** Static decorative text on a circular path with an accessible text equivalent.
 * **Stroke Feedback:** Optional short CSS feedback on hover/focus, not a continuously running gradient.
 Use static states for reduced motion.
-* **Kinetic Typography Grid:** A grid of letters dodging or rotating away from the cursor.
+* **Static Typography Grid:** Keep letters readable and in place; vary Geist weight, scale, and spacing instead of dodging the cursor.
 
 ### Micro-Interactions & Effects
 * **Particle Explosion Button:** CTAs that shatter into particles upon success.

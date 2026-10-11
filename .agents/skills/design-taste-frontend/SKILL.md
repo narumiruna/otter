@@ -586,7 +586,8 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 
 ### Navigation & Menus
 * **Mac OS Dock Magnification** - Edge nav, icons scale fluidly on hover.
-* **Magnetic Button** - Pulls toward cursor.
+* **Button State Feedback** - Keep buttons in place; use optional short CSS hover/focus/pressed feedback, including keyboard and touch activation.
+Do not track pointer coordinates or move controls toward the cursor; use static reduced-motion states.
 * **Gooey Menu** - Sub-items detach like viscous liquid.
 * **Dynamic Island** - Morphing pill for status / alerts.
 * **Contextual Radial Menu** - Circular menu expanding at click point.
@@ -601,8 +602,9 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 * **Sticky-Stack Sections** - Sections that pin and stack on scroll.
 
 ### Cards & Containers
-* **Parallax Tilt Card** - 3D tilt tracking mouse coordinates.
-* **Spotlight Border Card** - Borders illuminate under cursor.
+* **Card State Feedback** - Use optional short CSS hover/focus-within surface feedback, not pointer-tracking tilt.
+Keep content readable and touch controls usable; use static reduced-motion states.
+* **Focus Border Card** - Use a semantic border highlight for focus-within and optional hover; do not track cursor position.
 * **Glassmorphism Panel** - Frosted glass with inner refraction.
 * **Holographic Foil Card** - Iridescent rainbow shift on hover.
 * **Tinder Swipe Stack** - Physical card stack, swipe-away.
@@ -627,7 +629,7 @@ Use static states for reduced motion.
 Open panels on click, tap, Enter, or Space; preserve keyboard navigation.
 Hover is optional feedback, not the only way to reveal content.
 Stack panels on small screens and use immediate state changes for reduced motion.
-* **Hover Image Trail** - Mouse leaves popping image trail.
+* **Static Image Sequence** - Use a composed image row or grid with useful alt text, not a pointer-driven image trail.
 * **Glitch Effect Image** - RGB-channel shift on hover.
 
 ### Typography & Text
@@ -637,7 +639,7 @@ Stack panels on small screens and use immediate state changes for reduced motion
 * **Circular Text Path** - Static decorative text on a circular path with an accessible text equivalent.
 * **Stroke Feedback** - Optional short hover/focus feedback rather than a continuously running gradient.
 Use static states for reduced motion.
-* **Kinetic Typography Grid** - Letters dodging the cursor.
+* **Static Typography Grid** - Keep letters readable and in place; vary Geist weight, scale, and spacing instead of dodging the cursor.
 
 ### Micro-Interactions & Effects
 * **Particle Explosion Button** - CTA shatters into particles on success.
@@ -717,7 +719,7 @@ The Reference Vocabulary (Section 10) names patterns. The Block Library implemen
 
 ### 12.A File Location
 ```
-skills/taste-skill/blocks/
+.agents/skills/design-taste-frontend/blocks/
   hero/
     asymmetric-split.md
     editorial-manifesto.md
