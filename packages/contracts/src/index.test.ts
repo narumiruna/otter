@@ -1,3 +1,4 @@
+import { fixedExchangeRates } from "@narumitw/otter-core/money";
 import { describe, expect, test } from "vitest";
 import {
   parseExchangeRateSnapshot,
@@ -158,10 +159,17 @@ test("share link modes must be explicit and valid", () => {
   ).toThrow();
 });
 
-const completeRates = { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 };
+const completeRates = {
+  ...fixedExchangeRates("TWD"),
+  EUR: 36.5,
+  JPY: 0.2,
+  TWD: 1,
+  USD: 31.8,
+};
 test.each([
   { name: "absent", rates: undefined, trip: true, snapshot: false },
   { name: "empty", rates: {}, trip: true, snapshot: false },
+  { name: "base only", rates: { TWD: 1 }, trip: true, snapshot: true },
   { name: "partial", rates: { USD: 31.8 }, trip: true, snapshot: false },
   { name: "complete", rates: completeRates, trip: true, snapshot: true },
   { name: "array", rates: [], trip: false, snapshot: false },
@@ -368,15 +376,15 @@ describe("parseExchangeRateSnapshot", () => {
     source: "BANK_OF_TAIWAN",
   };
 
-  test("returns a complete supported-currency snapshot", () => {
+  test("returns available bank spot quotes", () => {
     expect(parseExchangeRateSnapshot(snapshot)).toEqual(snapshot);
   });
 
-  test("rejects missing, non-positive, and unsupported rates", () => {
+  test("rejects a missing base rate, non-positive, and unsupported rates", () => {
     expect(() =>
       parseExchangeRateSnapshot({
         ...snapshot,
-        rates: { JPY: 0.2, TWD: 1, USD: 31.8 },
+        rates: { JPY: 0.2, USD: 31.8 },
       }),
     ).toThrow("Invalid exchange-rate snapshot");
     expect(() =>

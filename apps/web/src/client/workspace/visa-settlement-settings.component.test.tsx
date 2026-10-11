@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { Currency } from "@narumitw/otter-core/money";
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
@@ -72,7 +73,7 @@ test("starts off, enables all expenses, and can return to the original mode", as
     vi.fn(async (_url: string, init: RequestInit) => {
       const body: {
         enabled: boolean;
-        currency: "TWD" | "JPY" | "USD" | "EUR";
+        currency: Currency;
       } = JSON.parse(String(init.body));
       requests.push(body);
       return Response.json({
@@ -114,6 +115,41 @@ test("starts off, enables all expenses, and can return to the original mode", as
   ]);
   view.close();
 });
+
+test.each(["SGD", "GBP", "AUD", "CAD", "KRW"] as const)(
+  "enables Visa settlements in %s",
+  async (currency) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        expect(JSON.parse(String(init.body))).toEqual({
+          enabled: true,
+          currency,
+        });
+        return Response.json({
+          ...initial,
+          trip: {
+            ...initial.trip,
+            visaSettlementEnabled: true,
+            visaSettlementCurrency: currency,
+          },
+        });
+      }),
+    );
+    const view = mount();
+    const user = userEvent.setup();
+    await user.selectOptions(
+      view.getByRole("combobox", { name: "Settlement currency" }),
+      currency,
+    );
+    await user.click(view.getByRole("switch"));
+    await waitFor(() =>
+      expect(view.getByText(`On · ${currency}`)).toBeVisible(),
+    );
+    expect(view.getByRole("switch")).toBeChecked();
+    view.close();
+  },
+);
 
 test("keeps the setting off and shows an error when Visa is unavailable", async () => {
   vi.stubGlobal(

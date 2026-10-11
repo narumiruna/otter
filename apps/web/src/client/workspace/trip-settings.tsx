@@ -34,24 +34,21 @@ function automaticExchangeRates(
   payload: TripPayload,
 ): Record<Currency, number> {
   if (payload.exchangeRateInfo?.source === "custom") {
-    return payload.exchangeRateInfo.defaults.rates;
+    return {
+      ...fixedExchangeRates(payload.trip.baseCurrency),
+      ...payload.exchangeRateInfo.defaults.rates,
+    };
   }
   if (
     payload.exchangeRateInfo?.source === "bank" &&
-    hasCompleteExchangeRates(payload.trip.exchangeRates)
+    payload.trip.exchangeRates
   ) {
-    return payload.trip.exchangeRates;
+    return {
+      ...fixedExchangeRates(payload.trip.baseCurrency),
+      ...payload.trip.exchangeRates,
+    };
   }
   return fixedExchangeRates(payload.trip.baseCurrency);
-}
-
-function hasCompleteExchangeRates(
-  rates: ExchangeRates | undefined,
-): rates is Record<Currency, number> {
-  return currencies.every((currency) => {
-    const rate = rates?.[currency];
-    return typeof rate === "number" && Number.isFinite(rate) && rate > 0;
-  });
 }
 
 function rebaseExchangeRates(
@@ -425,7 +422,10 @@ export function ExchangeRateSettings({
       const snapshot = parseExchangeRateSnapshot(
         await api<unknown>(`/api/exchange-rates/${payload.trip.baseCurrency}`),
       );
-      setDefaultRates(snapshot.rates);
+      setDefaultRates({
+        ...fixedExchangeRates(payload.trip.baseCurrency),
+        ...snapshot.rates,
+      });
       setValues(
         Object.fromEntries(
           currencies.map((currency) => [

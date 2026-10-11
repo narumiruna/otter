@@ -85,7 +85,7 @@ export type ExchangeRateDefaults =
   | {
       fetchedAt: string;
       provider: "BANK_OF_TAIWAN";
-      rates: Record<Currency, number>;
+      rates: ExchangeRates;
       rateType: "spotMid";
       source: "bank";
     }
@@ -137,7 +137,7 @@ export type OkResponse = { ok: true };
 export type ExchangeRateSnapshot = {
   baseCurrency: Currency;
   fetchedAt: string;
-  rates: Record<Currency, number>;
+  rates: ExchangeRates;
   rateType: "spotMid";
   source: "BANK_OF_TAIWAN";
 };
@@ -264,10 +264,8 @@ export function parseExchangeRateSnapshot(
   if (!isExchangeRateMap(value.rates, false)) {
     throw new Error("Invalid exchange-rate snapshot");
   }
-  for (const currency of currencies) {
-    if (!isPositiveNumber(value.rates[currency])) {
-      throw new Error("Invalid exchange-rate snapshot");
-    }
+  if (value.rates[value.baseCurrency] !== 1) {
+    throw new Error("Invalid exchange-rate snapshot");
   }
   return value as ExchangeRateSnapshot;
 }
@@ -471,10 +469,15 @@ function validateExchangeRateInfo(value: unknown): void {
 }
 
 function isExchangeRateDefaults(value: Record<string, unknown>): boolean {
-  if (!isExchangeRateMap(value.rates, true)) {
+  if (!isExchangeRateMap(value.rates, value.source === "fixed")) {
     return false;
   }
-  return value.source === "fixed" || isBankRateMetadata(value);
+  return (
+    value.source === "fixed" ||
+    (isRecord(value.rates) &&
+      Object.keys(value.rates).length > 0 &&
+      isBankRateMetadata(value))
+  );
 }
 
 function isBankRateMetadata(value: Record<string, unknown>): boolean {

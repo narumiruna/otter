@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Currency } from "@narumitw/otter-core/money";
+import { type Currency, currencies } from "@narumitw/otter-core/money";
 import type { Rate } from "@narumitw/otter-exchange-rates";
 import { Hono } from "hono";
 import { expect, test } from "vitest";
@@ -8,17 +8,30 @@ import {
   createExchangeRateService,
   registerExchangeRateRoutes,
 } from "./server-exchange-rates.js";
+import { expenseExchangeRate } from "./server-expense-rates.js";
 import type { OtterEnv, OtterMiddleware } from "./server-http.js";
 import type { LoadedTrip } from "./server-support.js";
 
 const fetchedAt = "2026-09-20T12:00:00.000Z";
-const rates: Rate[] = [rate("JPY", 0.2), rate("USD", 31.8), rate("EUR", 36.5)];
+const rateToTwd = {
+  EUR: 36.5,
+  JPY: 0.2,
+  TWD: 1,
+  USD: 31.8,
+  SGD: 24.5,
+  GBP: 42,
+  AUD: 21.5,
+  CAD: 23.5,
+  KRW: 0.025,
+};
+const rates: Rate[] = currencies
+  .filter((code) => code !== "TWD")
+  .map((code) => rate(code, rateToTwd[code]));
 
-test.each<Currency>(["TWD", "JPY", "USD", "EUR"])(
+test.each(currencies)(
   "normalizes Bank of Taiwan spot mid-rates to %s",
   (baseCurrency) => {
     const snapshot = buildExchangeRateSnapshot(rates, baseCurrency);
-    const rateToTwd = { EUR: 36.5, JPY: 0.2, TWD: 1, USD: 31.8 };
 
     assert.equal(snapshot.baseCurrency, baseCurrency);
     assert.equal(snapshot.fetchedAt, fetchedAt);
@@ -34,9 +47,21 @@ test.each<Currency>(["TWD", "JPY", "USD", "EUR"])(
   },
 );
 
-test("rejects an incomplete supported-currency snapshot", () => {
-  expect(() => buildExchangeRateSnapshot(rates.slice(0, 2), "TWD")).toThrow(
-    "Missing EUR/TWD spot rate",
+test("keeps missing spot quotes out of bank metadata and uses explicit fixed expense estimates", () => {
+  const partialRates = rates.filter((quote) => quote.source !== "KRW");
+  const snapshot = buildExchangeRateSnapshot(partialRates, "TWD");
+  expect(snapshot.rates.KRW).toBeUndefined();
+  expect(snapshot.rates.SGD).toBe(24.5);
+  expect(expenseExchangeRate(emptyTrip(), "KRW", snapshot)).toMatchObject({
+    source: "fixed",
+    rateToBase: 0.024,
+  });
+  expect(expenseExchangeRate(emptyTrip(), "SGD", snapshot)).toMatchObject({
+    source: "bank",
+    rateToBase: 24.5,
+  });
+  expect(() => buildExchangeRateSnapshot(partialRates, "KRW")).toThrow(
+    "Missing KRW/TWD spot rate",
   );
 });
 

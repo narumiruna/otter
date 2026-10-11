@@ -1,4 +1,14 @@
-export const currencies = ["TWD", "JPY", "USD", "EUR"] as const;
+export const currencies = [
+  "TWD",
+  "JPY",
+  "USD",
+  "EUR",
+  "SGD",
+  "GBP",
+  "AUD",
+  "CAD",
+  "KRW",
+] as const;
 
 export type Currency = (typeof currencies)[number];
 
@@ -91,6 +101,11 @@ export const currencyInfo: Record<Currency, CurrencyInfo> = {
   JPY: { label: "日幣", minorUnits: 0, rateToTwd: 0.22 },
   USD: { label: "美金", minorUnits: 2, rateToTwd: 32 },
   EUR: { label: "歐元", minorUnits: 2, rateToTwd: 35 },
+  SGD: { label: "Singapore dollar", minorUnits: 2, rateToTwd: 24 },
+  GBP: { label: "Pound sterling", minorUnits: 2, rateToTwd: 41 },
+  AUD: { label: "Australian dollar", minorUnits: 2, rateToTwd: 21 },
+  CAD: { label: "Canadian dollar", minorUnits: 2, rateToTwd: 23 },
+  KRW: { label: "South Korean won", minorUnits: 0, rateToTwd: 0.024 },
 };
 
 export function isCurrency(value: unknown): value is Currency {
