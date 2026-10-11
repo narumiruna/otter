@@ -91,13 +91,17 @@ test("Visa mode keeps the spending total in JPY but labels outstanding settlemen
   };
   const view = render(
     <I18nProvider initialLocale="en">
-      <OverviewSummary payload={payloadFor(enabled)} />
+      <OverviewPage payload={payloadFor(enabled)} readonly />
     </I18nProvider>,
   );
   expect(view.getByText("JPY · Converted to base currency")).toBeVisible();
   const outstanding = view.getByText("Outstanding").closest(".summary-card");
   expect(outstanding).toHaveTextContent("NT$100");
   expect(outstanding).not.toHaveTextContent("¥");
+  expect(outstanding).toHaveTextContent("TWD · 1 suggested payment");
+  const settlements = view.getByRole("region", { name: "Settle up" });
+  expect(within(settlements).getByText("TWD · NT$100")).toBeVisible();
+  expect(settlements).not.toHaveTextContent("JPY");
 });
 
 test("summary converts expenses to base currency and accounts for recorded payments", () => {
@@ -106,7 +110,9 @@ test("summary converts expenses to base currency and accounts for recorded payme
   expect(within(summary).getByText("$300")).toBeVisible();
   expect(within(summary).getByText("$100")).toBeVisible();
   expect(within(summary).getByText("TWD · 已換算為基準貨幣")).toBeVisible();
-  expect(within(summary).getByText("1 筆建議付款，讓帳目歸零")).toBeVisible();
+  expect(
+    within(summary).getByText("TWD · 1 筆建議付款，讓帳目歸零"),
+  ).toBeVisible();
   expect(within(summary).getByText("2 位成員一起分帳")).toBeVisible();
 });
 
@@ -181,6 +187,7 @@ test("an expense history with no outstanding balance still shows settled results
   };
   render(<OverviewPage payload={payloadFor(settled)} readonly />);
   expect(screen.getByText("目前已經打平")).toBeVisible();
+  expect(screen.getByText("TWD · 目前沒有待結清款項")).toBeVisible();
   expect(screen.getByRole("region", { name: "群組帳目摘要" })).toBeVisible();
   expect(screen.queryByText("還沒有支出")).not.toBeInTheDocument();
 });
