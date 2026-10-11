@@ -251,7 +251,7 @@ Choose exactly 4 unique components:
 - 3D Cascading Card Deck
 - Hover-Accordion Slice Layout
 - Pristine Gapless Bento Grid
-- Infinite Brand Marquee Strip
+- Static Partner Row that wraps on small screens; do not imply auto-scrolling or looping
 - Turning Polaroid Arc
 - Vertical Rhythm Lines
 - Off-Grid Editorial Layout

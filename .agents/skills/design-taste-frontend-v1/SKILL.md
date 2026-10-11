@@ -182,7 +182,7 @@ Do not add GSAP, Three.js, or Framer Motion to reproduce a reference effect.
 ### Layout & Grids
 * **Bento Grid:** Asymmetric, tile-based grouping (e.g., Apple Control Center).
 * **Masonry Layout:** Staggered grid without fixed row heights (e.g., Pinterest).
-* **Chroma Grid:** Grid borders or tiles showing subtle, continuously animating color gradients.
+* **Chroma Grid:** Static semantic-color borders or tiles with optional short hover/focus feedback.
 * **Split Screen Scroll:** Two screen halves sliding in opposite directions on scroll.
 * **Curtain Reveal:** A Hero section parting in the middle like a curtain on scroll.
 
@@ -214,11 +214,12 @@ Stack panels vertically on small screens and use immediate state changes for red
 * **Glitch Effect Image:** Brief RGB-channel shifting digital distortion on hover.
 
 ### Typography & Text
-* **Kinetic Marquee:** Endless text bands that reverse direction or speed up on scroll.
+* **Static Text Band:** A readable text row that wraps on small screens; do not auto-scroll, loop, or tie its speed to scrolling.
 * **Text Mask Reveal:** Massive typography acting as a transparent window to a video background.
 * **Text Scramble Effect:** Matrix-style character decoding on load or hover.
-* **Circular Text Path:** Text curved along a spinning circular path.
-* **Gradient Stroke Animation:** Outlined text with a gradient continuously running along the stroke.
+* **Circular Text Path:** Static decorative text on a circular path with an accessible text equivalent.
+* **Stroke Feedback:** Optional short CSS feedback on hover/focus, not a continuously running gradient.
+Use static states for reduced motion.
 * **Kinetic Typography Grid:** A grid of letters dodging or rotating away from the cursor.
 
 ### Micro-Interactions & Effects

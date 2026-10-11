@@ -98,7 +98,11 @@ Wrap it on small screens; do not auto-scroll or loop it.
 - **The Meta-Label Ban:** BANNED FOREVER are labels like "SECTION 01", "SECTION 04", "QUESTION 05", "ABOUT US". Remove them entirely. They look cheap and unprofessional.
 - **Image Context & Style:** Use `https://picsum.photos/seed/{keyword}/1920/1080` and match the keyword to the vibe. Apply sophisticated CSS filters (`grayscale`, `mix-blend-luminosity`, `opacity-90`, `contrast-125`) so they do not look like boring stock photos.
 - **Creative Backgrounds:** Inject subtle, professional ambient design. Use deep radial blurs, grainy mesh gradients, or shifting dark overlays. Avoid flat, boring colors.
-- **Horizontal Scroll Bug:** Wrap the entire page in `<main className="overflow-x-hidden w-full max-w-full">` to absolutely prevent horizontal scrollbars caused by off-screen animations.
+- **Horizontal Overflow:** Fix the component that exceeds the viewport rather than clipping the entire page.
+Use responsive widths, `min-width: 0` for grid/flex children, bounded images, and wrapping text where needed.
+Keep intentional scroll regions accessible with native scrolling; do not hide focusable content.
+Restrict any clipping to non-interactive decorative containers.
+Check narrow viewports, zoom, and keyboard focus so every control remains visible and reachable.
 
 ## 8. MANDATORY PRE-FLIGHT <design_plan>
 Before writing ANY React/UI code, you MUST output a `<design_plan>` block containing:

@@ -494,7 +494,10 @@ Choose 1:
 Choose exactly 4 unique components:
 - diagonal staggered square masonry
 - 3D cascading card deck
-- hover-accordion slice layout
+- accessible accordion slice layout using the installed `radix-ui` Accordion with labeled trigger buttons and visible focus
+Open panels on click, tap, Enter, or Space; preserve keyboard navigation.
+Hover is optional feedback, not the only way to reveal content.
+Stack panels on small screens and use immediate state changes for reduced motion.
 - pristine gapless bento grid
 - static partner row that wraps on small screens; do not auto-scroll or loop it
 - turning polaroid arc

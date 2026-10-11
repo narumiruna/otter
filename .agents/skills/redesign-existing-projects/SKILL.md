@@ -112,14 +112,19 @@ If smooth scrolling helps, apply `scroll-behavior: smooth` only inside `@media (
 
 ### Content
 
-- **Generic names like "John Doe" or "Jane Smith".** Use diverse, realistic-sounding names.
-- **Fake round numbers like `99.99%`, `50%`, `$100.00`.** Use organic, messy data: `47.2%`, `$99.00`, `+1 (312) 847-1928`.
+Preserve all existing and real amounts, dates, names, records, and metadata, including round values and repeated dates.
+Do not alter user or source data to make it appear less artificial.
+Invent values only for newly authored, explicitly labeled mock content; never present them as real records.
+
+- **New mock names.** Use contextual names only in labeled mock content; preserve actual participant names.
+- **New mock numbers.** Use values suitable for the labeled example; round values such as `$100.00` are valid and need no stylistic replacement.
 - **Placeholder company names like "Acme Corp", "Nexus", "SmartFlow".** Invent contextual, believable brand names.
 - **AI copywriting cliches.** Never use "Elevate", "Seamless", "Unleash", "Next-Gen", "Game-changer", "Delve", "Tapestry", or "In the world of...". Write plain, specific language.
 - **Exclamation marks in success messages.** Remove them. Be confident, not loud.
 - **"Oops!" error messages.** Be direct: "Connection failed. Please try again."
 - **Passive voice.** Use active voice: "We couldn't save your changes" instead of "Mistakes were made."
-- **All blog post dates identical.** Randomize dates to appear real.
+- **Repeated dates.** Preserve real and existing dates exactly.
+For newly authored mock content, use explicitly labeled example dates rather than randomizing records to appear real.
 - **Same avatar image for multiple users.** Use unique assets for every distinct person.
 - **Lorem Ipsum.** Never use placeholder latin text. Write real draft copy.
 - **Title Case On Every Header.** Use sentence case instead.
