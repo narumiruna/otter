@@ -75,7 +75,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     const navigation = page.getByRole("navigation", { name: "群組工作區" });
     const onboarding = page.getByRole("region", { name: "先新增同行成員" });
     await expect(onboarding).toBeVisible();
-    await expect(page.getByText("narumi", { exact: true })).toHaveCount(1);
+    await expect(
+      page.getByRole("banner").getByText("narumi", { exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page
+        .getByRole("region", { name: "我的帳務" })
+        .getByRole("option", { name: "narumi", exact: true }),
+    ).toHaveCount(1);
     await expect(
       page.getByRole("region", { name: "群組帳目摘要" }),
     ).toHaveCount(0);

@@ -30,6 +30,7 @@ export function ExpenseList({
   grouping,
   onAddExpense,
   onEdit,
+  onCopy,
   readonly,
   sort,
   trip,
@@ -41,6 +42,7 @@ export function ExpenseList({
   grouping: ExpenseGrouping;
   onAddExpense: () => void;
   onEdit: (expense: Expense) => void;
+  onCopy?: (expense: Expense) => void;
   readonly: boolean;
   sort: ExpenseFilters["sort"];
   trip: Trip;
@@ -136,6 +138,7 @@ export function ExpenseList({
                   expense={expense}
                   names={names}
                   onEdit={onEdit}
+                  onCopy={onCopy}
                   readonly={readonly}
                   trip={trip}
                 />
@@ -201,6 +204,7 @@ export function ExpenseList({
                     key={expense.id}
                     names={names}
                     onEdit={onEdit}
+                    onCopy={onCopy}
                     readonly={readonly}
                     trip={trip}
                   />
@@ -316,6 +320,7 @@ function ExpenseTableRow({
   expense,
   names,
   onEdit,
+  onCopy,
   readonly,
   trip,
 }: {
@@ -323,6 +328,7 @@ function ExpenseTableRow({
   expense: Expense;
   names: Map<string, string>;
   onEdit: (expense: Expense) => void;
+  onCopy?: (expense: Expense) => void;
   readonly: boolean;
   trip: Trip;
 }) {
@@ -363,6 +369,19 @@ function ExpenseTableRow({
             {expense.description}
           </button>
         )}
+        {!readonly && onCopy ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-label={messages.copyExpenseNamed({
+              name: expense.description,
+            })}
+            onClick={() => onCopy(expense)}
+          >
+            {messages.copyExpense}
+          </Button>
+        ) : null}
       </th>
       {columns.map((column) => (
         <td className={`expense-${column}-cell`} key={column}>

@@ -11,12 +11,14 @@ export function MobileExpenseRow({
   expense,
   names,
   onEdit,
+  onCopy,
   readonly,
   trip,
 }: {
   expense: Expense;
   names: Map<string, string>;
   onEdit: (expense: Expense) => void;
+  onCopy?: (expense: Expense) => void;
   readonly: boolean;
   trip: Trip;
 }) {
@@ -59,6 +61,17 @@ export function MobileExpenseRow({
           <ExpenseRateDetails expense={expense} trip={trip} showAmount />
         </span>
       </div>
+      {!readonly && onCopy ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label={messages.copyExpenseNamed({ name: expense.description })}
+          onClick={() => onCopy(expense)}
+        >
+          {messages.copyExpense}
+        </Button>
+      ) : null}
       <div className="expense-mobile-secondary">
         <span className="person-avatar" aria-hidden="true">
           {payer.charAt(0).toLocaleUpperCase()}

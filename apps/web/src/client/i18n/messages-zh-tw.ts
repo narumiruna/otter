@@ -1,9 +1,11 @@
 import { interpolate, type MessageValues } from "./message-types.js";
 import { zhTWInterface } from "./messages-interface.js";
+import { zhTWPersonal } from "./messages-personal.js";
 
 import { zhTWVisa } from "./messages-visa.js";
 
 export const zhTW = {
+  ...zhTWPersonal,
   ...zhTWVisa,
   ...zhTWInterface,
   offlineQueueBanner:

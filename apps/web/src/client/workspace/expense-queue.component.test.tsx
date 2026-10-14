@@ -165,7 +165,7 @@ test("switching queued editors cannot discard dirty changes without confirmation
   );
   await waitFor(() => expect(switchButton).toBeEnabled());
   await user.click(switchButton);
-  expect(within(panel).getByLabelText("描述")).toHaveValue("Second");
+  expect(await within(panel).findByLabelText("描述")).toHaveValue("Second");
   expect(
     (await listExpenses("u", trip.id)).find((item) => item.id === first.id)
       ?.draft.description,

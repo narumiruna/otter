@@ -35,6 +35,7 @@ import {
 import { localizeMessage, useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { OverviewSummary } from "./overview-summary.js";
+import { PersonalSummary } from "./personal-summary.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BalanceList,
@@ -70,16 +71,22 @@ export function OverviewPage({
     !hasCalculatedResults
   ) {
     return (
-      <EmptyOverview
-        trip={trip}
-        onAddExpense={onAddExpense}
-        onPeople={onPeople}
-        readonly={readonly}
-      />
+      <div className="grid gap-4">
+        <EmptyOverview
+          trip={trip}
+          onAddExpense={onAddExpense}
+          onPeople={onPeople}
+          readonly={readonly}
+        />
+        <PersonalSummary />
+      </div>
     );
   }
   return (
     <div className="overview-grid">
+      <div className="col-span-full">
+        <PersonalSummary />
+      </div>
       <OverviewSummary payload={payload} />
       <section
         className="surface overview-settlements grid gap-4"

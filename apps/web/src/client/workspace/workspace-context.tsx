@@ -22,8 +22,11 @@ import {
 } from "../expense-queue.js";
 import { syncExpenses } from "../expense-sync.js";
 import { useI18n } from "../i18n.js";
+import { usePersonalPreferences } from "./use-personal-preferences.js";
 
-export type WorkspaceContextValue = {
+export type WorkspaceContextValue = ReturnType<
+  typeof usePersonalPreferences
+> & {
   announce: (message: string) => void;
   offline: boolean;
   userId?: string;
@@ -72,6 +75,7 @@ export function WorkspaceProvider({
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
+  const personal = usePersonalPreferences(userId, payload.trip);
   const tripId = payload.trip.id;
   const [queued, setQueued] = useState<QueuedExpense[]>([]);
   const [queueError, setQueueError] = useState("");
@@ -160,6 +164,7 @@ export function WorkspaceProvider({
       });
     };
     return {
+      ...personal,
       announce,
       offline,
       userId,
@@ -208,6 +213,7 @@ export function WorkspaceProvider({
       },
     };
   }, [
+    personal,
     announce,
     messages,
     offline,

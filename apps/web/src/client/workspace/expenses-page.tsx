@@ -1,4 +1,4 @@
-import type { Trip } from "@narumitw/otter-contracts";
+import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { tripExpensesCsv } from "@narumitw/otter-core/csv";
 import { DownloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useMemo, useState } from "react";
@@ -49,13 +49,14 @@ export function ExpensesPage({
   userId?: string;
 }) {
   const { messages } = useI18n();
+  const [copying, setCopying] = useState<Expense>();
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(
     initialEditingExpenseId,
   );
   useEffect(() => {
-    onEditingChange?.(!!editingExpenseId);
+    onEditingChange?.(!!editingExpenseId || !!copying);
     return () => onEditingChange?.(false);
-  }, [editingExpenseId, onEditingChange]);
+  }, [editingExpenseId, copying, onEditingChange]);
   const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
     readExpenseColumns(userId),
   );
@@ -72,7 +73,18 @@ export function ExpensesPage({
   const editing = trip.expenses.find(
     (expense) => expense.id === editingExpenseId,
   );
-  if (editing)
+  if (copying && !readonly && !trip.archivedAt)
+    return (
+      <ExpenseComposer
+        key={`copy:${copying.id}`}
+        copy={copying}
+        onCancel={() => setCopying(undefined)}
+        onDirtyChange={onDirtyChange}
+        onSaved={() => setCopying(undefined)}
+        trip={trip}
+      />
+    );
+  if (editing && !readonly && !trip.archivedAt)
     return (
       <ExpenseComposer
         expense={editing}
@@ -132,7 +144,8 @@ export function ExpensesPage({
         grouping={grouping}
         onAddExpense={onAddExpense}
         onEdit={(expense) => setEditingExpenseId(expense.id)}
-        readonly={readonly}
+        onCopy={setCopying}
+        readonly={readonly || !!trip.archivedAt}
         sort={filters.sort}
         trip={trip}
         filtered={activeFilters.length > 0 || !!filters.query}

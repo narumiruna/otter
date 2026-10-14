@@ -1,17 +1,22 @@
 // @vitest-environment jsdom
 
+import "fake-indexeddb/auto";
 import {
   calculateBalances,
   calculateSettlements,
   type Trip,
 } from "@narumitw/otter-core/settlement";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import type { TripPayload } from "../client-support.js";
+import { queueExpense } from "../expense-queue.js";
 import { I18nProvider } from "../i18n.js";
 import { OverviewPage } from "./overview-page.js";
 import { OverviewSummary } from "./overview-summary.js";
+import { writePreferences } from "./personal-preferences.js";
+import { WorkspaceProvider } from "./workspace-context.js";
 import { BalanceList } from "./workspace-ui.js";
 
 const trip: Trip = {
@@ -281,4 +286,83 @@ test("balances distinguish settled, receivable, and payable values with text", (
   expect(rows[0]).not.toHaveTextContent("應收");
   expect(rows[1]).toHaveTextContent("應收$100");
   expect(rows[2]).toHaveTextContent("應付$100");
+});
+
+test("personal overview labels Visa totals, delegates settlement and excludes queued expenses", async () => {
+  localStorage.setItem("otter.locale", "en");
+  const t: Trip = {
+    ...trip,
+    id: "personal-overview",
+    settlementPayments: [],
+    visaSettlementEnabled: true,
+    visaSettlementCurrency: "USD",
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob", settledById: "alice" },
+    ],
+    expenses: [
+      {
+        ...trip.expenses[0],
+        visaExchangeRate: {
+          sourceCurrency: "JPY",
+          targetCurrency: "USD",
+          date: trip.expenses[0].expenseDate,
+          rate: 0.01,
+          fetchedAt: trip.createdAt,
+        },
+      },
+    ],
+  };
+  writePreferences("overview-user", t.id, { participantId: "bob" });
+  await queueExpense("overview-user", t.id, {
+    amount: "9999",
+    currency: "TWD",
+    description: "Unsynced",
+    expenseDate: "2026-10-14",
+    paidById: "bob",
+    participantIds: ["bob"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const client = new QueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
+      <I18nProvider>
+        <WorkspaceProvider
+          announce={() => {}}
+          offline
+          payload={payloadFor(t)}
+          userId="overview-user"
+          refreshCollection={async () => {}}
+        >
+          <OverviewPage payload={payloadFor(t)} />
+        </WorkspaceProvider>
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
+  const personal = within(view.getByRole("region", { name: "My account" }));
+  expect(personal.getByText("My share").nextElementSibling).toHaveTextContent(
+    "$5.00",
+  );
+  expect(personal.getByText("I paid").nextElementSibling).toHaveTextContent(
+    "$0.00",
+  );
+  expect(personal.getByText("USD ·", { exact: false })).toBeVisible();
+  expect(personal.getByText(/Alice settles for you/)).toBeVisible();
+  expect(personal.queryByText(/9,999/)).not.toBeInTheDocument();
+  await userEvent
+    .setup()
+    .selectOptions(personal.getByLabelText("Who am I"), "alice");
+  expect(
+    personal.getByText(/Your balance includes other people/),
+  ).toBeVisible();
+  await userEvent
+    .setup()
+    .selectOptions(personal.getByLabelText("Who am I"), "");
+  expect(personal.queryByText("My share")).not.toBeInTheDocument();
+  view.unmount();
+  client.clear();
+  localStorage.removeItem("otter.locale");
 });
