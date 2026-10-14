@@ -90,7 +90,7 @@ export function settlementCurrency(
     : trip.baseCurrency;
 }
 
-export function calculateBalances(trip: Trip): Balance[] {
+function expenseTotals(trip: Trip) {
   const currency = settlementCurrency(trip);
   const convertExpense = (amountMinor: number, expense: Expense) =>
     trip.visaSettlementEnabled
@@ -111,6 +111,8 @@ export function calculateBalances(trip: Trip): Balance[] {
   const participantOrder = new Map(
     trip.participants.map((participant, index) => [participant.id, index]),
   );
+  const paid = new Map(trip.participants.map((p) => [p.id, 0]));
+  const shared = new Map(trip.participants.map((p) => [p.id, 0]));
   const balances = new Map(
     trip.participants.map((participant) => [participant.id, 0]),
   );
@@ -130,6 +132,7 @@ export function calculateBalances(trip: Trip): Balance[] {
 
     const amount = convertExpense(expense.amountMinor, expense);
     balances.set(expense.paidById, payerBalance + amount);
+    paid.set(expense.paidById, (paid.get(expense.paidById) ?? 0) + amount);
 
     const explicitShares = new Map(
       expense.participantShares?.map((share) => [
@@ -151,6 +154,10 @@ export function calculateBalances(trip: Trip): Balance[] {
         const adjustment =
           index === shares.length - 1 ? remainder : Math.sign(remainder);
         remainder -= adjustment;
+        shared.set(
+          participantId,
+          (shared.get(participantId) ?? 0) + (shares[index] ?? 0) + adjustment,
+        );
         balances.set(
           participantId,
           (balances.get(participantId) ?? 0) -
@@ -167,12 +174,47 @@ export function calculateBalances(trip: Trip): Balance[] {
     for (const participantId of splitIds) {
       const extra = remainder > 0 ? 1 : 0;
       remainder -= extra;
+      shared.set(
+        participantId,
+        (shared.get(participantId) ?? 0) + share + extra,
+      );
       balances.set(
         participantId,
         (balances.get(participantId) ?? 0) - share - extra,
       );
     }
   }
+
+  return { balances, paid, shared };
+}
+
+export type PersonalSummary = {
+  paidMinor: number;
+  sharedMinor: number;
+  balanceMinor: number;
+  currency: Currency;
+};
+
+export function calculatePersonalSummary(
+  trip: Trip,
+  participantId: string,
+): PersonalSummary | undefined {
+  if (!trip.participants.some((p) => p.id === participantId)) return undefined;
+  const totals = expenseTotals(trip);
+  const balance = calculateBalances(trip).find(
+    (b) => b.participantId === participantId,
+  );
+  return {
+    paidMinor: totals.paid.get(participantId) ?? 0,
+    sharedMinor: totals.shared.get(participantId) ?? 0,
+    balanceMinor: balance?.amountMinor ?? 0,
+    currency: settlementCurrency(trip),
+  };
+}
+
+export function calculateBalances(trip: Trip): Balance[] {
+  const currency = settlementCurrency(trip);
+  const { balances } = expenseTotals(trip);
 
   for (const payment of trip.settlementPayments ?? []) {
     if (!balances.has(payment.fromId) || !balances.has(payment.toId)) {

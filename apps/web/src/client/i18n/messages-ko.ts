@@ -4,10 +4,12 @@ import {
   type MessageValues,
 } from "./message-types.js";
 import { koSettings } from "./messages-ko-settings.js";
+import { koPersonal } from "./messages-personal.js";
 import { koVisa } from "./messages-visa.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ko = {
+  ...koPersonal,
   ...koVisa,
   ...koSettings,
   welcomeBackEyebrow: "다시 오신 것을 환영합니다",

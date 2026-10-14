@@ -302,6 +302,7 @@ export function AuthenticatedWorkspace({
   const go = (view: WorkspaceView) => navigate({ mode: null, view });
   return (
     <WorkspaceProvider
+      key={`${guestShare ? "guest" : bootstrap.user?.id}:${selectedTripId}`}
       announce={announce}
       authBlockedFor={authBlockedFor}
       offline={offline}

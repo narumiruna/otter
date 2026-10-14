@@ -24,10 +24,14 @@ import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { ApiResponseError, api, todayDate } from "../client-support.js";
+import { ApiResponseError, api } from "../client-support.js";
 import type { QueuedExpense, QueuedExpenseDraft } from "../expense-queue.js";
 import { localizeMessage, useI18n } from "../i18n.js";
 import { DeleteExpenseAction, ReceiptControls } from "./expense-actions.js";
+import {
+  expenseDefaults as defaults,
+  newExpenseDraft,
+} from "./expense-draft.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseConflictReview, useExpenseVersion } from "./expense-version.js";
 import {
@@ -36,6 +40,7 @@ import {
   receiptFileError,
   uploadNewExpenseReceipt,
 } from "./new-expense-receipt.js";
+import { defaultsPreference } from "./personal-preferences.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -46,44 +51,9 @@ import {
 
 type ExpenseDraft = QueuedExpenseDraft;
 
-function defaults(trip: Trip, expense?: Expense): ExpenseDraft {
-  const explicit = new Map(
-    expense?.participantShares?.map((share) => [
-      share.participantId,
-      share.shareMinor,
-    ]) ?? [],
-  );
-  return {
-    amount: expense
-      ? String(
-          expense.amountMinor / 10 ** currencyInfo[expense.currency].minorUnits,
-        )
-      : "",
-    category: expense?.category ?? "其他",
-    currency: expense?.currency ?? trip.baseCurrency,
-    description: expense?.description ?? "",
-    expenseDate: expense?.expenseDate ?? todayDate(),
-    paidById: expense?.paidById ?? trip.participants[0]?.id ?? "",
-    participantIds:
-      expense?.participantIds ?? trip.participants.map((person) => person.id),
-    splitMode: explicit.size ? "amount" : "equal",
-    splitValues: Object.fromEntries(
-      trip.participants.map((person) => [
-        person.id,
-        explicit.has(person.id) && expense
-          ? String(
-              (explicit.get(person.id) ?? 0) /
-                10 ** currencyInfo[expense.currency].minorUnits,
-            )
-          : "",
-      ]),
-    ),
-    tags: (expense?.tags ?? []).join(", "),
-  };
-}
-
 export function ExpenseComposer({
   expense,
+  copy,
   queued,
   onCancel,
   onDirtyChange,
@@ -91,6 +61,7 @@ export function ExpenseComposer({
   trip: originalTrip,
 }: {
   expense?: Expense;
+  copy?: Expense;
   queued?: QueuedExpense;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -99,6 +70,10 @@ export function ExpenseComposer({
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const saveErrorId = useId();
+  const headingRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (copy) headingRef.current?.focus();
+  }, [copy]);
   const {
     offline,
     canQueue,
@@ -107,10 +82,16 @@ export function ExpenseComposer({
     announce,
     replacePayload,
     refreshCollection,
+    userId,
+    preferences,
+    preferencesFailed,
+    preferencesChanged,
+    savePreferences,
   } = useWorkspace();
   const versionState = useExpenseVersion(expense, originalTrip.id);
   const trip = versionState.latest?.trip ?? originalTrip;
   const [serverError, setServerError] = useState("");
+  const [remembered, setRemembered] = useState(false);
   const [file, setFile] = useState<File>();
   const [fileError, setFileError] = useState("");
   const [creationUncertain, setCreationUncertain] = useState(false);
@@ -119,10 +100,22 @@ export function ExpenseComposer({
     error: unknown;
   }>();
   const form = useForm<ExpenseDraft>({
-    defaultValues: queued?.draft ?? defaults(trip, expense),
+    defaultValues:
+      queued?.draft ??
+      (expense
+        ? defaults(trip, expense)
+        : newExpenseDraft(trip, preferences, copy)),
   });
   const previousLocale = useRef(locale);
   const values = form.watch();
+  // Serialize a snapshot because nested split values can change in place.
+  const defaultsKey = JSON.stringify(defaultsPreference(values));
+  const previousDefaultsKey = useRef(defaultsKey);
+  useEffect(() => {
+    if (previousDefaultsKey.current === defaultsKey) return;
+    previousDefaultsKey.current = defaultsKey;
+    setRemembered(false);
+  }, [defaultsKey]);
   const isDirty = form.formState.isDirty || !!file;
 
   useEffect(() => {
@@ -358,8 +351,12 @@ export function ExpenseComposer({
               : messages.enterTheRequiredDetailsFirstCustomSplitsAndTagsAreAvailableBelow
           }
         >
-          <span id="expense-composer-heading">
-            {expense ? messages.editExpense : messages.addExpense2}
+          <span id="expense-composer-heading" ref={headingRef} tabIndex={-1}>
+            {expense
+              ? messages.editExpense
+              : copy
+                ? messages.copyExpense
+                : messages.addExpense2}
           </span>
         </SectionHeading>
         <div className="flex flex-wrap items-center gap-2">
@@ -377,6 +374,40 @@ export function ExpenseComposer({
 
       <form className="grid gap-5" noValidate onSubmit={submit}>
         <ActionError message={serverError} />
+        {!expense && !queued && userId ? (
+          <div className="grid gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setRemembered(
+                  savePreferences({
+                    ...preferences,
+                    defaults: defaultsPreference(form.getValues()),
+                  }),
+                )
+              }
+              disabled={
+                !values.participantIds.length ||
+                values.participantIds.some(
+                  (id) => !trip.participants.some((person) => person.id === id),
+                ) ||
+                !preview ||
+                !!preview.error
+              }
+            >
+              {messages.rememberExpenseDefaults}
+            </Button>
+            {preferencesChanged ? (
+              <p role="status">{messages.personalPreferencesChanged}</p>
+            ) : null}
+            {preferencesFailed ? (
+              <p role="alert">{messages.personalStorageFailed}</p>
+            ) : remembered && !preferencesChanged ? (
+              <p role="status">{messages.expenseDefaultsRemembered}</p>
+            ) : null}
+          </div>
+        ) : null}
         {creationUncertain ? (
           <p role="alert">{messages.expenseCreationUncertain}</p>
         ) : null}

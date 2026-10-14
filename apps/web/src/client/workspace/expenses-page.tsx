@@ -1,4 +1,4 @@
-import type { Trip } from "@narumitw/otter-contracts";
+import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { tripExpensesCsv } from "@narumitw/otter-core/csv";
 import { DownloadIcon } from "@radix-ui/react-icons";
 import { useEffect, useMemo, useState } from "react";
@@ -49,13 +49,25 @@ export function ExpensesPage({
   userId?: string;
 }) {
   const { messages } = useI18n();
+  const [copying, setCopying] = useState<Expense>();
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(
     initialEditingExpenseId,
   );
+  const canEdit = !readonly && !trip.archivedAt;
   useEffect(() => {
-    onEditingChange?.(!!editingExpenseId);
+    if (!canEdit) {
+      setCopying(undefined);
+      setEditingExpenseId(null);
+    }
+  }, [canEdit]);
+  const editing = trip.expenses.find(
+    (expense) => expense.id === editingExpenseId,
+  );
+  const editorVisible = canEdit && (!!editing || !!copying);
+  useEffect(() => {
+    onEditingChange?.(editorVisible);
     return () => onEditingChange?.(false);
-  }, [editingExpenseId, onEditingChange]);
+  }, [editorVisible, onEditingChange]);
   const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
     readExpenseColumns(userId),
   );
@@ -69,10 +81,18 @@ export function ExpensesPage({
     [filters, trip],
   );
   const activeFilters = activeFilterEntries(filters, messages);
-  const editing = trip.expenses.find(
-    (expense) => expense.id === editingExpenseId,
-  );
-  if (editing)
+  if (copying && canEdit)
+    return (
+      <ExpenseComposer
+        key={`copy:${copying.id}`}
+        copy={copying}
+        onCancel={() => setCopying(undefined)}
+        onDirtyChange={onDirtyChange}
+        onSaved={() => setCopying(undefined)}
+        trip={trip}
+      />
+    );
+  if (editing && canEdit)
     return (
       <ExpenseComposer
         expense={editing}
@@ -132,7 +152,8 @@ export function ExpensesPage({
         grouping={grouping}
         onAddExpense={onAddExpense}
         onEdit={(expense) => setEditingExpenseId(expense.id)}
-        readonly={readonly}
+        onCopy={setCopying}
+        readonly={!canEdit}
         sort={filters.sort}
         trip={trip}
         filtered={activeFilters.length > 0 || !!filters.query}
