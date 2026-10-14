@@ -85,6 +85,7 @@ export function ExpenseComposer({
     userId,
     preferences,
     preferencesFailed,
+    preferencesChanged,
     savePreferences,
   } = useWorkspace();
   const versionState = useExpenseVersion(expense, originalTrip.id);
@@ -379,14 +380,22 @@ export function ExpenseComposer({
                 )
               }
               disabled={
-                !values.participantIds.length || !preview || !!preview.error
+                !values.participantIds.length ||
+                values.participantIds.some(
+                  (id) => !trip.participants.some((person) => person.id === id),
+                ) ||
+                !preview ||
+                !!preview.error
               }
             >
               {messages.rememberExpenseDefaults}
             </Button>
+            {preferencesChanged ? (
+              <p role="status">{messages.personalPreferencesChanged}</p>
+            ) : null}
             {preferencesFailed ? (
               <p role="alert">{messages.personalStorageFailed}</p>
-            ) : remembered ? (
+            ) : remembered && !preferencesChanged ? (
               <p role="status">{messages.expenseDefaultsRemembered}</p>
             ) : null}
           </div>

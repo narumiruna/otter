@@ -19,6 +19,7 @@ export const zhTWPersonal = {
   personalShared: "我分攤",
   personalOwe: "我待付",
   personalOwed: "我待收",
+  personalZeroBalance: "沒有待付或待收金額",
   personalTotalsHelp:
     "墊付與分攤不含結清付款；待付／待收含付款與代表人結算，不含待同步草稿。",
   personalSettledBy: (values: MessageValues) =>
@@ -46,6 +47,7 @@ export const enPersonal = {
   personalShared: "My share",
   personalOwe: "I owe",
   personalOwed: "Owed to me",
+  personalZeroBalance: "No amount to pay or receive",
   personalTotalsHelp:
     "Paid and share totals exclude settlement payments. Your balance includes payments and representatives, but excludes unsynced drafts.",
   personalSettledBy: (values: MessageValues) =>
@@ -76,6 +78,7 @@ export const jaPersonal = {
   personalShared: "自分の負担額",
   personalOwe: "支払う額",
   personalOwed: "受け取る額",
+  personalZeroBalance: "支払い・受け取り額なし",
   personalTotalsHelp:
     "立替額と負担額には精算支払いを含みません。残高には支払いと代表者の精算を含み、未同期の下書きは含みません。",
   personalSettledBy: (values: MessageValues) =>
@@ -106,6 +109,7 @@ export const koPersonal = {
   personalShared: "내 분담액",
   personalOwe: "내가 보낼 금액",
   personalOwed: "내가 받을 금액",
+  personalZeroBalance: "보내거나 받을 금액 없음",
   personalTotalsHelp:
     "지불액과 분담액에는 정산 송금이 포함되지 않습니다. 잔액에는 송금과 대표자 정산이 포함되며 미동기화 초안은 제외됩니다.",
   personalSettledBy: (values: MessageValues) =>

@@ -82,9 +82,11 @@ export function PersonalSummary() {
             </div>
             <div>
               <dt>
-                {summary.balanceMinor < 0
-                  ? messages.personalOwe
-                  : messages.personalOwed}
+                {summary.balanceMinor === 0
+                  ? messages.personalZeroBalance
+                  : summary.balanceMinor < 0
+                    ? messages.personalOwe
+                    : messages.personalOwed}
               </dt>
               <dd className="font-semibold">
                 {formatMoney(Math.abs(summary.balanceMinor), summary.currency)}

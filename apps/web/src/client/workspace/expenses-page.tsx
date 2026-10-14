@@ -53,10 +53,21 @@ export function ExpensesPage({
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(
     initialEditingExpenseId,
   );
+  const canEdit = !readonly && !trip.archivedAt;
   useEffect(() => {
-    onEditingChange?.(!!editingExpenseId || !!copying);
+    if (!canEdit) {
+      setCopying(undefined);
+      setEditingExpenseId(null);
+    }
+  }, [canEdit]);
+  const editing = trip.expenses.find(
+    (expense) => expense.id === editingExpenseId,
+  );
+  const editorVisible = canEdit && (!!editing || !!copying);
+  useEffect(() => {
+    onEditingChange?.(editorVisible);
     return () => onEditingChange?.(false);
-  }, [editingExpenseId, copying, onEditingChange]);
+  }, [editorVisible, onEditingChange]);
   const [columns, setColumns] = useState<ExpenseColumn[]>(() =>
     readExpenseColumns(userId),
   );
@@ -70,10 +81,7 @@ export function ExpensesPage({
     [filters, trip],
   );
   const activeFilters = activeFilterEntries(filters, messages);
-  const editing = trip.expenses.find(
-    (expense) => expense.id === editingExpenseId,
-  );
-  if (copying && !readonly && !trip.archivedAt)
+  if (copying && canEdit)
     return (
       <ExpenseComposer
         key={`copy:${copying.id}`}
@@ -84,7 +92,7 @@ export function ExpensesPage({
         trip={trip}
       />
     );
-  if (editing && !readonly && !trip.archivedAt)
+  if (editing && canEdit)
     return (
       <ExpenseComposer
         expense={editing}
@@ -145,7 +153,7 @@ export function ExpensesPage({
         onAddExpense={onAddExpense}
         onEdit={(expense) => setEditingExpenseId(expense.id)}
         onCopy={setCopying}
-        readonly={readonly || !!trip.archivedAt}
+        readonly={!canEdit}
         sort={filters.sort}
         trip={trip}
         filtered={activeFilters.length > 0 || !!filters.query}

@@ -46,7 +46,7 @@ export function usePersonalPreferences(userId: string | undefined, trip: Trip) {
       failed,
       changed: next.changed,
     });
-    return !failed;
+    return !failed && !next.changed;
   }
   function clear() {
     if (!userId) return;

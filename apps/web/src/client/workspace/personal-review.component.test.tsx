@@ -1,0 +1,234 @@
+// @vitest-environment jsdom
+import "fake-indexeddb/auto";
+import type { TripPayload } from "@narumitw/otter-contracts";
+import {
+  calculateBalances,
+  calculateSettlements,
+} from "@narumitw/otter-core/settlement";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, renderHook } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, expect, test, vi } from "vitest";
+import { defaultExpenseFilters } from "../client-support.js";
+import { I18nProvider } from "../i18n.js";
+import { ExpenseComposer } from "./expense-composer.js";
+import { ExpensesPage } from "./expenses-page.js";
+import { readPreferences, writePreferences } from "./personal-preferences.js";
+import { PersonalSummary } from "./personal-summary.js";
+import { usePersonalPreferences } from "./use-personal-preferences.js";
+import { WorkspaceProvider } from "./workspace-context.js";
+
+function fixture(): TripPayload {
+  const trip: TripPayload["trip"] = {
+    id: "review-trip",
+    ownerId: "review-owner",
+    name: "Trip",
+    baseCurrency: "TWD",
+    createdAt: "2026-10-01T00:00:00Z",
+    participants: [
+      { id: "a", name: "Alice" },
+      { id: "b", name: "Bob" },
+    ],
+    expenses: [
+      {
+        id: "meal",
+        version: 1,
+        description: "Meal",
+        amountMinor: 100,
+        currency: "TWD",
+        paidById: "a",
+        participantIds: ["a", "b"],
+        expenseDate: "2026-10-01",
+        createdAt: "2026-10-01T00:00:00Z",
+      },
+    ],
+  };
+  return {
+    trip,
+    balances: calculateBalances(trip),
+    settlements: calculateSettlements(trip),
+    currentUserRole: "editor",
+  };
+}
+function root(payload: TripPayload, children: React.ReactNode) {
+  return (
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <I18nProvider initialLocale="en">
+        <WorkspaceProvider
+          announce={() => {}}
+          offline
+          payload={payload}
+          refreshCollection={async () => {}}
+          userId="review-owner"
+        >
+          {children}
+        </WorkspaceProvider>
+      </I18nProvider>
+    </QueryClientProvider>
+  );
+}
+beforeEach(() => {
+  localStorage.clear();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw new Error("Unexpected mutation");
+    }),
+  );
+});
+
+test.each(["copy-archive", "copy-readonly", "edit-archive", "edit-readonly"])(
+  "%s closes the hidden editor and releases navigation state",
+  async (mode) => {
+    const payload = fixture();
+    const editing = vi.fn();
+    const dirty = vi.fn();
+    const page = (p: TripPayload, readonly = false) => (
+      <ExpensesPage
+        trip={p.trip}
+        readonly={readonly}
+        filters={defaultExpenseFilters}
+        grouping="none"
+        onAddExpense={() => {}}
+        onFiltersChange={() => {}}
+        onGroupingChange={() => {}}
+        onEditingChange={editing}
+        onDirtyChange={dirty}
+      />
+    );
+    const view = render(root(payload, page(payload)));
+    const user = userEvent.setup();
+    await user.click(
+      view.getByRole("button", {
+        name: mode.startsWith("copy") ? "Copy Meal as new expense" : "Meal",
+      }),
+    );
+    await user.type(view.getByLabelText("Description"), " unsaved");
+    expect(editing).toHaveBeenLastCalledWith(true);
+    expect(dirty).toHaveBeenLastCalledWith(true);
+    const next = {
+      ...payload,
+      trip: {
+        ...payload.trip,
+        archivedAt: mode.endsWith("archive") ? "2026-10-14T00:00:00Z" : null,
+      },
+    };
+    view.rerender(root(next, page(next, mode.endsWith("readonly"))));
+    expect(view.queryByLabelText("Description")).not.toBeInTheDocument();
+    expect(editing).toHaveBeenLastCalledWith(false);
+    expect(dirty).toHaveBeenLastCalledWith(false);
+    view.rerender(root(payload, page(payload)));
+    expect(view.queryByLabelText("Description")).not.toBeInTheDocument();
+    expect(editing).toHaveBeenLastCalledWith(false);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  },
+);
+
+test.each(["empty", "paid", "represented"])(
+  "%s zero balance has no receivable or payable label",
+  (mode) => {
+    const payload = fixture();
+    if (mode === "empty") payload.trip.expenses = [];
+    if (mode === "paid")
+      payload.trip.settlementPayments = [
+        {
+          id: "payment",
+          fromId: "b",
+          toId: "a",
+          amountMinor: 50,
+          currency: "TWD",
+          paidAt: "2026-10-02",
+          createdAt: "2026-10-02T00:00:00Z",
+          note: "",
+        },
+      ];
+    if (mode === "represented") payload.trip.participants[1].settledById = "a";
+    writePreferences("review-owner", payload.trip.id, { participantId: "b" });
+    const view = render(root(payload, <PersonalSummary />));
+    expect(
+      view.getByText("No amount to pay or receive").nextElementSibling,
+    ).toHaveTextContent("$0");
+    expect(view.queryByText("Owed to me")).not.toBeInTheDocument();
+    expect(view.queryByText("I owe")).not.toBeInTheDocument();
+    if (mode === "represented")
+      expect(view.getByText(/Alice settles for you/)).toBeVisible();
+  },
+);
+
+test.each([
+  ["a", "Owed to me"],
+  ["b", "I owe"],
+])("%s retains the nonzero balance label", (person, label) => {
+  const payload = fixture();
+  writePreferences("review-owner", payload.trip.id, { participantId: person });
+  const view = render(root(payload, <PersonalSummary />));
+  expect(view.getByText(label).nextElementSibling).toHaveTextContent("$50");
+});
+
+test("a refreshed form cannot report removed participant defaults as saved", async () => {
+  const payload = fixture();
+  const composer = (p: TripPayload) => (
+    <ExpenseComposer trip={p.trip} onCancel={() => {}} />
+  );
+  const view = render(root(payload, composer(payload)));
+  const user = userEvent.setup();
+  await user.type(view.getByLabelText("Amount"), "100");
+  const remember = view.getByRole("button", {
+    name: "Remember currency and split settings",
+  });
+  await user.click(remember);
+  expect(
+    view.getByText("Currency and split settings saved for this group."),
+  ).toBeVisible();
+  const next = {
+    ...payload,
+    trip: { ...payload.trip, participants: [payload.trip.participants[0]] },
+  };
+  view.rerender(root(next, composer(next)));
+  expect(view.getByLabelText("Amount")).toHaveValue("100");
+  expect(remember).toBeDisabled();
+  expect(
+    view.queryByText("Currency and split settings saved for this group."),
+  ).not.toBeInTheDocument();
+  expect(view.getByRole("status")).toHaveTextContent("no longer available");
+  expect(
+    readPreferences("review-owner", payload.trip.id).preferences.defaults,
+  ).toBeUndefined();
+  await user.click(view.getByRole("button", { name: "Select all" }));
+  expect(remember).toBeEnabled();
+  await user.click(remember);
+  expect(
+    view.getByText("Currency and split settings saved for this group."),
+  ).toBeVisible();
+  expect(
+    readPreferences("review-owner", payload.trip.id).preferences.defaults
+      ?.participantIds,
+  ).toEqual(["a"]);
+  expect(globalThis.fetch).not.toHaveBeenCalled();
+});
+
+test("saving reconciled preferences returns false even if storage succeeds", () => {
+  const payload = fixture();
+  const { result } = renderHook(() =>
+    usePersonalPreferences("review-owner", payload.trip),
+  );
+  let saved: boolean | undefined;
+  act(() => {
+    saved = result.current.savePreferences({
+      defaults: {
+        currency: "TWD",
+        participantIds: ["removed"],
+        splitMode: "equal",
+        splitValues: {},
+      },
+    });
+  });
+  expect(saved).toBe(false);
+  expect(result.current.preferencesChanged).toBe(true);
+  expect(result.current.preferencesFailed).toBe(false);
+  expect(result.current.preferences.defaults).toBeUndefined();
+});
