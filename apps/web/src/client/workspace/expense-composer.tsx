@@ -108,6 +108,14 @@ export function ExpenseComposer({
   });
   const previousLocale = useRef(locale);
   const values = form.watch();
+  // Serialize a snapshot because nested split values can change in place.
+  const defaultsKey = JSON.stringify(defaultsPreference(values));
+  const previousDefaultsKey = useRef(defaultsKey);
+  useEffect(() => {
+    if (previousDefaultsKey.current === defaultsKey) return;
+    previousDefaultsKey.current = defaultsKey;
+    setRemembered(false);
+  }, [defaultsKey]);
   const isDirty = form.formState.isDirty || !!file;
 
   useEffect(() => {

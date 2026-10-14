@@ -211,6 +211,82 @@ test("a refreshed form cannot report removed participant defaults as saved", asy
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
+test.each(["currency", "participants", "mode", "values"])(
+  "changing saved %s clears the confirmation without updating storage",
+  async (field) => {
+    const payload = fixture();
+    const view = render(
+      root(
+        payload,
+        <ExpenseComposer trip={payload.trip} onCancel={() => {}} />,
+      ),
+    );
+    const user = userEvent.setup();
+    await user.type(view.getByLabelText("Amount"), "100");
+    if (field === "values") {
+      await user.selectOptions(view.getByLabelText("Split method"), "shares");
+      await user.type(view.getByLabelText("Alice's Shares"), "1");
+      await user.type(view.getByLabelText("Bob's Shares"), "1");
+    }
+    const remember = view.getByRole("button", {
+      name: "Remember currency and split settings",
+    });
+    const notice = "Currency and split settings saved for this group.";
+    await user.click(remember);
+    expect(view.getByText(notice)).toBeVisible();
+    const saved = readPreferences("review-owner", payload.trip.id).preferences;
+    if (field === "currency")
+      await user.selectOptions(view.getByLabelText("Currency"), "USD");
+    if (field === "participants")
+      await user.click(view.getByRole("checkbox", { name: /Bob/ }));
+    if (field === "mode")
+      await user.selectOptions(view.getByLabelText("Split method"), "ratio");
+    if (field === "values")
+      await user.type(view.getByLabelText("Alice's Shares"), "2");
+    expect(view.queryByText(notice)).not.toBeInTheDocument();
+    expect(
+      readPreferences("review-owner", payload.trip.id).preferences,
+    ).toEqual(saved);
+    // Returning to the saved values must not restore an old confirmation.
+    if (field === "currency")
+      await user.selectOptions(view.getByLabelText("Currency"), "TWD");
+    if (field === "participants")
+      await user.click(view.getByRole("checkbox", { name: /Bob/ }));
+    if (field === "mode")
+      await user.selectOptions(view.getByLabelText("Split method"), "equal");
+    if (field === "values") {
+      await user.clear(view.getByLabelText("Alice's Shares"));
+      await user.type(view.getByLabelText("Alice's Shares"), "1");
+    }
+    expect(view.queryByText(notice)).not.toBeInTheDocument();
+    await user.click(remember);
+    expect(view.getByText(notice)).toBeVisible();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  },
+);
+
+test("changing fields outside saved defaults keeps the confirmation", async () => {
+  const payload = fixture();
+  const view = render(
+    root(payload, <ExpenseComposer trip={payload.trip} onCancel={() => {}} />),
+  );
+  const user = userEvent.setup();
+  await user.type(view.getByLabelText("Amount"), "100");
+  await user.click(
+    view.getByRole("button", { name: "Remember currency and split settings" }),
+  );
+  await user.type(view.getByLabelText("Description"), "Dinner");
+  await user.type(view.getByLabelText("Amount"), "0");
+  await user.selectOptions(
+    view.getByRole("combobox", { name: /^Paid by/ }),
+    "b",
+  );
+  expect(
+    view.getByText("Currency and split settings saved for this group."),
+  ).toBeVisible();
+  expect(globalThis.fetch).not.toHaveBeenCalled();
+});
+
 test("saving reconciled preferences returns false even if storage succeeds", () => {
   const payload = fixture();
   const { result } = renderHook(() =>
