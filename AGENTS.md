@@ -1,52 +1,91 @@
 # Repository Guidelines
 
+## Documentation
+
+- Follow ASD-STE100 (Simplified Technical English) for English technical prose.
+  - Use the vocabulary and writing rules approved by ASD-STE100.
+  - Keep required technical names.
+- Use indented sub-items for rules that depend on a parent rule.
+
 ## Project Scope
 
-- Build otter as a TypeScript web app for travel/friend expense tracking, balance splitting, and settlement suggestions.
-- Keep changes aligned with `GOAL.md`: trips/groups, participants, expenses, balances, settlements, browser UI, PostgreSQL persistence, tests, or docs that support those goals.
-- User prompts override this file. If a nested `AGENTS.md` is added later, follow the closest one for files under that path.
+- Build otter as a TypeScript web application for travel expenses and shared expenses with friends.
+  - Support expense tracking, balance calculations, and settlement suggestions.
+- Keep changes within the scope of `GOAL.md`.
+  - Include trips, groups, participants, expenses, balances, settlements, the browser UI, and PostgreSQL persistence.
+  - Include tests and documentation that support these functions.
+- User instructions take priority over this file.
+- For files in a subdirectory, follow the nearest applicable `AGENTS.md` file.
 
 ## Code Organization
 
-- Keep deployable source in `apps/`: React/Vite browser code belongs to `apps/web`, while Hono, PostgreSQL, migrations, and server tests belong to `apps/api`.
-- Keep reusable source in `packages/`: environment-neutral domain logic belongs to `packages/core`, HTTP DTOs and payload guards to `packages/contracts`, and the published command to `packages/cli`.
-- Preserve the dependency direction `apps/* -> packages/*`. `packages/*` must not import `apps/*`; web and CLI must not import API implementation files; `core` must not depend on `contracts`.
-- Keep raw schema changes in `apps/api/db/migrations/` and the migration runner in `apps/api/scripts/migrate.ts`.
-- Keep generated/runtime artifacts out of hand edits and commits: `dist/`, `node_modules/`, database dumps, coverage, logs, and `.env*` files.
-- If a single source code file grows beyond 1,000 lines, split it into smaller, cohesive files before adding more logic.
+- Keep application source code in `apps/`.
+  - Put React and Vite browser code in `apps/web`.
+  - Put Hono code, PostgreSQL code, migrations, and server tests in `apps/api`.
+- Keep reusable source code in `packages/`.
+  - Put environment-neutral domain logic in `packages/core`.
+  - Put HTTP DTOs and payload guards in `packages/contracts`.
+  - Put the published command in `packages/cli`.
+- Keep dependencies in the direction `apps/* -> packages/*`.
+  - `packages/*` must not import `apps/*`.
+  - Web and CLI code must not import API implementation files.
+  - `core` must not depend on `contracts`.
+- Keep SQL schema changes in `apps/api/db/migrations/`.
+  - Keep the migration runner in `apps/api/scripts/migrate.ts`.
+- Do not manually edit or commit generated files or runtime artifacts.
+  - These include `dist/`, `node_modules/`, database dumps, coverage reports, logs, and `.env*` files.
+- If a source file exceeds 1,000 lines, split it before adding more logic.
+  - Give each smaller file one main purpose.
 
 ## Commands
 
 Run commands from the repository root.
 
 - `npm install` - install dependencies for local development.
-- `npm ci` - install dependencies exactly from `package-lock.json`, as CI does.
-- [UNREVIEWED] `npm run dev` - start the complete foreground development stack with Docker Compose; use `npm run dev:server` with `DATABASE_URL` to build/watch shared packages and run the API and Vite workspaces without Compose.
-- [UNREVIEWED] `docker compose up --build` - build and start the app with bundled PostgreSQL; provide `POSTGRES_PASSWORD` for a non-development deployment.
+- `npm ci` - install the dependencies specified in `package-lock.json`, as CI does.
+- [UNREVIEWED] `npm run dev` - start the complete development stack in the foreground with Docker Compose.
+  - [UNREVIEWED] To run without Compose, use `npm run dev:server` with `DATABASE_URL`.
+  - [UNREVIEWED] This alternative builds and watches shared packages and runs the API and Vite workspaces.
+- [UNREVIEWED] `docker compose up --build` - build and start the application with bundled PostgreSQL.
+  - [UNREVIEWED] Supply `POSTGRES_PASSWORD` for deployments outside development.
 - `npm run migrate` - apply pending PostgreSQL migrations from `apps/api/db/migrations/`.
-- `npm run db:reset:dev` - remove the dev compose stack and database volume.
-- `npm run biome:ci` - run Biome formatting/lint checks.
+- `npm run db:reset:dev` - remove the development Compose stack and database volume.
+- `npm run biome:ci` - run Biome formatting and lint checks.
 - `npm run typecheck` - check root orchestration and every workspace TypeScript project.
-- [UNREVIEWED] `npm test` - build shared packages and run Vitest suites in all workspaces; DB-backed API suites run when `DATABASE_URL` is set.
+- [UNREVIEWED] `npm test` - build shared packages and run Vitest suites in all workspaces.
+  - [UNREVIEWED] API suites that use a database run when `DATABASE_URL` is set.
 - [UNREVIEWED] `npm run test:components` - run Testing Library component tests in the Vitest JSDOM environment without PostgreSQL.
-- `npm run test:e2e` - run Playwright Chromium workflow, responsive, and accessibility tests; requires a migrated `DATABASE_URL` and installed Chromium.
+- `npm run test:e2e` - run Playwright Chromium workflow, responsive layout, and accessibility tests.
+  - First, set `DATABASE_URL`, apply the database migrations, and install Chromium.
 - `npm run build` - build core/contracts, the Vite client, the API, and the bundled CLI.
-- `npm run check` - run Biome, typecheck, tests, and build.
+- `npm run check` - run Biome checks, type checks, tests, and the build.
 
 ## Style and Testing
 
-- Write TypeScript only for app code; avoid new plain JavaScript unless there is a clear tool/config reason.
-- Preserve strict settings in the root and workspace `tsconfig*.json` files; do not silence errors with `any` or broad casts when a narrow type works.
-- Follow Biome formatting/linting (`biome.json`, space indentation, recommended rules).
-- Put shared behavior tests next to the module in `packages/core/src` as `*.test.ts`; add or update tests when changing money, balance, settlement, or validation behavior.
-- [UNREVIEWED] Build visual components with Radix Themes first, use Radix Primitives for behavior not covered by Themes, map custom colors through Radix Colors semantic tokens, and use Radix Icons for product icons.
-- [UNREVIEWED] Use Vitest APIs for unit and component suites, Testing Library for user-visible React behavior, and Playwright for browser workflows and accessibility.
+- Write application code in TypeScript.
+  - Add plain JavaScript only when there is a clear reason related to tools or configuration.
+- Keep strict settings in the root and workspace `tsconfig*.json` files.
+  - Do not use `any` or broad type assertions to hide type errors when a narrow type works.
+- Follow Biome formatting and lint rules in `biome.json`.
+  - Use space indentation and the recommended rules.
+- Put shared behavior tests next to the module in `packages/core/src` as `*.test.ts`.
+  - Add or update tests when money, balance, settlement, or validation behavior changes.
+- [UNREVIEWED] Build visual components with Radix Themes first.
+  - [UNREVIEWED] Use Radix Primitives for behavior that Radix Themes does not support.
+  - [UNREVIEWED] Map custom colors through Radix Colors semantic tokens.
+  - [UNREVIEWED] Use Radix Icons for product icons.
+- [UNREVIEWED] Use Vitest APIs for unit and component test suites.
+  - [UNREVIEWED] Use Testing Library for user-visible React behavior.
+  - [UNREVIEWED] Use Playwright for browser workflows and accessibility tests.
 
 ## Git and Pull Requests
 
-- Every pull request must include a Changesets file under `.changeset/`. Run `npm run changeset` for package changes, or `npm run changeset -- --empty` when no package version bump is required.
+- Every pull request must include a Changesets file under `.changeset/`.
+  - For package changes, run `npm run changeset`.
+  - If no package version change is necessary, run `npm run changeset -- --empty`.
 
 ## Security and Data
 
-- Do not commit secrets, `.env*`, database dumps, or local data.
-- Treat `DATABASE_URL`, `COOKIE_SECURE`, and auth/session behavior in `apps/api/src/server.ts` as runtime configuration; document changes that affect persistence or cookies.
+- Do not commit secrets, `.env*` files, database dumps, or local data.
+- Treat `DATABASE_URL`, `COOKIE_SECURE`, and authentication and session behavior in `apps/api/src/server.ts` as runtime configuration.
+  - Document changes that affect persistence or cookies.
