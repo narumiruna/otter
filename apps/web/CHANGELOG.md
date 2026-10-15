@@ -1,5 +1,17 @@
 # @narumitw/otter-web
 
+## 0.4.0
+
+### Minor Changes
+
+- f87b31c: Add account-scoped group preferences, personal expense summaries, and copy-as-new expense forms. Personal summaries use the same exchange conversion and rounding rules as balances.
+
+### Patch Changes
+
+- Updated dependencies [f87b31c]
+  - @narumitw/otter-core@0.3.0
+  - @narumitw/otter-contracts@0.2.1
+
 ## 0.3.0
 
 ### Minor Changes
