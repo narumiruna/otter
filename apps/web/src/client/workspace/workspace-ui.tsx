@@ -5,6 +5,7 @@ import {
   ReloadIcon as LoaderCircle,
 } from "@radix-ui/react-icons";
 import {
+  type ComponentProps,
   cloneElement,
   type ReactElement,
   type ReactNode,
@@ -102,6 +103,8 @@ export function ConfirmDialog({
   disabled,
   onConfirm,
   onOpenChange,
+  onCloseAutoFocus,
+  open: controlledOpen,
   title,
   trigger,
 }: {
@@ -112,11 +115,18 @@ export function ConfirmDialog({
   disabled?: boolean;
   onConfirm: () => unknown | Promise<unknown>;
   onOpenChange?: (open: boolean) => void;
+  onCloseAutoFocus?: ComponentProps<typeof DialogContent>["onCloseAutoFocus"];
+  open?: boolean;
   title: string;
-  trigger: ReactElement<{ disabled?: boolean }>;
+  trigger?: ReactElement<{ disabled?: boolean }>;
 }) {
   const { messages } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  function setOpen(next: boolean) {
+    setInternalOpen(next);
+    onOpenChange?.(next);
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function confirm() {
@@ -141,18 +151,22 @@ export function ConfirmDialog({
       onOpenChange={(nextOpen) => {
         if (!busy) {
           setOpen(nextOpen);
-          onOpenChange?.(nextOpen);
         }
         if (nextOpen) setError("");
       }}
     >
-      <DialogTrigger
-        disabled={disabled}
-        render={cloneElement(trigger, {
-          disabled: disabled || trigger.props.disabled,
-        })}
-      />
-      <DialogContent>
+      {trigger ? (
+        <DialogTrigger
+          disabled={disabled}
+          render={cloneElement(trigger, {
+            disabled: disabled || trigger.props.disabled,
+          })}
+        />
+      ) : null}
+      <DialogContent
+        className="confirm-dialog"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader>
           <div className="flex items-center gap-2">
             {destructive ? (

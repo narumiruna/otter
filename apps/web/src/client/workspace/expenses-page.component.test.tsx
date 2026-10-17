@@ -9,7 +9,7 @@ import {
   defaultExpenseFilters,
   type ExpenseFilters,
 } from "../client-support.js";
-import { I18nProvider } from "../i18n.js";
+import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
 
 const trip: Trip = {
@@ -158,7 +158,7 @@ test("readonly empty expenses do not offer an add action", () => {
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
 });
 
-test("writable expense rows open from their description without an action menu", () => {
+test("writable expense rows retain name editing and provide an action column", () => {
   render(
     <I18nProvider initialLocale="en">
       <ExpensesPage
@@ -174,11 +174,11 @@ test("writable expense rows open from their description without an action menu",
 
   expect(screen.getByRole("button", { name: "Dinner" })).toBeVisible();
   expect(
-    screen.queryByRole("button", { name: "More actions for Dinner" }),
-  ).not.toBeInTheDocument();
+    screen.getByRole("button", { name: "More actions for Dinner" }),
+  ).toBeVisible();
   expect(
     screen.getAllByRole("columnheader").map((header) => header.textContent),
-  ).toEqual(["Expense", "Paid by", "Category", "Date", "Amount"]);
+  ).toEqual(["Expense", "Paid by", "Category", "Date", "Amount", "Actions"]);
 });
 
 test("expenses can be grouped by date or payer", async () => {

@@ -317,6 +317,19 @@
   padding-top: var(--space-4);
 }
 
+.confirm-dialog .radix-dialog-footer {
+  flex-wrap: wrap;
+}
+
+.confirm-dialog .radix-dialog-footer .otter-button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 640px) {
   .radix-dialog-footer {
     flex-direction: row;

@@ -12,6 +12,7 @@ export const zhTWPersonal = {
     "無法保存個人偏好；本次選擇仍可使用，重新開啟後可能遺失。",
   rememberExpenseDefaults: "記住貨幣與分帳設定",
   expenseDefaultsRemembered: "已記住本群組的貨幣與分帳設定。",
+  deleteExpense: "刪除支出",
   copyExpense: "複製為新支出",
   copyExpenseNamed: (values: MessageValues) =>
     interpolate("複製「{name}」為新支出", values),
@@ -40,6 +41,7 @@ export const enPersonal = {
   rememberExpenseDefaults: "Remember currency and split settings",
   expenseDefaultsRemembered:
     "Currency and split settings saved for this group.",
+  deleteExpense: "Delete expense",
   copyExpense: "Copy as new expense",
   copyExpenseNamed: (values: MessageValues) =>
     interpolate("Copy {name} as new expense", values),
@@ -71,6 +73,7 @@ export const jaPersonal = {
     "個人設定を保存できませんでした。現在の選択は使えますが、ページを開き直すと失われる場合があります。",
   rememberExpenseDefaults: "通貨と分割設定を保存",
   expenseDefaultsRemembered: "このグループの通貨と分割設定を保存しました。",
+  deleteExpense: "支出を削除",
   copyExpense: "新しい支出としてコピー",
   copyExpenseNamed: (values: MessageValues) =>
     interpolate("「{name}」を新しい支出としてコピー", values),
@@ -102,6 +105,7 @@ export const koPersonal = {
     "개인 설정을 저장하지 못했습니다. 현재 선택은 사용할 수 있지만 페이지를 다시 열면 사라질 수 있습니다.",
   rememberExpenseDefaults: "통화와 분할 설정 기억하기",
   expenseDefaultsRemembered: "이 그룹의 통화와 분할 설정을 저장했습니다.",
+  deleteExpense: "지출 삭제",
   copyExpense: "새 지출로 복사",
   copyExpenseNamed: (values: MessageValues) =>
     interpolate("{name}을 새 지출로 복사", values),

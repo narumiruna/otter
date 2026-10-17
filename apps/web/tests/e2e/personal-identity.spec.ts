@@ -92,11 +92,12 @@ for (const viewport of [
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await page.getByRole("button", { name: "Expenses", exact: true }).click();
     const copy = page.getByRole("button", {
-      name: "Copy Travel booking as new expense",
+      name: "More actions for Travel booking",
       exact: true,
     });
     await copy.focus();
     await page.keyboard.press("Enter");
+    await page.getByRole("menuitem", { name: "Copy as new expense" }).click();
     const heading = page.getByText("Copy as new expense", { exact: true });
     await expect(heading).toBeFocused();
     await expect(page.getByLabel("Amount", { exact: true })).toHaveValue(
@@ -128,11 +129,14 @@ for (const viewport of [
       .getByRole("button", { name: "Record expense", exact: true })
       .click();
     await expect(
-      page.getByRole("button", { name: "Copy Travel booking as new expense" }),
+      page.getByRole("button", {
+        name: "More actions for Travel booking",
+        exact: true,
+      }),
     ).toHaveCount(1);
     await expect(
       page.getByRole("button", {
-        name: "Copy Travel booking copy as new expense",
+        name: "More actions for Travel booking copy",
         exact: true,
       }),
     ).toBeVisible();

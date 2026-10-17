@@ -8,7 +8,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { AppBootstrap } from "../app-bootstrap.js";
 import type { TripPayload, TripSummary } from "../client-support.js";
 import { changeExpense, queueExpense } from "../expense-queue.js";
-import { I18nProvider, useI18n } from "../i18n.js";
+import { useI18n } from "../i18n.js";
+import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { AuthenticatedWorkspace } from "./authenticated-workspace.js";
 
 function SwitchToEnglish() {

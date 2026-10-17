@@ -5,6 +5,11 @@ import {
   type Trip,
 } from "@narumitw/otter-core/settlement";
 import { expect, test } from "@playwright/test";
+import {
+  accessible,
+  exampleTrip,
+  mockWorkspace,
+} from "./interface-fixtures.js";
 import { expectNoOverflow } from "./layout-assertions.js";
 
 for (const colorScheme of ["light", "dark"] as const) {
@@ -179,6 +184,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       "付款人",
       "分類",
       "金額",
+      "操作",
     ]);
 
     await expenses.getByRole("button", { name: "欄位" }).click();
@@ -207,7 +213,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     ).toBeVisible();
     await expect(
       expenses.getByRole("button", { name: "「午餐」的更多操作" }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expenses.getByRole("button", { name: "午餐", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "編輯支出", exact: true }),
@@ -301,5 +307,93 @@ for (const colorScheme of ["light", "dark"] as const) {
         expect(bounds?.height).toBeGreaterThanOrEqual(44);
       }
     }
+  });
+}
+
+for (const width of [320, 375, 768, 1440]) {
+  test(`expense row menu and dialogs remain accessible at ${width}px`, async ({
+    page,
+  }) => {
+    const trip = exampleTrip();
+    trip.expenses[0] = {
+      ...trip.expenses[0],
+      version: 1,
+      description:
+        "Dinner with a very long expense description 晚餐與朋友一起分攤的長名稱",
+    };
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await mockWorkspace(page, trip);
+    await page.goto(`/?trip=${trip.id}&view=expenses`);
+    const trigger = page.getByRole("button", {
+      name: `More actions for ${trip.expenses[0].description}`,
+    });
+    await expect(trigger).toBeVisible();
+    const bounds = await trigger.boundingBox();
+    expect(bounds?.width).toBeGreaterThanOrEqual(44);
+    expect(bounds?.height).toBeGreaterThanOrEqual(44);
+    const row =
+      width <= 680
+        ? page.locator(".expense-mobile-row").first()
+        : page.locator(".expense-table-row").first();
+    expect(
+      await row
+        .locator(
+          width <= 680 ? ".expense-mobile-primary" : ".expense-actions-cell",
+        )
+        .locator("button")
+        .last()
+        .getAttribute("data-expense-row-menu"),
+    ).not.toBeNull();
+    await trigger.focus();
+    await page.keyboard.press("ArrowDown");
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Edit expense" }),
+    ).toBeFocused();
+    await accessible(page);
+    await expectNoOverflow(page);
+    await expect
+      .poll(async () => {
+        const box = await menu.boundingBox();
+        return !!box && box.x >= 0 && box.x + box.width <= width;
+      })
+      .toBe(true);
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      page.getByRole("menuitem", { name: "Copy as new expense" }),
+    ).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      page.getByRole("menuitem", { name: "Change history" }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    const history = page.getByRole("dialog", {
+      name: `Change history: ${trip.expenses[0].description}`,
+    });
+    await expect(history).toBeVisible();
+    await expect(menu).toHaveCount(0);
+    await accessible(page);
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.getByRole("menuitem", { name: "Delete expense" }).click();
+    const confirmation = page.getByRole("dialog", {
+      name: "Delete this expense?",
+    });
+    await expect(confirmation).toBeVisible();
+    await accessible(page);
+    await confirmation.getByRole("button", { name: "Cancel" }).click();
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+    await page
+      .getByRole("button", { name: trip.expenses[0].description, exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Edit expense", exact: true }),
+    ).toBeVisible();
   });
 }
