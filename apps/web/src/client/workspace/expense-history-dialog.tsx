@@ -4,7 +4,7 @@ import {
 } from "@narumitw/otter-contracts";
 import { ClockIcon } from "@radix-ui/react-icons";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,14 +21,19 @@ import { ExpenseRestoreAction } from "./expense-restore-action.js";
 import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
 import { ActionError, useOptionalWorkspace } from "./workspace-context.js";
 
-export function ExpenseHistoryDialog(props: {
+type ExpenseHistoryDialogProps = {
   tripId: string;
   expenseId?: string;
   name?: string;
   descriptionTrigger?: boolean;
   discardDraft?: boolean;
   onRestored?: () => void;
-}) {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onCloseAutoFocus?: ComponentProps<typeof DialogContent>["onCloseAutoFocus"];
+};
+
+export function ExpenseHistoryDialog(props: ExpenseHistoryDialogProps) {
   const workspace = useOptionalWorkspace();
   if (!workspace || workspace.payload.readonly) return null;
   return <HistoryDialog {...props} />;
@@ -40,16 +45,17 @@ function HistoryDialog({
   descriptionTrigger,
   discardDraft,
   onRestored,
-}: {
-  tripId: string;
-  expenseId?: string;
-  name?: string;
-  descriptionTrigger?: boolean;
-  discardDraft?: boolean;
-  onRestored?: () => void;
-}) {
+  open: controlledOpen,
+  onOpenChange,
+  onCloseAutoFocus,
+}: ExpenseHistoryDialogProps) {
   const { messages, locale } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const history = useInfiniteQuery({
     queryKey: ["expense-history", tripId, expenseId ?? "all"],
     enabled: open,
@@ -93,29 +99,32 @@ function HistoryDialog({
   const revisions = history.data?.pages.flatMap((page) => page.revisions) ?? [];
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          descriptionTrigger ? (
-            <button aria-label={title} type="button" />
+      {controlledOpen === undefined ? (
+        <DialogTrigger
+          render={
+            descriptionTrigger ? (
+              <button aria-label={title} type="button" />
+            ) : (
+              <Button
+                aria-label={title}
+                variant={name ? "outline" : "ghost"}
+                size="sm"
+              />
+            )
+          }
+        >
+          {descriptionTrigger ? (
+            name
           ) : (
-            <Button
-              aria-label={title}
-              variant={name ? "outline" : "ghost"}
-              size="sm"
-            />
-          )
-        }
-      >
-        {descriptionTrigger ? (
-          name
-        ) : (
-          <>
-            <ClockIcon aria-hidden="true" />
-            {messages.expenseHistory}
-          </>
-        )}
-      </DialogTrigger>
+            <>
+              <ClockIcon aria-hidden="true" />
+              {messages.expenseHistory}
+            </>
+          )}
+        </DialogTrigger>
+      ) : null}
       <DialogContent
+        onCloseAutoFocus={onCloseAutoFocus}
         showCloseButton={false}
         className="max-h-[85dvh] overflow-y-auto"
       >

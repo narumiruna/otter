@@ -1,6 +1,6 @@
 import type { Expense, Trip, TripPayload } from "@narumitw/otter-contracts";
 import { TrashIcon, UploadIcon } from "@radix-ui/react-icons";
-import { useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "../client-support.js";
 import { useI18n } from "../i18n.js";
@@ -110,6 +110,9 @@ export function DeleteExpenseAction({
   trip,
   receipt = false,
   versionState,
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
 }: {
   expense: Expense;
   onDeleted?: () => void;
@@ -117,6 +120,9 @@ export function DeleteExpenseAction({
   trip: Trip;
   receipt?: boolean;
   versionState?: ExpenseVersionState;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onCloseAutoFocus?: ComponentProps<typeof ConfirmDialog>["onCloseAutoFocus"];
 }) {
   const { messages } = useI18n();
   const { offline, requestPayload } = useWorkspace();
@@ -141,8 +147,11 @@ export function DeleteExpenseAction({
       }
       destructive
       disabled={offline}
-      onOpenChange={(open) => {
-        if (open && !versionState) version.begin();
+      open={open}
+      onCloseAutoFocus={onCloseAutoFocus}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && !versionState) version.begin();
+        onOpenChange?.(nextOpen);
       }}
       onConfirm={async () => {
         try {
@@ -167,14 +176,16 @@ export function DeleteExpenseAction({
       }}
       title={receipt ? messages.deleteThisReceipt : messages.deleteThisExpense}
       trigger={
-        <Button
-          size="sm"
-          type="button"
-          variant={receipt ? "ghost" : "destructive"}
-        >
-          <TrashIcon aria-hidden="true" />
-          {receipt ? messages.deleteReceipt : messages.delete}
-        </Button>
+        open === undefined ? (
+          <Button
+            size="sm"
+            type="button"
+            variant={receipt ? "ghost" : "destructive"}
+          >
+            <TrashIcon aria-hidden="true" />
+            {receipt ? messages.deleteReceipt : messages.delete}
+          </Button>
+        ) : undefined
       }
     />
   );

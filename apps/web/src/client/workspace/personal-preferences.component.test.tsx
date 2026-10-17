@@ -6,13 +6,13 @@ import {
   calculateSettlements,
 } from "@narumitw/otter-core/settlement";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { defaultExpenseFilters } from "../client-support.js";
 import { queueExpense } from "../expense-queue.js";
-import { I18nProvider } from "../i18n.js";
+import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpensesPage } from "./expenses-page.js";
 import {
@@ -296,7 +296,10 @@ test("copy opens a new form, cancels without mutation and is unavailable for rea
   const user = userEvent.setup();
   const view = render(root(payload, page()));
   await user.click(
-    view.getByRole("button", { name: "Copy Old meal as new expense" }),
+    view.getByRole("button", { name: "More actions for Old meal" }),
+  );
+  await user.click(
+    screen.getByRole("menuitem", { name: "Copy as new expense" }),
   );
   expect(
     view.getByRole("heading", { name: "Copy as new expense" }),

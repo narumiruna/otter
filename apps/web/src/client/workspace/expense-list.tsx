@@ -18,6 +18,7 @@ import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { type ExpenseColumn, expenseColumnLabel } from "./expense-columns.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseRateDetails } from "./expense-rate.js";
+import { ExpenseRowMenu } from "./expense-row-menu.js";
 import type { ExpenseGrouping } from "./expenses-page.js";
 import { MobileExpenseRow } from "./mobile-expense-row.js";
 import { ReceiptPreview } from "./receipt-preview.js";
@@ -48,6 +49,8 @@ export function ExpenseList({
   trip: Trip;
 }) {
   const { formatMoney, messages } = useI18n();
+  const workspace = useOptionalWorkspace();
+  const showActions = !readonly || (!!workspace && !workspace.payload.readonly);
   const mobile = useMediaQuery("(max-width: 680px)");
   if (!trip.expenses.length)
     return (
@@ -110,7 +113,7 @@ export function ExpenseList({
         left.key.localeCompare(right.key),
     );
   }
-  const columnCount = visibleColumns.length + 2;
+  const columnCount = visibleColumns.length + 2 + Number(showActions);
   if (mobile)
     return (
       <section className="expense-mobile-list" aria-label={listLabel}>
@@ -171,6 +174,11 @@ export function ExpenseList({
               <th className="expense-amount-column" scope="col">
                 {messages.amount}
               </th>
+              {showActions ? (
+                <th className="expense-actions-column" scope="col">
+                  <span className="sr-only">{messages.actions}</span>
+                </th>
+              ) : null}
             </tr>
           </thead>
           {groups.map((group, index) => {
@@ -200,6 +208,7 @@ export function ExpenseList({
                 {group.expenses.map((expense) => (
                   <ExpenseTableRow
                     columns={visibleColumns}
+                    showActions={showActions}
                     expense={expense}
                     key={expense.id}
                     names={names}
@@ -316,6 +325,7 @@ function SplitParticipantLabel({
 }
 
 function ExpenseTableRow({
+  showActions,
   columns,
   expense,
   names,
@@ -324,6 +334,7 @@ function ExpenseTableRow({
   readonly,
   trip,
 }: {
+  showActions: boolean;
   columns: ExpenseColumn[];
   expense: Expense;
   names: Map<string, string>;
@@ -369,19 +380,6 @@ function ExpenseTableRow({
             {expense.description}
           </button>
         )}
-        {!readonly && onCopy ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label={messages.copyExpenseNamed({
-              name: expense.description,
-            })}
-            onClick={() => onCopy(expense)}
-          >
-            {messages.copyExpense}
-          </Button>
-        ) : null}
       </th>
       {columns.map((column) => (
         <td className={`expense-${column}-cell`} key={column}>
@@ -425,6 +423,17 @@ function ExpenseTableRow({
       <td className="expense-amount-cell">
         <ExpenseRateDetails expense={expense} trip={trip} showAmount />
       </td>
+      {showActions ? (
+        <td className="expense-actions-cell">
+          <ExpenseRowMenu
+            expense={expense}
+            onEdit={onEdit}
+            onCopy={onCopy}
+            readonly={readonly}
+            trip={trip}
+          />
+        </td>
+      ) : null}
     </tr>
   );
 }

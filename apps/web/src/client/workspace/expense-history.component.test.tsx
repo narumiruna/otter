@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { defaultExpenseFilters } from "../client-support.js";
-import { I18nProvider } from "../i18n.js";
+import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";

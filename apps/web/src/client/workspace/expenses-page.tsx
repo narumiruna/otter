@@ -114,7 +114,9 @@ export function ExpensesPage({
             total: trip.expenses.length,
           })}
         >
-          <span id="expenses-heading">{messages.expenses}</span>
+          <span id="expenses-heading" tabIndex={-1}>
+            {messages.expenses}
+          </span>
         </SectionHeading>
         <div className="expenses-heading-actions">
           <ExpenseHistoryDialog tripId={trip.id} />

@@ -4,6 +4,7 @@ import { localizeMessage, useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseRateDetails } from "./expense-rate.js";
+import { ExpenseRowMenu } from "./expense-row-menu.js";
 import { ReceiptPreview } from "./receipt-preview.js";
 import { useOptionalWorkspace } from "./workspace-context.js";
 
@@ -60,18 +61,14 @@ export function MobileExpenseRow({
         <span className="expense-mobile-amount">
           <ExpenseRateDetails expense={expense} trip={trip} showAmount />
         </span>
+        <ExpenseRowMenu
+          expense={expense}
+          onEdit={onEdit}
+          onCopy={onCopy}
+          readonly={readonly}
+          trip={trip}
+        />
       </div>
-      {!readonly && onCopy ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          aria-label={messages.copyExpenseNamed({ name: expense.description })}
-          onClick={() => onCopy(expense)}
-        >
-          {messages.copyExpense}
-        </Button>
-      ) : null}
       <div className="expense-mobile-secondary">
         <span className="person-avatar" aria-hidden="true">
           {payer.charAt(0).toLocaleUpperCase()}

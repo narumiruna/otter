@@ -10,7 +10,7 @@ import { act, render, renderHook } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import { defaultExpenseFilters } from "../client-support.js";
-import { I18nProvider } from "../i18n.js";
+import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpensesPage } from "./expenses-page.js";
 import { readPreferences, writePreferences } from "./personal-preferences.js";
@@ -102,11 +102,16 @@ test.each(["copy-archive", "copy-readonly", "edit-archive", "edit-readonly"])(
     );
     const view = render(root(payload, page(payload)));
     const user = userEvent.setup();
-    await user.click(
-      view.getByRole("button", {
-        name: mode.startsWith("copy") ? "Copy Meal as new expense" : "Meal",
-      }),
-    );
+    if (mode.startsWith("copy")) {
+      await user.click(
+        view.getByRole("button", { name: "More actions for Meal" }),
+      );
+      await user.click(
+        view.getByRole("menuitem", { name: "Copy as new expense" }),
+      );
+    } else {
+      await user.click(view.getByRole("button", { name: "Meal" }));
+    }
     await user.type(view.getByLabelText("Description"), " unsaved");
     expect(editing).toHaveBeenLastCalledWith(true);
     expect(dirty).toHaveBeenLastCalledWith(true);
