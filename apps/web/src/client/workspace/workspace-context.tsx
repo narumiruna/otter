@@ -3,7 +3,6 @@ import {
   createContext,
   type ReactNode,
   type RefObject,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -81,26 +80,33 @@ export function WorkspaceProvider({
   const [queueError, setQueueError] = useState("");
   const localAuthBlockedFor = useRef<string | null>(null);
   const authBlockedFor = sharedAuthBlockedFor ?? localAuthBlockedFor;
-  const reload = useCallback(async () => {
-    if (!userId) {
-      setQueued([]);
-      return;
-    }
-    try {
-      setQueued(await listExpenses(userId, tripId));
-      setQueueError("");
-    } catch (error) {
-      setQueued([]);
-      setQueueError(
-        error instanceof Error ? error.message : messages.loadingFailed,
-      );
-    }
-  }, [userId, tripId, messages.loadingFailed]);
-
   useEffect(() => {
+    let active = true;
+    const reload = async () => {
+      if (!userId) {
+        setQueued([]);
+        return;
+      }
+      try {
+        const items = await listExpenses(userId, tripId);
+        if (!active) return;
+        setQueued(items);
+        setQueueError("");
+      } catch (error) {
+        if (!active) return;
+        setQueued([]);
+        setQueueError(
+          error instanceof Error ? error.message : messages.loadingFailed,
+        );
+      }
+    };
     void reload();
-    return listenToQueue(() => void reload());
-  }, [reload]);
+    const unsubscribe = listenToQueue(() => void reload());
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [userId, tripId, messages.loadingFailed]);
 
   useEffect(() => {
     if (!userId || offline) return;
@@ -125,11 +131,12 @@ export function WorkspaceProvider({
             if (!controller.signal.aborted && result === "authentication-lost")
               authBlockedFor.current = userId;
           })
-          .catch((error: unknown) =>
+          .catch((error: unknown) => {
+            if (controller.signal.aborted) return;
             setQueueError(
               error instanceof Error ? error.message : messages.loadingFailed,
-            ),
-          );
+            );
+          });
     };
     run();
     window.addEventListener("online", run);
