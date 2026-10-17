@@ -96,6 +96,60 @@ test("all members have expense-only paid/share totals and payment-adjusted balan
   ).not.toBeInTheDocument();
 });
 
+test.each([
+  { mode: "equal", shares: undefined, memberShare: "NT$1,600" },
+  {
+    mode: "unequal",
+    shares: [
+      { participantId: "a", shareMinor: 2500 },
+      { participantId: "b", shareMinor: 7500 },
+    ],
+    memberShare: "NT$800",
+  },
+])(
+  "$mode foreign shares label the full bill separately",
+  async ({ shares, memberShare }) => {
+    const trip = fixture();
+    trip.expenses[0] = {
+      ...trip.expenses[0],
+      currency: "USD",
+      amountMinor: 10000,
+      exchangeRate: { baseCurrency: "TWD", rateToBase: 32, source: "custom" },
+      participantShares: shares,
+    };
+    trip.settlementPayments = [];
+    const before = structuredClone(trip);
+    const view = render(
+      <I18nProvider initialLocale="en">
+        <MemberAccounts payload={payload(trip)} />
+      </I18nProvider>,
+    );
+    const toggle = view.getAllByText("View details", {
+      selector: "summary",
+      exact: false,
+    })[0];
+    await userEvent.setup().click(toggle);
+    const details = toggle.closest("details");
+    if (!details) throw new Error("Missing member details");
+    const section = within(details)
+      .getByRole("heading", { name: "Shared expenses (TWD)" })
+      .closest("section");
+    if (!section) throw new Error("Missing shared expense section");
+    expect(
+      within(section).getByText(memberShare, { exact: true }),
+    ).toBeVisible();
+    expect(
+      within(section).getByText("Full expense total: USD $100.00", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(
+      within(section).queryByText("USD $100.00", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(trip).toEqual(before);
+  },
+);
+
 test("public share uses supplied balances when payment details are omitted", async () => {
   const full = payload();
   const { settlementPayments: _payments, ...trip } = full.trip;
@@ -166,6 +220,11 @@ test.each(["zh-TW", "en", "ja", "ko"] as const)(
     );
     expect(
       view.getAllByText(`${messages.accountPayments} (TWD)`)[0],
+    ).toBeVisible();
+    expect(
+      view.getAllByText(`${messages.accountExpenseTotal}:`, {
+        exact: false,
+      })[0],
     ).toBeVisible();
   },
 );

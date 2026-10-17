@@ -166,7 +166,7 @@ function MemberDetails({
                       {formatMoney(entry.amountMinor, account.currency)}
                       <small>
                         {expense
-                          ? `${expense.currency} ${formatMoney(expense.amountMinor, expense.currency)}`
+                          ? `${messages.accountExpenseTotal}: ${expense.currency} ${formatMoney(expense.amountMinor, expense.currency)}`
                           : ""}
                       </small>
                     </span>
