@@ -69,6 +69,7 @@ export function ExpenseRowMenu({
           </Button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content
+          className="expense-row-menu-content"
           align="end"
           highContrast
           collisionPadding={8}

@@ -52,6 +52,7 @@ export function ExpenseList({
   const workspace = useOptionalWorkspace();
   const showActions = !readonly || (!!workspace && !workspace.payload.readonly);
   const mobile = useMediaQuery("(max-width: 680px)");
+  const printing = useMediaQuery("print");
   if (!trip.expenses.length)
     return (
       <div className="empty-state expense-empty-state">
@@ -113,7 +114,8 @@ export function ExpenseList({
         left.key.localeCompare(right.key),
     );
   }
-  const columnCount = visibleColumns.length + 2 + Number(showActions);
+  const columnCount =
+    visibleColumns.length + 2 + Number(showActions && !printing);
   if (mobile)
     return (
       <section className="expense-mobile-list" aria-label={listLabel}>
