@@ -104,6 +104,11 @@ for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
           accounts.getByText(`${messages.accountPayments} (JPY)`).first(),
         ).toBeVisible();
         await expect(
+          accounts
+            .getByText(`${messages.accountExpenseTotal}: USD`, { exact: false })
+            .first(),
+        ).toBeVisible();
+        await expect(
           accounts.getByRole("button", { name: messages.recordPayment }),
         ).toHaveCount(0);
         await accessible(page);
