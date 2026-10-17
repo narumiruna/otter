@@ -1,5 +1,11 @@
 # @narumitw/otter-web
 
+## 0.4.1
+
+### Patch Changes
+
+- d9005ed: Ignore queue refresh results and sync errors after workspace effect cleanup. This prevents state updates after unmount and stale results after changing accounts or groups.
+
 ## 0.4.0
 
 ### Minor Changes
