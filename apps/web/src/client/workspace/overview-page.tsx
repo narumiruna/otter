@@ -34,8 +34,8 @@ import {
 } from "../client-support.js";
 import { localizeMessage, useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
+import { MemberAccounts } from "./member-accounts.js";
 import { OverviewSummary } from "./overview-summary.js";
-import { PersonalSummary } from "./personal-summary.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BalanceList,
@@ -78,15 +78,11 @@ export function OverviewPage({
           onPeople={onPeople}
           readonly={readonly}
         />
-        <PersonalSummary />
       </div>
     );
   }
   return (
     <div className="overview-grid">
-      <div className="col-span-full">
-        <PersonalSummary />
-      </div>
       <OverviewSummary payload={payload} />
       <section
         className="surface overview-settlements grid gap-4"
@@ -133,7 +129,7 @@ export function OverviewPage({
           trip={trip}
         />
       </section>
-      {trip.expenses.length ? <SpendingAnalysis trip={trip} /> : null}
+      <SpendingAnalysis payload={payload} />
     </div>
   );
 }
@@ -538,7 +534,8 @@ function RecentExpenses({
   );
 }
 
-function SpendingAnalysis({ trip }: { trip: Trip }) {
+function SpendingAnalysis({ payload }: { payload: TripPayload }) {
+  const { trip } = payload;
   const { formatMoney, messages } = useI18n();
   const summary = spendingSummary(trip);
   const charts = [
@@ -606,6 +603,7 @@ function SpendingAnalysis({ trip }: { trip: Trip }) {
           </div>
         ))}
       </div>
+      <MemberAccounts payload={payload} />
     </details>
   );
 }

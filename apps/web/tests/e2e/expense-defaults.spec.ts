@@ -14,7 +14,7 @@ for (const viewport of [
   { width: 1280, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`personal identity, remembered defaults and foreign expense copy at ${viewport.width}px`, async ({
+  test(`remembered defaults and foreign expense copy without identity at ${viewport.width}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -54,9 +54,10 @@ for (const viewport of [
       });
     });
     await page.goto(`/?trip=${trip.id}`);
-    const personal = page.getByRole("region", { name: "My account" });
-    await personal.getByLabel("Who am I").selectOption("b");
-    await expect(personal.getByText("My share")).toBeVisible();
+    await expect(page.getByRole("region", { name: "My account" })).toHaveCount(
+      0,
+    );
+    await expect(page.getByLabel("Who am I")).toHaveCount(0);
     await accessible(page);
     await expectNoOverflow(page);
     await page
@@ -64,7 +65,7 @@ for (const viewport of [
       .first()
       .click();
     await expect(page.getByRole("combobox", { name: /^Paid by/ })).toHaveValue(
-      "b",
+      "a",
     );
     await page.getByLabel("Amount", { exact: true }).fill("100");
     await page
@@ -161,6 +162,14 @@ for (const viewport of [
     ).toBe(150);
     await page.reload();
     await page.getByRole("button", { name: "Overview", exact: true }).click();
-    await expect(page.getByLabel("Who am I")).toHaveValue("b");
+    await expect(page.getByLabel("Who am I")).toHaveCount(0);
+    await page
+      .locator("summary")
+      .filter({ hasText: "Spending analysis" })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("table", { name: "Member accounts" }),
+    ).toBeVisible();
   });
 }

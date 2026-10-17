@@ -13,6 +13,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { defaultExpenseFilters } from "../client-support.js";
 import { queueExpense } from "../expense-queue.js";
 import { TestI18nProvider as I18nProvider } from "../test-providers.js";
+import { BrowserExpenseDefaults } from "./browser-expense-defaults.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpensesPage } from "./expenses-page.js";
 import {
@@ -20,7 +21,6 @@ import {
   readPreferences,
   writePreferences,
 } from "./personal-preferences.js";
-import { PersonalSummary } from "./personal-summary.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 function fixture(): TripPayload {
@@ -78,85 +78,54 @@ beforeEach(() => {
     }),
   );
 });
-test("identity selects a payer without mutation, isolates accounts and reconciles removed people", async () => {
-  const user = userEvent.setup();
+test("local controls isolate accounts and groups", async () => {
   const payload = fixture();
-  const view = render(root(payload, <PersonalSummary />));
-  await user.selectOptions(view.getByLabelText("Who am I"), "b");
+  const defaults = {
+    currency: "USD" as const,
+    participantIds: ["b"],
+    splitMode: "equal" as const,
+    splitValues: {},
+  };
+  writePreferences("personal-owner", payload.trip.id, { defaults });
+  writePreferences("other-account", payload.trip.id, { defaults });
+  const view = render(root(payload, <BrowserExpenseDefaults />));
+  await userEvent.setup().click(
+    view.getByRole("button", {
+      name: "Clear expense defaults for this group",
+    }),
+  );
+  expect(view.getByRole("status")).toHaveTextContent(
+    "Expense defaults cleared",
+  );
   expect(
-    readPreferences("personal-owner", payload.trip.id).preferences
-      .participantId,
-  ).toBe("b");
-  expect(globalThis.fetch).not.toHaveBeenCalled();
-  view.rerender(root(payload, <PersonalSummary />, "other-account"));
-  expect(view.getByLabelText("Who am I")).toHaveValue("");
+    readPreferences("personal-owner", payload.trip.id).preferences.defaults,
+  ).toBeUndefined();
+  expect(
+    readPreferences("other-account", payload.trip.id).preferences.defaults,
+  ).toEqual(defaults);
+  view.rerender(root(payload, <BrowserExpenseDefaults />, "other-account"));
+  expect(view.queryByRole("status")).not.toBeInTheDocument();
   view.rerender(
     root(
       { ...payload, trip: { ...payload.trip, id: "other-group" } },
-      <PersonalSummary />,
+      <BrowserExpenseDefaults />,
     ),
   );
-  expect(view.getByLabelText("Who am I")).toHaveValue("");
-  view.rerender(root(payload, <PersonalSummary />));
-  expect(view.getByLabelText("Who am I")).toHaveValue("b");
-  view.rerender(
-    root(
-      {
-        ...payload,
-        trip: { ...payload.trip, participants: [payload.trip.participants[0]] },
-      },
-      <PersonalSummary />,
-    ),
-  );
-  expect(view.getByLabelText("Who am I")).toHaveValue("");
-  expect(view.getByRole("status")).toHaveTextContent("no longer available");
-  expect(
-    readPreferences("personal-owner", payload.trip.id).preferences
-      .participantId,
-  ).toBeUndefined();
-});
-test("identity is local for owner, editor and archived groups; guests have no persistence controls", async () => {
-  const payload = fixture();
-  for (const role of ["owner", "editor"] as const) {
-    const view = render(
-      root(
-        {
-          ...payload,
-          currentUserRole: role,
-          trip: { ...payload.trip, archivedAt: "now" },
-        },
-        <PersonalSummary />,
-      ),
-    );
-    await userEvent.setup().selectOptions(view.getByLabelText("Who am I"), "a");
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    view.unmount();
-  }
-  // No shared guest key is permitted.
-  const client = new QueryClient();
-  const view = render(
-    <QueryClientProvider client={client}>
-      <WorkspaceProvider
-        announce={() => {}}
-        offline={false}
-        payload={payload}
-        refreshCollection={async () => {}}
-      >
-        <PersonalSummary />
-      </WorkspaceProvider>
-    </QueryClientProvider>,
-  );
-  expect(view.queryByLabelText("我是誰")).not.toBeInTheDocument();
+  expect(view.queryByRole("status")).not.toBeInTheDocument();
+  expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 test("defaults apply to new expenses only, remember explicitly and do not replace dirty input", async () => {
   const payload = fixture();
   const user = userEvent.setup();
-  writePreferences("personal-owner", payload.trip.id, { participantId: "b" });
+  localStorage.setItem(
+    preferenceKey("personal-owner", payload.trip.id),
+    JSON.stringify({ version: 1, participantId: "b" }),
+  );
   function Editor() {
     const [open, setOpen] = useState(true);
     return open ? (
       <>
-        <PersonalSummary />
+        <BrowserExpenseDefaults />
         <ExpenseComposer trip={payload.trip} onCancel={() => setOpen(false)} />
       </>
     ) : (
@@ -166,11 +135,14 @@ test("defaults apply to new expenses only, remember explicitly and do not replac
     );
   }
   const view = render(root(payload, <Editor />));
-  expect(view.getByRole("combobox", { name: /^Paid by/ })).toHaveValue("b");
+  expect(view.getByRole("combobox", { name: /^Paid by/ })).toHaveValue("a");
   await user.type(view.getByLabelText("Description"), "Unsaved");
   await user.type(view.getByLabelText("Amount"), "100");
   await user.selectOptions(view.getByLabelText("Currency"), "USD");
-  await user.selectOptions(view.getByLabelText("Who am I"), "a");
+  await user.selectOptions(
+    view.getByRole("combobox", { name: /^Paid by/ }),
+    "b",
+  );
   expect(view.getByLabelText("Description")).toHaveValue("Unsaved");
   expect(view.getByRole("combobox", { name: /^Paid by/ })).toHaveValue("b");
   expect(
@@ -198,33 +170,32 @@ test("defaults apply to new expenses only, remember explicitly and do not replac
   expect(view.getByLabelText("Description")).toHaveValue("");
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
-test("storage failures retain the selected person and clear affects neither account nor queue", async () => {
+test("failed local clear reports failure and preserves other account and queue data", async () => {
   const payload = fixture();
-  const view = render(root(payload, <PersonalSummary />));
-  const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("Quota");
-  });
-  await userEvent.setup().selectOptions(view.getByLabelText("Who am I"), "b");
-  expect(view.getByLabelText("Who am I")).toHaveValue("b");
-  expect(view.getByRole("alert")).toHaveTextContent("could not be saved");
-  spy.mockRestore();
   localStorage.setItem("queue", "keep");
-  writePreferences("other", payload.trip.id, { participantId: "a" });
+  writePreferences("other", payload.trip.id, {});
+  const view = render(root(payload, <BrowserExpenseDefaults />));
+  const spy = vi
+    .spyOn(Storage.prototype, "removeItem")
+    .mockImplementation(() => {
+      throw new Error("Denied");
+    });
   await userEvent.setup().click(
     view.getByRole("button", {
-      name: "Clear personal preferences for this group",
+      name: "Clear expense defaults for this group",
     }),
   );
-  expect(view.getByLabelText("Who am I")).toHaveValue("");
+  expect(view.getByRole("alert")).toHaveTextContent("could not be saved");
+  expect(view.queryByRole("status")).not.toBeInTheDocument();
   expect(localStorage.getItem("queue")).toBe("keep");
   expect(
     localStorage.getItem(preferenceKey("other", payload.trip.id)),
   ).not.toBeNull();
+  spy.mockRestore();
 });
 test("exact remembered amounts require a matching new total and editing keeps original values", async () => {
   const payload = fixture();
   writePreferences("personal-owner", payload.trip.id, {
-    participantId: "b",
     defaults: {
       currency: "TWD",
       participantIds: ["a", "b"],
@@ -325,7 +296,6 @@ test("copy opens a new form, cancels without mutation and is unavailable for rea
 test("queued drafts keep their own payer and splits instead of personal defaults", async () => {
   const payload = fixture();
   writePreferences("personal-owner", payload.trip.id, {
-    participantId: "b",
     defaults: {
       currency: "USD",
       participantIds: ["b"],

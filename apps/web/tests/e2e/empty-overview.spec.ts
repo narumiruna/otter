@@ -78,11 +78,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       page.getByRole("banner").getByText("narumi", { exact: true }),
     ).toHaveCount(1);
-    await expect(
-      page
-        .getByRole("region", { name: "我的帳務" })
-        .getByRole("option", { name: "narumi", exact: true }),
-    ).toHaveCount(1);
+    await expect(page.getByRole("region", { name: "我的帳務" })).toHaveCount(0);
     await expect(
       page.getByRole("region", { name: "群組帳目摘要" }),
     ).toHaveCount(0);

@@ -13,8 +13,8 @@ import { defaultExpenseFilters } from "../client-support.js";
 import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpensesPage } from "./expenses-page.js";
-import { readPreferences, writePreferences } from "./personal-preferences.js";
-import { PersonalSummary } from "./personal-summary.js";
+import { MemberAccounts } from "./member-accounts.js";
+import { readPreferences } from "./personal-preferences.js";
 import { usePersonalPreferences } from "./use-personal-preferences.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
@@ -134,44 +134,44 @@ test.each(["copy-archive", "copy-readonly", "edit-archive", "edit-readonly"])(
 );
 
 test.each(["empty", "paid", "represented"])(
-  "%s zero balance has no receivable or payable label",
+  "%s zero balance is shown for all members without identity",
   (mode) => {
     const payload = fixture();
     if (mode === "empty") payload.trip.expenses = [];
     if (mode === "paid")
       payload.trip.settlementPayments = [
         {
-          id: "payment",
+          id: "p",
           fromId: "b",
           toId: "a",
           amountMinor: 50,
           currency: "TWD",
           paidAt: "2026-10-02",
-          createdAt: "2026-10-02T00:00:00Z",
+          createdAt: "now",
           note: "",
         },
       ];
     if (mode === "represented") payload.trip.participants[1].settledById = "a";
-    writePreferences("review-owner", payload.trip.id, { participantId: "b" });
-    const view = render(root(payload, <PersonalSummary />));
+    payload.balances = calculateBalances(payload.trip);
+    const view = render(root(payload, <MemberAccounts payload={payload} />));
+    expect(view.getAllByText("Settled")).toHaveLength(2);
     expect(
-      view.getByText("No amount to pay or receive").nextElementSibling,
-    ).toHaveTextContent("$0");
-    expect(view.queryByText("Owed to me")).not.toBeInTheDocument();
-    expect(view.queryByText("I owe")).not.toBeInTheDocument();
+      view.queryByText("To receive", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(view.queryByText("To pay", { exact: true })).not.toBeInTheDocument();
     if (mode === "represented")
-      expect(view.getByText(/Alice settles for you/)).toBeVisible();
+      expect(view.getByText(/Alice settles for this member/)).toBeVisible();
   },
 );
-
-test.each([
-  ["a", "Owed to me"],
-  ["b", "I owe"],
-])("%s retains the nonzero balance label", (person, label) => {
+test("all nonzero balances retain payable and receivable labels", () => {
   const payload = fixture();
-  writePreferences("review-owner", payload.trip.id, { participantId: person });
-  const view = render(root(payload, <PersonalSummary />));
-  expect(view.getByText(label).nextElementSibling).toHaveTextContent("$50");
+  const view = render(root(payload, <MemberAccounts payload={payload} />));
+  expect(
+    view.getByText("To receive", { exact: true }).parentElement,
+  ).toHaveTextContent("$50");
+  expect(
+    view.getByText("To pay", { exact: true }).parentElement,
+  ).toHaveTextContent("$50");
 });
 
 test("a refreshed form cannot report removed participant defaults as saved", async () => {
