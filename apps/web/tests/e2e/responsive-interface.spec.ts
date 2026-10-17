@@ -419,7 +419,53 @@ for (const colorScheme of ["light", "dark"] as const) {
         }),
       ).toBeVisible();
       await expect(page.locator(".expense-toolbar")).toBeHidden();
+      const rowActions = page.locator(".expense-row-menu-trigger");
+      await expect(rowActions).toHaveCount(5);
+      for (const trigger of await rowActions.all()) {
+        await expect(trigger).toBeHidden();
+      }
+      if (width > 680) {
+        const actionCells = page.locator(
+          ".expense-actions-column, .expense-actions-cell",
+        );
+        await expect(actionCells).toHaveCount(6);
+        for (const cell of await actionCells.all()) {
+          await expect(cell).toBeHidden();
+        }
+      } else {
+        await expect
+          .poll(() =>
+            page
+              .locator(".expense-mobile-primary")
+              .first()
+              .evaluate(
+                (element) =>
+                  getComputedStyle(element).gridTemplateColumns.split(" ")
+                    .length,
+              ),
+          )
+          .toBe(2);
+      }
       await page.emulateMedia({ media: "screen" });
+      await expect(rowActions.first()).toBeVisible();
+      if (width > 680) {
+        await expect(
+          page.getByRole("columnheader", { name: "Actions" }),
+        ).toBeVisible();
+      } else {
+        await expect
+          .poll(() =>
+            page
+              .locator(".expense-mobile-primary")
+              .first()
+              .evaluate(
+                (element) =>
+                  getComputedStyle(element).gridTemplateColumns.split(" ")
+                    .length,
+              ),
+          )
+          .toBe(3);
+      }
     }
   });
 }

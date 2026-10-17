@@ -655,8 +655,14 @@
   .expense-toolbar,
   .expense-view-status,
   .applied-filters,
-  .expenses-heading-actions {
+  .expenses-heading-actions,
+  .expense-table .expense-actions-column,
+  .expense-table .expense-actions-cell,
+  .otter-button.expense-row-menu-trigger {
     display: none;
+  }
+  .expense-mobile-primary:has(.expense-row-menu-trigger) {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
   .expense-description-cell > button,
   .otter-button.expense-mobile-name,
