@@ -658,7 +658,8 @@
   .expenses-heading-actions,
   .expense-table .expense-actions-column,
   .expense-table .expense-actions-cell,
-  .otter-button.expense-row-menu-trigger {
+  .otter-button.expense-row-menu-trigger,
+  .radix-themes.expense-row-menu-content {
     display: none;
   }
   .expense-mobile-primary:has(.expense-row-menu-trigger) {
