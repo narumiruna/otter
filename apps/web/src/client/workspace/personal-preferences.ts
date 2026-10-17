@@ -4,7 +4,6 @@ import { isCurrency, parseAmountToMinor } from "@narumitw/otter-core/money";
 import type { QueuedExpenseDraft } from "../expense-queue.js";
 
 export type PersonalPreferences = {
-  participantId?: string;
   defaults?: Pick<
     QueuedExpenseDraft,
     "currency" | "participantIds" | "splitMode" | "splitValues"
@@ -29,12 +28,7 @@ export function readPreferences(
     const raw = (store ?? storage()).getItem(preferenceKey(userId, tripId));
     if (!raw) return { preferences: {}, failed: false };
     const value: unknown = JSON.parse(raw);
-    if (
-      !record(value) ||
-      value.version !== 1 ||
-      (value.participantId !== undefined &&
-        typeof value.participantId !== "string")
-    )
+    if (!record(value) || value.version !== 1)
       throw new Error("Invalid preferences");
     let defaults: PersonalPreferences["defaults"];
     if (value.defaults !== undefined) {
@@ -58,10 +52,19 @@ export function readPreferences(
         ),
       };
     }
-    return {
-      preferences: { participantId: value.participantId, defaults },
-      failed: false,
-    };
+    let failed = false;
+    if (Object.hasOwn(value, "participantId")) {
+      const { participantId: _identity, ...remaining } = value;
+      try {
+        (store ?? storage()).setItem(
+          preferenceKey(userId, tripId),
+          JSON.stringify(remaining),
+        );
+      } catch {
+        failed = true;
+      }
+    }
+    return { preferences: { defaults }, failed };
   } catch {
     return { preferences: {}, failed: true };
   }
@@ -75,7 +78,7 @@ export function writePreferences(
   try {
     (store ?? storage()).setItem(
       preferenceKey(userId, tripId),
-      JSON.stringify({ version: 1, ...preferences }),
+      JSON.stringify({ version: 1, defaults: preferences.defaults }),
     );
     return true;
   } catch {
@@ -99,10 +102,6 @@ export function reconcilePreferences(
   trip: Trip,
 ): { preferences: PersonalPreferences; changed: boolean } {
   const ids = new Set(trip.participants.map((p) => p.id));
-  const participantId =
-    preferences.participantId && ids.has(preferences.participantId)
-      ? preferences.participantId
-      : undefined;
   const d = preferences.defaults;
   const valid =
     !d ||
@@ -112,8 +111,8 @@ export function reconcilePreferences(
       d.participantIds.every((id) => ids.has(id)) &&
       validSplitValues(d));
   return {
-    preferences: { participantId, defaults: valid ? d : undefined },
-    changed: participantId !== preferences.participantId || !valid,
+    preferences: { defaults: valid ? d : undefined },
+    changed: !valid,
   };
 }
 export function defaultsPreference(

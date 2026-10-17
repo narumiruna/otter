@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   calculateBalances,
+  calculateMemberAccounts,
   calculatePersonalSummary,
   type Trip,
 } from "./settlement.js";
@@ -75,6 +76,11 @@ test("explicit foreign shares use the saved snapshot and the same rounding as ba
     );
   }
   expect(shared).toBe(32);
+  expect(calculateMemberAccounts(t).map((a) => a.sharedExpenses)).toEqual([
+    [{ expenseId: "e", amountMinor: 10 }],
+    [{ expenseId: "e", amountMinor: 11 }],
+    [{ expenseId: "e", amountMinor: 11 }],
+  ]);
 });
 test("payments and representatives affect balances but not personal expense totals", () => {
   const t = trip();
@@ -106,6 +112,38 @@ test("payments and representatives affect balances but not personal expense tota
     sharedMinor: 33,
     balanceMinor: 0,
   });
+  const accounts = calculateMemberAccounts(t);
+  expect(accounts[0].payments).toEqual([
+    { paymentId: "p", amountMinor: 20, direction: "received" },
+  ]);
+  expect(accounts[1].payments).toEqual([
+    { paymentId: "p", amountMinor: 20, direction: "paid" },
+  ]);
+  expect(accounts[1].adjustments).toEqual([
+    { participantId: "c", amountMinor: -33 },
+  ]);
+  expect(accounts[2].adjustments).toEqual([
+    { participantId: "b", amountMinor: 33 },
+  ]);
+  for (const account of accounts) {
+    const paymentNet = account.payments.reduce(
+      (total, p) =>
+        total + (p.direction === "paid" ? p.amountMinor : -p.amountMinor),
+      0,
+    );
+    expect(
+      account.paidExpenses.reduce((sum, e) => sum + e.amountMinor, 0),
+    ).toBe(account.paidMinor);
+    expect(
+      account.sharedExpenses.reduce((sum, e) => sum + e.amountMinor, 0),
+    ).toBe(account.sharedMinor);
+    expect(
+      account.paidMinor -
+        account.sharedMinor +
+        paymentNet +
+        account.adjustments.reduce((sum, a) => sum + a.amountMinor, 0),
+    ).toBe(account.balanceMinor);
+  }
 });
 test("Visa summaries use the selected currency and saved dated rate", () => {
   const t = trip();
@@ -130,4 +168,15 @@ test("Visa summaries use the selected currency and saved dated rate", () => {
     { participantId: "c", shareMinor: 33 },
   ];
   expect(calculatePersonalSummary(t, "a")?.sharedMinor).toBe(102);
+  const before = structuredClone(t);
+  for (const account of calculateMemberAccounts(t)) {
+    const { paidMinor, sharedMinor, balanceMinor, currency } = account;
+    expect({ paidMinor, sharedMinor, balanceMinor, currency }).toEqual(
+      calculatePersonalSummary(t, account.participantId),
+    );
+    expect(
+      account.sharedExpenses.reduce((sum, e) => sum + e.amountMinor, 0),
+    ).toBe(sharedMinor);
+  }
+  expect(t).toEqual(before);
 });

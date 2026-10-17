@@ -10,6 +10,7 @@ import { useI18n } from "../i18n.js";
 import { SettingsNavigation } from "../settings-navigation.js";
 import { useMediaQuery } from "../use-media-query.js";
 import { AccessSettings } from "./access-settings.js";
+import { BrowserExpenseDefaults } from "./browser-expense-defaults.js";
 import { CopyGroup } from "./copy-group.js";
 import { DataSettings } from "./data-settings.js";
 import {
@@ -19,6 +20,7 @@ import {
   TripPreferences,
 } from "./trip-settings.js";
 import { VisaSettlementSettings } from "./visa-settlement-settings.js";
+import { useWorkspace } from "./workspace-context.js";
 import { SectionHeading } from "./workspace-ui.js";
 
 export function MorePage({
@@ -37,6 +39,7 @@ export function MorePage({
   guestShare?: boolean;
 }) {
   const { messages } = useI18n();
+  const { userId } = useWorkspace();
   const isOwner = payload.currentUserRole !== "editor";
   const desktop = useMediaQuery("(min-width: 681px)");
   const [selected, setSelected] = useState("sharing-settings");
@@ -62,6 +65,15 @@ export function MorePage({
                 },
               ]
             : []),
+        ]
+      : []),
+    ...(userId
+      ? [
+          {
+            id: "browser-expense-defaults",
+            label: messages.browserExpenseDefaults,
+            icon: <GearIcon aria-hidden="true" />,
+          },
         ]
       : []),
     {
@@ -123,6 +135,14 @@ export function MorePage({
                 payload={payload}
                 expanded={desktop}
               />
+            </section>
+          ) : null}
+          {userId ? (
+            <section
+              id="browser-expense-defaults"
+              hidden={desktop && active !== "browser-expense-defaults"}
+            >
+              <BrowserExpenseDefaults />
             </section>
           ) : null}
           <section

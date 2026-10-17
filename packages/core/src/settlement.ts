@@ -90,7 +90,30 @@ export function settlementCurrency(
     : trip.baseCurrency;
 }
 
-function expenseTotals(trip: Trip) {
+type ExpenseEntry = { expenseId: string; amountMinor: number };
+type PaymentEntry = {
+  paymentId: string;
+  amountMinor: number;
+  direction: "paid" | "received";
+};
+type AdjustmentEntry = { participantId: string; amountMinor: number };
+
+export type MemberAccount = PersonalSummary & {
+  participantId: string;
+  paidExpenses: ExpenseEntry[];
+  sharedExpenses: ExpenseEntry[];
+  payments: PaymentEntry[];
+  adjustments: AdjustmentEntry[];
+};
+
+function expenseTotals(
+  trip: Trip,
+  record?: (
+    participantId: string,
+    kind: "paid" | "shared",
+    entry: ExpenseEntry,
+  ) => void,
+) {
   const currency = settlementCurrency(trip);
   const convertExpense = (amountMinor: number, expense: Expense) =>
     trip.visaSettlementEnabled
@@ -133,6 +156,10 @@ function expenseTotals(trip: Trip) {
     const amount = convertExpense(expense.amountMinor, expense);
     balances.set(expense.paidById, payerBalance + amount);
     paid.set(expense.paidById, (paid.get(expense.paidById) ?? 0) + amount);
+    record?.(expense.paidById, "paid", {
+      expenseId: expense.id,
+      amountMinor: amount,
+    });
 
     const explicitShares = new Map(
       expense.participantShares?.map((share) => [
@@ -154,6 +181,10 @@ function expenseTotals(trip: Trip) {
         const adjustment =
           index === shares.length - 1 ? remainder : Math.sign(remainder);
         remainder -= adjustment;
+        record?.(participantId, "shared", {
+          expenseId: expense.id,
+          amountMinor: (shares[index] ?? 0) + adjustment,
+        });
         shared.set(
           participantId,
           (shared.get(participantId) ?? 0) + (shares[index] ?? 0) + adjustment,
@@ -174,6 +205,10 @@ function expenseTotals(trip: Trip) {
     for (const participantId of splitIds) {
       const extra = remainder > 0 ? 1 : 0;
       remainder -= extra;
+      record?.(participantId, "shared", {
+        expenseId: expense.id,
+        amountMinor: share + extra,
+      });
       shared.set(
         participantId,
         (shared.get(participantId) ?? 0) + share + extra,
@@ -213,6 +248,14 @@ export function calculatePersonalSummary(
 }
 
 export function calculateBalances(trip: Trip): Balance[] {
+  return balancesWithEntries(trip);
+}
+
+function balancesWithEntries(
+  trip: Trip,
+  recordPayment?: (participantId: string, entry: PaymentEntry) => void,
+  recordAdjustment?: (participantId: string, entry: AdjustmentEntry) => void,
+): Balance[] {
   const currency = settlementCurrency(trip);
   const { balances } = expenseTotals(trip);
 
@@ -230,6 +273,16 @@ export function calculateBalances(trip: Trip): Balance[] {
       currency,
       trip.exchangeRates,
     );
+    recordPayment?.(payment.fromId, {
+      paymentId: payment.id,
+      amountMinor: amount,
+      direction: "paid",
+    });
+    recordPayment?.(payment.toId, {
+      paymentId: payment.id,
+      amountMinor: amount,
+      direction: "received",
+    });
     balances.set(payment.fromId, (balances.get(payment.fromId) ?? 0) + amount);
     balances.set(payment.toId, (balances.get(payment.toId) ?? 0) - amount);
   }
@@ -243,6 +296,15 @@ export function calculateBalances(trip: Trip): Balance[] {
       representative !== participant.id &&
       balances.has(representative)
     ) {
+      const transferred = balances.get(participant.id) ?? 0;
+      recordAdjustment?.(participant.id, {
+        participantId: representative,
+        amountMinor: -transferred,
+      });
+      recordAdjustment?.(representative, {
+        participantId: participant.id,
+        amountMinor: transferred,
+      });
       balances.set(
         representative,
         (balances.get(representative) ?? 0) +
@@ -257,6 +319,47 @@ export function calculateBalances(trip: Trip): Balance[] {
     currency,
     name: participant.name,
     participantId: participant.id,
+  }));
+}
+
+// Read-only entries use the same conversion, remainder and settlement paths as balances.
+export function calculateMemberAccounts(trip: Trip): MemberAccount[] {
+  const accounts = new Map(
+    trip.participants.map((person) => [
+      person.id,
+      {
+        participantId: person.id,
+        currency: settlementCurrency(trip),
+        paidMinor: 0,
+        sharedMinor: 0,
+        balanceMinor: 0,
+        paidExpenses: [] as ExpenseEntry[],
+        sharedExpenses: [] as ExpenseEntry[],
+        payments: [] as PaymentEntry[],
+        adjustments: [] as AdjustmentEntry[],
+      },
+    ]),
+  );
+  const totals = expenseTotals(trip, (id, kind, entry) => {
+    const account = accounts.get(id);
+    if (account)
+      (kind === "paid" ? account.paidExpenses : account.sharedExpenses).push(
+        entry,
+      );
+  });
+  const balances = balancesWithEntries(
+    trip,
+    (id, entry) => accounts.get(id)?.payments.push(entry),
+    (id, entry) => accounts.get(id)?.adjustments.push(entry),
+  );
+  const balanceById = new Map(
+    balances.map((balance) => [balance.participantId, balance.amountMinor]),
+  );
+  return [...accounts.values()].map((account) => ({
+    ...account,
+    paidMinor: totals.paid.get(account.participantId) ?? 0,
+    sharedMinor: totals.shared.get(account.participantId) ?? 0,
+    balanceMinor: balanceById.get(account.participantId) ?? 0,
   }));
 }
 

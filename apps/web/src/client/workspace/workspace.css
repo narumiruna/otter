@@ -139,6 +139,138 @@
   font-weight: 650;
   letter-spacing: -0.025em;
 }
+.member-accounts {
+  margin-top: 1.5rem;
+}
+.member-accounts > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.member-accounts h4,
+.member-account-detail-content h5 {
+  font-weight: 600;
+}
+.member-account-table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.875rem;
+}
+.member-account-table th,
+.member-account-table td {
+  padding: 0.75rem 0.5rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.member-account-table th {
+  text-align: left;
+  font-weight: 500;
+}
+.member-account-table td,
+.member-account-table thead th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.member-account-table tbody + tbody {
+  border-top: 1px solid var(--border);
+}
+.member-account-summary td:last-child > * {
+  display: block;
+}
+.member-account-receivable {
+  color: var(--accent-11);
+}
+.member-account-payable {
+  color: var(--red-11);
+}
+.member-account-note {
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.member-account-mobile-label {
+  display: none;
+}
+.member-account-detail-row td {
+  padding-top: 0;
+  text-align: left;
+}
+.member-account-details summary {
+  width: fit-content;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.member-account-details summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.member-account-detail-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding-block: 1rem;
+}
+.member-account-detail-content li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.4rem;
+}
+:where(.member-account-detail-content) li > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.member-account-detail-content small {
+  display: block;
+  color: var(--muted-foreground);
+}
+@media (max-width: 680px) {
+  .member-account-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+  .member-account-table,
+  .member-account-table tbody {
+    display: block;
+  }
+  .member-account-table tbody {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+  .member-account-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .member-account-summary th,
+  .member-account-summary td:last-child {
+    grid-column: 1 / -1;
+  }
+  .member-account-summary td {
+    text-align: left;
+  }
+  .member-account-mobile-label {
+    display: block;
+    color: var(--muted-foreground);
+    margin-bottom: 0.25rem;
+  }
+  .member-account-detail-row,
+  .member-account-detail-row td {
+    display: block;
+  }
+  .member-account-detail-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .overview-settlements,
 .overview-balances {
   align-content: start;

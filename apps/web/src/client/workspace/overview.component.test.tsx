@@ -15,7 +15,6 @@ import { queueExpense } from "../expense-queue.js";
 import { I18nProvider } from "../i18n.js";
 import { OverviewPage } from "./overview-page.js";
 import { OverviewSummary } from "./overview-summary.js";
-import { writePreferences } from "./personal-preferences.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 import { BalanceList } from "./workspace-ui.js";
 
@@ -288,7 +287,7 @@ test("balances distinguish settled, receivable, and payable values with text", (
   expect(rows[2]).toHaveTextContent("應付$100");
 });
 
-test("personal overview labels Visa totals, delegates settlement and excludes queued expenses", async () => {
+test("member accounts label Visa totals, delegate settlement and exclude queued expenses", async () => {
   localStorage.setItem("otter.locale", "en");
   const t: Trip = {
     ...trip,
@@ -313,7 +312,6 @@ test("personal overview labels Visa totals, delegates settlement and excludes qu
       },
     ],
   };
-  writePreferences("overview-user", t.id, { participantId: "bob" });
   await queueExpense("overview-user", t.id, {
     amount: "9999",
     currency: "TWD",
@@ -342,26 +340,26 @@ test("personal overview labels Visa totals, delegates settlement and excludes qu
       </I18nProvider>
     </QueryClientProvider>,
   );
-  const personal = within(view.getByRole("region", { name: "My account" }));
-  expect(personal.getByText("My share").nextElementSibling).toHaveTextContent(
+  expect(
+    view.queryByRole("region", { name: "My account" }),
+  ).not.toBeInTheDocument();
+  await userEvent.setup().click(view.getByText("Spending analysis"));
+  const accounts = within(
+    view.getByRole("region", { name: "Member accounts" }),
+  );
+  expect(accounts.getByText("USD", { exact: true })).toBeVisible();
+  expect(accounts.getByText(/Alice settles for this member/)).toBeVisible();
+  expect(accounts.queryByText(/9,999/)).not.toBeInTheDocument();
+  expect(accounts.getByRole("row", { name: /^Alice / })).toHaveTextContent(
+    "$10.00",
+  );
+  expect(accounts.getByRole("row", { name: /^Alice / })).toHaveTextContent(
     "$5.00",
   );
-  expect(personal.getByText("I paid").nextElementSibling).toHaveTextContent(
-    "$0.00",
+  expect(accounts.getByRole("row", { name: /^Bob / })).toHaveTextContent(
+    "$5.00",
   );
-  expect(personal.getByText("USD ·", { exact: false })).toBeVisible();
-  expect(personal.getByText(/Alice settles for you/)).toBeVisible();
-  expect(personal.queryByText(/9,999/)).not.toBeInTheDocument();
-  await userEvent
-    .setup()
-    .selectOptions(personal.getByLabelText("Who am I"), "alice");
-  expect(
-    personal.getByText(/Your balance includes other people/),
-  ).toBeVisible();
-  await userEvent
-    .setup()
-    .selectOptions(personal.getByLabelText("Who am I"), "");
-  expect(personal.queryByText("My share")).not.toBeInTheDocument();
+  expect(accounts.getAllByText("Settled", { exact: true })).toHaveLength(2);
   view.unmount();
   client.clear();
   localStorage.removeItem("otter.locale");

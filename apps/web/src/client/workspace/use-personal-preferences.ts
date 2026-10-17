@@ -52,6 +52,7 @@ export function usePersonalPreferences(userId: string | undefined, trip: Trip) {
     if (!userId) return;
     const failed = !clearPreferences(userId, trip.id);
     setState({ scope, preferences: {}, failed, changed: false });
+    return !failed;
   }
   return {
     preferences: reconciled.preferences,

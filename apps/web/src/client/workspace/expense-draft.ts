@@ -65,7 +65,6 @@ export function newExpenseDraft(
   return {
     ...draft,
     ...preferences.defaults,
-    paidById: preferences.participantId ?? draft.paidById,
     participantIds: [
       ...(preferences.defaults?.participantIds ?? draft.participantIds),
     ],

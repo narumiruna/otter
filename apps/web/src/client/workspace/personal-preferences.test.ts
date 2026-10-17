@@ -37,12 +37,10 @@ function memory(): PreferenceStorage {
 }
 test("preferences isolate accounts and groups, validate versions and clear only their key", () => {
   const store = memory();
-  expect(writePreferences("owner", "t", { participantId: "b" }, store)).toBe(
-    true,
-  );
-  expect(readPreferences("owner", "t", store).preferences.participantId).toBe(
-    "b",
-  );
+  expect(writePreferences("owner", "t", {}, store)).toBe(true);
+  expect(
+    readPreferences("owner", "t", store).preferences.defaults,
+  ).toBeUndefined();
   expect(readPreferences("other", "t", store).preferences).toEqual({});
   expect(readPreferences("owner", "other", store).preferences).toEqual({});
   expect(preferenceKey("a:b", "c")).not.toBe(preferenceKey("a", "b:c"));
@@ -53,7 +51,6 @@ test("preferences isolate accounts and groups, validate versions and clear only 
     "bad json",
     "null",
     '{"version":2}',
-    '{"version":1,"participantId":123}',
     '{"version":1,"defaults":{"currency":"BAD"}}',
   ]) {
     store.setItem(preferenceKey("owner", "t"), raw);
@@ -72,9 +69,8 @@ test("storage denial does not throw or claim persistence", () => {
   expect(writePreferences("u", "t", {}, store)).toBe(false);
   expect(clearPreferences("u", "t", store)).toBe(false);
 });
-test("removed or merged people invalidate identity and split without guessing by name", () => {
+test("removed or merged people invalidate split defaults without guessing by name", () => {
   const preferences = {
-    participantId: "removed",
     defaults: {
       currency: "USD" as const,
       participantIds: ["a", "removed"],
@@ -83,7 +79,7 @@ test("removed or merged people invalidate identity and split without guessing by
     },
   };
   expect(reconcilePreferences(preferences, trip)).toEqual({
-    preferences: { participantId: undefined, defaults: undefined },
+    preferences: { defaults: undefined },
     changed: true,
   });
   const draft = newExpenseDraft(
@@ -113,13 +109,13 @@ test("defaults retain ratio, shares and exact values without storing expense con
     ]);
     expect(defaults.splitValues).toEqual({ a: "30", b: "70" });
     const store = memory();
-    writePreferences("u", "t", { participantId: "b", defaults }, store);
+    writePreferences("u", "t", { defaults }, store);
     const next = newExpenseDraft(
       trip,
       readPreferences("u", "t", store).preferences,
     );
     expect(next).toMatchObject({
-      paidById: "b",
+      paidById: "a",
       currency: "USD",
       amount: "",
       splitMode,
@@ -152,7 +148,7 @@ test("copy is a new whitelisted draft dated today and takes precedence over pref
     tags: ["food"],
   };
   const before = structuredClone(expense);
-  const copy = newExpenseDraft(trip, { participantId: "b" }, expense);
+  const copy = newExpenseDraft(trip, {}, expense);
   expect(copy).toMatchObject({
     description: "Dinner",
     amount: "12.34",
