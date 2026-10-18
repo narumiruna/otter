@@ -17,9 +17,15 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Check release token
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: ': "${PAT_TOKEN:?Set the PAT_TOKEN repository secret}"'
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 26
@@ -27,6 +33,11 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - name: Create release pull request or publish
+        id: release
         uses: changesets/action@v1
         with:
+          github-token: ${{ secrets.PAT_TOKEN }}
           publish: npm run release
+      - name: Verify remote release tags
+        if: steps.release.outputs.hasChangesets == 'false'
+        run: npm run release:verify
