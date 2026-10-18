@@ -35,7 +35,7 @@ jobs:
       - run: npm run check
       - run: npm run migrate
       - run: node apps/api/dist/scripts/migrate.js
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --workers=1
       - run: docker build --tag otter-ci .
       - name: Smoke production image
         run: |

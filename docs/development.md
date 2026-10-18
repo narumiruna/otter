@@ -54,7 +54,7 @@ npx playwright install chromium
 DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run test:e2e
 ```
 
-Use a new, isolated database for each full E2E run. Existing workflow tests add rows to development fixtures; a second run against the same database can fail on counts and duplicate descriptions. Do not reset a shared or production database for tests. If a local multi-worker run hits browser timing limits, rerun the complete suite with `npm run test:e2e -- --workers=1` and record both outcomes. Do not relax assertions or timeouts.
+Use a new, isolated database for each full E2E run. Existing workflow tests add rows to development fixtures; a second run against the same database can fail on counts and duplicate descriptions. Do not reset a shared or production database for tests. CI runs the complete browser suite with one worker to reduce CPU contention during accessibility checks. If a local multi-worker run hits browser timing limits, rerun the complete suite with `npm run test:e2e -- --workers=1` and record both outcomes. Do not relax assertions or timeouts.
 
 查看 migration runner 選項：
 
