@@ -1,5 +1,14 @@
 # @narumitw/otter-web
 
+## 0.5.1
+
+### Patch Changes
+
+- 61b8ca6: Restore release tag publishing and release all workspace packages with a patch version.
+- Updated dependencies [61b8ca6]
+  - @narumitw/otter-core@0.3.1
+  - @narumitw/otter-contracts@0.2.2
+
 ## 0.5.0
 
 ### Minor Changes
