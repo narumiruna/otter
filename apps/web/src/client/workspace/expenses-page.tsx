@@ -26,9 +26,10 @@ export type ExpenseGrouping = "date" | "none" | "payer";
 export function ExpensesPage({
   filters,
   grouping,
-  initialEditingExpenseId = null,
+  onEditExpense,
   onAddExpense,
   onDirtyChange,
+  onBusyChange,
   onEditingChange,
   onFiltersChange,
   onGroupingChange,
@@ -38,9 +39,10 @@ export function ExpensesPage({
 }: {
   filters: ExpenseFilters;
   grouping: ExpenseGrouping;
-  initialEditingExpenseId?: string | null;
+  onEditExpense?: (expense: Expense) => void;
   onAddExpense: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
   onEditingChange?: (editing: boolean) => void;
   onFiltersChange: (filters: ExpenseFilters) => void;
   onGroupingChange: (grouping: ExpenseGrouping) => void;
@@ -50,20 +52,13 @@ export function ExpensesPage({
 }) {
   const { messages } = useI18n();
   const [copying, setCopying] = useState<Expense>();
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(
-    initialEditingExpenseId,
-  );
   const canEdit = !readonly && !trip.archivedAt;
   useEffect(() => {
     if (!canEdit) {
       setCopying(undefined);
-      setEditingExpenseId(null);
     }
   }, [canEdit]);
-  const editing = trip.expenses.find(
-    (expense) => expense.id === editingExpenseId,
-  );
-  const editorVisible = canEdit && (!!editing || !!copying);
+  const editorVisible = canEdit && !!copying;
   useEffect(() => {
     onEditingChange?.(editorVisible);
     return () => onEditingChange?.(false);
@@ -88,17 +83,8 @@ export function ExpensesPage({
         copy={copying}
         onCancel={() => setCopying(undefined)}
         onDirtyChange={onDirtyChange}
+        onBusyChange={onBusyChange}
         onSaved={() => setCopying(undefined)}
-        trip={trip}
-      />
-    );
-  if (editing && canEdit)
-    return (
-      <ExpenseComposer
-        expense={editing}
-        onCancel={() => setEditingExpenseId(null)}
-        onDirtyChange={onDirtyChange}
-        onSaved={() => setEditingExpenseId(null)}
         trip={trip}
       />
     );
@@ -153,7 +139,7 @@ export function ExpensesPage({
         expenses={expenses}
         grouping={grouping}
         onAddExpense={onAddExpense}
-        onEdit={(expense) => setEditingExpenseId(expense.id)}
+        onEdit={(expense) => onEditExpense?.(expense)}
         onCopy={setCopying}
         readonly={!canEdit}
         sort={filters.sort}

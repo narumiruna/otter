@@ -10,6 +10,9 @@ import type { zhTW } from "./messages-zh-tw.js";
 
 // Provisional machine-authored translations; fluent review is pending.
 export const hi = {
+  backToExpenseList: "खर्चों की सूची पर वापस जाएँ",
+  expenseEditorUnavailable:
+    "इस खर्च में बदलाव नहीं किया जा सकता। खर्च मौजूद नहीं हो सकता है, या समूह केवल पढ़ने के लिए या संग्रहित हो सकता है।",
   ...hiAccount,
   ...hiSettings,
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:

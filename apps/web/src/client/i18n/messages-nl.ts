@@ -10,6 +10,9 @@ import { nlSettings } from "./messages-nl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const nl = {
+  backToExpenseList: "Terug naar de uitgavenlijst",
+  expenseEditorUnavailable:
+    "Deze uitgave kan niet worden bewerkt. De uitgave bestaat mogelijk niet, of de groep is alleen-lezen of gearchiveerd.",
   ...nlFeatures,
   ...nlSettings,
   ...nlErrors,

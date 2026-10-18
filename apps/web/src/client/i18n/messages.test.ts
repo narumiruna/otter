@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { isLocale, languageOptions, matchBrowserLocale } from "./locales.js";
 import { type MessageValues, pluralForm } from "./message-types.js";
 import { translations } from "./messages.js";
+import { sourceMessageKeys } from "./source-message-keys.js";
 
 function parameters(message: string): string[] {
   return [...message.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
@@ -60,6 +61,40 @@ test.each(languageOptions)(
   "$locale has a complete catalog with matching types and interpolation parameters",
   ({ locale }) => checkCatalog(translations[locale]),
 );
+
+test.each(languageOptions)(
+  "$locale has localized expense editor navigation and unavailable messages",
+  ({ locale }) => {
+    const catalog = translations[locale];
+    expect(catalog.backToExpenseList.trim()).not.toBe("");
+    expect(catalog.expenseEditorUnavailable.trim()).not.toBe("");
+    if (locale !== "zh-TW") {
+      expect(catalog.backToExpenseList).not.toBe(
+        translations["zh-TW"].backToExpenseList,
+      );
+      expect(catalog.expenseEditorUnavailable).not.toBe(
+        translations["zh-TW"].expenseEditorUnavailable,
+      );
+    }
+    if (locale !== "en") {
+      expect(catalog.backToExpenseList).not.toBe(
+        translations.en.backToExpenseList,
+      );
+      expect(catalog.expenseEditorUnavailable).not.toBe(
+        translations.en.expenseEditorUnavailable,
+      );
+    }
+  },
+);
+
+test("expense editor source strings use the matching message keys", () => {
+  expect(translations["zh-TW"].backToExpenseList).toBe("返回支出列表");
+  expect(sourceMessageKeys.返回支出列表).toBe("backToExpenseList");
+  const unavailable =
+    "無法編輯這筆支出。支出可能不存在，或群組為唯讀或已封存。";
+  expect(translations["zh-TW"].expenseEditorUnavailable).toBe(unavailable);
+  expect(sourceMessageKeys[unavailable]).toBe("expenseEditorUnavailable");
+});
 
 test("catalog checks reject missing keys, wrong types, and lost parameters", () => {
   const missing: Record<string, unknown> = { ...translations.en };

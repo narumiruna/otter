@@ -32,9 +32,10 @@ export const workspaceViews = [
 ] as const;
 
 export type WorkspaceView = (typeof workspaceViews)[number];
-export type WorkspaceMode = "add-expense" | null;
+export type WorkspaceMode = "add-expense" | "edit-expense" | null;
 
 export type WorkspaceLocation = {
+  expenseId: string | null;
   mode: WorkspaceMode;
   tripId: string | null;
   view: WorkspaceView;
@@ -45,11 +46,28 @@ export function readWorkspaceLocation(url: URL): WorkspaceLocation {
   const view = workspaceViews.includes(rawView as WorkspaceView)
     ? (rawView as WorkspaceView)
     : "overview";
+  const rawMode = url.searchParams.get("mode");
+  const mode =
+    rawMode === "add-expense" || rawMode === "edit-expense" ? rawMode : null;
   return {
-    mode: url.searchParams.get("mode") === "add-expense" ? "add-expense" : null,
+    expenseId:
+      mode === "edit-expense" ? url.searchParams.get("expense") || null : null,
+    mode,
     tripId: url.searchParams.get("trip") || null,
-    view,
+    view: mode === "edit-expense" ? "expenses" : view,
   };
+}
+
+export function isSameWorkspaceLocation(
+  left: WorkspaceLocation,
+  right: WorkspaceLocation,
+): boolean {
+  return (
+    left.expenseId === right.expenseId &&
+    left.mode === right.mode &&
+    left.tripId === right.tripId &&
+    left.view === right.view
+  );
 }
 
 export function writeWorkspaceLocation(
@@ -58,12 +76,18 @@ export function writeWorkspaceLocation(
 ): string {
   const next = new URL(url);
   setOrDelete(next.searchParams, "trip", location.tripId);
-  if (location.view === "overview") {
+  const view = location.mode === "edit-expense" ? "expenses" : location.view;
+  if (view === "overview") {
     next.searchParams.delete("view");
   } else {
-    next.searchParams.set("view", location.view);
+    next.searchParams.set("view", view);
   }
   setOrDelete(next.searchParams, "mode", location.mode);
+  setOrDelete(
+    next.searchParams,
+    "expense",
+    location.mode === "edit-expense" ? location.expenseId : null,
+  );
   return `${next.pathname}${next.search}${next.hash}`;
 }
 

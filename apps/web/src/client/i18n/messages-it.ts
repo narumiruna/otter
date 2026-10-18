@@ -10,6 +10,9 @@ import { itSettings } from "./messages-it-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const it = {
+  backToExpenseList: "Torna all’elenco delle spese",
+  expenseEditorUnavailable:
+    "Questa spesa non può essere modificata. Potrebbe non esistere, oppure il gruppo potrebbe essere di sola lettura o archiviato.",
   ...itAccount,
   ...itExpenses,
   ...itSettings,

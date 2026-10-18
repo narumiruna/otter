@@ -9,6 +9,9 @@ import type { zhTW } from "./messages-zh-tw.js";
 
 // Provisional machine-authored translations; fluent review is pending.
 export const id = {
+  backToExpenseList: "Kembali ke daftar pengeluaran",
+  expenseEditorUnavailable:
+    "Pengeluaran ini tidak dapat diedit. Pengeluaran mungkin tidak ada, atau grup hanya dapat dibaca atau telah diarsipkan.",
   ...idAccount,
   ...idSettings,
   usernameMustBe332LettersNumbersUnderscoresOrHyphens:

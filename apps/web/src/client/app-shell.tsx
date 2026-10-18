@@ -39,6 +39,14 @@ import {
 } from "./url-state.js";
 import { AuthenticatedWorkspace } from "./workspace/authenticated-workspace.js";
 import { ReadonlyWorkspace } from "./workspace/readonly-workspace.js";
+import {
+  accountSettingsSourceKey,
+  blockHistory,
+  getHistorySnapshot,
+  subscribeHistory,
+  tryWriteHistoryLocation,
+  writeHistoryLocation,
+} from "./workspace-history.js";
 
 function updateCollaboratorUsername(
   payload: TripPayload | null,
@@ -87,7 +95,7 @@ export function AppShell() {
   const previousLocale = useRef(locale);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(() =>
-    isAccountSettingsLocation(new URL(window.location.href)),
+    isAccountSettingsLocation(new URL(getHistorySnapshot().url)),
   );
   const [accountSettingsMutationActive, setAccountSettingsMutationActive] =
     useState(false);
@@ -151,22 +159,8 @@ export function AppShell() {
 
   useEffect(() => {
     const sync = () => {
-      const current = new URL(window.location.href);
+      const current = new URL(getHistorySnapshot().url);
       const nextOpen = isAccountSettingsLocation(current);
-      if (accountSettingsMutationActive && !nextOpen) {
-        const currentState =
-          typeof window.history.state === "object" &&
-          window.history.state !== null
-            ? window.history.state
-            : {};
-        window.history.pushState(
-          { ...currentState, [accountSettingsHistoryStateKey]: true },
-          "",
-          writeAccountSettingsLocation(current, true),
-        );
-        setAccountSettingsOpen(true);
-        return;
-      }
       setAccountSettingsOpen((currentOpen) => {
         if (nextOpen && !currentOpen) {
           workspaceScrollPosition.current = window.scrollY;
@@ -174,8 +168,16 @@ export function AppShell() {
         return nextOpen;
       });
     };
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
+    const unsubscribe = subscribeHistory(sync);
+    const unblock = blockHistory(
+      (next) =>
+        !accountSettingsMutationActive ||
+        isAccountSettingsLocation(new URL(next.url)),
+    );
+    return () => {
+      unsubscribe();
+      unblock();
+    };
   }, [accountSettingsMutationActive]);
 
   useEffect(() => {
@@ -209,16 +211,17 @@ export function AppShell() {
   function openAccountSettings() {
     const current = new URL(window.location.href);
     if (isAccountSettingsLocation(current)) return;
-    workspaceScrollPosition.current = window.scrollY;
-    const currentState =
-      typeof window.history.state === "object" && window.history.state !== null
-        ? window.history.state
-        : {};
-    window.history.pushState(
-      { ...currentState, [accountSettingsHistoryStateKey]: true },
-      "",
+    const opened = tryWriteHistoryLocation(
       writeAccountSettingsLocation(current, true),
+      {
+        state: {
+          [accountSettingsHistoryStateKey]: true,
+          [accountSettingsSourceKey]: getHistorySnapshot().entry.key,
+        },
+      },
     );
+    if (!opened) return;
+    workspaceScrollPosition.current = window.scrollY;
     setAccountSettingsOpen(true);
   }
 
@@ -232,11 +235,9 @@ export function AppShell() {
       window.history.back();
       return;
     }
-    window.history.replaceState(
-      window.history.state,
-      "",
-      writeAccountSettingsLocation(current, false),
-    );
+    writeHistoryLocation(writeAccountSettingsLocation(current, false), {
+      replace: true,
+    });
     setAccountSettingsOpen(false);
   }
 
@@ -351,7 +352,7 @@ export function AppShell() {
       restoreAccountFocus.current = false;
       setAccountSettingsOpen(false);
       queryClient.clear();
-      window.history.replaceState({}, "", "/");
+      writeHistoryLocation("/", { replace: true });
       await bootstrap.refetch();
       announce(messages.signedOut);
     } catch (error) {
@@ -397,7 +398,7 @@ export function AppShell() {
         webMcpEnabled={false}
       />
     );
-  } else if (appData?.user) {
+  } else if (appData?.user && !sessionEnded) {
     const authenticatedBody =
       window.location.pathname === "/device" ? (
         <DeviceAuthorization
@@ -486,7 +487,7 @@ export function AppShell() {
             </span>
           </a>
           <div className="user-menu">
-            {appData?.user ? (
+            {appData?.user && !sessionEnded ? (
               <AccountMenu
                 ref={accountButtonRef}
                 accountSettingsActive={accountSettingsOpen}

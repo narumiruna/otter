@@ -119,11 +119,13 @@ test("account settings preserves expense drafts across history navigation", asyn
   const description = await view.findByLabelText("描述");
   await user.type(description, "保留這份草稿");
   const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const workspaceState = window.history.state;
 
   await user.click(accountButton);
   await user.click(await view.findByRole("menuitem", { name: "帳號設定" }));
 
   const settingsUrl = window.location.href;
+  const settingsState = window.history.state;
   expect(await view.findByRole("region", { name: "帳號設定" })).toBeVisible();
   expect(description).not.toBeVisible();
   expect(description).toHaveValue("保留這份草稿");
@@ -133,7 +135,7 @@ test("account settings preserves expense drafts across history navigation", asyn
   workspaceUrl.searchParams.delete("account");
   act(() => {
     window.history.replaceState(
-      {},
+      workspaceState,
       "",
       `${workspaceUrl.pathname}${workspaceUrl.search}`,
     );
@@ -145,11 +147,7 @@ test("account settings preserves expense drafts across history navigation", asyn
   expect(confirm).not.toHaveBeenCalled();
 
   act(() => {
-    window.history.replaceState(
-      { otterAccountSettings: true },
-      "",
-      settingsUrl,
-    );
+    window.history.replaceState(settingsState, "", settingsUrl);
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
 

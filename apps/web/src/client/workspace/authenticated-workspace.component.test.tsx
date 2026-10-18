@@ -493,6 +493,9 @@ test("recent expenses open the editor and expense rows edit from non-title cells
     await user.click(within(row).getByText("Alice"));
     expect(view.getByLabelText("Description")).toHaveValue("Dinner");
     await user.click(view.getAllByRole("button", { name: "Cancel" })[0]);
+    await waitFor(() =>
+      expect(view.queryByLabelText("Description")).toBeNull(),
+    );
     await user.click(view.getByRole("button", { name: "Columns" }));
     await user.click(view.getByRole("checkbox", { name: "Receipt" }));
     await user.click(
@@ -625,7 +628,6 @@ test("sidebar trip switching confirms queued edits made while the destination lo
     throw new Error(`Unexpected request: ${path}`);
   });
   vi.stubGlobal("fetch", fetcher);
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -659,11 +661,19 @@ test("sidebar trip switching confirms queued edits made while the destination lo
         trip: { ...selected.trip, id: "trip_2", name: "第二個群組" },
       }),
     );
-    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    const discard = await view.findByRole("dialog", {
+      name: "Discard this draft?",
+    });
     expect(description).toHaveValue("Pending draft changed");
     expect(window.location.search).toContain(`trip=${trip.id}`);
-    confirm.mockReturnValue(true);
+    await user.click(within(discard).getByRole("button", { name: "Cancel" }));
+    expect(description).toHaveValue("Pending draft changed");
     await user.click(destination);
+    await user.click(
+      within(
+        await view.findByRole("dialog", { name: "Discard this draft?" }),
+      ).getByRole("button", { name: "Discard draft" }),
+    );
     await waitFor(() =>
       expect(window.location.search).toContain("trip=trip_2"),
     );

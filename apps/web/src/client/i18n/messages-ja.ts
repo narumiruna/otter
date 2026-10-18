@@ -30,6 +30,9 @@ export const ja = {
   profileLabel: "プロフィール",
   securityLabel: "セキュリティ",
   backToGroups: "グループに戻る",
+  backToExpenseList: "支出一覧に戻る",
+  expenseEditorUnavailable:
+    "この支出は編集できません。支出が存在しないか、グループが読み取り専用またはアーカイブ済みの可能性があります。",
   createdLabel: "作成日",
   statusLabel: "状態",
   peopleDeletionHelp:

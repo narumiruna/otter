@@ -207,6 +207,9 @@ export const fil = {
   profileLabel: "Propayl",
   securityLabel: "Seguridad",
   backToGroups: "Bumalik sa mga grupo",
+  backToExpenseList: "Bumalik sa listahan ng gastos",
+  expenseEditorUnavailable:
+    "Hindi ma-edit ang gastos na ito. Maaaring wala na ito, o ang grupo ay para sa pagbasa lamang o naka-archive.",
   createdLabel: "Ginawa",
   statusLabel: "Katayuan",
   peopleDeletionHelp:

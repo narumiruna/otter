@@ -330,6 +330,9 @@ export const sourceMessageKeys = {
   "先填必要資料；不平均分帳與標籤可稍後展開。":
     "enterTheRequiredDetailsFirstCustomSplitsAndTagsAreAvailableBelow",
   編輯支出: "editExpense",
+  返回支出列表: "backToExpenseList",
+  "無法編輯這筆支出。支出可能不存在，或群組為唯讀或已封存。":
+    "expenseEditorUnavailable",
   新增支出: "addExpense2",
   捨棄草稿: "discardDraft",
   "尚未儲存的內容會消失，既有資料不會改變。":

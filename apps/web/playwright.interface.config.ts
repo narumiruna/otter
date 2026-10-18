@@ -10,6 +10,8 @@ export default defineConfig({
     "auth-layout.spec.ts",
     "responsive-interface.spec.ts",
     "expense-footer.spec.ts",
+    "expense-editor-navigation.spec.ts",
+    "expense-editor-lifecycle.spec.ts",
     "expenses-layout.spec.ts",
     "empty-overview.spec.ts",
     "dialog.spec.ts",

@@ -8,10 +8,12 @@ import { ActionError, useWorkspace } from "./workspace-context.js";
 
 export function ExpenseQueuePanel({
   onDirtyChange,
+  onBusyChange,
   onEditingChange,
   otherEditorActive = false,
 }: {
   onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
   onEditingChange?: (editing: boolean) => void;
   otherEditorActive?: boolean;
 }) {
@@ -50,17 +52,18 @@ export function ExpenseQueuePanel({
   useEffect(() => {
     if (
       editing &&
-      !queued.some(
-        (item) =>
-          item.id === editing &&
-          (item.status === "pending" || item.status === "invalid"),
-      )
+      (otherEditorActive ||
+        !queued.some(
+          (item) =>
+            item.id === editing &&
+            (item.status === "pending" || item.status === "invalid"),
+        ))
     ) {
       setEditing("");
       releaseEditLock.current?.();
       releaseEditLock.current = null;
     }
-  }, [editing, queued]);
+  }, [editing, queued, otherEditorActive]);
   const openEditor = async (id: string) => {
     if (
       !userId ||
@@ -188,13 +191,15 @@ export function ExpenseQueuePanel({
           </li>
         ))}
       </ul>
-      {selected &&
+      {!otherEditorActive &&
+      selected &&
       (selected.status === "pending" || selected.status === "invalid") ? (
         <ExpenseComposer
           key={selected.id}
           queued={selected}
           trip={payload.trip}
           onDirtyChange={reportDirty}
+          onBusyChange={onBusyChange}
           onCancel={closeEditor}
           onSaved={closeEditor}
         />

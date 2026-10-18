@@ -29,6 +29,9 @@ export const fr = {
   profileLabel: "Profil",
   securityLabel: "Sécurité",
   backToGroups: "Retour aux groupes",
+  backToExpenseList: "Retour à la liste des dépenses",
+  expenseEditorUnavailable:
+    "Cette dépense ne peut pas être modifiée. Elle est peut-être introuvable, ou le groupe est en lecture seule ou archivé.",
   createdLabel: "Création",
   statusLabel: "Statut",
   peopleDeletionHelp:

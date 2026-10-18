@@ -124,6 +124,9 @@ export const vi = {
   profileLabel: "Hồ sơ",
   securityLabel: "Bảo mật",
   backToGroups: "Quay lại các nhóm",
+  backToExpenseList: "Quay lại danh sách chi phí",
+  expenseEditorUnavailable:
+    "Không thể chỉnh sửa chi phí này. Chi phí có thể không tồn tại, hoặc nhóm chỉ có quyền đọc hoặc đã được lưu trữ.",
   createdLabel: "Đã tạo",
   statusLabel: "Trạng thái",
   peopleDeletionHelp:

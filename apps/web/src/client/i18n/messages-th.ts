@@ -185,6 +185,9 @@ export const th = {
   profileLabel: "โปรไฟล์",
   securityLabel: "ความปลอดภัย",
   backToGroups: "กลับไปยังกลุ่ม",
+  backToExpenseList: "กลับไปยังรายการค่าใช้จ่าย",
+  expenseEditorUnavailable:
+    "ไม่สามารถแก้ไขค่าใช้จ่ายนี้ได้ อาจไม่มีค่าใช้จ่ายนี้ หรือกลุ่มอาจเป็นแบบอ่านอย่างเดียวหรือถูกเก็บถาวรแล้ว",
   createdLabel: "สร้างเมื่อ",
   statusLabel: "สถานะ",
   peopleDeletionHelp:

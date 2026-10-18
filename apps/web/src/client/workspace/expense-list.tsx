@@ -350,6 +350,7 @@ function ExpenseTableRow({
   return (
     <tr
       className="expense-table-row"
+      data-expense-id={expense.id}
       data-editable={!readonly || undefined}
       onClick={
         readonly

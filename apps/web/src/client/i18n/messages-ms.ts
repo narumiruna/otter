@@ -9,6 +9,9 @@ import { msSettings } from "./messages-ms-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ms = {
+  backToExpenseList: "Kembali ke senarai perbelanjaan",
+  expenseEditorUnavailable:
+    "Perbelanjaan ini tidak boleh diedit. Perbelanjaan mungkin tidak wujud, atau kumpulan mungkin baca sahaja atau telah diarkibkan.",
   ...msFeatures,
   ...msSettings,
   ...msErrors,

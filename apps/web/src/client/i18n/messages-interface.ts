@@ -19,6 +19,9 @@ export const zhTWInterface = {
   profileLabel: "個人資料",
   securityLabel: "安全性",
   backToGroups: "返回群組",
+  backToExpenseList: "返回支出列表",
+  expenseEditorUnavailable:
+    "無法編輯這筆支出。支出可能不存在，或群組為唯讀或已封存。",
   createdLabel: "建立日期",
   statusLabel: "狀態",
   peopleDeletionHelp:
@@ -52,6 +55,9 @@ export const enInterface = {
   profileLabel: "Profile",
   securityLabel: "Security",
   backToGroups: "Back to groups",
+  backToExpenseList: "Back to expense list",
+  expenseEditorUnavailable:
+    "This expense cannot be edited. It may not exist, or the group may be read-only or archived.",
   createdLabel: "Created",
   statusLabel: "Status",
   peopleDeletionHelp:

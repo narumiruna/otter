@@ -20,7 +20,7 @@ import {
   isCurrency,
   parseAmountToMinor,
 } from "@narumitw/otter-core/money";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { ArrowLeftIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ import {
   uploadNewExpenseReceipt,
 } from "./new-expense-receipt.js";
 import { defaultsPreference } from "./personal-preferences.js";
+import { useExpenseFooter } from "./use-expense-footer.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
   BusyButton,
@@ -57,6 +58,7 @@ export function ExpenseComposer({
   queued,
   onCancel,
   onDirtyChange,
+  onBusyChange,
   onSaved,
   trip: originalTrip,
 }: {
@@ -65,15 +67,18 @@ export function ExpenseComposer({
   queued?: QueuedExpense;
   onCancel: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
   onSaved?: () => void;
   trip: Trip;
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const saveErrorId = useId();
+  const footerRef = useExpenseFooter();
+  const submittingRef = useRef(false);
   const headingRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    if (copy) headingRef.current?.focus();
-  }, [copy]);
+    if (copy || expense) headingRef.current?.focus({ preventScroll: true });
+  }, [copy, expense]);
   const {
     offline,
     canQueue,
@@ -127,7 +132,7 @@ export function ExpenseComposer({
 
   useEffect(() => {
     const protectDraft = (event: BeforeUnloadEvent) => {
-      if (!isDirty) return;
+      if (!isDirty && !submittingRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -139,6 +144,8 @@ export function ExpenseComposer({
     onDirtyChange?.(isDirty);
     return () => onDirtyChange?.(false);
   }, [isDirty, onDirtyChange]);
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   const reviewed = versionState.latest;
   const availablePeople = new Set(reviewed?.trip.participants.map((p) => p.id));
@@ -328,21 +335,48 @@ export function ExpenseComposer({
     );
   }
 
-  const cancelButton = (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={isDirty ? undefined : onCancel}
-    >
-      {messages.cancel}
-    </Button>
-  );
+  const exitButton = (back = false) => {
+    const button = (
+      <Button
+        type="button"
+        variant={back ? "ghost" : "outline"}
+        disabled={form.formState.isSubmitting}
+        onClick={isDirty ? undefined : onCancel}
+      >
+        {back ? <ArrowLeftIcon aria-hidden="true" /> : null}
+        {back ? messages.backToExpenseList : messages.cancel}
+      </Button>
+    );
+    return isDirty ? (
+      <ConfirmDialog
+        confirmLabel={messages.discardDraft}
+        description={
+          creationUncertain
+            ? messages.expenseCreationUncertain
+            : messages.unsavedChangesWillBeLost
+        }
+        destructive
+        disabled={form.formState.isSubmitting}
+        onConfirm={onCancel}
+        title={messages.discardThisDraft}
+        trigger={button}
+        onCloseAutoFocus={(event) => {
+          if (!headingRef.current?.isConnected) event.preventDefault();
+        }}
+      />
+    ) : (
+      button
+    );
+  };
 
   return (
     <section
       className="surface expense-composer grid gap-4"
       aria-labelledby="expense-composer-heading"
     >
+      {expense ? (
+        <nav aria-label={messages.backToExpenseList}>{exitButton(true)}</nav>
+      ) : null}
       <div className="expense-composer-header flex flex-wrap items-start justify-between gap-4">
         <SectionHeading
           description={
@@ -366,13 +400,26 @@ export function ExpenseComposer({
               expenseId={expense.id}
               name={expense.description}
               discardDraft={isDirty}
-              onRestored={onCancel}
+              onRestored={onSaved ?? onCancel}
             />
           ) : null}
         </div>
       </div>
 
-      <form className="grid gap-5" noValidate onSubmit={submit}>
+      <form
+        className="grid gap-5"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (submittingRef.current) return;
+          submittingRef.current = true;
+          onBusyChange?.(true);
+          void submit(event).finally(() => {
+            submittingRef.current = false;
+            onBusyChange?.(false);
+          });
+        }}
+      >
         <ActionError message={serverError} />
         {!expense && !queued && userId ? (
           <div className="grid gap-2">
@@ -733,82 +780,73 @@ export function ExpenseComposer({
           </div>
         ) : null}
 
-        <div className="sticky-submit expense-composer-footer">
-          <div className="expense-total" aria-live="polite" aria-atomic="true">
-            {saveError ? (
-              <p
-                className="field-error expense-validation-error"
-                id={saveErrorId}
-              >
-                {saveError}
-              </p>
-            ) : (
-              <>
-                <span>{messages.expenseTotalLabel}</span>
-                <strong>
-                  {formatMoney(preview?.amountMinor ?? 0, values.currency)}
-                </strong>
-                <small>
-                  {messages.countPeople({
-                    count: values.participantIds.length,
-                  })}
-                  {preview &&
-                  !preview.error &&
-                  preview.shares.length > 0 &&
-                  preview.shares.every(
-                    (share) =>
-                      share.shareMinor === preview.shares[0]?.shareMinor,
-                  ) ? (
-                    <>
-                      {" · "}
-                      {formatMoney(
-                        preview.shares[0]?.shareMinor ?? 0,
-                        values.currency,
-                      )}{" "}
-                      {messages.each}
-                    </>
-                  ) : null}
-                </small>
-              </>
-            )}
-          </div>
-          {isDirty ? (
-            <ConfirmDialog
-              confirmLabel={messages.discardDraft}
-              description={
+        <div ref={footerRef} className="sticky-submit expense-composer-footer">
+          <div className="expense-composer-footer-inner">
+            <div
+              className="expense-total"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {saveError ? (
+                <p
+                  className="field-error expense-validation-error"
+                  id={saveErrorId}
+                >
+                  {saveError}
+                </p>
+              ) : (
+                <>
+                  <span>{messages.expenseTotalLabel}</span>
+                  <strong>
+                    {formatMoney(preview?.amountMinor ?? 0, values.currency)}
+                  </strong>
+                  <small>
+                    {messages.countPeople({
+                      count: values.participantIds.length,
+                    })}
+                    {preview &&
+                    !preview.error &&
+                    preview.shares.length > 0 &&
+                    preview.shares.every(
+                      (share) =>
+                        share.shareMinor === preview.shares[0]?.shareMinor,
+                    ) ? (
+                      <>
+                        {" · "}
+                        {formatMoney(
+                          preview.shares[0]?.shareMinor ?? 0,
+                          values.currency,
+                        )}{" "}
+                        {messages.each}
+                      </>
+                    ) : null}
+                  </small>
+                </>
+              )}
+            </div>
+            {exitButton()}
+            <BusyButton
+              busy={form.formState.isSubmitting}
+              busyLabel={messages.saving}
+              aria-describedby={saveError ? saveErrorId : undefined}
+              disabled={
+                (offline && (!!expense || !canQueue)) ||
+                !!saveError ||
+                versionState.conflict ||
+                versionState.missing ||
                 creationUncertain
-                  ? messages.expenseCreationUncertain
-                  : messages.unsavedChangesWillBeLost
               }
-              destructive
-              onConfirm={onCancel}
-              title={messages.discardThisDraft}
-              trigger={cancelButton}
-            />
-          ) : (
-            cancelButton
-          )}
-          <BusyButton
-            busy={form.formState.isSubmitting}
-            busyLabel={messages.saving}
-            aria-describedby={saveError ? saveErrorId : undefined}
-            disabled={
-              (offline && (!!expense || !canQueue)) ||
-              !!saveError ||
-              versionState.conflict ||
-              versionState.missing ||
-              creationUncertain
-            }
-            type="submit"
-          >
-            {queued
-              ? messages.queueSave
-              : expense
-                ? messages.saveChanges
-                : offline && canQueue
-                  ? messages.queueSave
-                  : messages.recordExpense}
-          </BusyButton>
+              type="submit"
+            >
+              {queued
+                ? messages.queueSave
+                : expense
+                  ? messages.saveChanges
+                  : offline && canQueue
+                    ? messages.queueSave
+                    : messages.recordExpense}
+            </BusyButton>
+          </div>
         </div>
       </form>
     </section>
