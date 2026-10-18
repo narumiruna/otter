@@ -164,9 +164,11 @@ for (const viewport of [
     await page.getByRole("button", { name: "Overview", exact: true }).click();
     await expect(page.getByLabel("Who am I")).toHaveCount(0);
     await page
-      .locator("summary")
-      .filter({ hasText: "Spending analysis" })
-      .first()
+      .locator(".workspace-nav")
+      .getByRole("button", {
+        name: "Spending analysis",
+        exact: true,
+      })
       .click();
     await expect(
       page.getByRole("table", { name: "Member accounts" }),

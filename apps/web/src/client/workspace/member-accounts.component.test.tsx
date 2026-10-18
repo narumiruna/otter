@@ -10,7 +10,7 @@ import { expect, test } from "vitest";
 import { translations } from "../i18n/messages.js";
 import { I18nProvider } from "../i18n.js";
 import { MemberAccounts } from "./member-accounts.js";
-import { OverviewPage } from "./overview-page.js";
+import { ReadonlyWorkspace } from "./readonly-workspace.js";
 
 function fixture(): Trip {
   return {
@@ -155,7 +155,7 @@ test("public share uses supplied balances when payment details are omitted", asy
   const { settlementPayments: _payments, ...trip } = full.trip;
   const view = render(
     <I18nProvider initialLocale="en">
-      <OverviewPage payload={{ ...full, trip }} readonly />
+      <ReadonlyWorkspace payload={{ ...full, trip }} />
     </I18nProvider>,
   );
   await userEvent.setup().click(view.getByText("Spending analysis"));
@@ -183,7 +183,7 @@ test("payment-only groups keep both balances and member analysis", async () => {
   const trip = { ...fixture(), expenses: [] };
   const view = render(
     <I18nProvider initialLocale="en">
-      <OverviewPage payload={payload(trip)} readonly />
+      <ReadonlyWorkspace payload={payload(trip)} />
     </I18nProvider>,
   );
   expect(view.getByRole("region", { name: "Balances" })).toBeVisible();

@@ -15,6 +15,7 @@ import { queueExpense } from "../expense-queue.js";
 import { I18nProvider } from "../i18n.js";
 import { OverviewPage } from "./overview-page.js";
 import { OverviewSummary } from "./overview-summary.js";
+import { SpendingAnalysisPage } from "./spending-analysis-page.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 import { BalanceList } from "./workspace-ui.js";
 
@@ -72,6 +73,27 @@ function payloadFor(value: Trip): TripPayload {
     trip: value,
   };
 }
+
+test.each([false, true])(
+  "overview excludes spending analysis (readonly=%s)",
+  (readonly) => {
+    render(
+      <I18nProvider initialLocale="en">
+        <OverviewPage
+          payload={{ ...payloadFor(trip), settlements: [] }}
+          readonly={readonly}
+        />
+      </I18nProvider>,
+    );
+    expect(
+      screen.getByRole("region", { name: "Recent expenses" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Spending analysis")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Member accounts", hidden: true }),
+    ).not.toBeInTheDocument();
+  },
+);
 
 test("Visa mode keeps the spending total in JPY but labels outstanding settlements as TWD", () => {
   const enabled: Trip = {
@@ -233,19 +255,6 @@ test("read-only recent expenses do not offer editing", () => {
   ).not.toBeInTheDocument();
 });
 
-test("overview localizes the spending analysis heading", async () => {
-  render(
-    <I18nProvider initialLocale="en">
-      <OverviewPage payload={payloadFor(trip)} readonly />
-    </I18nProvider>,
-  );
-  const heading = screen.getByText("Spending analysis");
-  expect(heading).toBeVisible();
-  await userEvent.setup().click(heading);
-  expect(screen.getByText("Other")).toBeVisible();
-  expect(screen.queryByText("花費分析")).not.toBeInTheDocument();
-});
-
 test("read-only overview keeps results but omits payment controls", () => {
   render(<OverviewPage payload={payloadFor(trip)} readonly />);
   expect(screen.getByRole("region", { name: "待結清" })).toBeVisible();
@@ -287,7 +296,7 @@ test("balances distinguish settled, receivable, and payable values with text", (
   expect(rows[2]).toHaveTextContent("應付$100");
 });
 
-test("member accounts label Visa totals, delegate settlement and exclude queued expenses", async () => {
+test("analysis member accounts label Visa totals, delegate settlement and exclude queued expenses", async () => {
   localStorage.setItem("otter.locale", "en");
   const t: Trip = {
     ...trip,
@@ -335,7 +344,7 @@ test("member accounts label Visa totals, delegate settlement and exclude queued 
           userId="overview-user"
           refreshCollection={async () => {}}
         >
-          <OverviewPage payload={payloadFor(t)} />
+          <SpendingAnalysisPage payload={payloadFor(t)} />
         </WorkspaceProvider>
       </I18nProvider>
     </QueryClientProvider>,
@@ -343,7 +352,6 @@ test("member accounts label Visa totals, delegate settlement and exclude queued 
   expect(
     view.queryByRole("region", { name: "My account" }),
   ).not.toBeInTheDocument();
-  await userEvent.setup().click(view.getByText("Spending analysis"));
   const accounts = within(
     view.getByRole("region", { name: "Member accounts" }),
   );

@@ -20,7 +20,7 @@ for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
     for (const appearance of ["light", "dark"] as const) {
       test(`${locale} member accounts at ${viewport.width}x${viewport.height} in ${appearance}`, async ({
         page,
-      }) => {
+      }, testInfo) => {
         const messages = translations[locale];
         await page.setViewportSize(viewport);
         await page.emulateMedia({ colorScheme: appearance });
@@ -58,16 +58,25 @@ for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
         });
         await expect(balances).toBeVisible();
         await expect(settlements).toBeVisible();
-        const analysis = page
-          .locator("details")
-          .filter({
-            has: page.locator("summary", {
-              hasText: messages.spendingAnalysis,
-            }),
+        for (const balance of calculateBalances(trip)) {
+          if (balance.amountMinor)
+            await expect(balances).toContainText(
+              new Intl.NumberFormat(locale, {
+                style: "currency",
+                currency: balance.currency,
+                maximumFractionDigits: 0,
+              }).format(Math.abs(balance.amountMinor)),
+            );
+        }
+        await page
+          .locator(".workspace-nav")
+          .getByRole("button", {
+            name: messages.spendingAnalysis,
+            exact: true,
           })
-          .first();
-        await expect(analysis).not.toHaveAttribute("open");
-        await analysis.locator(":scope > summary").click();
+          .click();
+        await expect(page).toHaveURL(/view=analysis/);
+        await expect(balances).toHaveCount(0);
         const accounts = page.getByRole("region", {
           name: messages.memberAccounts,
         });
@@ -91,7 +100,6 @@ for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
           }).format(Math.abs(balance.amountMinor));
           if (balance.amountMinor) {
             await expect(cell).toContainText(value);
-            await expect(balances).toContainText(value);
           } else await expect(cell).toContainText(messages.accountSettled);
         }
         const detail = accounts.locator("summary").first();
@@ -114,7 +122,7 @@ for (const locale of ["en", "zh-TW", "ja", "ko"] as const) {
         await accessible(page);
         await expectNoOverflow(page);
         await page.screenshot({
-          path: `/tmp/otter-accounts-${locale}-${viewport.width}-${viewport.height}-${appearance}.png`,
+          path: testInfo.outputPath("member-accounts.png"),
           fullPage: true,
         });
       });
@@ -153,13 +161,10 @@ test("recording a partial payment updates both balance views without changing pa
       });
     },
   );
-  await page.goto(`/?trip=${trip.id}`);
-  await page
-    .locator("summary")
-    .filter({ hasText: "Spending analysis" })
-    .first()
-    .click();
+  await page.goto(`/?trip=${trip.id}&view=analysis`);
   const accounts = page.getByRole("region", { name: "Member accounts" });
+  await expect(accounts.getByRole("table")).toBeVisible();
+  await expect(accounts.locator("tbody")).toHaveCount(trip.participants.length);
   const totals = await accounts
     .locator(".member-account-summary")
     .evaluateAll((rows) =>
@@ -172,6 +177,13 @@ test("recording a partial payment updates both balance views without changing pa
   const before = await accounts
     .locator(".member-account-summary")
     .allTextContents();
+  const navigation = page.locator(".workspace-nav");
+  await navigation
+    .getByRole("button", { name: "Overview", exact: true })
+    .click();
+  const balances = page.getByRole("region", { name: "Balances", exact: true });
+  const overviewBefore = await balances.textContent();
+  await expect(accounts).toHaveCount(0);
   await page
     .getByRole("button", { name: "Record payment", exact: true })
     .first()
@@ -182,6 +194,21 @@ test("recording a partial payment updates both balance views without changing pa
     .getByRole("button", { name: "Record payment", exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
+  await expect(balances).not.toHaveText(overviewBefore ?? "");
+  for (const balance of calculateBalances(trip)) {
+    if (balance.amountMinor)
+      await expect(balances).toContainText(
+        new Intl.NumberFormat("en", {
+          style: "currency",
+          currency: balance.currency,
+          maximumFractionDigits: 0,
+        }).format(Math.abs(balance.amountMinor)),
+      );
+  }
+  await navigation
+    .getByRole("button", { name: "Spending analysis", exact: true })
+    .click();
+  await expect(page).toHaveURL(/view=analysis/);
   await expect
     .poll(async () =>
       accounts.locator(".member-account-summary").allTextContents(),

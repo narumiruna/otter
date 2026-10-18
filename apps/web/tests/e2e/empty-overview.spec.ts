@@ -124,9 +124,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     await page.getByRole("button", { name: "新增成員", exact: true }).click();
     await expect(page).toHaveURL(/view=people/);
-    await expect(
-      navigation.getByRole("button", { name: "記一筆", exact: true }),
-    ).toHaveCount(1);
+    await expect(navigation.getByRole("button")).toHaveCount(5);
+    await expect(navigation.locator(".record-expense-button")).toHaveCount(0);
+    await expect(page.locator(".record-expense-button")).toBeVisible();
     await page.getByRole("button", { name: "新增成員", exact: true }).click();
     await page.getByLabel("成員名稱").fill("Alice");
     await page
@@ -139,9 +139,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         .locator("li .people-identity strong")
         .filter({ hasText: /^Alice$/ }),
     ).toBeVisible();
-    await expect(
-      navigation.getByRole("button", { name: "記一筆", exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".record-expense-button")).toBeVisible();
     await navigation.getByRole("button", { name: "總覽", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "記錄第一筆共同支出" }),
@@ -149,9 +147,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       page.getByRole("button", { name: "記一筆", exact: true }),
     ).toHaveCount(2);
-    await navigation
-      .getByRole("button", { name: "記一筆", exact: true })
-      .click();
+    await page.locator(".record-expense-button").click();
     await expect(page).toHaveURL(/mode=add-expense/);
     await expect(
       page.getByRole("button", { name: "記錄支出", exact: true }),
@@ -175,9 +171,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(
       page.getByRole("heading", { name: "記錄第一筆共同支出" }),
     ).toHaveCount(0);
-    await expect(
-      navigation.getByRole("button", { name: "記一筆", exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".record-expense-button")).toBeVisible();
     for (const width of [320, 375, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await expectNoOverflow(page);

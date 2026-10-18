@@ -38,6 +38,7 @@ import { MorePage } from "./more-page.js";
 import { OrphanedExpenseQueue } from "./orphaned-expense-queue.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
+import { SpendingAnalysisPage } from "./spending-analysis-page.js";
 import { WebMcpTools } from "./webmcp-tools.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 import {
@@ -508,6 +509,8 @@ export function AuthenticatedWorkspace({
                   userId={bootstrap.user?.id ?? "current"}
                 />
               ) : null
+            ) : location.view === "analysis" ? (
+              <SpendingAnalysisPage payload={payload} />
             ) : location.view === "people" ? (
               <PeoplePage readonly={archived} trip={payload.trip} />
             ) : (

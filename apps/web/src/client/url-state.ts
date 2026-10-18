@@ -26,6 +26,7 @@ export function withoutAccountSettingsLocation(url: URL): URL {
 export const workspaceViews = [
   "overview",
   "expenses",
+  "analysis",
   "people",
   "more",
 ] as const;
