@@ -5,6 +5,7 @@ import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AuthScreen } from "./auth-screen.js";
+import { languageOptions } from "./i18n/locales.js";
 import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
@@ -142,47 +143,121 @@ test("language can be changed from login and registration without losing entered
   view.unmount();
 });
 
-test.each(["ja", "ko"] as const)(
-  "switches login and registration to %s without losing inputs",
-  async (locale) => {
+test.each(languageOptions)(
+  "switches login and registration to $locale without changing credentials",
+  async ({ locale }) => {
     const user = userEvent.setup();
+    const sourceLocale = locale === "en" ? "zh-TW" : "en";
+    const source = translations[sourceLocale];
     const messages = translations[locale];
+    const onLogin = vi.fn();
+    const onRegister = vi.fn();
     const view = render(
-      <I18nProvider initialLocale="en">
-        <AuthScreen onLogin={() => undefined} onRegister={() => undefined} />
+      <I18nProvider initialLocale={sourceLocale}>
+        <AuthScreen onLogin={onLogin} onRegister={onRegister} />
       </I18nProvider>,
     );
-    await user.type(view.getByLabelText("Username"), "alice");
-    await user.selectOptions(
-      view.getByRole("combobox", { name: "Language" }),
+    const language = view.getByRole("combobox", { name: source.language });
+    expect(view.getAllByRole("option")).toHaveLength(languageOptions.length);
+    for (const option of languageOptions) {
+      expect(view.getByRole("option", { name: option.label })).toHaveAttribute(
+        "lang",
+        option.locale,
+      );
+    }
+    await user.type(view.getByLabelText(source.username), "Alice_123");
+    await user.type(view.getByLabelText(source.password), "password123");
+    await user.selectOptions(language, locale);
+    expect(document.documentElement.lang).toBe(locale);
+    expect(view.getByRole("combobox", { name: messages.language })).toHaveValue(
       locale,
     );
-    expect(view.getByLabelText(messages.username)).toHaveValue("alice");
+    expect(view.getByLabelText(messages.username)).toHaveValue("Alice_123");
+    expect(view.getByLabelText(messages.password)).toHaveValue("password123");
     expect(view.getByText(messages.welcomeBackEyebrow)).toHaveAttribute(
       "lang",
       locale,
     );
-    expect(view.getByRole("heading", { name: messages.signIn })).toBeVisible();
+    await user.click(view.getByRole("button", { name: messages.signIn }));
+    expect(onLogin).toHaveBeenCalledOnce();
+    expect(onLogin.mock.calls[0]?.[0]).toEqual({
+      username: "Alice_123",
+      password: "password123",
+    });
     await user.click(
       view.getByRole("button", { name: messages.createAccount }),
     );
-    await user.type(view.getByLabelText(messages.username), "new-alice");
+    await user.type(view.getByLabelText(messages.username), "New_Alice");
+    await user.type(view.getByLabelText(messages.password), "new-password123");
     await user.selectOptions(
       view.getByRole("combobox", { name: messages.language }),
-      "en",
+      sourceLocale,
     );
-    expect(view.getByLabelText("Username")).toHaveValue("new-alice");
+    expect(view.getByLabelText(source.username)).toHaveValue("New_Alice");
+    expect(view.getByLabelText(source.password)).toHaveValue("new-password123");
     await user.selectOptions(
-      view.getByRole("combobox", { name: "Language" }),
+      view.getByRole("combobox", { name: source.language }),
       locale,
     );
     expect(
       view.getByRole("heading", { name: messages.createAccount }),
     ).toBeVisible();
-    expect(view.getByLabelText(messages.username)).toHaveValue("new-alice");
     expect(view.getByText(messages.startNewJourneyEyebrow)).toHaveAttribute(
       "lang",
       locale,
+    );
+    await user.click(
+      view.getByRole("button", { name: messages.createAccount }),
+    );
+    expect(onRegister).toHaveBeenCalledOnce();
+    expect(onRegister.mock.calls[0]?.[0]).toEqual({
+      username: "New_Alice",
+      password: "new-password123",
+    });
+  },
+);
+
+test.each(languageOptions)(
+  "clears stale login and registration validation errors when switching to $locale",
+  async ({ locale }) => {
+    const sourceLocale = locale === "en" ? "zh-TW" : "en";
+    const source = translations[sourceLocale];
+    const messages = translations[locale];
+    const user = userEvent.setup();
+    const view = render(
+      <I18nProvider initialLocale={sourceLocale}>
+        <AuthScreen onLogin={vi.fn()} onRegister={vi.fn()} />
+      </I18nProvider>,
+    );
+    await user.click(view.getByRole("button", { name: source.signIn }));
+    expect(await view.findByText(source.enterAUsername)).toBeVisible();
+    expect(view.getByText(source.enterAPassword)).toBeVisible();
+    await user.selectOptions(
+      view.getByRole("combobox", { name: source.language }),
+      locale,
+    );
+    expect(view.queryByText(source.enterAUsername)).toBeNull();
+    expect(view.queryByText(source.enterAPassword)).toBeNull();
+    expect(view.getByLabelText(messages.username)).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
+    await user.selectOptions(
+      view.getByRole("combobox", { name: messages.language }),
+      sourceLocale,
+    );
+    await user.click(view.getByRole("button", { name: source.createAccount }));
+    await user.click(view.getByRole("button", { name: source.createAccount }));
+    expect(await view.findByText(source.enterAUsername)).toBeVisible();
+    await user.selectOptions(
+      view.getByRole("combobox", { name: source.language }),
+      locale,
+    );
+    expect(view.queryByText(source.enterAUsername)).toBeNull();
+    expect(view.queryByText(source.enterAPassword)).toBeNull();
+    expect(view.getByLabelText(messages.username)).toHaveAttribute(
+      "aria-invalid",
+      "false",
     );
   },
 );

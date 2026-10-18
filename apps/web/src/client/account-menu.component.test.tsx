@@ -5,6 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 import { AccountMenu } from "./account-menu.js";
+import { languageOptions } from "./i18n/locales.js";
 import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
@@ -99,15 +100,17 @@ test("changes language and signs out from the account menu", async () => {
   expect(onSignOut).toHaveBeenCalledOnce();
 });
 
-test.each([
-  { locale: "ja", label: "日本語" },
-  { locale: "ko", label: "한국어" },
-] as const)(
+test.each(languageOptions)(
   "selects $locale from the account menu and marks the selected language",
   async ({ locale, label }) => {
     const user = userEvent.setup();
     renderMenu();
     await user.click(screen.getByRole("button", { name: "Alice 的帳號選單" }));
+    for (const option of languageOptions) {
+      expect(
+        screen.getByRole("menuitem", { name: option.label }),
+      ).toHaveAttribute("lang", option.locale);
+    }
     await user.click(screen.getByRole("menuitem", { name: label }));
     expect(document.documentElement.lang).toBe(locale);
     await user.click(
@@ -119,13 +122,20 @@ test.each([
       "aria-current",
       "true",
     );
-    expect(
-      screen.getByRole("menuitem", { name: "English" }),
-    ).not.toHaveAttribute("aria-current");
+    for (const option of languageOptions) {
+      if (option.locale !== locale) {
+        expect(
+          screen.getByRole("menuitem", { name: option.label }),
+        ).not.toHaveAttribute("aria-current");
+      }
+    }
     expect(
       screen.getByRole("menuitem", {
         name: translations[locale].accountSettings,
       }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("menuitem", { name: translations[locale].signOut }),
     ).toBeVisible();
   },
 );

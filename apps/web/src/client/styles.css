@@ -148,6 +148,7 @@ select:disabled {
 }
 .account-menu-content {
   width: min(17.5rem, calc(100vw - 1.25rem));
+  max-height: min(25rem, var(--radix-dropdown-menu-content-available-height));
 }
 .account-menu-identity {
   display: grid;

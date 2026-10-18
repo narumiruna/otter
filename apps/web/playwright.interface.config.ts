@@ -14,6 +14,7 @@ export default defineConfig({
     "expense-defaults.spec.ts",
     "member-accounts.spec.ts",
     "browser-defaults.spec.ts",
+    "localization.spec.ts",
   ],
   webServer: {
     command: `npm run dev --workspace @narumitw/otter-web -- --strictPort --port ${process.env.OTTER_E2E_WEB_PORT ?? "17463"}`,

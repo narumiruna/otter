@@ -4,7 +4,15 @@ Otter 以支出群組整理旅行或聚會費用。每個群組有參與者、�
 
 ## 介面語言
 
-網頁介面支援正體中文（`zh-TW`）、English（`en`）、日本語（`ja`）與 한국어（`ko`）。可在登入畫面、帳號選單或帳號設定切換語言；選擇會儲存在目前瀏覽器。未儲存選擇時，依瀏覽器語言偏好順序使用第一個支援的語言；沒有符合項目時使用 English。語言切換不會改變群組資料或支援的貨幣。
+網頁介面提供 18 種語言：
+
+- 正體中文（`zh-TW`）、English（`en`）、日本語（`ja`）、한국어（`ko`）。
+- Hindi（`hi`）、Spanish（`es`）、French（`fr`）、Portuguese（`pt`）、Indonesian（`id`）、German（`de`）、Vietnamese（`vi`）。
+- Turkish（`tr`）、Filipino（`fil`）、Thai（`th`）、Italian（`it`）、Polish（`pl`）、Malay（`ms`）、Dutch（`nl`）。
+
+可在登入畫面、帳號選單或帳號設定切換語言；選擇只儲存在目前瀏覽器，不會同步至帳號。未儲存有效選擇時，依瀏覽器語言偏好順序使用第一個支援的語言；沒有符合項目時使用 English。地區標籤使用同一份語言翻譯，例如 `es-MX` → `es`、`pt-BR`／`pt-PT` → `pt`、`fr-CA` → `fr`；瀏覽器的 `tl`／`tl-PH` 使用 Filipino（`fil`）。儲存的選擇只接受上述正式代碼。
+
+語言切換只影響介面、錯誤提示與金額／日期顯示，不會改變群組資料、輸入格式、支援的貨幣或 CLI 語言。新增的 14 份翻譯仍需完成流暢使用者審閱；狀態與用語選擇見 [Browser localization](localization.md)。
 
 ## 帳號與登入
 
