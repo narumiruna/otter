@@ -509,8 +509,9 @@ select:disabled {
     display: none;
   }
   .status-toast {
+    top: calc(64px + 0.75rem);
     right: 0.75rem;
-    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    bottom: auto;
     left: 0.75rem;
     max-width: none;
   }

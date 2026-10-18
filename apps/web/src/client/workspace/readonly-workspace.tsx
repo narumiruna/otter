@@ -2,6 +2,7 @@ import { EyeOpenIcon as Eye } from "@radix-ui/react-icons";
 import { expenseSplitLabel, type TripPayload } from "../client-support.js";
 import { useI18n } from "../i18n.js";
 import { OverviewPage } from "./overview-page.js";
+import { SpendingAnalysisDisclosure } from "./spending-analysis-page.js";
 
 export function ReadonlyWorkspace({ payload }: { payload: TripPayload }) {
   const { formatMoney, messages } = useI18n();
@@ -38,6 +39,7 @@ export function ReadonlyWorkspace({ payload }: { payload: TripPayload }) {
         </dl>
       </header>
       <OverviewPage payload={payload} readonly />
+      <SpendingAnalysisDisclosure payload={payload} />
       <section
         className="surface grid gap-4"
         aria-labelledby="readonly-expenses"

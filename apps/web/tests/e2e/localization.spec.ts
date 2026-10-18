@@ -122,6 +122,23 @@ for (const { locale, label } of addedLanguages) {
         await expect(page.locator("#settlement-heading")).toHaveText(
           messages.settleUp,
         );
+        await expect(
+          page.getByRole("table", { name: messages.memberAccounts }),
+        ).toHaveCount(0);
+        await expect(navigation.getByRole("button")).toHaveCount(5);
+        await expectNoOverflow(page);
+        await accessible(page);
+        await navigation
+          .getByRole("button", { name: messages.spendingAnalysis, exact: true })
+          .click();
+        const analysis = page.getByRole("region", {
+          name: messages.spendingAnalysis,
+          exact: true,
+        });
+        await expect(analysis).toBeVisible();
+        await expect(
+          analysis.getByRole("table", { name: messages.memberAccounts }),
+        ).toBeVisible();
         await expectNoOverflow(page);
         await accessible(page);
         await navigation

@@ -58,14 +58,21 @@ test("goal-first workspace navigation and expense preview are safe", async ({
   });
   await login(page);
 
-  const settlement = page.getByRole("heading", { name: "待結清" });
-  const analysis = page.locator("summary").filter({ hasText: "花費分析" });
+  await expect(page.getByRole("heading", { name: "待結清" })).toBeVisible();
+  await expect(
+    page.locator("summary").filter({ hasText: "花費分析" }),
+  ).toHaveCount(0);
+  const navigation = page.locator(".workspace-nav");
+  await expect(navigation.getByRole("button")).toHaveCount(5);
+  await navigation
+    .getByRole("button", { name: "花費分析", exact: true })
+    .click();
+  await expect(page).toHaveURL(/view=analysis/);
+  const analysis = page.getByRole("region", { name: "花費分析", exact: true });
   await expect(analysis).toBeVisible();
-  const settlementBox = await settlement.boundingBox();
-  const analysisBox = await analysis.boundingBox();
-  expect(settlementBox?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(
-    analysisBox?.y ?? Number.NEGATIVE_INFINITY,
-  );
+  await expect(analysis.getByRole("table", { name: "成員帳務" })).toBeVisible();
+  await navigation.getByRole("button", { name: "總覽", exact: true }).click();
+  await expect(analysis).toHaveCount(0);
 
   await page.getByRole("button", { name: "記一筆" }).click();
   await expect(page).toHaveURL(/mode=add-expense/);

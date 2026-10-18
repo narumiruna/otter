@@ -45,6 +45,24 @@ test("workspace URL state reads valid owned parameters", () => {
   );
 });
 
+test("analysis URL state survives account settings and preserves other parameters", () => {
+  const source = new URL(
+    "https://otter.test/?trip=trip_1&view=analysis&campaign=friends#details",
+  );
+  const location = readWorkspaceLocation(source);
+  assert.deepEqual(location, {
+    mode: null,
+    tripId: "trip_1",
+    view: "analysis",
+  });
+  assert.equal(
+    writeWorkspaceLocation(source, location),
+    "/?trip=trip_1&view=analysis&campaign=friends#details",
+  );
+  const account = new URL(writeAccountSettingsLocation(source, true), source);
+  assert.equal(withoutAccountSettingsLocation(account).href, source.href);
+});
+
 test("workspace URL state rejects invalid owned values", () => {
   assert.deepEqual(
     readWorkspaceLocation(

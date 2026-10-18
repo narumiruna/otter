@@ -7,7 +7,6 @@ import type {
 import {
   ArrowRightIcon as ArrowRight,
   CheckCircledIcon as CheckCircle2,
-  ChevronDownIcon as ChevronDown,
   TokensIcon as HandCoins,
   PersonIcon,
   PlusIcon,
@@ -28,13 +27,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   expenseSplitLabel,
-  spendingSummary,
   type TripPayload,
   todayDate,
 } from "../client-support.js";
-import { localizeMessage, useI18n } from "../i18n.js";
+import { useI18n } from "../i18n.js";
 import { ExpenseCategoryIcon } from "./expense-category-icon.js";
-import { MemberAccounts } from "./member-accounts.js";
 import { OverviewSummary } from "./overview-summary.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
@@ -129,7 +126,6 @@ export function OverviewPage({
           trip={trip}
         />
       </section>
-      <SpendingAnalysis payload={payload} />
     </div>
   );
 }
@@ -531,79 +527,5 @@ function RecentExpenses({
         );
       })}
     </ul>
-  );
-}
-
-function SpendingAnalysis({ payload }: { payload: TripPayload }) {
-  const { trip } = payload;
-  const { formatMoney, messages } = useI18n();
-  const summary = spendingSummary(trip);
-  const charts = [
-    {
-      title: messages.dailySpending,
-      rows: summary.dailyTotals.map((row) => ({
-        label: row.date,
-        value: row.amountMinor,
-      })),
-    },
-    {
-      title: messages.paidByPerson,
-      rows: summary.payerTotals.map((row) => ({
-        label: row.name,
-        value: row.amountMinor,
-      })),
-    },
-    {
-      title: messages.byCategory,
-      rows: summary.categoryTotals.map((row) => ({
-        label: localizeMessage(row.category),
-        value: row.amountMinor,
-      })),
-    },
-  ];
-  return (
-    <details className="surface disclosure">
-      <summary className="text-lg">
-        <ChevronDown aria-hidden="true" />
-        {messages.spendingAnalysis}{" "}
-        <span className="summary-meta">
-          {messages.totalAmount({
-            amount: formatMoney(summary.totalMinor, trip.baseCurrency),
-          })}
-        </span>
-      </summary>
-      <div className="grid gap-4 pt-4 lg:grid-cols-3">
-        {charts.map((chart) => (
-          <div className="rounded-xl border p-4" key={chart.title}>
-            <h4 className="mb-3 font-semibold">{chart.title}</h4>
-            {chart.rows.length ? (
-              <ul className="grid gap-3">
-                {chart.rows.map((row) => (
-                  <li className="grid gap-1 text-sm" key={row.label}>
-                    <div className="flex justify-between gap-2">
-                      <span>{row.label}</span>
-                      <span className="tabular-nums">
-                        {formatMoney(row.value, trip.baseCurrency)}
-                      </span>
-                    </div>
-                    <span className="h-2 overflow-hidden rounded-full bg-muted">
-                      <span
-                        className="block h-full rounded-full bg-primary"
-                        style={{
-                          width: `${Math.max(2, Math.round((row.value / Math.max(...chart.rows.map((item) => item.value), 1)) * 100))}%`,
-                        }}
-                      />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="empty-copy">{messages.noDataYet}</p>
-            )}
-          </div>
-        ))}
-      </div>
-      <MemberAccounts payload={payload} />
-    </details>
   );
 }

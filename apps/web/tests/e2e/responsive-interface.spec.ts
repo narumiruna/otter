@@ -84,6 +84,38 @@ for (const colorScheme of ["light", "dark"] as const) {
           expenses.getByRole("button", { name: "Columns" }),
         ).toHaveCount(0);
         await expect(page.locator(".workspace-nav button")).toHaveCount(5);
+        expect(
+          await page
+            .locator(".workspace-nav button")
+            .evaluateAll((buttons) =>
+              buttons.map((button) => button.getAttribute("aria-label")),
+            ),
+        ).toEqual([
+          "Overview",
+          "Expenses",
+          "Spending analysis",
+          "People",
+          "Group settings",
+        ]);
+        await expect(
+          page.locator(".workspace-nav .record-expense-button"),
+        ).toHaveCount(0);
+        const floating = page.locator(".record-expense-button");
+        await expect(floating).toBeVisible();
+        await expect(page.locator(".workspace-navigation-controls")).toHaveCSS(
+          "position",
+          "fixed",
+        );
+        const floatingBox = await floating.boundingBox();
+        const navBox = await page.locator(".workspace-nav").boundingBox();
+        if (!floatingBox || !navBox) throw new Error("Missing mobile controls");
+        expect(floatingBox.y + floatingBox.height).toBeLessThanOrEqual(
+          navBox.y,
+        );
+        expect(floatingBox.x + floatingBox.width).toBeLessThanOrEqual(width);
+        expect(floatingBox.x + floatingBox.width / 2).toBeGreaterThan(
+          width / 2,
+        );
         await expect(page.locator(".group-switch-trigger")).toHaveText(
           "Autumn in Kyoto · 京都秋旅",
         );

@@ -1,4 +1,5 @@
 import {
+  BarChartIcon,
   ChevronDownIcon as ChevronDown,
   FileTextIcon,
   GearIcon,
@@ -9,7 +10,7 @@ import {
   PersonIcon as Users,
 } from "@radix-ui/react-icons";
 import { Popover } from "@radix-ui/themes";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -208,46 +209,68 @@ export function WorkspaceNavigation({
 }) {
   const { messages } = useI18n();
   const mobile = useMediaQuery("(max-width: 680px)");
+  const controls = useRef<HTMLDivElement>(null);
+  const [controlsHeight, setControlsHeight] = useState(0);
+  useEffect(() => {
+    const element = controls.current;
+    if (!mobile || !element) return;
+    const measure = () =>
+      setControlsHeight(element.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mobile]);
   const items = [
     { icon: LayoutDashboard, label: messages.overview, view: "overview" },
     { icon: FileTextIcon, label: messages.expenses, view: "expenses" },
+    { icon: BarChartIcon, label: messages.spendingAnalysis, view: "analysis" },
     { icon: Users, label: messages.people, view: "people" },
     { icon: GearIcon, label: messages.groupSettings, view: "more" },
   ] as const;
   return (
-    <nav className="workspace-nav" aria-label={messages.groupWorkspace}>
-      {items.map(({ icon: Icon, label, view }) => (
-        <Button
-          aria-label={label}
-          aria-current={
-            !location.mode && location.view === view ? "page" : undefined
-          }
-          className="workspace-nav-item"
-          key={view}
-          onClick={() => onNavigate(view)}
-          variant={
-            !location.mode && location.view === view ? "secondary" : "ghost"
-          }
-        >
-          <Icon aria-hidden="true" />
-          <span className="desktop-nav-label">{label}</span>
-          <span className="mobile-nav-label">
-            {view === "more" ? messages.settingsShort : label}
-          </span>
-        </Button>
-      ))}
-      {showAdd && mobile ? (
-        <Button
-          className="record-expense-button"
-          disabled={archived}
-          onClick={onAdd}
-          aria-label={messages.addExpense}
-        >
-          <Plus aria-hidden="true" />
-          {messages.addShort}
-        </Button>
-      ) : null}
-    </nav>
+    <div
+      className="workspace-navigation"
+      style={mobile && controlsHeight ? { height: controlsHeight } : undefined}
+    >
+      <div className="workspace-navigation-controls" ref={controls}>
+        {showAdd && mobile ? (
+          <div className="mobile-expense-action">
+            <Button
+              className="record-expense-button"
+              disabled={archived}
+              onClick={onAdd}
+              aria-label={messages.addExpense}
+            >
+              <Plus aria-hidden="true" />
+              {messages.addShort}
+            </Button>
+          </div>
+        ) : null}
+        <nav className="workspace-nav" aria-label={messages.groupWorkspace}>
+          {items.map(({ icon: Icon, label, view }) => (
+            <Button
+              aria-label={label}
+              aria-current={
+                !location.mode && location.view === view ? "page" : undefined
+              }
+              className="workspace-nav-item"
+              key={view}
+              onClick={() => onNavigate(view)}
+              variant={
+                !location.mode && location.view === view ? "secondary" : "ghost"
+              }
+            >
+              <Icon aria-hidden="true" />
+              <span className="desktop-nav-label">{label}</span>
+              <span className="mobile-nav-label">
+                {view === "more" ? messages.settingsShort : label}
+              </span>
+            </Button>
+          ))}
+        </nav>
+      </div>
+    </div>
   );
 }
 
