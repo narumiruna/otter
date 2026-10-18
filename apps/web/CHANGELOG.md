@@ -1,5 +1,17 @@
 # @narumitw/otter-web
 
+## 0.5.0
+
+### Minor Changes
+
+- 60a040e: Add Hindi, Spanish, French, Portuguese, Indonesian, German, Vietnamese, Turkish, Filipino, Thai, Italian, Polish, Malay, and Dutch browser UI catalogs. Match regional browser preferences and the Filipino `tl` alias, apply locale-specific plural rules, and keep the language menu compact and scrollable.
+
+### Patch Changes
+
+- d9005ed: Ignore queue refresh results and sync errors after workspace effect cleanup. This prevents state updates after unmount and stale results after changing accounts or groups.
+- 0dcb9c7: Move spending analysis to its own group page between Expenses and People. Keep the existing charts, currency conversion, and member accounts. Preserve analysis in public read-only shares and move the mobile add-expense action above the five-page navigation bar.
+- 35a47a5: Move language choices into a separate dialog so sign out stays visible in the account menu. Keep the current language in view and return keyboard focus to the account button when the dialog closes.
+
 ## 0.4.0
 
 ### Minor Changes
