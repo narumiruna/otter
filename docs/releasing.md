@@ -56,7 +56,7 @@ For each missing tag:
 4. Review the deployment effects before creating or pushing a recovered web tag. Tag pushes can start Deploy.
 5. Create and push only the approved missing tags. Do not move existing tags or use a blind `git push --tags`.
 
-Historical tag recovery is a separate release operation. The workflow fix does not perform it automatically.
+Historical tag recovery is a separate release operation. The workflow fix does not perform it automatically. A new release can proceed without recovering older versions if every affected package receives a new version at that release commit. The all-workspace patch Changeset included with this fix uses that path; it does not recreate the missing older tags.
 
 ## Safe local checks
 
