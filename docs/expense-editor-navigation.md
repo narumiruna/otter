@@ -15,9 +15,9 @@ Opening an expense creates a history entry. The editor records an adjacent list 
 
 Forward opens the saved expense again. Online entry refreshes trip data before it creates an editable form. A failed refresh shows retry controls, not a stale form. Offline entry uses the loaded data and keeps online-only writes disabled. Forward does not restore a discarded draft or repeat a write request.
 
-`workspace-history.ts` owns a versioned history-state namespace. It preserves unrelated state and indexes app-created entries, including account settings. A rejected same-document traversal uses the inverse index delta. It does not add an entry. Unknown or older metadata uses safe defaults. Legacy same-document entries without a usable index can only restore the accepted URL in place.
+`workspace-history.ts` owns a versioned history-state namespace. It creates opaque IDs with `crypto.getRandomValues`, which is available in trusted HTTP test contexts as well as HTTPS. It preserves unrelated state and indexes app-created entries, including account settings. A rejected same-document traversal uses the inverse index delta. It does not add an entry. Unknown or older metadata uses safe defaults. Legacy same-document entries without a usable index can only restore the accepted URL in place.
 
-List entries store the filters, sort, grouping, scroll position, and source expense ID needed for return. Column preferences keep their existing user-scoped storage. The app restores list content before focus and scroll. It uses the list heading when the source expense is no longer present. User input during a pending restore takes priority over automatic focus and scroll.
+List entries store the filters, sort, grouping, scroll position, and source expense ID needed for return. Page changes update memory at once. History persistence combines changes into at most one scheduled write per second. Explicit navigation and `pagehide` flush the latest page. Native traversal uses the memory copy if a write is still pending. A browser quota error keeps that copy and schedules a retry; optional page metadata must not stop navigation. Column preferences keep their existing user-scoped storage. The app restores list content before focus and scroll. It uses the list heading when the source expense is no longer present. User input during a pending restore takes priority over automatic focus and scroll.
 
 ## Unsaved changes and requests
 
@@ -25,7 +25,7 @@ Page actions use the existing discard dialog. Browser traversal uses a native co
 
 The app blocks same-document editor exit during a form submission and prevents duplicate form submissions. A full document exit cannot guarantee cancellation of a request already sent to the server. Check the saved expense after an interrupted request before submitting again.
 
-Account settings keep the editor mounted and preserve its draft. Merely opening or closing account settings is not a discard action. Opening settings is blocked during form submission. A late delete or restore result can navigate only from its initiating editor entry; it cannot redirect another page. Expense drafts are not stored in history state or the URL.
+Account settings keep the editor mounted and preserve its draft. A settings reload recovers the workspace identity from valid source metadata. Closing the paired settings entry keeps that identity, so a later save can return to the list. Merely opening or closing account settings is not a discard action. Opening settings is blocked during form submission. A late delete or restore result can navigate only from its initiating editor entry; it cannot redirect another page. Expense drafts are not stored in history state or the URL.
 
 ## Responsive action bar
 

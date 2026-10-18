@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   blockHistory,
+  flushHistoryPage,
   getHistorySnapshot,
   type HistorySnapshot,
   readHistoryEntry,
@@ -392,6 +393,7 @@ describe("history writes", () => {
     const replace = vi.spyOn(window.history, "replaceState");
     const push = vi.spyOn(window.history, "pushState");
     saveHistoryPage(page);
+    flushHistoryPage();
 
     expect(getHistorySnapshot().entry).toEqual({ ...entry, page });
     expect(readHistoryEntry(window.history.state)).toEqual({ ...entry, page });

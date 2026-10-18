@@ -139,6 +139,55 @@ let current: HistorySnapshot | undefined;
 let recovering = false;
 const listeners = new Set<() => void>();
 const blockers = new Set<Blocker>();
+const pageCache = new Map<string, WorkspacePageState>();
+let pendingPage: HistorySnapshot | undefined;
+let pageWriteTimer: number | undefined;
+
+function historyId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+function pageCacheKey(entry: WorkspaceHistoryEntry): string {
+  return JSON.stringify([entry.session, entry.key]);
+}
+
+function cancelPageWrite(): void {
+  if (pageWriteTimer !== undefined) window.clearTimeout(pageWriteTimer);
+  pageWriteTimer = undefined;
+  pendingPage = undefined;
+}
+
+function queuePageWrite(value: HistorySnapshot): void {
+  pendingPage = value;
+  // One metadata write per second leaves capacity for explicit navigation.
+  pageWriteTimer ??= window.setTimeout(flushHistoryPage, 1000);
+}
+
+export function flushHistoryPage(): void {
+  const pending = pendingPage;
+  cancelPageWrite();
+  if (
+    !pending ||
+    recovering ||
+    window.location.href !== pending.url ||
+    readHistoryEntry(window.history.state)?.key !== pending.entry.key
+  )
+    return;
+  try {
+    window.history.replaceState(pending.state, "");
+    pageCache.delete(pageCacheKey(pending.entry));
+  } catch (error) {
+    if (
+      !(error instanceof DOMException) ||
+      (error.name !== "SecurityError" && error.name !== "QuotaExceededError")
+    )
+      throw error;
+    // Page metadata is optional. Keep it in memory and retry after the limit resets.
+    queuePageWrite(pending);
+  }
+}
 
 function snapshot(): HistorySnapshot {
   const state = record(window.history.state) ?? {};
@@ -146,12 +195,17 @@ function snapshot(): HistorySnapshot {
   if (!entry) {
     entry = {
       version: 1,
-      session: crypto.randomUUID(),
-      key: crypto.randomUUID(),
+      session: historyId(),
+      key: historyId(),
       index: 0,
     };
     state[stateKey] = entry;
     window.history.replaceState(state, "");
+  }
+  const cachedPage = pageCache.get(pageCacheKey(entry));
+  if (cachedPage) {
+    entry = { ...entry, page: cachedPage };
+    state[stateKey] = entry;
   }
   return { url: window.location.href, entry, state };
 }
@@ -185,10 +239,15 @@ function recover(next: HistorySnapshot) {
 }
 
 function pop() {
+  // The browser already moved. Do not persist the outgoing page over its destination.
+  cancelPageWrite();
   const next = snapshot();
   if (recovering) {
-    if (next.entry.key === getHistorySnapshot().entry.key) recovering = false;
-    else recover(next);
+    if (next.entry.key === getHistorySnapshot().entry.key) {
+      recovering = false;
+      if (pageCache.has(pageCacheKey(next.entry)))
+        queuePageWrite(getHistorySnapshot());
+    } else recover(next);
     return;
   }
   for (const blocker of blockers) {
@@ -198,6 +257,7 @@ function pop() {
     }
   }
   current = next;
+  if (pageCache.has(pageCacheKey(next.entry))) queuePageWrite(next);
   emit();
 }
 
@@ -206,12 +266,17 @@ export function subscribeHistory(listener: () => void): () => void {
     current = snapshot();
     recovering = false;
     window.addEventListener("popstate", pop);
+    window.addEventListener("pagehide", flushHistoryPage);
   }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
     if (!listeners.size) {
       window.removeEventListener("popstate", pop);
+      window.removeEventListener("pagehide", flushHistoryPage);
+      flushHistoryPage();
+      cancelPageWrite();
+      pageCache.clear();
       current = undefined;
       recovering = false;
     }
@@ -237,12 +302,13 @@ export function writeHistoryLocation(
   const target = new URL(url, window.location.href);
   if (target.origin !== window.location.origin)
     throw new Error("History navigation must use the current origin");
+  flushHistoryPage();
   const entry: WorkspaceHistoryEntry = options.replace
     ? { ...previous.entry }
     : {
         version: 1,
         session: previous.entry.session,
-        key: crypto.randomUUID(),
+        key: historyId(),
         index: previous.entry.index + 1,
       };
   if (options.returnTo) entry.returnTo = options.returnTo;
@@ -256,6 +322,7 @@ export function writeHistoryLocation(
     "",
     target,
   );
+  cancelPageWrite();
   current = { entry, state, url: target.href };
   emit();
 }
@@ -285,6 +352,7 @@ export function saveHistoryPage(page: WorkspacePageState): void {
     return;
   const entry = { ...previous.entry, page };
   const state = { ...previous.state, [stateKey]: entry };
-  window.history.replaceState(state, "");
   current = { ...previous, entry, state };
+  pageCache.set(pageCacheKey(entry), page);
+  queuePageWrite(current);
 }

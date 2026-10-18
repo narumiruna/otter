@@ -15,21 +15,38 @@ import {
 import {
   accountSettingsSourceKey,
   blockHistory,
+  flushHistoryPage,
   getHistorySnapshot,
   type HistorySnapshot,
   subscribeHistory,
   writeHistoryLocation,
 } from "../workspace-history.js";
 
+function settingsSource(snapshot: HistorySnapshot): string | null {
+  const source = snapshot.state[accountSettingsSourceKey];
+  return isAccountSettingsLocation(new URL(snapshot.url)) &&
+    snapshot.entry.index > 0 &&
+    typeof source === "string" &&
+    source.length > 0 &&
+    source !== snapshot.entry.key
+    ? source
+    : null;
+}
+
+function workspaceKey(snapshot: HistorySnapshot): string {
+  return settingsSource(snapshot) ?? snapshot.entry.key;
+}
+
 function pairedSettings(
   first: HistorySnapshot,
   second: HistorySnapshot,
 ): boolean {
   return (
-    (isAccountSettingsLocation(new URL(second.url)) &&
-      second.state[accountSettingsSourceKey] === first.entry.key) ||
-    (isAccountSettingsLocation(new URL(first.url)) &&
-      first.state[accountSettingsSourceKey] === second.entry.key)
+    first.entry.session === second.entry.session &&
+    ((settingsSource(second) === first.entry.key &&
+      second.entry.index === first.entry.index + 1) ||
+      (settingsSource(first) === second.entry.key &&
+        first.entry.index === second.entry.index + 1))
   );
 }
 
@@ -47,7 +64,8 @@ export function useWorkspaceNavigation({
   const snapshot = useSyncExternalStore(subscribeHistory, getHistorySnapshot);
   const location = readWorkspaceLocation(new URL(snapshot.url));
   const previousSnapshot = useRef(snapshot);
-  const entryKey = useRef(snapshot.entry.key);
+  // Settings reload must retain the identity of the workspace below it.
+  const entryKey = useRef(workspaceKey(snapshot));
   const activation = useRef(0);
   const previous = previousSnapshot.current;
   const workspaceChanged = !isSameWorkspaceLocation(
@@ -55,10 +73,9 @@ export function useWorkspaceNavigation({
     readWorkspaceLocation(new URL(previous.url)),
   );
   if (snapshot.entry.key !== previous.entry.key || workspaceChanged) {
-    if (!pairedSettings(previous, snapshot) || workspaceChanged) {
-      entryKey.current = snapshot.entry.key;
+    entryKey.current = workspaceKey(snapshot);
+    if (!pairedSettings(previous, snapshot) || workspaceChanged)
       activation.current += 1;
-    }
   }
   previousSnapshot.current = snapshot;
   const workspaceEntryKey = entryKey.current;
@@ -158,6 +175,7 @@ export function useWorkspaceNavigation({
             !target.mode
           ) {
             allowedEntry.current = origin.key;
+            flushHistoryPage();
             window.history.back();
           } else {
             writeHistoryLocation(
