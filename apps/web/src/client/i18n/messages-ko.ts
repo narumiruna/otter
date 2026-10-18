@@ -30,6 +30,9 @@ export const ko = {
   profileLabel: "프로필",
   securityLabel: "보안",
   backToGroups: "그룹으로 돌아가기",
+  backToExpenseList: "지출 목록으로 돌아가기",
+  expenseEditorUnavailable:
+    "이 지출을 수정할 수 없습니다. 지출이 없거나 그룹이 읽기 전용 또는 보관 상태일 수 있습니다.",
   createdLabel: "생성일",
   statusLabel: "상태",
   peopleDeletionHelp:

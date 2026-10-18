@@ -206,27 +206,41 @@
 }
 .expense-composer-footer {
   position: static;
+  margin-top: 0.25rem;
+  padding: 0;
+  background: var(--card);
+}
+.expense-composer-footer-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
-  margin-top: 0.25rem;
+  min-width: 0;
   padding-top: 1rem;
-  background: var(--card);
 }
-.expense-composer-footer > :not(.expense-total) {
+.expense-composer-footer-inner > :not(.expense-total) {
   order: 1;
 }
-.expense-composer-footer > :last-child {
+.expense-composer-footer-inner > :last-child {
   order: 3;
+}
+.expense-composer-footer-inner > .otter-button {
+  max-width: 100%;
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .expense-total {
   order: 2;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: auto minmax(0, auto);
   align-items: baseline;
   gap: 0.15rem 1rem;
+  min-width: 0;
+  max-width: 100%;
   margin-left: auto;
+  overflow-wrap: anywhere;
 }
 .expense-total strong {
   font-size: 1.5rem;
@@ -243,23 +257,29 @@
   text-align: right;
 }
 @media (min-width: 901px) {
-  html:has(.app-shell .expense-composer) {
-    scroll-padding-bottom: 8rem;
+  html:has(.app-shell[data-expense-footer]) {
+    scroll-padding-bottom: calc(var(--expense-footer-height) + 1rem);
   }
-  .app-shell:has(.expense-composer) {
-    padding-bottom: 8rem;
+  .app-shell[data-expense-footer] {
+    padding-bottom: calc(var(--expense-footer-height) + 1rem);
   }
-  .app-shell:has(.expense-composer) .workspace-sidebar {
-    padding-bottom: calc(24px + 8rem);
+  .app-shell[data-expense-footer] .workspace-sidebar {
+    padding-bottom: calc(24px + var(--expense-footer-height) + 1rem);
+    scroll-padding-bottom: calc(var(--expense-footer-height) + 1rem);
   }
   .app-shell .expense-composer-footer {
     position: fixed;
     z-index: 50;
     inset: auto 0 0;
-    margin: 0;
-    padding: 1rem 2rem;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--app-shell-max-width);
+    margin: 0 auto;
   }
-  .expense-composer-footer > .otter-button {
+  .expense-composer-footer-inner {
+    padding: 1rem var(--app-chrome-gutter);
+  }
+  .expense-composer-footer-inner > .otter-button {
     min-height: 3rem;
   }
   .expense-receipt-section > .expense-section-body {
@@ -283,8 +303,8 @@
   }
 }
 @media (max-width: 680px) {
-  html:has(.app-shell .expense-composer) {
-    scroll-padding-bottom: 10rem;
+  html:has(.app-shell[data-expense-footer]) {
+    scroll-padding-bottom: calc(var(--expense-footer-height) + 1rem);
   }
   .expense-section-body {
     padding-left: 0;
@@ -305,13 +325,13 @@
   .expense-split-method > label {
     grid-template-columns: minmax(0, 1fr);
   }
-  .expense-composer-footer {
+  .expense-composer-footer-inner {
     gap: 0.75rem;
+    padding-block: 1rem max(1rem, env(safe-area-inset-bottom));
   }
   .app-shell .expense-composer-footer {
     position: sticky;
     bottom: 0;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
   .expense-total {
     flex: 1 0 100%;
@@ -320,11 +340,14 @@
   .expense-total small {
     text-align: left;
   }
-  .expense-composer-footer > :last-child {
+  .expense-composer-footer-inner > :last-child {
     flex: 1;
   }
 }
 @media print {
+  .app-shell[data-expense-footer] {
+    padding-bottom: 0;
+  }
   .expense-composer-footer {
     display: none;
   }

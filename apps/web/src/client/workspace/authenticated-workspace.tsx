@@ -5,7 +5,14 @@ import {
   PlusIcon as Plus,
 } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,12 +31,8 @@ import {
   type TripSummary,
 } from "../client-support.js";
 import { useI18n, useLocaleError } from "../i18n.js";
-import {
-  readWorkspaceLocation,
-  type WorkspaceLocation,
-  type WorkspaceView,
-  writeWorkspaceLocation,
-} from "../url-state.js";
+import type { WorkspaceView } from "../url-state.js";
+import { getHistorySnapshot, saveHistoryPage } from "../workspace-history.js";
 import { RestoreBackup } from "./data-settings.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseQueuePanel } from "./expense-queue-panel.js";
@@ -39,6 +42,7 @@ import { OrphanedExpenseQueue } from "./orphaned-expense-queue.js";
 import { OverviewPage, SettlementHistory } from "./overview-page.js";
 import { PeoplePage } from "./people-page.js";
 import { SpendingAnalysisPage } from "./spending-analysis-page.js";
+import { useWorkspaceNavigation } from "./use-workspace-navigation.js";
 import { WebMcpTools } from "./webmcp-tools.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 import {
@@ -46,20 +50,9 @@ import {
   TripList,
   WorkspaceNavigation,
 } from "./workspace-layout.js";
-import { BusyButton, FormField } from "./workspace-ui.js";
+import { BusyButton, ConfirmDialog, FormField } from "./workspace-ui.js";
 
 type TripCollection = { archivedTrips: TripSummary[]; trips: TripSummary[] };
-
-function isSameWorkspaceLocation(
-  first: WorkspaceLocation,
-  second: WorkspaceLocation,
-): boolean {
-  return (
-    first.mode === second.mode &&
-    first.tripId === second.tripId &&
-    first.view === second.view
-  );
-}
 
 export function AuthenticatedWorkspace({
   announce,
@@ -76,18 +69,19 @@ export function AuthenticatedWorkspace({
 }) {
   const queryClient = useQueryClient();
   const { messages } = useI18n();
-  const [location, setLocation] = useState(() =>
-    readWorkspaceLocation(new URL(window.location.href)),
-  );
   const [draftDirty, setDraftDirty] = useState(false);
-  const draftDirtyRef = useRef(draftDirty);
-  draftDirtyRef.current = draftDirty;
+  const [submitting, setSubmitting] = useState(false);
+  const capturePageRef = useRef<(focusExpenseId?: string) => void>(() => {});
+  const navigation = useWorkspaceNavigation({
+    dirty: draftDirty,
+    busy: submitting,
+    capturePage: () => capturePageRef.current(),
+    discardMessage: messages.unsavedChangesWillBeLostDiscardTheDraft,
+  });
+  const { location, navigate, workspaceEntryKey } = navigation;
   const authBlockedFor = useRef<string | null>(null);
   const [recordedEditing, setRecordedEditing] = useState(false);
   const [queuedEditing, setQueuedEditing] = useState(false);
-  const [overviewExpenseId, setOverviewExpenseId] = useState<string | null>(
-    null,
-  );
   const [filtersByTrip, setFiltersByTrip] = useState<
     Record<string, ExpenseFilters>
   >({});
@@ -121,7 +115,8 @@ export function AuthenticatedWorkspace({
   const selectedTripId = allTrips.some((trip) => trip.id === location.tripId)
     ? location.tripId
     : fallbackId;
-  const pageKey = `${selectedTripId ?? "none"}:${location.mode ?? location.view}`;
+  const pageKey = `${selectedTripId ?? "none"}:${location.mode ?? location.view}:${location.expenseId ?? ""}`;
+  const restoring = useRef(false);
   const selectedQuery = useQuery({
     enabled: !!selectedTripId,
     initialData:
@@ -135,43 +130,85 @@ export function AuthenticatedWorkspace({
     refetchOnWindowFocus: false,
   });
 
-  const navigate = useCallback(
-    (next: Partial<WorkspaceLocation>, replace = false) => {
-      scrollPositions.current.set(pageKey, window.scrollY);
-      const merged: WorkspaceLocation = { ...location, ...next };
-      const target = writeWorkspaceLocation(
-        new URL(window.location.href),
-        merged,
-      );
-      window.history[replace ? "replaceState" : "pushState"]({}, "", target);
-      setOverviewExpenseId(null);
-      setLocation(merged);
-    },
-    [location, pageKey],
-  );
-
+  const editorLoadKey =
+    location.mode === "edit-expense"
+      ? `${workspaceEntryKey}:${navigation.workspaceActivation}:${location.tripId}:${location.expenseId}`
+      : null;
+  const [checkedEditor, setCheckedEditor] = useState<string | null>(null);
   useEffect(() => {
-    const pop = () => {
-      const nextLocation = readWorkspaceLocation(new URL(window.location.href));
-      if (isSameWorkspaceLocation(location, nextLocation)) return;
-      if (
-        draftDirty &&
-        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
-      ) {
-        window.history.forward();
-        return;
-      }
-      scrollPositions.current.set(pageKey, window.scrollY);
-      setDraftDirty(false);
-      setOverviewExpenseId(null);
-      setLocation(nextLocation);
+    if (!editorLoadKey || selectedTripId !== location.tripId) return;
+    if (offline) {
+      setCheckedEditor(editorLoadKey);
+      return;
+    }
+    let active = true;
+    void queryClient
+      .fetchQuery({
+        queryKey: guestShare
+          ? ["trip", selectedTripId, "share"]
+          : ["trip", selectedTripId],
+        queryFn: ({ signal }) =>
+          api<TripPayload>(`/api/trips/${selectedTripId}`, { signal }),
+        staleTime: 0,
+      })
+      .then(() => {
+        if (active) setCheckedEditor(editorLoadKey);
+      })
+      .catch(() => {
+        /* The trip query renders its error and retry controls. */
+      });
+    return () => {
+      active = false;
     };
-    window.addEventListener("popstate", pop);
-    return () => window.removeEventListener("popstate", pop);
-  }, [draftDirty, location, messages, pageKey]);
+  }, [
+    editorLoadKey,
+    selectedTripId,
+    location.tripId,
+    offline,
+    queryClient,
+    guestShare,
+  ]);
+
+  capturePageRef.current = (focusExpenseId) => {
+    if (
+      restoring.current ||
+      document.querySelector("#workspace-content")?.closest("[hidden]")
+    )
+      return;
+    scrollPositions.current.set(pageKey, window.scrollY);
+    const previous = getHistorySnapshot().entry.page;
+    saveHistoryPage({
+      pageKey,
+      scrollY: window.scrollY,
+      ...(!location.mode && location.view === "expenses" && selectedTripId
+        ? {
+            list: {
+              tripId: selectedTripId,
+              filters: filtersByTrip[selectedTripId] ?? {
+                ...defaultExpenseFilters,
+              },
+              grouping: groupingByTrip[selectedTripId] ?? "date",
+              focusExpenseId: focusExpenseId ?? previous?.list?.focusExpenseId,
+            },
+          }
+        : {}),
+    });
+  };
+  useEffect(() => {
+    const capture = () => capturePageRef.current();
+    window.addEventListener("scroll", capture, { passive: true });
+    return () => window.removeEventListener("scroll", capture);
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Persist UI changes using the latest capture callback, not every render.
+  useEffect(() => {
+    capturePageRef.current();
+  }, [filtersByTrip, groupingByTrip]);
 
   useEffect(() => {
-    if (selectedTripId !== location.tripId) {
+    if (
+      selectedTripId !== location.tripId &&
+      location.mode !== "edit-expense"
+    ) {
       navigate(
         {
           mode: null,
@@ -181,7 +218,14 @@ export function AuthenticatedWorkspace({
         true,
       );
     }
-  }, [guestShare, location.tripId, location.view, navigate, selectedTripId]);
+  }, [
+    guestShare,
+    location.mode,
+    location.tripId,
+    location.view,
+    navigate,
+    selectedTripId,
+  ]);
 
   const refreshCollection = useCallback(async () => {
     if (!guestShare) await collectionQuery.refetch();
@@ -217,15 +261,71 @@ export function AuthenticatedWorkspace({
     };
   }, []);
 
-  useEffect(() => {
+  const editorLoaded = !editorLoadKey || checkedEditor === editorLoadKey;
+  const ready =
+    !!selectedQuery.data && !selectedQuery.isPending && editorLoaded;
+  useLayoutEffect(() => {
+    if (!ready) return;
+    restoring.current = true;
+    const entry = getHistorySnapshot();
+    const page =
+      entry.entry.key === workspaceEntryKey ? entry.entry.page : undefined;
+    const saved = page?.pageKey === pageKey ? page : undefined;
+    if (saved?.list) {
+      const list = saved.list;
+      setFiltersByTrip((current) => ({
+        ...current,
+        [list.tripId]: list.filters,
+      }));
+      setGroupingByTrip((current) => ({
+        ...current,
+        [list.tripId]: list.grouping,
+      }));
+    }
+    let interacted = false;
+    const markInteraction = () => {
+      interacted = true;
+    };
+    document.addEventListener("pointerdown", markInteraction, true);
+    document.addEventListener("keydown", markInteraction, true);
+    document.addEventListener("wheel", markInteraction, { passive: true });
     const frame = requestAnimationFrame(() => {
-      window.scrollTo({
-        behavior: "instant",
-        top: scrollPositions.current.get(pageKey) ?? 0,
-      });
+      if (!interacted) {
+        if (!location.mode && location.view === "expenses") {
+          const id = saved?.list?.focusExpenseId;
+          const target = id
+            ? Array.from(
+                document.querySelectorAll<HTMLButtonElement>(
+                  "[data-expense-id] button",
+                ),
+              ).find(
+                (button) =>
+                  button.closest<HTMLElement>("[data-expense-id]")?.dataset
+                    .expenseId === id && button.getClientRects().length > 0,
+              )
+            : undefined;
+          (target ?? document.getElementById("expenses-heading"))?.focus({
+            preventScroll: true,
+          });
+        }
+        window.scrollTo({
+          behavior: "instant",
+          top: saved?.scrollY ?? scrollPositions.current.get(pageKey) ?? 0,
+        });
+      }
+      restoring.current = false;
+      document.removeEventListener("pointerdown", markInteraction, true);
+      document.removeEventListener("keydown", markInteraction, true);
+      document.removeEventListener("wheel", markInteraction);
     });
-    return () => cancelAnimationFrame(frame);
-  }, [pageKey]);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("pointerdown", markInteraction, true);
+      document.removeEventListener("keydown", markInteraction, true);
+      document.removeEventListener("wheel", markInteraction);
+      restoring.current = false;
+    };
+  }, [workspaceEntryKey, pageKey, ready, location.mode, location.view]);
 
   async function selectTrip(tripId: string) {
     if (tripId === selectedTripId) return;
@@ -236,13 +336,7 @@ export function AuthenticatedWorkspace({
         queryFn: () => api<TripPayload>(`/api/trips/${tripId}`),
         queryKey: ["trip", tripId],
       });
-      // Check after the fetch too: the editor can become dirty while the
-      // destination is loading. Both sidebar and mobile switches use this.
-      if (
-        draftDirtyRef.current &&
-        !window.confirm(messages.unsavedChangesWillBeLostDiscardTheDraft)
-      )
-        return;
+      // navigate checks the current dirty/busy state after this fetch.
       navigate({ mode: null, tripId, view: "overview" });
     } catch (error) {
       setSwitchError(
@@ -275,8 +369,43 @@ export function AuthenticatedWorkspace({
             ? selectedQuery.error.message
             : messages.loadingFailed}
         </p>
-        <Button onClick={() => void selectedQuery.refetch()}>
+        <Button
+          onClick={() =>
+            void selectedQuery.refetch().then((result) => {
+              if (result.isSuccess && editorLoadKey)
+                setCheckedEditor(editorLoadKey);
+            })
+          }
+        >
           {messages.reload}
+        </Button>
+        {location.mode === "edit-expense" ? (
+          <Button
+            type="button"
+            onClick={() =>
+              navigate({ mode: null, view: "expenses", tripId: null }, true)
+            }
+          >
+            {messages.backToExpenseList}
+          </Button>
+        ) : null}
+      </section>
+    );
+  }
+  if (
+    (!selectedTripId || !selectedQuery.data) &&
+    location.mode === "edit-expense"
+  ) {
+    return (
+      <section className="surface empty-state">
+        <h2>{messages.expenseEditorUnavailable}</h2>
+        <Button
+          type="button"
+          onClick={() =>
+            navigate({ mode: null, view: "expenses", tripId: null }, true)
+          }
+        >
+          {messages.backToExpenseList}
         </Button>
       </section>
     );
@@ -313,6 +442,20 @@ export function AuthenticatedWorkspace({
       tripQueryKey={guestShare ? ["trip", selectedTripId, "share"] : undefined}
       userId={guestShare ? undefined : bootstrap.user?.id}
     >
+      <ConfirmDialog
+        open={navigation.pending}
+        onOpenChange={(open) => {
+          if (!open) navigation.cancelPending();
+        }}
+        onConfirm={navigation.confirmPending}
+        onCloseAutoFocus={(event) => {
+          if (!navigation.pending) event.preventDefault();
+        }}
+        title={messages.discardThisDraft}
+        description={messages.unsavedChangesWillBeLost}
+        confirmLabel={messages.discardDraft}
+        destructive
+      />
       {webMcpEnabled ? <WebMcpTools tripId={payload.trip.id} /> : null}
       <div className="workspace-layout">
         <aside
@@ -428,11 +571,59 @@ export function AuthenticatedWorkspace({
               <ExpenseQueuePanel
                 key={selectedTripId}
                 onDirtyChange={setDraftDirty}
+                onBusyChange={setSubmitting}
                 onEditingChange={setQueuedEditing}
-                otherEditorActive={recordedEditing}
+                otherEditorActive={
+                  recordedEditing || location.mode === "edit-expense"
+                }
               />
             ) : null}
-            {location.mode === "add-expense" && !archived ? (
+            {location.mode === "edit-expense" ? (
+              !editorLoaded && selectedTripId === location.tripId ? (
+                <section className="surface empty-state" aria-busy="true">
+                  <h2>{messages.loadingGroup}</h2>
+                </section>
+              ) : selectedTripId === location.tripId &&
+                !archived &&
+                !payload.readonly &&
+                payload.trip.expenses.some(
+                  (expense) => expense.id === location.expenseId,
+                ) ? (
+                <ExpenseComposer
+                  key={`${workspaceEntryKey}:${location.expenseId}`}
+                  expense={payload.trip.expenses.find(
+                    (expense) => expense.id === location.expenseId,
+                  )}
+                  onCancel={() => navigation.exitEditor()}
+                  onSaved={() => navigation.exitEditor(true)}
+                  onDirtyChange={setDraftDirty}
+                  onBusyChange={setSubmitting}
+                  trip={payload.trip}
+                />
+              ) : (
+                <section className="surface empty-state">
+                  <h2>{messages.expenseEditorUnavailable}</h2>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (selectedTripId === location.tripId)
+                        navigation.exitEditor();
+                      else
+                        navigate(
+                          {
+                            mode: null,
+                            tripId: selectedTripId,
+                            view: "expenses",
+                          },
+                          true,
+                        );
+                    }}
+                  >
+                    {messages.backToExpenseList}
+                  </Button>
+                </section>
+              )
+            ) : location.mode === "add-expense" && !archived ? (
               needsPeople ? (
                 <section className="surface empty-state">
                   <h2>{messages.addTravelCompanionsFirst}</h2>
@@ -447,9 +638,11 @@ export function AuthenticatedWorkspace({
                 </section>
               ) : (
                 <ExpenseComposer
-                  onCancel={() => navigate({ mode: null })}
+                  key={`add-expense:${workspaceEntryKey}`}
+                  onCancel={() => navigate({ mode: null }, false, true)}
                   onDirtyChange={setDraftDirty}
-                  onSaved={() => go("expenses")}
+                  onBusyChange={setSubmitting}
+                  onSaved={() => navigation.exitEditor(true)}
                   trip={payload.trip}
                 />
               )
@@ -461,8 +654,11 @@ export function AuthenticatedWorkspace({
                     queuedEditing
                       ? undefined
                       : (expense) => {
-                          navigate({ mode: null, view: "expenses" });
-                          setOverviewExpenseId(expense.id);
+                          navigate({
+                            mode: "edit-expense",
+                            expenseId: expense.id,
+                            view: "expenses",
+                          });
                         }
                   }
                   onPeople={() => go("people")}
@@ -481,17 +677,22 @@ export function AuthenticatedWorkspace({
                     }
                   }
                   grouping={groupingByTrip[payload.trip.id] ?? "date"}
-                  initialEditingExpenseId={overviewExpenseId}
+                  onEditExpense={(expense) => {
+                    capturePageRef.current(expense.id);
+                    navigate({
+                      mode: "edit-expense",
+                      expenseId: expense.id,
+                      view: "expenses",
+                    });
+                  }}
                   onAddExpense={() =>
                     needsPeople
                       ? go("people")
                       : navigate({ mode: "add-expense" })
                   }
                   onDirtyChange={setDraftDirty}
-                  onEditingChange={(editing) => {
-                    setRecordedEditing(editing);
-                    if (editing) setOverviewExpenseId(null);
-                  }}
+                  onBusyChange={setSubmitting}
+                  onEditingChange={setRecordedEditing}
                   onFiltersChange={(filters) =>
                     setFiltersByTrip((current) => ({
                       ...current,

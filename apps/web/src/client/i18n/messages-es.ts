@@ -27,6 +27,9 @@ export const es = {
   profileLabel: "Perfil",
   securityLabel: "Seguridad",
   backToGroups: "Volver a los grupos",
+  backToExpenseList: "Volver a la lista de gastos",
+  expenseEditorUnavailable:
+    "No se puede editar este gasto. Puede que no exista o que el grupo sea de solo lectura o esté archivado.",
   createdLabel: "Creado",
   statusLabel: "Estado",
   peopleDeletionHelp:

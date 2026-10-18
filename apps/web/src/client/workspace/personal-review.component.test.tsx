@@ -12,7 +12,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { defaultExpenseFilters } from "../client-support.js";
 import { TestI18nProvider as I18nProvider } from "../test-providers.js";
 import { ExpenseComposer } from "./expense-composer.js";
-import { ExpensesPage } from "./expenses-page.js";
+import { ExpensesPageTestHarness as ExpensesPage } from "./expenses-page-test-harness.js";
 import { MemberAccounts } from "./member-accounts.js";
 import { readPreferences } from "./personal-preferences.js";
 import { usePersonalPreferences } from "./use-personal-preferences.js";

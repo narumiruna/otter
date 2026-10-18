@@ -9,7 +9,8 @@ import { defaultExpenseFilters, todayDate } from "../client-support.js";
 import { translations } from "../i18n/messages.js";
 import type { Locale } from "../i18n.js";
 import { TestI18nProvider } from "../test-providers.js";
-import { type ExpenseGrouping, ExpensesPage } from "./expenses-page.js";
+import type { ExpenseGrouping } from "./expenses-page.js";
+import { ExpensesPageTestHarness as ExpensesPage } from "./expenses-page-test-harness.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const expense: Expense = {

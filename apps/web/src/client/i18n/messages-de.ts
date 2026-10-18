@@ -29,6 +29,9 @@ export const de = {
   profileLabel: "Profil",
   securityLabel: "Sicherheit",
   backToGroups: "Zurück zu den Gruppen",
+  backToExpenseList: "Zurück zur Ausgabenliste",
+  expenseEditorUnavailable:
+    "Diese Ausgabe kann nicht bearbeitet werden. Sie ist möglicherweise nicht vorhanden, oder die Gruppe ist schreibgeschützt oder archiviert.",
   createdLabel: "Erstellt",
   statusLabel: "Status",
   peopleDeletionHelp:

@@ -6,6 +6,7 @@ import {
   type TripSummary,
   type User,
 } from "./client-support.js";
+import { writeHistoryLocation } from "./workspace-history.js";
 
 type TripCollection = {
   archivedTrips?: TripSummary[];
@@ -41,7 +42,7 @@ export async function fetchAppBootstrap(
       // A revoked invite must not strand an already authenticated visitor.
       const me = await api<{ user: User | null }>("/api/me");
       if (!me.user) throw error;
-      window.history.replaceState({}, "", "/");
+      writeHistoryLocation("/", { replace: true });
       return fetchAppBootstrap("/");
     }
     if ("mode" in share && share.mode === "signed-in-edit") {
@@ -58,11 +59,11 @@ export async function fetchAppBootstrap(
         } catch (error) {
           if (!(error instanceof ApiResponseError) || error.status !== 404)
             throw error;
-          window.history.replaceState({}, "", "/");
+          writeHistoryLocation("/", { replace: true });
           return fetchAppBootstrap("/");
         }
         const destination = `/?trip=${encodeURIComponent(joined.tripId)}`;
-        window.history.replaceState({}, "", destination);
+        writeHistoryLocation(destination, { replace: true });
         return fetchAppBootstrap(
           "/",
           `?trip=${encodeURIComponent(joined.tripId)}`,

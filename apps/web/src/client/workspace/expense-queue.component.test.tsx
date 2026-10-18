@@ -174,6 +174,64 @@ test("switching queued editors cannot discard dirty changes without confirmation
   client.clear();
 });
 
+test("another editor closes the queued form and does not reopen it after traversal", async () => {
+  const trip = { ...payload.trip, id: "offline-other-editor" };
+  await queueExpense("u", trip.id, {
+    amount: "100",
+    currency: "TWD",
+    description: "Retained queue item",
+    expenseDate: "2026-09-26",
+    paidById: "a",
+    participantIds: ["a", "b"],
+    category: "其他",
+    tags: "",
+    splitMode: "equal",
+    splitValues: {},
+  });
+  const editing = vi.fn();
+  const dirty = vi.fn();
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  const page = (blocked: boolean) => (
+    <QueryClientProvider client={client}>
+      <WorkspaceProvider
+        announce={() => undefined}
+        offline
+        payload={{ ...payload, trip }}
+        userId="u"
+        refreshCollection={async () => undefined}
+      >
+        <ExpenseQueuePanel
+          otherEditorActive={blocked}
+          onEditingChange={editing}
+          onDirtyChange={dirty}
+        />
+      </WorkspaceProvider>
+    </QueryClientProvider>
+  );
+  const view = render(page(false));
+  try {
+    await user.click(await view.findByRole("button", { name: "修改草稿" }));
+    expect(await view.findByLabelText("描述")).toHaveValue(
+      "Retained queue item",
+    );
+    view.rerender(page(true));
+    expect(view.queryByLabelText("描述")).toBeNull();
+    await waitFor(() => expect(editing).toHaveBeenLastCalledWith(false));
+    expect(dirty).toHaveBeenLastCalledWith(false);
+    view.rerender(page(false));
+    expect(view.queryByLabelText("描述")).toBeNull();
+    await user.click(view.getByRole("button", { name: "修改草稿" }));
+    expect(await view.findByLabelText("描述")).toHaveValue(
+      "Retained queue item",
+    );
+    expect(await listExpenses("u", trip.id)).toHaveLength(1);
+  } finally {
+    view.unmount();
+    client.clear();
+  }
+});
+
 test("cross-tab deletion closes a missing editor and clears workspace editing state", async () => {
   const trip = { ...payload.trip, id: "offline-deleted-editor" };
   const item = await queueExpense("u", trip.id, {

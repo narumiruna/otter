@@ -10,6 +10,9 @@ import { plSettings } from "./messages-pl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const pl = {
+  backToExpenseList: "Wróć do listy wydatków",
+  expenseEditorUnavailable:
+    "Nie można edytować tego wydatku. Może nie istnieć albo grupa jest tylko do odczytu lub zarchiwizowana.",
   ...plAccount,
   ...plExpenses,
   ...plSettings,

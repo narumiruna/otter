@@ -304,10 +304,11 @@ test("keeps tools unregistered after logout when bootstrap fails", async () => {
   await user.click(view.getByRole("button", { name: /Alice.*account menu/i }));
   await user.click(await view.findByRole("menuitem", { name: "Sign out" }));
   await view.findByText("Signed out");
-  // The old signed-in bootstrap is still rendered as a fallback after the 503.
+  // A confirmed logout must not render the old authenticated fallback after a 503.
   expect(
-    view.getByRole("button", { name: /Alice.*account menu/i }),
-  ).toBeVisible();
+    view.queryByRole("button", { name: /Alice.*account menu/i }),
+  ).toBeNull();
+  expect(view.getByRole("button", { name: "Sign in" })).toBeVisible();
   expect(registrations).toHaveLength(2);
   expect(registrations.every(({ signal }) => signal.aborted)).toBe(true);
   await expect(registrations[0].tool.execute()).rejects.toThrow(

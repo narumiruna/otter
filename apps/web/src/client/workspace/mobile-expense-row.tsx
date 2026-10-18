@@ -34,7 +34,7 @@ export function MobileExpenseRow({
       ? messages.countPeople({ count: expense.participantIds.length })
       : namesLabel;
   return (
-    <li className="expense-mobile-row">
+    <li className="expense-mobile-row" data-expense-id={expense.id}>
       <div className="expense-mobile-primary">
         {readonly ? (
           trip.archivedAt && workspace && !workspace.payload.readonly ? (

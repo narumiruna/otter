@@ -253,6 +253,10 @@ test("two members resolve an expense conflict without losing a draft; history is
       ).status(),
     ).toBe(200);
     await ownerPage.reload();
+    // Reload keeps the editor deep link, even after another actor deletes it.
+    await ownerPage
+      .getByRole("button", { name: "返回支出列表", exact: true })
+      .click();
     await ownerPage
       .getByRole("button", { name: "修改紀錄", exact: true })
       .click();

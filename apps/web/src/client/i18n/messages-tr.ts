@@ -125,6 +125,9 @@ export const tr = {
   profileLabel: "Profil",
   securityLabel: "Güvenlik",
   backToGroups: "Gruplara dön",
+  backToExpenseList: "Gider listesine dön",
+  expenseEditorUnavailable:
+    "Bu gider düzenlenemiyor. Gider mevcut olmayabilir veya grup salt okunur ya da arşivlenmiş olabilir.",
   createdLabel: "Oluşturuldu",
   statusLabel: "Durum",
   peopleDeletionHelp:

@@ -16,7 +16,7 @@ import { DeleteExpenseAction } from "./expense-actions.js";
 import { ExpenseComposer } from "./expense-composer.js";
 import { ExpenseHistoryDialog } from "./expense-history-dialog.js";
 import { ExpenseSnapshotDetails } from "./expense-snapshot-details.js";
-import { ExpensesPage } from "./expenses-page.js";
+import { ExpensesPageTestHarness as ExpensesPage } from "./expenses-page-test-harness.js";
 import { WorkspaceProvider } from "./workspace-context.js";
 
 const expense: Expense = {
