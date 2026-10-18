@@ -1,5 +1,11 @@
 # @narumitw/otter-core
 
+## 0.3.1
+
+### Patch Changes
+
+- 61b8ca6: Restore release tag publishing and release all workspace packages with a patch version.
+
 ## 0.3.0
 
 ### Minor Changes

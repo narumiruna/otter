@@ -1,6 +1,6 @@
 {
   "name": "@narumitw/otter-contracts",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,7 +23,7 @@
     "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@narumitw/otter-core": "0.3.0"
+    "@narumitw/otter-core": "0.3.1"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
