@@ -5,6 +5,7 @@ import config from "./playwright.config.js";
 export default defineConfig({
   ...config,
   testMatch: [
+    "account-menu.spec.ts",
     "auth-layout.spec.ts",
     "responsive-interface.spec.ts",
     "expense-footer.spec.ts",

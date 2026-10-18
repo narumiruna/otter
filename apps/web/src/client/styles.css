@@ -153,6 +153,7 @@ select:disabled {
 .account-menu-identity {
   display: grid;
   gap: 0.15rem;
+  color: var(--foreground);
   padding-block: 0.45rem;
   line-height: 1.2;
 }
@@ -168,19 +169,71 @@ select:disabled {
   font-size: 0.75rem;
   font-weight: 450;
 }
+.account-menu-language {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+}
 .account-menu-language-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  white-space: normal;
+}
+.account-menu-language-current {
+  max-width: 100%;
+  justify-self: end;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu-language[data-highlighted]
+  :is(.account-menu-language-label, .account-menu-language-current) {
+  color: var(--accent-contrast);
 }
 .account-menu-content .rt-BaseMenuItem {
   min-height: 44px;
+}
+.account-menu-content
+  .rt-BaseMenuItem[data-accent-color="red"][data-highlighted] {
+  background-color: var(--red-11);
+  color: var(--red-1);
 }
 .account-menu-check {
   display: inline-grid;
   width: 1rem;
   flex: 0 0 auto;
   place-items: center;
+}
+.radix-dialog-content.account-language-dialog {
+  width: min(24rem, calc(100% - 2rem));
+  height: min(36rem, calc(100dvh - 2rem));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+.account-language-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 0.5rem;
+  padding: 0.5rem;
+}
+.otter-button.account-language-option {
+  height: auto;
+  min-height: 44px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.otter-button.account-language-option[aria-pressed="true"] {
+  background: var(--accent-3);
+  color: var(--accent-12);
+  font-weight: 650;
 }
 .status-toast {
   position: fixed;

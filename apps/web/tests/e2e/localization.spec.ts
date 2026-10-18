@@ -12,7 +12,7 @@ const addedLanguages = languageOptions.filter(
   ({ locale }) => !["zh-TW", "en", "ja", "ko"].includes(locale),
 );
 
-for (const { locale } of addedLanguages) {
+for (const { locale, label } of addedLanguages) {
   test.describe(locale, () => {
     test.use({ locale, reducedMotion: "reduce" });
     const messages = translations[locale];
@@ -158,17 +158,24 @@ for (const { locale } of addedLanguages) {
         await accessible(page);
       }
       await page.setViewportSize({ width: 375, height: 700 });
-      await page
-        .getByRole("button", {
-          name: messages.nameSAccountMenu({ name: "Alex" }),
-          exact: true,
-        })
-        .click();
-      await expect(page.getByRole("menuitem")).toHaveCount(20);
-      for (const { label } of languageOptions)
-        await expect(
-          page.getByRole("menuitem", { name: label, exact: true }),
-        ).toHaveCount(1);
+      const accountTrigger = page.getByRole("button", {
+        name: messages.nameSAccountMenu({ name: "Alex" }),
+        exact: true,
+      });
+      await accountTrigger.click();
+      const menu = page.getByRole("menu", {
+        name: messages.nameSAccountMenu({ name: "Alex" }),
+        exact: true,
+      });
+      await expect(menu.getByRole("menuitem")).toHaveCount(3);
+      const languageEntry = menu.getByRole("menuitem", {
+        name: `${messages.language} ${label}`,
+        exact: true,
+      });
+      await expect(languageEntry).toBeVisible();
+      await expect(
+        menu.getByRole("menuitem", { name: messages.signOut, exact: true }),
+      ).toBeInViewport({ ratio: 1 });
       await page.keyboard.press("End");
       await expect(
         page.getByRole("menuitem", { name: messages.signOut, exact: true }),
@@ -177,13 +184,40 @@ for (const { locale } of addedLanguages) {
         page.getByRole("menuitem", { name: messages.signOut, exact: true }),
       ).toBeInViewport();
       await page.keyboard.press("ArrowUp");
-      await expect(
-        page.getByRole("menuitem", { name: "Nederlands", exact: true }),
-      ).toBeFocused();
-      await expect(
-        page.getByRole("menuitem", { name: "Nederlands", exact: true }),
-      ).toBeInViewport();
+      await expect(languageEntry).toBeFocused();
+      await page.keyboard.press("Enter");
+      const languageDialog = page.getByRole("dialog", {
+        name: messages.language,
+        exact: true,
+      });
+      await expect(languageDialog).toBeVisible();
+      await expect(menu).toHaveCount(0);
+      for (const { locale: option, label: nativeLabel } of languageOptions) {
+        const button = languageDialog.getByRole("button", {
+          name: nativeLabel,
+          exact: true,
+        });
+        await expect(button).toHaveAttribute("lang", option);
+        await expect(button).toHaveAttribute(
+          "aria-pressed",
+          String(option === locale),
+        );
+      }
+      const currentLanguage = languageDialog.getByRole("button", {
+        name: label,
+        exact: true,
+      });
+      await expect(currentLanguage).toBeFocused();
+      await expect(currentLanguage).toBeInViewport({ ratio: 1 });
       await expectNoOverflow(page);
+      await accessible(page);
+      await languageDialog
+        .getByRole("button", { name: messages.cancel, exact: true })
+        .click();
+      await expect(languageDialog).toHaveCount(0);
+      await expect(accountTrigger).toBeFocused();
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await page.keyboard.press("ArrowDown");
       await page.keyboard.press("Home");
       await expect(
         page.getByRole("menuitem", {
