@@ -5,7 +5,6 @@ import {
   type Trip,
 } from "@narumitw/otter-core/settlement";
 import { expect, test } from "@playwright/test";
-import { languageOptions } from "../../src/client/i18n/locales.js";
 import {
   accessible,
   exampleTrip,
@@ -256,13 +255,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(accountMenu).toBeVisible();
     const accountMenuBounds = await accountMenu.boundingBox();
     expect(accountMenuBounds?.width).toBeCloseTo(280, 0);
-    // Keep all language choices in a compact, scrollable account menu.
-    expect(accountMenuBounds?.height).toBeLessThanOrEqual(400);
-    for (const { label } of languageOptions) {
-      await expect(
-        accountMenu.getByRole("menuitem", { name: label, exact: true }),
-      ).toBeVisible();
-    }
+    // Keep language choices in a separate dialog so sign out stays visible.
+    await expect(accountMenu.getByRole("menuitem")).toHaveCount(3);
+    await expect(
+      accountMenu.getByRole("menuitem", { name: "語言 正體中文", exact: true }),
+    ).toBeVisible();
+    await expect(
+      accountMenu.getByRole("menuitem", { name: "登出", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
     expect(
       (accountMenuBounds?.y ?? 0) + (accountMenuBounds?.height ?? 0),
     ).toBeLessThanOrEqual(900);

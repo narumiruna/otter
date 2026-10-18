@@ -1,15 +1,19 @@
 // @vitest-environment jsdom
 
 import { Theme } from "@radix-ui/themes";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { AccountMenu } from "./account-menu.js";
 import { languageOptions } from "./i18n/locales.js";
 import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
 const account = { id: "user-1", name: "Alice", username: "alice" };
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 function renderMenu({
   accountSettingsActive = false,
@@ -58,7 +62,11 @@ test("opens one account menu trigger with identity and account actions", async (
     await screen.findByRole("menu", { name: "Alice 的帳號選單" }),
   ).toBeVisible();
   expect(screen.getByText("@alice")).toBeVisible();
-  expect(screen.getByText("語言")).toBeVisible();
+  expect(
+    screen.getByRole("menuitem", { name: "語言 正體中文" }),
+  ).toHaveAttribute("aria-haspopup", "dialog");
+  expect(screen.getAllByRole("menuitem")).toHaveLength(3);
+  expect(screen.queryByRole("menuitem", { name: "English" })).toBeNull();
   expect(screen.getByRole("menuitem", { name: "登出" })).toBeVisible();
 
   await user.click(screen.getByRole("menuitem", { name: "帳號設定" }));
@@ -87,7 +95,11 @@ test("changes language and signs out from the account menu", async () => {
   renderMenu({ onSignOut });
 
   await user.click(screen.getByRole("button", { name: "Alice 的帳號選單" }));
-  await user.click(screen.getByRole("menuitem", { name: "English" }));
+  await user.click(screen.getByRole("menuitem", { name: "語言 正體中文" }));
+  const dialog = await screen.findByRole("dialog", { name: "語言" });
+  expect(screen.queryByRole("menu")).toBeNull();
+  await user.click(within(dialog).getByRole("button", { name: "English" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
   expect(
     screen.getByRole("button", { name: "Alice's account menu" }),
@@ -101,42 +113,66 @@ test("changes language and signs out from the account menu", async () => {
 });
 
 test.each(languageOptions)(
-  "selects $locale from the account menu and marks the selected language",
+  "selects $locale in the language dialog and marks the current language",
   async ({ locale, label }) => {
     const user = userEvent.setup();
     renderMenu();
     await user.click(screen.getByRole("button", { name: "Alice 的帳號選單" }));
+    await user.click(screen.getByRole("menuitem", { name: "語言 正體中文" }));
+    const dialog = await screen.findByRole("dialog", { name: "語言" });
     for (const option of languageOptions) {
       expect(
-        screen.getByRole("menuitem", { name: option.label }),
+        within(dialog).getByRole("button", { name: option.label }),
       ).toHaveAttribute("lang", option.locale);
     }
-    await user.click(screen.getByRole("menuitem", { name: label }));
+    const selected = within(dialog).getByRole("button", { name: "正體中文" });
+    expect(selected).toHaveFocus();
+    expect(selected.scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    await user.click(within(dialog).getByRole("button", { name: label }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.documentElement.lang).toBe(locale);
-    await user.click(
-      screen.getByRole("button", {
-        name: translations[locale].nameSAccountMenu({ name: "Alice" }),
-      }),
-    );
-    expect(screen.getByRole("menuitem", { name: label })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
-    for (const option of languageOptions) {
-      if (option.locale !== locale) {
-        expect(
-          screen.getByRole("menuitem", { name: option.label }),
-        ).not.toHaveAttribute("aria-current");
-      }
-    }
-    expect(
-      screen.getByRole("menuitem", {
-        name: translations[locale].accountSettings,
-      }),
-    ).toBeVisible();
+    const trigger = screen.getByRole("button", {
+      name: translations[locale].nameSAccountMenu({ name: "Alice" }),
+    });
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    expect(screen.getAllByRole("menuitem")).toHaveLength(3);
     expect(
       screen.getByRole("menuitem", { name: translations[locale].signOut }),
     ).toBeVisible();
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: `${translations[locale].language} ${label}`,
+      }),
+    );
+    const reopened = await screen.findByRole("dialog", {
+      name: translations[locale].language,
+    });
+    for (const option of languageOptions) {
+      expect(
+        within(reopened).getByRole("button", { name: option.label }),
+      ).toHaveAttribute("aria-pressed", String(option.locale === locale));
+    }
+    expect(within(reopened).getByRole("button", { name: label })).toHaveFocus();
+  },
+);
+
+test.each(["Escape", "取消", "關閉"])(
+  "%s dismisses the language dialog without changing the language",
+  async (action) => {
+    const user = userEvent.setup();
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "Alice 的帳號選單" });
+    await user.click(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "語言 正體中文" }));
+    const dialog = await screen.findByRole("dialog", { name: "語言" });
+    if (action === "Escape") await user.keyboard("{Escape}");
+    else await user.click(within(dialog).getByRole("button", { name: action }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.documentElement.lang).toBe("zh-TW");
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    expect(screen.getByRole("menuitem", { name: "登出" })).toBeVisible();
   },
 );
 
