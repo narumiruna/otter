@@ -5,6 +5,7 @@ import {
   type Trip,
 } from "@narumitw/otter-core/settlement";
 import { expect, test } from "@playwright/test";
+import { languageOptions } from "../../src/client/i18n/locales.js";
 import {
   accessible,
   exampleTrip,
@@ -255,11 +256,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(accountMenu).toBeVisible();
     const accountMenuBounds = await accountMenu.boundingBox();
     expect(accountMenuBounds?.width).toBeCloseTo(280, 0);
-    // Four language choices add two rows to the account menu.
+    // Keep all language choices in a compact, scrollable account menu.
     expect(accountMenuBounds?.height).toBeLessThanOrEqual(400);
-    for (const language of ["正體中文", "English", "日本語", "한국어"]) {
+    for (const { label } of languageOptions) {
       await expect(
-        accountMenu.getByRole("menuitem", { name: language, exact: true }),
+        accountMenu.getByRole("menuitem", { name: label, exact: true }),
       ).toBeVisible();
     }
     expect(

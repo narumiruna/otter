@@ -6,6 +6,7 @@ import {
 } from "@narumitw/otter-core/settlement";
 import { expect, type Page } from "@playwright/test";
 import type { TripPayload } from "../../src/client/client-support.js";
+import type { Locale } from "../../src/client/i18n/locales.js";
 
 export function exampleTrip(): Trip {
   const participants = [
@@ -96,7 +97,7 @@ export async function mockWorkspace(
   page: Page,
   trip = exampleTrip(),
   role: "owner" | "editor" = "owner",
-  locale: "en" | "zh-TW" = "en",
+  locale: Locale = "en",
 ) {
   const payload = (): TripPayload => ({
     trip,

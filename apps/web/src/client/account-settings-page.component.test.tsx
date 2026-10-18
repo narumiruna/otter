@@ -2,8 +2,9 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { AccountSettingsPage } from "./account-settings-page.js";
+import { languageOptions } from "./i18n/locales.js";
 import { translations } from "./i18n/messages.js";
 import { I18nProvider } from "./i18n.js";
 
@@ -25,6 +26,10 @@ vi.mock("./api-token-settings.js", () => ({
 }));
 
 const account = { id: "user-1", name: "Alice", username: "alice" };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 test("renders account settings as a page and submits a username change", async () => {
   const user = userEvent.setup();
@@ -118,21 +123,41 @@ test("blocks closing and username submission during a token mutation", async () 
   expect(save).toBeEnabled();
 });
 
-test.each(["en", "ja", "ko"] as const)(
-  "changes the language to %s from account settings",
-  async (locale) => {
+test.each(languageOptions)(
+  "changes the language to $locale without changing the username submission",
+  async ({ locale }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ passkeys: [] })),
+    );
     const user = userEvent.setup();
+    const onUpdate = vi.fn(async () => undefined);
     render(
       <I18nProvider initialLocale="zh-TW">
         <AccountSettingsPage
-          offline
+          offline={false}
           onClose={vi.fn()}
-          onUpdate={vi.fn()}
+          onUpdate={onUpdate}
           user={account}
         />
       </I18nProvider>,
     );
 
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 2, name: "帳號設定" }),
+      ).toHaveFocus(),
+    );
+    await user.clear(screen.getByRole("textbox", { name: "使用者名稱" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "使用者名稱" }),
+      "New_Alice",
+    );
+    for (const option of languageOptions) {
+      expect(
+        screen.getByRole("option", { name: option.label }),
+      ).toHaveAttribute("lang", option.locale);
+    }
     await user.selectOptions(
       screen.getByRole("combobox", { name: "語言" }),
       locale,
@@ -144,5 +169,16 @@ test.each(["en", "ja", "ko"] as const)(
         name: translations[locale].accountSettings,
       }),
     ).toBeVisible();
+    expect(document.documentElement.lang).toBe(locale);
+    expect(
+      screen.getByRole("combobox", { name: translations[locale].language }),
+    ).toHaveValue(locale);
+    expect(
+      screen.getByRole("textbox", { name: translations[locale].username }),
+    ).toHaveValue("New_Alice");
+    await user.click(
+      screen.getByRole("button", { name: translations[locale].save }),
+    );
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith("New_Alice");
   },
 );

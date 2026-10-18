@@ -54,6 +54,8 @@ npx playwright install chromium
 DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run test:e2e
 ```
 
+Use a new, isolated database for each full E2E run. Existing workflow tests add rows to development fixtures; a second run against the same database can fail on counts and duplicate descriptions. Do not reset a shared or production database for tests. If a local multi-worker run hits browser timing limits, rerun the complete suite with `npm run test:e2e -- --workers=1` and record both outcomes. Do not relax assertions or timeouts.
+
 查看 migration runner 選項：
 
 ```bash
@@ -61,6 +63,14 @@ npm run migrate -- --help
 ```
 
 `npm install` 或 `npm ci` 會透過 `prepare` 安裝 Husky。Pre-commit hook 執行 `npm run check`。
+
+## Browser localization
+
+`apps/web/src/client/i18n/locales.ts` is the single language registry. Each entry needs a complete typed catalog in `messages.ts`; derive tests from `languageOptions`. Use `CatalogShape<typeof zhTW>` and translate every composed source key, including feature modules. Do not spread another language into a catalog to hide missing keys. Preserve each interpolation parameter and message type. Use `pluralForm` with the catalog locale for grammatical count forms; keep all parameters in each branch.
+
+Run `npm test --workspace @narumitw/otter-web -- src/client/i18n/messages.test.ts`, `npm run test:components`, and `npm run test:e2e -- localization.spec.ts` after a catalog change. The catalog test also checks populated plural branches and rejects deliberately invalid catalogs. The browser suite checks native language labels, preference persistence, localized errors, keyboard access, reflow, and accessibility. Use a migrated test database and Chromium for the full browser command. The mocked localization suite can also run with `--config playwright.interface.config.ts` in the web workspace without PostgreSQL.
+
+Keep data and input formats unchanged when a user changes the language. Do not translate user-entered names, descriptions, CSV headers, or backup keys. Review financial directions and destructive actions with a fluent user before release. See [Browser localization](localization.md) for editorial choices and review status.
 
 ## WebMCP 唯讀試點
 

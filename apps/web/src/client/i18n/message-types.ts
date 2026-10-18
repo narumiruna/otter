@@ -13,6 +13,24 @@ export function interpolate(message: string, values: MessageValues): string {
   );
 }
 
+const pluralRules = new Map<string, Intl.PluralRules>();
+
+export function pluralForm(
+  locale: string,
+  value: number | string | undefined,
+  forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string },
+): string {
+  if (value === undefined || value === "") return forms.other;
+  const count = Number(value);
+  if (!Number.isFinite(count)) return forms.other;
+  let rules = pluralRules.get(locale);
+  if (!rules) {
+    rules = new Intl.PluralRules(locale);
+    pluralRules.set(locale, rules);
+  }
+  return forms[rules.select(count)] ?? forms.other;
+}
+
 export function pluralize(
   value: MessageValues[string],
   singular: string,
