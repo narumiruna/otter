@@ -13,8 +13,14 @@ import {
 } from "./release-tags.js";
 
 const directories: string[] = [];
+// Fixture commits and annotated tags must not depend on the host Git settings.
 const identity = {
   ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_NOSYSTEM: "1",
+  GIT_CONFIG_COUNT: "1",
+  GIT_CONFIG_KEY_0: "user.useConfigOnly",
+  GIT_CONFIG_VALUE_0: "true",
   GIT_AUTHOR_NAME: "Release test",
   GIT_AUTHOR_EMAIL: "release@example.test",
   GIT_COMMITTER_NAME: "Release test",
@@ -186,7 +192,7 @@ test("remote tag parsing prefers peeled commits in either line order", () => {
   ).toBe("bbbb");
 });
 
-test("CLI v3 structured tag events produce the legacy action's expected tag lines", async () => {
+test("CLI v3 structured tag events produce the legacy action's expected tag lines without a host Git identity", async () => {
   const { cwd, head } = await fixture();
   const expected = await prepareReleaseTags(cwd);
   const outputPath = join(cwd, "tag-report.jsonl");
@@ -197,7 +203,7 @@ test("CLI v3 structured tag events produce the legacy action's expected tag line
     {
       cwd,
       encoding: "utf8",
-      env: { ...process.env, CHANGESETS_OUTPUT: outputPath },
+      env: { ...identity, CHANGESETS_OUTPUT: outputPath },
     },
   );
   expect(stdout).not.toMatch(/New tag:/);
