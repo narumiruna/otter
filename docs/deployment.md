@@ -91,7 +91,7 @@ Passkey 會驗證 WebAuthn relying party 與瀏覽器 origin。Relying party ID 
 本功能以 PR 交付，尚未部署 production、發佈 npm package 或觸發 release workflow。交接由 repository maintainer `narumiruna` 負責；production 資料量、磁碟餘裕、維護窗口與外部 API client 清單仍須於切換前確認。
 
 1. 在 production 副本測量 migration、snapshot 查詢時間與所需空間，確認可接受的停止寫入窗口。單群組寫入會序列化；目前 snapshot 比對會讀取該群組所有支出，大群組須特別驗證延遲。
-2. 協調 `main` push 的自動 Deploy 與 Changesets Release workflows，確保舊 writer 已停止、DB 備份可還原，才允許 main 合併部署；不要讓一般自動部署跳過本次維護步驟。CLI 可用版本、Web reload 與 API 切換須排定順序。
+2. 協調 Web tag push 的自動 Deploy 與 `main` push 的 Changesets Release workflows，確保舊 writer 已停止、DB 備份可還原，才允許推送 Web tag 或手動部署；不要讓一般自動部署跳過本次維護步驟。CLI 可用版本、Web reload 與 API 切換須排定順序。
 3. 先停止所有連到同 DB 的舊 API／其他 writer，保留 PostgreSQL 運行，取得完整 DB backup。不可只用產品 JSON 備份代替，也不可讓新舊 server 混合寫入。
 4. 在停止寫入期間執行 `npm run migrate`，驗證 baseline 筆數與目前支出筆數相同、version 均為 1、分帳與收據未變。再啟動新版 API／Web，升級 CLI／外部 clients 並重新載入瀏覽器。
 5. 抽查 owner／editor 可讀、非成員與公開分享不可讀歷史；以同一 version 送兩次不同修改，第二次須為 412 且無副作用。確認成功後恢復一般寫入。
@@ -121,7 +121,11 @@ Migration 中途失敗由 runner transaction rollback。新版若已接受寫入
 
 ## GitHub Deploy workflow
 
-`.github/workflows/deploy.yml` 在每次 push 到 `main` 時部署，也支援手動觸發。Runner 與 repository 必須設定：
+`.github/workflows/deploy.yml` 只在 push 符合 `@narumitw/otter-web@*` 的 tag（例如 `@narumitw/otter-web@0.4.0`）時自動部署該 tag 指向的 commit，也支援手動觸發。Push 到 `main` 或其他 package 的 tag 不會觸發自動部署。
+
+GitHub 不會讓 `GITHUB_TOKEN` 建立的 tag push 觸發其他 workflows。目前 Changesets Release workflow 使用此 token，因此它建立的 Web tag 不會自動觸發 Deploy。若需透過 tag push 自動部署，須由使用者推送新 tag，或使用具備 repository contents 寫入權限的 GitHub App token／PAT 建立並推送新 tag；否則請手動觸發 Deploy 並選擇該 tag。
+
+Runner 與 repository 必須設定：
 
 - self-hosted runner；
 - `POSTGRES_PASSWORD` repository secret；
