@@ -37,7 +37,7 @@ docker compose up --detach --build --no-deps otter
 | `DATABASE_URL` | 使用外部 PostgreSQL；搭配 Compose 時使用上述 `--no-deps otter` command。未設定時，container 會由 `POSTGRES_PASSWORD` 組成 Compose database URL。 |
 | `ENCRYPTION_KEY` | Optional canonical base64-encoded 32-byte key for AI provider credential encryption. An absent or invalid key disables new AI connections, not the application. Keep the same key across restarts. See [AI settings](ai-settings.md). |
 | `POSTGRES_PASSWORD` | Compose PostgreSQL 密碼；正式環境必須明確設定。 |
-| `PASSKEY_ORIGIN` | WebAuthn origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。 |
+| `PASSKEY_ORIGIN` | WebAuthn 與 MCP 的可信任公開 origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。MCP 未設定此值時使用 API request URL 的 origin，不信任 forwarded headers。 |
 | `PASSKEY_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 Passkey request rate limiting 使用。預設 `false`。 |
 | `DEVICE_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 device authorization rate limiting 使用。預設 `false`。 |
 | `PASSWORD_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供密碼註冊及登入 rate limiting 使用。預設 `false`。 |
@@ -53,6 +53,10 @@ Apply `025_user_ai_settings.sql` and `026_user_ai_credentials.sql` before deploy
 Generate `ENCRYPTION_KEY` once, save it in protected durable storage, and supply the same base64-encoded 32-byte value at every deployment. Compose forwards this optional host variable. Do not generate a key during startup. There is no plaintext or temporary-key fallback. For the GitHub Deploy workflow, configure the optional `ENCRYPTION_KEY` repository secret; the workflow forwards it to Compose. An absent secret disables new connections but does not stop the application.
 
 Back up the key separately from PostgreSQL and test a restore with the matching key. Losing or replacing the key prevents decryption of existing credentials. Do not rotate it without a controlled re-encryption procedure or an explicit decision to remove connections and require login again. On rollback, retain the additive tables and durable key, stop new logins, and deploy the previous API/Web pair. Do not run old and new API instances together. Disconnect deletes Otter's copy but does not revoke the provider's token. No cookie format changes are required. Use HTTPS and preserve the public Host header through the reverse proxy; forwarded host headers are not trusted for AI mutations.
+
+## Streamable HTTP MCP
+
+API 新增 `/mcp`，供支援 Streamable HTTP 的 client 使用。Reverse proxy 必須將此路徑送至 API 並保留 Authorization 與 MCP protocol headers，不可套用 SPA fallback 或快取。正式環境使用 HTTPS；每個請求都需要有效的 Otter Bearer token，不接受 cookie 或分享憑證。不新增環境變數、資料庫 migration 或 cookie 行為。工具權限、Origin 限制、client 設定及回復方式見 [MCP 文件](mcp.md)。
 
 ## Offline expense operations (migration 020)
 

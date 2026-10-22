@@ -6,6 +6,10 @@ describe("Vite server", () => {
     expect(config.server?.allowedHosts).toEqual(["otter.narumi.dev"]);
   });
 
+  test("forwards MCP requests to the API server", () => {
+    expect(config.server?.proxy?.["/mcp"]).toBe(apiProxy);
+  });
+
   test("preserves the browser host used in generated share URLs", () => {
     expect(apiProxy.changeOrigin).toBe(false);
   });
