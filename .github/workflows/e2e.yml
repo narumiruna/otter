@@ -91,7 +91,7 @@ jobs:
             --mount "type=bind,source=$scratch/empty,target=/dev/mqueue,readonly" \
             --entrypoint /usr/bin/env postgres:17-bookworm \
             -i PATH=/usr/lib/postgresql/17/bin:/usr/local/bin:/usr/bin:/bin \
-            HOME=/scratch TMPDIR=/scratch PGDATA=/scratch/data LANG=C.UTF-8 \
+            HOME=/scratch TMPDIR=/scratch PGDATA=/scratch/data PGHOST=/scratch LANG=C.UTF-8 \
             POSTGRES_INITDB_ARGS=--encoding=UTF8 \
             POSTGRES_USER=otter POSTGRES_PASSWORD=otter_test_password POSTGRES_DB=otter_test \
             /usr/local/bin/docker-entrypoint.sh postgres \
