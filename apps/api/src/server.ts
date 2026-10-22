@@ -37,6 +37,7 @@ import { registerExpenseRestoreRoute } from "./server-expense-restore.js";
 import { registerExpenseRoutes } from "./server-expenses.js";
 import type { OtterApp, OtterEnv } from "./server-http.js";
 import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
+import { registerMcpRoutes } from "./server-mcp.js";
 import { registerParticipantMergeRoute } from "./server-participant-merge.js";
 import {
   type PasskeyRouteOptions,
@@ -204,6 +205,7 @@ export function createApp(
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
+  registerMcpRoutes(app, pool);
 
   app.get("/api/config", (context) => {
     const credentials = options.devLoginCredentials;
