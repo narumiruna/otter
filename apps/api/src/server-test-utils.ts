@@ -60,7 +60,7 @@ export async function withTestApp(
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 24);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 26);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
   await options.prepare?.(pool);
 

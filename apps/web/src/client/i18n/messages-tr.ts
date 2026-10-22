@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { trAi } from "./messages-ai.js";
+import { trAiAuth } from "./messages-ai-auth.js";
 import { trErrors } from "./messages-tr-errors.js";
 import { trExpenses } from "./messages-tr-expenses.js";
 import { trSettings } from "./messages-tr-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const tr = {
+  ...trAi,
+  ...trAiAuth,
   ...trErrors,
   ...trExpenses,
   ...trSettings,

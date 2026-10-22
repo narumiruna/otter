@@ -4,6 +4,8 @@ import {
   type MessageValues,
   pluralize,
 } from "./message-types.js";
+import { enAi } from "./messages-ai.js";
+import { enAiAuth } from "./messages-ai-auth.js";
 import { enAccount } from "./messages-en-account.js";
 import { enQueue } from "./messages-en-queue.js";
 import { enInterface } from "./messages-interface.js";
@@ -15,6 +17,8 @@ import { enPersonal } from "./messages-personal.js";
 import { enVisa } from "./messages-visa.js";
 
 export const en = {
+  ...enAi,
+  ...enAiAuth,
   ...enPersonal,
   ...enVisa,
   ...enQueue,

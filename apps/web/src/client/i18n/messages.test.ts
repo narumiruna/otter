@@ -2,6 +2,8 @@ import { expect, test } from "vitest";
 import { isLocale, languageOptions, matchBrowserLocale } from "./locales.js";
 import { type MessageValues, pluralForm } from "./message-types.js";
 import { translations } from "./messages.js";
+import { enAi } from "./messages-ai.js";
+import * as aiAuthMessages from "./messages-ai-auth.js";
 import { sourceMessageKeys } from "./source-message-keys.js";
 
 function parameters(message: string): string[] {
@@ -84,6 +86,109 @@ test.each(languageOptions)(
         translations.en.expenseEditorUnavailable,
       );
     }
+  },
+);
+
+test("AI settings messages have the requested keys and English text", () => {
+  expect(enAi).toEqual({
+    aiSettings: "AI settings",
+    aiSettingsDescription:
+      "Save your provider, model, and thinking level for this account. This does not send AI requests.",
+    aiProvider: "Provider",
+    aiModel: "Model",
+    aiThinkingLevel: "Thinking level",
+    aiProviderPlaceholder: "Search providers…",
+    aiModelPlaceholder: "Search models…",
+    aiNoResults: "No matching options",
+    aiLoading: "Loading AI settings…",
+    aiLoadError: "Unable to load AI settings. Try again.",
+    aiSaveError: "Unable to save AI settings. Try again.",
+    aiSaved: "AI settings saved",
+    aiSave: "Save AI settings",
+    aiUnavailableSelection:
+      "The saved provider or model is no longer available. Select a current model.",
+    aiThinkingOff: "Off",
+  });
+  expect(translations.en).toMatchObject(enAi);
+  expect(translations.ja.aiSettings).toBe("AI 設定");
+});
+
+test.each(languageOptions)(
+  "$locale has localized AI settings messages",
+  ({ locale }) => {
+    for (const key of Object.keys(enAi) as (keyof typeof enAi)[]) {
+      const text = translations[locale][key];
+      expect(typeof text, key).toBe("string");
+      expect(text.trim(), key).not.toBe("");
+      // Model is also the local term in several languages.
+      if (locale !== "en" && key !== "aiModel") {
+        expect(text, key).not.toBe(enAi[key]);
+      }
+    }
+  },
+);
+
+test("AI authentication messages have the requested keys and English text", () => {
+  expect(aiAuthMessages.enAiAuth).toEqual({
+    aiConnections: "Provider connections",
+    aiAddProvider: "Add provider",
+    aiAuthMethod: "Authentication method",
+    aiSignInAccount: "Sign in with an account",
+    aiSignInApiKey: "Sign in with an API key",
+    aiConnect: "Connect provider",
+    aiDisconnect: "Disconnect",
+    aiNoConnections: "No providers connected.",
+    aiAuthUnavailable:
+      "Provider sign-in is not available. Ask the administrator to configure secure credential storage.",
+    aiAuthenticating: "Connecting provider…",
+    aiAuthError: "Provider sign-in failed or expired. Try again.",
+    aiOpenSignIn: "Open sign-in page",
+    aiAuthContinue: "Continue",
+    aiAuthInput: "Response",
+    aiAuthCancel: "Cancel connection",
+    aiConnectionSaved: "Provider connection saved",
+    aiKeyNotice:
+      "API keys are stored securely on the server. Saving a key does not verify it with the provider.",
+    aiAuthWaiting:
+      "Complete sign-in in the new tab. If prompted, paste the code or final redirect URL here.",
+    aiDisconnectError: "Unable to disconnect the provider. Try again.",
+    aiSelectConnectedProvider: "Connect a provider before selecting a model.",
+    aiConnectError: "Unable to load provider connections. Try again.",
+    aiProviderDisconnected: "Provider disconnected",
+  });
+  expect(translations.en).toMatchObject(aiAuthMessages.enAiAuth);
+  expect(Object.keys(aiAuthMessages.enAiAuth)).toHaveLength(22);
+  expect(Object.keys(aiAuthMessages)).toHaveLength(languageOptions.length);
+  for (const key of Object.keys(aiAuthMessages.enAiAuth)) {
+    expect(enAi).not.toHaveProperty(key);
+  }
+});
+
+test.each(Object.entries(aiAuthMessages))(
+  "%s has matching AI authentication keys",
+  (_name, catalog) => {
+    expect(Object.keys(catalog).sort()).toEqual(
+      Object.keys(aiAuthMessages.enAiAuth).sort(),
+    );
+  },
+);
+
+test.each(languageOptions)(
+  "$locale has localized AI authentication messages",
+  ({ locale }) => {
+    for (const key of Object.keys(
+      aiAuthMessages.enAiAuth,
+    ) as (keyof typeof aiAuthMessages.enAiAuth)[]) {
+      const text = translations[locale][key];
+      expect(typeof text, key).toBe("string");
+      expect(text.trim(), key).not.toBe("");
+      if (locale !== "en") {
+        expect(text, key).not.toBe(aiAuthMessages.enAiAuth[key]);
+      }
+    }
+    expect(translations[locale].aiSignInApiKey).toContain("API");
+    expect(translations[locale].aiKeyNotice).toContain("API");
+    expect(translations[locale].aiAuthWaiting).toContain("URL");
   },
 );
 

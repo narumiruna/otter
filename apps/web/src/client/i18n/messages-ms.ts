@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { msAi } from "./messages-ai.js";
+import { msAiAuth } from "./messages-ai-auth.js";
 import { msErrors } from "./messages-ms-errors.js";
 import { msFeatures } from "./messages-ms-features.js";
 import { msSettings } from "./messages-ms-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ms = {
+  ...msAi,
+  ...msAiAuth,
   backToExpenseList: "Kembali ke senarai perbelanjaan",
   expenseEditorUnavailable:
     "Perbelanjaan ini tidak boleh diedit. Perbelanjaan mungkin tidak wujud, atau kumpulan mungkin baca sahaja atau telah diarkibkan.",

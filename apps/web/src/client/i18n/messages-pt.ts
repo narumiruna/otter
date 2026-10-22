@@ -4,11 +4,15 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { ptAi } from "./messages-ai.js";
+import { ptAiAuth } from "./messages-ai-auth.js";
 import { ptAccount } from "./messages-pt-account.js";
 import { ptSettings } from "./messages-pt-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const pt = {
+  ...ptAi,
+  ...ptAiAuth,
   ...ptAccount,
   ...ptSettings,
   expenseTotalLabel: "Total",

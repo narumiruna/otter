@@ -1,0 +1,136 @@
+.ai-model-settings,
+.ai-connection-setup,
+.ai-auth-prompt,
+.ai-connections,
+.ai-login-progress,
+.ai-thinking-field,
+.ai-combobox {
+  display: grid;
+  min-width: 0;
+  gap: 0.65rem;
+}
+.ai-model-settings {
+  max-width: 32rem;
+  gap: 1rem;
+}
+.ai-connections {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.ai-connections h4,
+.ai-connections p,
+.ai-model-settings p {
+  margin: 0;
+}
+.ai-connections p,
+.ai-model-settings p {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.ai-connections .error,
+#account-ai > .error {
+  color: var(--destructive);
+}
+.ai-connections .otter-button,
+.ai-auth-prompt .otter-button {
+  justify-self: start;
+}
+.ai-combobox > label,
+.ai-thinking-field > label,
+.ai-connection-setup > label,
+.ai-auth-prompt > label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.ai-combobox {
+  position: relative;
+}
+.ai-combobox-indicator {
+  pointer-events: none;
+}
+.ai-combobox-popup {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.25rem);
+  inset-inline: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--color-panel-solid);
+  color: var(--foreground);
+  box-shadow: 0 0.25rem 1rem var(--gray-a3);
+}
+.ai-combobox-popup [role="listbox"] {
+  max-height: min(16rem, 40dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+.ai-combobox-popup [role="option"] {
+  display: grid;
+  gap: 0.15rem;
+  border-radius: calc(var(--radius) / 2);
+  padding: 0.6rem 0.7rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  touch-action: pan-y;
+}
+.ai-combobox-popup [role="option"]:hover,
+.ai-combobox-popup [role="option"][data-active="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.ai-combobox-popup [aria-selected="true"] {
+  font-weight: 650;
+}
+.ai-combobox-popup small,
+.ai-connection-list small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.ai-combobox-popup p {
+  margin: 0;
+  padding: 0.75rem;
+}
+.ai-connection-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ai-connection-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  overflow-wrap: anywhere;
+}
+.ai-connection-setup {
+  max-width: 32rem;
+  margin-top: 0.5rem;
+  gap: 1rem;
+}
+.ai-login-progress {
+  border-inline-start: 2px solid var(--border);
+  padding-inline-start: 1rem;
+}
+.ai-login-progress a {
+  color: var(--primary);
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.ai-auth-prompt {
+  margin-top: 0.5rem;
+}
+#account-ai {
+  min-width: 0;
+  scroll-margin-top: 96px;
+}

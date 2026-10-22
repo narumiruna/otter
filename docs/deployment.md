@@ -35,6 +35,7 @@ docker compose up --detach --build --no-deps otter
 | 變數 | 用途 |
 | --- | --- |
 | `DATABASE_URL` | 使用外部 PostgreSQL；搭配 Compose 時使用上述 `--no-deps otter` command。未設定時，container 會由 `POSTGRES_PASSWORD` 組成 Compose database URL。 |
+| `ENCRYPTION_KEY` | Optional canonical base64-encoded 32-byte key for AI provider credential encryption. An absent or invalid key disables new AI connections, not the application. Keep the same key across restarts. See [AI settings](ai-settings.md). |
 | `POSTGRES_PASSWORD` | Compose PostgreSQL 密碼；正式環境必須明確設定。 |
 | `PASSKEY_ORIGIN` | WebAuthn origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。 |
 | `PASSKEY_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 Passkey request rate limiting 使用。預設 `false`。 |
@@ -44,6 +45,14 @@ docker compose up --detach --build --no-deps otter
 | `PORT` | App port，預設 `17463`。 |
 
 不要提交 `.env*`、資料庫 dumps 或 credentials。`.env.example` 只包含本機開發預設值。
+
+## AI account connections (migrations 025 and 026)
+
+Apply `025_user_ai_settings.sql` and `026_user_ai_credentials.sql` before deploying the AI account backend. No model requests are made. API-key login saves a key locally; it does not verify the key with the provider. Browser login state is process-local and expires after 10 minutes. Run one API instance. See [AI settings](ai-settings.md) for the login API, provider restrictions, key generation, and cancellation.
+
+Generate `ENCRYPTION_KEY` once, save it in protected durable storage, and supply the same base64-encoded 32-byte value at every deployment. Compose forwards this optional host variable. Do not generate a key during startup. There is no plaintext or temporary-key fallback. For the GitHub Deploy workflow, configure the optional `ENCRYPTION_KEY` repository secret; the workflow forwards it to Compose. An absent secret disables new connections but does not stop the application.
+
+Back up the key separately from PostgreSQL and test a restore with the matching key. Losing or replacing the key prevents decryption of existing credentials. Do not rotate it without a controlled re-encryption procedure or an explicit decision to remove connections and require login again. On rollback, retain the additive tables and durable key, stop new logins, and deploy the previous API/Web pair. Do not run old and new API instances together. Disconnect deletes Otter's copy but does not revoke the provider's token. No cookie format changes are required. Use HTTPS and preserve the public Host header through the reverse proxy; forwarded host headers are not trusted for AI mutations.
 
 ## Offline expense operations (migration 020)
 
@@ -129,6 +138,7 @@ Runner 與 repository 必須設定：
 
 - self-hosted runner；
 - `POSTGRES_PASSWORD` repository secret；
+- optional `ENCRYPTION_KEY` repository secret to enable AI provider connections; keep this value stable across deployments;
 - `PASSKEY_ORIGIN` repository variable；
 - 視 proxy 拓撲設定 `PASSKEY_TRUST_PROXY`、`DEVICE_AUTH_TRUST_PROXY` 與 `PASSWORD_AUTH_TRUST_PROXY` variables。
 

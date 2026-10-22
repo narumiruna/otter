@@ -12,6 +12,7 @@
 @import "./auth.css";
 @import "./workspace/workspace.css";
 @import "./account-settings.css";
+@import "./ai-settings.css";
 @import "./workspace/expenses.css";
 @import "./workspace/layout.css";
 @import "./workspace/settings.css";

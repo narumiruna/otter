@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { deAi } from "./messages-ai.js";
+import { deAiAuth } from "./messages-ai-auth.js";
 import { deAccount } from "./messages-de-account.js";
 import { deExpenses } from "./messages-de-expenses.js";
 import { deSettings } from "./messages-de-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const de = {
+  ...deAi,
+  ...deAiAuth,
   ...deAccount,
   ...deExpenses,
   ...deSettings,

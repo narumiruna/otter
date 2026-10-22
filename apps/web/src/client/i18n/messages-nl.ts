@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { nlAi } from "./messages-ai.js";
+import { nlAiAuth } from "./messages-ai-auth.js";
 import { nlErrors } from "./messages-nl-errors.js";
 import { nlFeatures } from "./messages-nl-features.js";
 import { nlSettings } from "./messages-nl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const nl = {
+  ...nlAi,
+  ...nlAiAuth,
   backToExpenseList: "Terug naar de uitgavenlijst",
   expenseEditorUnavailable:
     "Deze uitgave kan niet worden bewerkt. De uitgave bestaat mogelijk niet, of de groep is alleen-lezen of gearchiveerd.",
