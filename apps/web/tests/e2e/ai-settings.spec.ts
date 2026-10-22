@@ -161,9 +161,9 @@ async function blockExternalRequests(page: Page, baseURL: string | undefined) {
       await route.fallback();
     } else if (
       route.request().url() === fontStylesheet &&
-      route.request().resourceType() === "stylesheet"
+      route.request().method() === "GET"
     ) {
-      // Mock the existing font asset; no external request is sent.
+      // Axe also fetches this stylesheet. Fulfill both uses without network.
       await route.fulfill({ contentType: "text/css", body: "" });
     } else {
       externalRequests.push(route.request().url());
