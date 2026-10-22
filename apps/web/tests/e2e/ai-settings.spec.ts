@@ -167,6 +167,13 @@ async function blockExternalRequests(page: Page, baseURL: string | undefined) {
   return externalRequests;
 }
 
+test.beforeEach(async ({ page }) => {
+  // Keep browser online state available for mocked loopback API workflows.
+  // The sandbox still blocks external network access at the OS layer.
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+});
+
 for (const colorScheme of ["light", "dark"] as const) {
   for (const width of [320, 1280]) {
     for (const authMethod of ["oauth", "api_key"] as const) {

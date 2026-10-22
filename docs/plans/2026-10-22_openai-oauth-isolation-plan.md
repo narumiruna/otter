@@ -45,13 +45,13 @@ A future restoration of modern OpenAI account sign-in requires a supported SDK f
 
 ## Plan
 
-- [ ] Define one supported-method policy in `apps/api/src/server-ai-providers.ts`. Use it in both `aiAuthMethods` and `loginAiProvider`. Verify that OpenAI offers only `api_key` and that direct OAuth dispatch rejects before calling the SDK.
-- [ ] Extend `automaticAiChoice` to select `device_code` for OpenAI Codex OAuth. Remove interactive access to the Codex browser choice. Verify that missing or changed SDK options fail closed, with no browser fallback.
-- [ ] Update API catalog and route tests in `server-ai-settings.test.ts` and `server.ai-auth.test.ts`. Verify that a valid browser session receives HTTP 400 for `{ "provider": "openai", "method": "oauth" }`, no broker login starts, and no credential changes. Keep API-key and account/session isolation tests passing.
-- [ ] Replace the unsafe-flow expectations in `server-ai-oauth-cleanup.test.ts` with regressions for the supported paths. Use the real installed SDK device-code flow with mocked HTTP responses, not only an injected successful login function. Verify that the flow does not bind port 1455, including error, cancellation, and timeout paths.
-- [ ] Add a two-account regression through the account APIs. Keep account A's Codex device authorization pending while account B completes its own mocked device authorization. Verify independent login IDs, device codes, cancellation, and credential ownership. Repeat with port 1455 already occupied by an isolated fixture; neither account may depend on that port. Preserve the bounded broker limits.
+- [x] Define one supported-method policy in `apps/api/src/server-ai-providers.ts`. Use it in both `aiAuthMethods` and `loginAiProvider`. Verify that OpenAI offers only `api_key` and that direct OAuth dispatch rejects before calling the SDK.
+- [x] Extend `automaticAiChoice` to select `device_code` for OpenAI Codex OAuth. Remove interactive access to the Codex browser choice. Verify that missing or changed SDK options fail closed, with no browser fallback.
+- [x] Update API catalog and route tests in `server-ai-settings.test.ts` and `server.ai-auth.test.ts`. Verify that a valid browser session receives HTTP 400 for `{ "provider": "openai", "method": "oauth" }`, no broker login starts, and no credential changes. Keep API-key and account/session isolation tests passing.
+- [x] Replace the unsafe-flow expectations in `server-ai-oauth-cleanup.test.ts` with regressions for the supported paths. Use the real installed SDK device-code flow with mocked HTTP responses, not only an injected successful login function. Verify that the flow does not bind port 1455, including error, cancellation, and timeout paths.
+- [x] Add a two-account regression through the account APIs. Keep account A's Codex device authorization pending while account B completes its own mocked device authorization. Verify independent login IDs, device codes, cancellation, and credential ownership. Repeat with port 1455 already occupied by an isolated fixture; neither account may depend on that port. Preserve the bounded broker limits.
 - [ ] Add browser/component coverage for the method-first provider list. Verify that OpenAI is absent from account sign-in, remains available for API-key sign-in, and that Codex presents device-code instructions without a browser-method selector. Verify that existing connections remain listed and can be disconnected.
-- [ ] Update `docs/ai-settings.md`, including its current OpenAI OAuth request example and provider restrictions. State the supported methods, lack of automatic credential migration, and no browser fallback. Update the existing Changeset for PR #149 to describe the restriction.
+- [x] Update `docs/ai-settings.md`, including its current OpenAI OAuth request example and provider restrictions. State the supported methods, lack of automatic credential migration, and no browser fallback. Update the existing Changeset for PR #149 to describe the restriction.
 - [ ] Run the validation below. Record command results and blockers in this plan. Do not mark the finding resolved until all completion checks pass.
 
 ## Validation
@@ -83,24 +83,28 @@ Do not roll back to a version that re-enables fixed-port OAuth. If device author
 ## Execution Status
 
 - Working branch: `narumi/fix/openai-oauth-isolation`, based on the still-open PR #149 branch `narumi/feat/pi-ai-account-settings`.
-- The provider policy, API/SDK/two-account tests, browser/component regressions, documentation, and existing Changeset have been edited. Runtime acceptance is not complete.
+- The provider policy, API/SDK/two-account tests, browser/component regressions, documentation, and existing Changeset have been edited. Browser runtime acceptance is not complete.
 - A local Node 26 Docker sandbox used an isolated network namespace with no external network, an empty allowlisted environment, read-only source/dependencies/toolchain, and a disposable writable source copy under scratch storage. Limits were 2 CPUs, 1 GiB memory with no extra swap, 96 processes, 256 file descriptors, 10 MiB per file, bounded scratch tmpfs storage, and an external wall-clock watchdog.
   - The allowlist contained only scratch-local `HOME`, `TMPDIR`, `XDG_CACHE_HOME`, and npm cache paths; a fixed tool `PATH`; offline npm settings; and thread-count limits.
 - Passed inside that sandbox: `npm run typecheck` for all workspaces and `npm run biome:ci` (422 files). A test-fixture type error found by the first type check was corrected before the passing run. Later fixture corrections from the independent review still require a fresh check.
-- Blocked: the first targeted Vitest command failed at startup because the Linux Rolldown binding is absent. No test result is claimed from that command. Full PostgreSQL-backed checks and browser tests have not run.
+- Historical local blocker: the first targeted Vitest command failed at startup because the Linux Rolldown binding is absent. No test result is claimed from that command. GitHub Actions subsequently resolved the dependency blocker.
   - Locally installed dependencies contain macOS bindings. Matching Linux packages have not been found for Rolldown `1.2.13`, Tailwind Oxide `4.3.3`, and Lightning CSS `1.32.0`.
   - Linux Biome `2.5.15` and TypeScript `7.0.2` were available in existing local images. No dependency was installed or fetched, and no target code ran on the host.
-- Independent source review found no production policy or SDK-flow defect. It found two inaccurate browser-test fixtures: Codex was incorrectly offered with API-key authentication, and disconnect did not clear the selected provider's preferences. Both fixtures and their expectations have been corrected; the separate pre-disconnect preservation checks remain. The corrected tests have not run.
+- Independent source review found no production policy or SDK-flow defect. It found two inaccurate browser-test fixtures: Codex was incorrectly offered with API-key authentication, and disconnect did not clear the selected provider's preferences. Both fixtures and their expectations have been corrected; the separate pre-disconnect preservation checks remain. The corrected component tests passed in Actions.
 - The user approved GitHub Actions to resolve the dependency blocker. The manual E2E workflow now has an `isolated_ai_settings` verification job that runs the repository checks, focused API/component suites, migrations, and AI settings browser tests with dummy PostgreSQL in an offline Docker network namespace.
   - Dependencies are prepared with lifecycle scripts disabled. Tests receive an empty allowlisted environment and read-only inputs/tools; all writes remain in bounded scratch tmpfs storage.
   - Runtime limits are 2 CPUs, 3 GiB memory without extra swap, 256 processes, 1,024 file descriptors, 128 MiB per file, bounded tmpfs storage, and a 15-minute external watchdog. PostgreSQL has separate lower resource limits and shares only isolated loopback.
+- GitHub Actions run [39771900108](https://github.com/narumiruna/otter/actions/runs/39771900108), commit `a881555`, passed `npm run check` with PostgreSQL: 1,406 tests, all type checks, Biome, and all builds. Focused API/SDK suites passed 60 tests and focused component suites passed 32 tests; migrations passed.
+  - Earlier runs failed before application checks because the PostgreSQL image required a writable private socket directory. The workflow now provides a bounded private tmpfs mount for that socket.
+  - Browser tests ran but all nine failed because the expected connection controls were absent. Loopback-only Chromium can report offline state. A test hook now toggles browser online state for the mocked workflows without changing the OS network isolation; a fresh run must verify this diagnosis and all browser assertions.
+- The final independent static review found no production policy, real SDK flow, ownership, cancellation, timeout, or fixture defect. The workflow review found a missing writable Vitest cache mount, which is now provided as bounded scratch tmpfs.
 - Validation commits and branch pushes are required to run GitHub Actions. Local pre-commit target execution will be skipped; the same repository checks must pass in Actions before completion or a ready-for-review PR. Do not mark the plan complete or claim the finding resolved before the remaining checks pass.
 
 ## Completion Checklist
 
-- [ ] OpenAI OAuth is neither advertised nor accepted by the account API or direct provider adapter.
-- [ ] OpenAI Codex OAuth uses only device authorization and never falls back to a callback listener.
-- [ ] Account B can finish supported account sign-in while account A remains pending, including when the isolated fixture holds port 1455.
-- [ ] New API-key connections, existing credentials, saved preferences, cancellation, and account/session isolation pass regression tests.
+- [x] OpenAI OAuth is neither advertised nor accepted by the account API or direct provider adapter.
+- [x] OpenAI Codex OAuth uses only device authorization and never falls back to a callback listener.
+- [x] Account B can finish supported account sign-in while account A remains pending, including when the isolated fixture holds port 1455.
+- [x] New API-key connections, existing credentials, saved preferences, cancellation, and account/session isolation pass regression tests.
 - [ ] Targeted checks, PostgreSQL-backed repository checks, browser coverage, and independent review pass; any unavailable check remains open.
 - [ ] Documentation and the Changeset match the implemented behavior. PR #149 records the finding, fix, test evidence, and deployment restart requirement.
