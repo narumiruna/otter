@@ -6,6 +6,7 @@
 
 - [功能與使用限制](product.md)：帳號、群組、支出、結清、匯入匯出與權限。
 - [CLI](cli.md)：安裝、登入、自動化與常用命令。
+- [Streamable HTTP MCP](mcp.md)：遠端 AI client 連線、工具與權限。
 
 ## 開發與維運
 

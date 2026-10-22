@@ -36,7 +36,7 @@ docker compose up --detach --build --no-deps otter
 | --- | --- |
 | `DATABASE_URL` | 使用外部 PostgreSQL；搭配 Compose 時使用上述 `--no-deps otter` command。未設定時，container 會由 `POSTGRES_PASSWORD` 組成 Compose database URL。 |
 | `POSTGRES_PASSWORD` | Compose PostgreSQL 密碼；正式環境必須明確設定。 |
-| `PASSKEY_ORIGIN` | WebAuthn origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。 |
+| `PASSKEY_ORIGIN` | WebAuthn 與 MCP 的可信任公開 origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。MCP 未設定此值時使用 API request URL 的 origin，不信任 forwarded headers。 |
 | `PASSKEY_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 Passkey request rate limiting 使用。預設 `false`。 |
 | `DEVICE_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 device authorization rate limiting 使用。預設 `false`。 |
 | `PASSWORD_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供密碼註冊及登入 rate limiting 使用。預設 `false`。 |
@@ -44,6 +44,10 @@ docker compose up --detach --build --no-deps otter
 | `PORT` | App port，預設 `17463`。 |
 
 不要提交 `.env*`、資料庫 dumps 或 credentials。`.env.example` 只包含本機開發預設值。
+
+## Streamable HTTP MCP
+
+API 新增 `/mcp`，供支援 Streamable HTTP 的 client 使用。Reverse proxy 必須將此路徑送至 API 並保留 Authorization 與 MCP protocol headers，不可套用 SPA fallback 或快取。正式環境使用 HTTPS；每個請求都需要有效的 Otter Bearer token，不接受 cookie 或分享憑證。不新增環境變數、資料庫 migration 或 cookie 行為。工具權限、Origin 限制、client 設定及回復方式見 [MCP 文件](mcp.md)。
 
 ## Offline expense operations (migration 020)
 

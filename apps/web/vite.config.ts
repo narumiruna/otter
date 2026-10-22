@@ -21,6 +21,7 @@ export default defineConfig({
     allowedHosts: ["otter.narumi.dev"],
     proxy: {
       "/api": apiProxy,
+      "/mcp": apiProxy,
     },
   },
   build: {
