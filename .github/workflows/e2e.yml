@@ -86,16 +86,17 @@ jobs:
             --ulimit nofile=256:256 --ulimit nproc=64:64 \
             --log-opt max-size=1m --log-opt max-file=1 \
             --tmpfs /scratch:rw,nosuid,nodev,size=512m,uid=999,gid=999,mode=0700 \
+            --tmpfs /var/run/postgresql:rw,nosuid,nodev,size=1m,uid=999,gid=999,mode=0700 \
             --mount "type=bind,source=$scratch/empty,target=/var/lib/postgresql/data,readonly" \
             --mount "type=bind,source=$scratch/empty,target=/dev/shm,readonly" \
             --mount "type=bind,source=$scratch/empty,target=/dev/mqueue,readonly" \
             --entrypoint /usr/bin/env postgres:17-bookworm \
             -i PATH=/usr/lib/postgresql/17/bin:/usr/local/bin:/usr/bin:/bin \
-            HOME=/scratch TMPDIR=/scratch PGDATA=/scratch/data PGHOST=/scratch LANG=C.UTF-8 \
+            HOME=/scratch TMPDIR=/scratch PGDATA=/scratch/data LANG=C.UTF-8 \
             POSTGRES_INITDB_ARGS=--encoding=UTF8 \
             POSTGRES_USER=otter POSTGRES_PASSWORD=otter_test_password POSTGRES_DB=otter_test \
             /usr/local/bin/docker-entrypoint.sh postgres \
-            -c listen_addresses=127.0.0.1 -c unix_socket_directories=/scratch \
+            -c listen_addresses=127.0.0.1 \
             -c shared_buffers=32MB -c max_connections=30 -c dynamic_shared_memory_type=mmap
           ready=false
           for _ in {1..30}; do
