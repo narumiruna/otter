@@ -153,10 +153,18 @@ async function mockAi(page: Page) {
 async function blockExternalRequests(page: Page, baseURL: string | undefined) {
   if (!baseURL) throw new Error("Missing test base URL");
   const origin = new URL(baseURL).origin;
+  const fontStylesheet =
+    "https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap";
   const externalRequests: string[] = [];
   async function guard(route: Route) {
     if (new URL(route.request().url()).origin === origin) {
       await route.fallback();
+    } else if (
+      route.request().url() === fontStylesheet &&
+      route.request().resourceType() === "stylesheet"
+    ) {
+      // Mock the existing font asset; no external request is sent.
+      await route.fulfill({ contentType: "text/css", body: "" });
     } else {
       externalRequests.push(route.request().url());
       await route.abort();
