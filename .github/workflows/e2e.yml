@@ -66,7 +66,7 @@ jobs:
             rm -rf "$scratch"
           }
           trap cleanup EXIT
-          mkdir -p "$scratch/source" "$scratch/empty" node_modules/.vite node_modules/.vite-temp
+          mkdir -p "$scratch/source" "$scratch/empty" node_modules/.vite node_modules/.vite-temp node_modules/.vitest-cache
           git archive HEAD | tar -x -C "$scratch/source"
           playwright_version="$(node -p 'require("./node_modules/@playwright/test/package.json").version')"
           browser_image="mcr.microsoft.com/playwright:v${playwright_version}-noble"
@@ -123,6 +123,7 @@ jobs:
             --tmpfs /scratch/repo:rw,nosuid,nodev,size=1g,uid=65534,gid=65534,mode=0755 \
             --tmpfs /scratch/repo/node_modules/.vite:rw,nosuid,nodev,size=128m,uid=65534,gid=65534 \
             --tmpfs /scratch/repo/node_modules/.vite-temp:rw,nosuid,nodev,size=16m,uid=65534,gid=65534 \
+            --tmpfs /scratch/repo/node_modules/.vitest-cache:rw,nosuid,nodev,size=192m,uid=65534,gid=65534 \
             --mount "type=bind,source=$scratch/source,target=/input,readonly" \
             --mount "type=bind,source=$PWD/node_modules,target=/scratch/repo/node_modules,readonly" \
             --mount "type=bind,source=$scratch/node,target=/toolchain,readonly" \
