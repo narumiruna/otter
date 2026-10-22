@@ -120,7 +120,12 @@ test("OAuth auth URL/manual-code and device events are serializable, with per-pr
     return oauthCredential;
   };
   const broker = new AiLoginBroker(key, save, sdk);
-  const initial = broker.start("alice", "browser", provider(), "oauth");
+  const initial = broker.start(
+    "alice",
+    "browser",
+    provider("anthropic"),
+    "oauth",
+  );
   if (!initial) throw new Error("Expected login");
   await flush();
   const old = broker.get("alice", "browser", initial.id)?.prompt;
@@ -186,10 +191,15 @@ test("late SDK success after cancellation and raw provider errors remain private
         resolve = done;
       }),
   );
-  const initial = broker.start("alice", "browser", provider(), "oauth");
+  const initial = broker.start(
+    "alice",
+    "browser",
+    provider("anthropic"),
+    "oauth",
+  );
   if (!initial) throw new Error("Expected login");
   await flush();
-  const cancellation = broker.cancelProvider("alice", "openai");
+  const cancellation = broker.cancelProvider("alice", "anthropic");
   resolve?.(oauthCredential);
   await cancellation;
   await flush();
@@ -197,7 +207,12 @@ test("late SDK success after cancellation and raw provider errors remain private
   const failed = new AiLoginBroker(key, save, async () => {
     throw new Error("raw-token-secret");
   });
-  const state = failed.start("alice", "browser", provider(), "oauth");
+  const state = failed.start(
+    "alice",
+    "browser",
+    provider("anthropic"),
+    "oauth",
+  );
   if (!state) throw new Error("Expected login");
   await flush();
   expect(failed.get("alice", "browser", state.id)).toEqual({

@@ -6,7 +6,11 @@ import type {
 } from "@narumitw/otter-contracts";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { createApp } from "./server.js";
-import { decryptAiCredential } from "./server-ai-credentials.js";
+import {
+  decryptAiCredential,
+  encryptAiCredential,
+} from "./server-ai-credentials.js";
+import type { AiProviderLogin } from "./server-ai-providers.js";
 import {
   api,
   postgresTestOptions,
@@ -20,6 +24,108 @@ const settings = {
   model: "gpt-4o-mini",
   thinkingLevel: "off",
 } as const;
+
+test.each(["oauth", "api_key"] as const)(
+  "existing OpenAI %s credentials and selections remain readable and disconnectable without migration",
+  postgresTestOptions,
+  async (method) => {
+    vi.stubEnv("ENCRYPTION_KEY", key.toString("base64"));
+    onTestFinished(() => vi.unstubAllEnvs());
+    const login = vi.fn<AiProviderLogin>(async () => {
+      throw new Error("SDK must not start");
+    });
+    const { baseUrl, pool } = await withTestApp({
+      appOptions: { aiAuth: { login } },
+    });
+    const registered = await api<UserResponse>(baseUrl, "/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        username: "existing-openai-account",
+        password: "password123",
+      }),
+    });
+    const cookie = registered.response.headers.get("set-cookie")?.split(";")[0];
+    const user = registered.data.user;
+    if (!cookie || !user) throw new Error("Expected dummy account session");
+    const credential =
+      method === "oauth"
+        ? ({
+            type: "oauth",
+            access: "dummy-old-access",
+            refresh: "dummy-old-refresh",
+            expires: 9999999999999,
+          } as const)
+        : ({ type: "api_key", key: "dummy-old-key" } as const);
+    const encrypted = encryptAiCredential(key, user.id, "openai", credential);
+    await pool.query(
+      "INSERT INTO user_ai_credentials (user_id, provider, method, encrypted_credential) VALUES ($1, $2, $3, $4)",
+      [user.id, "openai", method, encrypted],
+    );
+    expect(
+      (
+        await api<AiSettingsResponse>(baseUrl, "/api/auth/ai/settings", {
+          method: "PUT",
+          headers: { cookie },
+          body: JSON.stringify(settings),
+        })
+      ).data,
+    ).toEqual({ settings });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const rejected = await api(baseUrl, "/api/auth/ai/logins", {
+        method: "POST",
+        headers: { cookie },
+        body: JSON.stringify({ provider: "openai", method: "oauth" }),
+      });
+      expect(rejected.response.status).toBe(400);
+      expect(rejected.response.headers.get("cache-control")).toBe("no-store");
+    }
+    expect(login).not.toHaveBeenCalled();
+    const rows = await pool.query<{
+      user_id: string;
+      provider: string;
+      method: string;
+      encrypted_credential: Buffer;
+    }>(
+      "SELECT user_id, provider, method, encrypted_credential FROM user_ai_credentials",
+    );
+    expect(rows.rows).toEqual([
+      {
+        user_id: user.id,
+        provider: "openai",
+        method,
+        encrypted_credential: encrypted,
+      },
+    ]);
+    expect(decryptAiCredential(key, user.id, "openai", encrypted)).toEqual(
+      credential,
+    );
+    // Recreate the app to read the existing record, not a broker result.
+    const app = createApp(pool);
+    expect(
+      await (
+        await app.request("/api/auth/ai/connections", { headers: { cookie } })
+      ).json(),
+    ).toEqual({ connections: [{ provider: "openai", method }] });
+    expect(
+      await (
+        await app.request("/api/auth/ai/settings", { headers: { cookie } })
+      ).json(),
+    ).toEqual({ settings });
+    const disconnected = await app.request("/api/auth/ai/connections/openai", {
+      method: "DELETE",
+      headers: { cookie, "Content-Type": "application/json" },
+    });
+    expect(disconnected.status).toBe(200);
+    expect(
+      (await pool.query("SELECT user_id FROM user_ai_credentials")).rowCount,
+    ).toBe(0);
+    expect(
+      await (
+        await app.request("/api/auth/ai/settings", { headers: { cookie } })
+      ).json(),
+    ).toEqual({ settings: null });
+  },
+);
 
 async function poll(
   baseUrl: string,
