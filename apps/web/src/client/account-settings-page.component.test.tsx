@@ -11,15 +11,44 @@ import { I18nProvider } from "./i18n.js";
 vi.mock("./api-token-settings.js", () => ({
   ApiTokenSettings: ({
     onMutationChange,
+    offline,
   }: {
     onMutationChange?: (active: boolean) => void;
+    offline: boolean;
   }) => (
     <div>
-      <button onClick={() => onMutationChange?.(true)} type="button">
+      <button
+        disabled={offline}
+        onClick={() => onMutationChange?.(true)}
+        type="button"
+      >
         Start token mutation
       </button>
       <button onClick={() => onMutationChange?.(false)} type="button">
         Finish token mutation
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("./ai-settings.js", () => ({
+  AiSettings: ({
+    disabled,
+    onMutationChange,
+  }: {
+    disabled: boolean;
+    onMutationChange: (active: boolean) => void;
+  }) => (
+    <div>
+      <button
+        disabled={disabled}
+        onClick={() => onMutationChange(true)}
+        type="button"
+      >
+        Start AI mutation
+      </button>
+      <button onClick={() => onMutationChange(false)} type="button">
+        Finish AI mutation
       </button>
     </div>
   ),
@@ -121,6 +150,62 @@ test("blocks closing and username submission during a token mutation", async () 
   );
   expect(cancel).toBeEnabled();
   expect(save).toBeEnabled();
+});
+
+test("AI mutations block navigation, username submission, and token mutations until completion", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const onUpdate = vi.fn();
+  const onMutationChange = vi.fn();
+  render(
+    <I18nProvider initialLocale="en">
+      <AccountSettingsPage
+        offline={false}
+        onClose={onClose}
+        onUpdate={onUpdate}
+        onMutationChange={onMutationChange}
+        user={account}
+      />
+    </I18nProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Start AI mutation" }));
+  expect(onMutationChange).toHaveBeenLastCalledWith(true);
+  const cancel = screen.getByRole("button", { name: "Cancel" });
+  const back = screen.getByRole("button", { name: "Back to groups" });
+  const save = screen.getByRole("button", { name: "Save" });
+  expect(cancel).toBeDisabled();
+  expect(back).toBeDisabled();
+  expect(save).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Start token mutation" }),
+  ).toBeDisabled();
+  const form = save.closest("form");
+  if (!form) throw new Error("Account settings form not found");
+  fireEvent.submit(form);
+  await user.click(cancel);
+  await user.click(back);
+  expect(onUpdate).not.toHaveBeenCalled();
+  expect(onClose).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Finish AI mutation" }));
+  expect(cancel).toBeEnabled();
+  expect(back).toBeEnabled();
+  expect(save).toBeEnabled();
+  expect(
+    screen.getByRole("button", { name: "Start token mutation" }),
+  ).toBeEnabled();
+  expect(onMutationChange).toHaveBeenLastCalledWith(false);
+  await user.click(
+    screen.getByRole("button", { name: "Start token mutation" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Start AI mutation" }),
+  ).toBeDisabled();
+  await user.click(
+    screen.getByRole("button", { name: "Finish token mutation" }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Start AI mutation" }),
+  ).toBeEnabled();
 });
 
 test.each(languageOptions)(

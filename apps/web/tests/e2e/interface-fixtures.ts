@@ -159,6 +159,14 @@ export async function mockWorkspace(
       await route.fulfill({ json: { passkeys: [] } });
     else if (path === "/api/auth/tokens")
       await route.fulfill({ json: { tokens: [] } });
+    else if (path === "/api/auth/ai/catalog")
+      await route.fulfill({
+        json: { providers: [], authenticationEnabled: true },
+      });
+    else if (path === "/api/auth/ai/settings")
+      await route.fulfill({ json: { settings: null } });
+    else if (path === "/api/auth/ai/connections")
+      await route.fulfill({ json: { connections: [] } });
     else
       throw new Error(
         `Unexpected request: ${route.request().method()} ${path}`,

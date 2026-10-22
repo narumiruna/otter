@@ -28,6 +28,7 @@ jobs:
       - name: Start services
         shell: bash
         env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           : "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD secret}"

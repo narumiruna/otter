@@ -3,6 +3,8 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { thAi } from "./messages-ai.js";
+import { thAiAuth } from "./messages-ai-auth.js";
 import { thAuth } from "./messages-th-auth.js";
 import { thExpenses } from "./messages-th-expenses.js";
 import { thGroups } from "./messages-th-groups.js";
@@ -10,6 +12,8 @@ import { thSettings } from "./messages-th-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const th = {
+  ...thAi,
+  ...thAiAuth,
   ...thAuth,
   ...thGroups,
   ...thExpenses,

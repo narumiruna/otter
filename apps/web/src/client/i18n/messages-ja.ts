@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { jaAi } from "./messages-ai.js";
+import { jaAiAuth } from "./messages-ai-auth.js";
 import { jaSettings } from "./messages-ja-settings.js";
 import { jaPersonal } from "./messages-personal.js";
 import { jaVisa } from "./messages-visa.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ja = {
+  ...jaAi,
+  ...jaAiAuth,
   ...jaPersonal,
   ...jaVisa,
   ...jaSettings,

@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { idAi } from "./messages-ai.js";
+import { idAiAuth } from "./messages-ai-auth.js";
 import { idAccount } from "./messages-id-account.js";
 import { idSettings } from "./messages-id-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 // Provisional machine-authored translations; fluent review is pending.
 export const id = {
+  ...idAi,
+  ...idAiAuth,
   backToExpenseList: "Kembali ke daftar pengeluaran",
   expenseEditorUnavailable:
     "Pengeluaran ini tidak dapat diedit. Pengeluaran mungkin tidak ada, atau grup hanya dapat dibaca atau telah diarsipkan.",

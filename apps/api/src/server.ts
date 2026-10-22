@@ -17,6 +17,8 @@ import {
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { Pool as PgPool } from "pg";
+import type { AiAuthOptions } from "./server-ai-auth.js";
+import { registerAiSettingsRoutes } from "./server-ai-settings.js";
 import { registerBackupRoutes } from "./server-backup.js";
 import { registerCollaborationRoutes } from "./server-collaboration.js";
 import { registerCsvImportRoutes } from "./server-csv-import.js";
@@ -149,6 +151,7 @@ export type CreateAppOptions = {
   visaSettlement?: VisaSettlementOptions;
   passkeys?: PasskeyRouteOptions;
   passwordVerifier?: typeof verifyPassword;
+  aiAuth?: AiAuthOptions;
 };
 
 export function createApp(
@@ -205,6 +208,7 @@ export function createApp(
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
   registerPersonalApiTokenRoutes(app, pool, mustHaveBrowserSession);
+  registerAiSettingsRoutes(app, pool, mustHaveBrowserSession, options.aiAuth);
   registerMcpRoutes(app, pool);
 
   app.get("/api/config", (context) => {

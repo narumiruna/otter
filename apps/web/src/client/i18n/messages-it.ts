@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { itAi } from "./messages-ai.js";
+import { itAiAuth } from "./messages-ai-auth.js";
 import { itAccount } from "./messages-it-account.js";
 import { itExpenses } from "./messages-it-expenses.js";
 import { itSettings } from "./messages-it-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const it = {
+  ...itAi,
+  ...itAiAuth,
   backToExpenseList: "Torna all’elenco delle spese",
   expenseEditorUnavailable:
     "Questa spesa non può essere modificata. Potrebbe non esistere, oppure il gruppo potrebbe essere di sola lettura o archiviato.",

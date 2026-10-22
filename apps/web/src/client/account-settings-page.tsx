@@ -17,6 +17,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { AiSettings } from "./ai-settings.js";
 import { ApiTokenSettings } from "./api-token-settings.js";
 import { AppearanceSettings } from "./appearance-settings.js";
 import type { User } from "./client-support.js";
@@ -44,6 +45,12 @@ export function AccountSettingsPage({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState("");
   const [tokenMutationActive, setTokenMutationActive] = useState(false);
+  const [aiMutationActive, setAiMutationActive] = useState(false);
+  const mutationActive = tokenMutationActive || aiMutationActive;
+
+  useEffect(() => {
+    onMutationChange?.(mutationActive);
+  }, [mutationActive, onMutationChange]);
   const form = useForm<UsernameForm>({
     defaultValues: { username: user.username },
   });
@@ -55,11 +62,10 @@ export function AccountSettingsPage({
 
   function changeTokenMutation(active: boolean) {
     setTokenMutationActive(active);
-    onMutationChange?.(active);
   }
 
   async function update({ username }: UsernameForm) {
-    if (tokenMutationActive) return;
+    if (mutationActive) return;
     setError("");
     try {
       await onUpdate(username);
@@ -82,7 +88,7 @@ export function AccountSettingsPage({
         <Button
           type="button"
           variant="ghost"
-          disabled={tokenMutationActive || form.formState.isSubmitting}
+          disabled={mutationActive || form.formState.isSubmitting}
           onClick={onClose}
         >
           <ArrowLeftIcon aria-hidden="true" />
@@ -101,6 +107,11 @@ export function AccountSettingsPage({
               id: "account-preferences",
               label: messages.preferencesLabel,
               icon: <GearIcon aria-hidden="true" />,
+            },
+            {
+              id: "account-ai",
+              label: messages.aiSettings,
+              icon: <CodeIcon aria-hidden="true" />,
             },
             {
               id: "account-profile",
@@ -160,6 +171,12 @@ export function AccountSettingsPage({
             </section>
             <AppearanceSettings />
           </section>
+          <AiSettings
+            key={user.id}
+            disabled={tokenMutationActive || form.formState.isSubmitting}
+            offline={offline}
+            onMutationChange={setAiMutationActive}
+          />
           <section
             id="account-profile"
             className="surface account-settings-section"
@@ -203,7 +220,7 @@ export function AccountSettingsPage({
             </FieldGroup>
             <footer className="account-settings-actions">
               <Button
-                disabled={tokenMutationActive || form.formState.isSubmitting}
+                disabled={mutationActive || form.formState.isSubmitting}
                 onClick={onClose}
                 type="button"
                 variant="outline"
@@ -212,7 +229,7 @@ export function AccountSettingsPage({
               </Button>
               <Button
                 disabled={
-                  offline || tokenMutationActive || form.formState.isSubmitting
+                  offline || mutationActive || form.formState.isSubmitting
                 }
                 type="submit"
               >
@@ -226,7 +243,9 @@ export function AccountSettingsPage({
           </section>
           <section id="account-tokens" className="surface">
             <ApiTokenSettings
-              offline={offline}
+              offline={
+                offline || aiMutationActive || form.formState.isSubmitting
+              }
               onMutationChange={changeTokenMutation}
             />
           </section>

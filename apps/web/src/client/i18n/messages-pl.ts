@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { plAi } from "./messages-ai.js";
+import { plAiAuth } from "./messages-ai-auth.js";
 import { plAccount } from "./messages-pl-account.js";
 import { plExpenses } from "./messages-pl-expenses.js";
 import { plSettings } from "./messages-pl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const pl = {
+  ...plAi,
+  ...plAiAuth,
   backToExpenseList: "Wróć do listy wydatków",
   expenseEditorUnavailable:
     "Nie można edytować tego wydatku. Może nie istnieć albo grupa jest tylko do odczytu lub zarchiwizowana.",

@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { viAi } from "./messages-ai.js";
+import { viAiAuth } from "./messages-ai-auth.js";
 import { viErrors } from "./messages-vi-errors.js";
 import { viExpenses } from "./messages-vi-expenses.js";
 import { viSettings } from "./messages-vi-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const vi = {
+  ...viAi,
+  ...viAiAuth,
   ...viErrors,
   ...viExpenses,
   ...viSettings,

@@ -1,10 +1,14 @@
 import { interpolate, type MessageValues } from "./message-types.js";
+import { zhTWAi } from "./messages-ai.js";
+import { zhTWAiAuth } from "./messages-ai-auth.js";
 import { zhTWInterface } from "./messages-interface.js";
 import { zhTWPersonal } from "./messages-personal.js";
 
 import { zhTWVisa } from "./messages-visa.js";
 
 export const zhTW = {
+  ...zhTWAi,
+  ...zhTWAiAuth,
   ...zhTWPersonal,
   ...zhTWVisa,
   ...zhTWInterface,

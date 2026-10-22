@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { hiAi } from "./messages-ai.js";
+import { hiAiAuth } from "./messages-ai-auth.js";
 import { hiAccount } from "./messages-hi-account.js";
 import { hiSettings } from "./messages-hi-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 // Provisional machine-authored translations; fluent review is pending.
 export const hi = {
+  ...hiAi,
+  ...hiAiAuth,
   backToExpenseList: "खर्चों की सूची पर वापस जाएँ",
   expenseEditorUnavailable:
     "इस खर्च में बदलाव नहीं किया जा सकता। खर्च मौजूद नहीं हो सकता है, या समूह केवल पढ़ने के लिए या संग्रहित हो सकता है।",

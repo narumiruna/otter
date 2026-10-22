@@ -3,12 +3,16 @@ import {
   interpolate,
   type MessageValues,
 } from "./message-types.js";
+import { koAi } from "./messages-ai.js";
+import { koAiAuth } from "./messages-ai-auth.js";
 import { koSettings } from "./messages-ko-settings.js";
 import { koPersonal } from "./messages-personal.js";
 import { koVisa } from "./messages-visa.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ko = {
+  ...koAi,
+  ...koAiAuth,
   ...koPersonal,
   ...koVisa,
   ...koSettings,

@@ -19,6 +19,24 @@ import {
   type VersionedTrip,
 } from "./expense-history.js";
 
+export type {
+  AiAuthEvent,
+  AiAuthMethod,
+  AiAuthPrompt,
+  AiConnection,
+  AiConnectionsResponse,
+  AiLoginResponse,
+  AiLoginState,
+} from "./ai-auth.js";
+export {
+  type AiCatalogResponse,
+  type AiModelOption,
+  type AiProviderOption,
+  type AiSettings,
+  type AiSettingsResponse,
+  type AiThinkingLevel,
+  isAiSettings,
+} from "./ai-settings.js";
 export {
   changedExpenseFields,
   type Expense,

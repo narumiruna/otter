@@ -4,12 +4,16 @@ import {
   type MessageValues,
   pluralForm,
 } from "./message-types.js";
+import { frAi } from "./messages-ai.js";
+import { frAiAuth } from "./messages-ai-auth.js";
 import { frAccount } from "./messages-fr-account.js";
 import { frExpenses } from "./messages-fr-expenses.js";
 import { frSettings } from "./messages-fr-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const fr = {
+  ...frAi,
+  ...frAiAuth,
   ...frAccount,
   ...frExpenses,
   ...frSettings,
