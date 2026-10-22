@@ -168,10 +168,11 @@ async function blockExternalRequests(page: Page, baseURL: string | undefined) {
 }
 
 test.beforeEach(async ({ page }) => {
-  // Keep browser online state available for mocked loopback API workflows.
-  // The sandbox still blocks external network access at the OS layer.
-  await page.context().setOffline(true);
-  await page.context().setOffline(false);
+  // These workflows mock successful loopback API requests. Model an online
+  // browser without granting the sandbox external network access.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "onLine", { get: () => true });
+  });
 });
 
 for (const colorScheme of ["light", "dark"] as const) {
