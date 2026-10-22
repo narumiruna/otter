@@ -12,6 +12,8 @@ import {
 import pg from "pg";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { createApp } from "./server.js";
+import { AiLoginBroker } from "./server-ai-logins.js";
+import { aiProviders } from "./server-ai-providers.js";
 
 const settings: AiSettings = {
   provider: "openai",
@@ -19,8 +21,8 @@ const settings: AiSettings = {
   thinkingLevel: "off",
 };
 
-function setup(connected = true) {
-  vi.stubEnv("ENCRYPTION_KEY", "");
+function setup(connected = true, encryptionKey = "") {
+  vi.stubEnv("ENCRYPTION_KEY", encryptionKey);
   onTestFinished(() => vi.unstubAllEnvs());
   const pool = new pg.Pool();
   const query = vi.spyOn(pool, "query");
@@ -163,7 +165,7 @@ test("AI catalog exposes only static chat options and exact supported thinking l
           provider,
         authMethods: [
           ...(builtinProviders().find(({ id }) => id === provider)?.auth
-            .oauth && provider !== "radius"
+            .oauth && !["openai", "radius"].includes(provider)
             ? ["oauth"]
             : []),
           ...(builtinProviders().find(({ id }) => id === provider)?.auth.apiKey
@@ -179,6 +181,12 @@ test("AI catalog exposes only static chat options and exact supported thinking l
       }))
       .filter((provider) => provider.models.length > 0),
   });
+  expect(data.providers.find(({ id }) => id === "openai")?.authMethods).toEqual(
+    ["api_key"],
+  );
+  expect(
+    data.providers.find(({ id }) => id === "openai-codex")?.authMethods,
+  ).toEqual(["oauth"]);
   expect(data.providers.length).toBeGreaterThan(0);
   const models = data.providers.flatMap((provider) => provider.models);
   expect(models.some((model) => model.thinkingLevels.includes("max"))).toBe(
@@ -322,6 +330,7 @@ test("AI connect is disabled without a valid persistent encryption key and accep
     { provider: "openai", method: "api_key", apiKey: "secret" },
     { provider: "unknown", method: "api_key" },
     { provider: "radius", method: "oauth" },
+    { provider: "openai", method: "oauth" },
     { provider: "openai", method: "unknown" },
   ]) {
     expect(
@@ -341,6 +350,33 @@ test("AI connect is disabled without a valid persistent encryption key and accep
   });
   expect(disabled.status).toBe(503);
   expect(disabled.headers.get("cache-control")).toBe("no-store");
+});
+
+test("OpenAI OAuth returns 400 with a valid session and key, before broker or credential access", async () => {
+  const { app, query } = setup(true, Buffer.alloc(32, 17).toString("base64"));
+  const start = vi.spyOn(AiLoginBroker.prototype, "start");
+  const openai = aiProviders.find(({ id }) => id === "openai");
+  if (!openai?.auth.oauth) throw new Error("Missing SDK OAuth");
+  const login = vi.spyOn(openai.auth.oauth, "login");
+  onTestFinished(() => {
+    start.mockRestore();
+    login.mockRestore();
+  });
+  const response = await app.request("/api/auth/ai/logins", {
+    method: "POST",
+    headers: { cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "openai", method: "oauth" }),
+  });
+  expect(response.status).toBe(400);
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(start).not.toHaveBeenCalled();
+  expect(login).not.toHaveBeenCalled();
+  expect(query).toHaveBeenCalledTimes(2); // Session lookup only.
+  expect(
+    query.mock.calls.some(
+      ([sql]) => typeof sql === "string" && sql.includes("user_ai_"),
+    ),
+  ).toBe(false);
 });
 
 test("AI settings reject malformed bodies and invalid catalog choices without saving", async () => {

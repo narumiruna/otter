@@ -3,6 +3,7 @@
 import type {
   AiCatalogResponse,
   AiConnection,
+  AiLoginState,
   AiSettings as Settings,
 } from "@narumitw/otter-contracts";
 import {
@@ -48,6 +49,22 @@ const catalog: AiCatalogResponse = {
       ],
     },
     {
+      id: "openai",
+      name: "OpenAI",
+      authMethods: ["api_key"],
+      models: [
+        { id: "gpt-test", name: "GPT test model", thinkingLevels: ["off"] },
+      ],
+    },
+    {
+      id: "openai-codex",
+      name: "OpenAI Codex (legacy)",
+      authMethods: ["oauth"],
+      models: [
+        { id: "codex-test", name: "Codex test model", thinkingLevels: ["low"] },
+      ],
+    },
+    {
       id: "unconnected",
       name: "Unconnected",
       authMethods: ["oauth"],
@@ -68,6 +85,8 @@ function server(settings: Settings | null = null) {
       { provider: "alpha", method: "oauth" },
       { provider: "beta", method: "api_key" },
     ] as AiConnection[],
+    login: null as AiLoginState | null,
+    completeLogin: false,
     loadFailures: 0,
     saveFailures: 0,
     saveResponse: null as Promise<Response> | null,
@@ -81,6 +100,43 @@ function server(settings: Settings | null = null) {
       }
       if (url === "/api/auth/ai/connections")
         return Response.json({ connections: state.connections });
+      if (
+        url === "/api/auth/ai/connections/openai" &&
+        init?.method === "DELETE"
+      ) {
+        state.connections = state.connections.filter(
+          (connection) => connection.provider !== "openai",
+        );
+        if (state.settings?.provider === "openai") state.settings = null;
+        return Response.json({ ok: true });
+      }
+      if (url === "/api/auth/ai/logins" && init?.method === "POST") {
+        expect(JSON.parse(String(init.body))).toEqual({
+          provider: "openai-codex",
+          method: "oauth",
+        });
+        state.login = {
+          id: "codex-login",
+          provider: "openai-codex",
+          method: "oauth",
+          status: "pending",
+          events: [
+            {
+              type: "device_code",
+              userCode: "TEST-1234",
+              verificationUri: "https://device.example.test/activate",
+            },
+          ],
+        };
+        return Response.json({ login: state.login });
+      }
+      if (url === "/api/auth/ai/logins/codex-login" && !init?.method) {
+        if (state.completeLogin && state.login?.status === "pending") {
+          state.connections.push({ provider: "openai-codex", method: "oauth" });
+          state.login = { ...state.login, status: "complete" };
+        }
+        return Response.json({ login: state.login });
+      }
       if (url === "/api/auth/ai/settings") {
         if (init?.method === "PUT") {
           if (state.saveFailures-- > 0)
@@ -297,6 +353,136 @@ test("offline mounting sends no requests and reconnecting loads the current acco
   expect(screen.getByRole("button", { name: "Add provider" })).toBeDisabled();
   for (const button of screen.getAllByRole("button", { name: "Disconnect" }))
     expect(button).toBeDisabled();
+});
+
+test("connecting Codex keeps stored OpenAI OAuth metadata and preferences separate until an explicit save", async () => {
+  const saved: Settings = {
+    provider: "openai",
+    model: "gpt-test",
+    thinkingLevel: "off",
+  };
+  const { state, fetch } = server(saved);
+  state.connections = [{ provider: "openai", method: "oauth" }];
+  const { user, unmount } = setup();
+  await loaded();
+  const modelProvider = screen.getByRole("combobox", { name: "Provider" });
+  const model = screen.getByRole("combobox", { name: "Model" });
+  expect(modelProvider).toHaveValue("OpenAI");
+  expect(model).toHaveValue("GPT test model");
+  await user.click(screen.getByRole("button", { name: "Add provider" }));
+  const connections = screen.getByRole("region", {
+    name: "Provider connections",
+  });
+  await user.click(
+    within(connections).getByRole("combobox", { name: "Provider" }),
+  );
+  expect(
+    screen.queryByRole("option", { name: "OpenAI openai" }),
+  ).not.toBeInTheDocument();
+  await user.click(
+    screen.getByRole("option", {
+      name: "OpenAI Codex (legacy) openai-codex",
+    }),
+  );
+  await user.click(screen.getByRole("button", { name: "Connect provider" }));
+  expect(await screen.findByText("TEST-1234")).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: "Open sign-in page" }),
+  ).toHaveAttribute("href", "https://device.example.test/activate");
+  expect(screen.queryByLabelText("Response")).not.toBeInTheDocument();
+  state.completeLogin = true;
+  expect(
+    await screen.findByText("Provider connection saved", {}, { timeout: 3000 }),
+  ).toBeVisible();
+  expect(state.connections).toEqual([
+    { provider: "openai", method: "oauth" },
+    { provider: "openai-codex", method: "oauth" },
+  ]);
+  expect(modelProvider).toHaveValue("OpenAI");
+  expect(model).toHaveValue("GPT test model");
+  expect(state.settings).toEqual(saved);
+  expect(
+    fetch.mock.calls.filter(([, init]) => init?.method === "PUT"),
+  ).toHaveLength(0);
+  await choose(user, "Provider", "OpenAI Codex (legacy) openai-codex");
+  expect(model).toHaveValue("");
+  await user.click(model);
+  expect(
+    screen.queryByRole("option", { name: "GPT test model gpt-test" }),
+  ).not.toBeInTheDocument();
+  await user.click(
+    screen.getByRole("option", { name: "Codex test model codex-test" }),
+  );
+  expect(state.settings).toEqual(saved);
+  await user.click(screen.getByRole("button", { name: "Save AI settings" }));
+  expect(await screen.findByText("AI settings saved")).toBeVisible();
+  expect(state.settings).toEqual({
+    provider: "openai-codex",
+    model: "codex-test",
+    thinkingLevel: "low",
+  });
+  unmount();
+  setup();
+  await loaded();
+  expect(screen.getByRole("combobox", { name: "Provider" })).toHaveValue(
+    "OpenAI Codex (legacy)",
+  );
+  expect(screen.getByRole("combobox", { name: "Model" })).toHaveValue(
+    "Codex test model",
+  );
+});
+
+test("disconnecting stored OpenAI OAuth clears its selected preferences without remapping them", async () => {
+  const saved: Settings = {
+    provider: "openai",
+    model: "gpt-test",
+    thinkingLevel: "off",
+  };
+  const { state, fetch } = server(saved);
+  state.connections = [
+    { provider: "openai", method: "oauth" },
+    { provider: "openai-codex", method: "oauth" },
+  ];
+  const { user, unmount } = setup();
+  await loaded();
+  const connection = screen
+    .getByText("OpenAI", { selector: "strong", exact: true })
+    .closest("li");
+  if (!connection) throw new Error("Missing OpenAI connection");
+  expect(within(connection).getByText("Sign in with an account")).toBeVisible();
+  await user.click(
+    within(connection).getByRole("button", { name: "Disconnect" }),
+  );
+  expect(await screen.findByText("Provider disconnected")).toBeVisible();
+  expect(state.connections).toEqual([
+    { provider: "openai-codex", method: "oauth" },
+  ]);
+  expect(state.settings).toBeNull();
+  expect(
+    fetch.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+  ).toEqual([
+    [
+      "/api/auth/ai/connections/openai",
+      expect.objectContaining({ method: "DELETE" }),
+    ],
+  ]);
+  expect(
+    fetch.mock.calls.filter(([, init]) => init?.method === "PUT"),
+  ).toHaveLength(0);
+  unmount();
+  setup();
+  await loaded();
+  expect(screen.getByRole("combobox", { name: "Provider" })).toHaveValue("");
+  expect(screen.getByRole("combobox", { name: "Model" })).toHaveValue("");
+  expect(
+    screen.queryByText(
+      "The saved provider or model is no longer available. Select a current model.",
+    ),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Save AI settings" }),
+  ).toBeDisabled();
+  expect(state.settings).toBeNull();
 });
 
 test("a missing saved model is not silently replaced or saved", async () => {

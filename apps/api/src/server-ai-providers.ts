@@ -13,7 +13,8 @@ export const aiProviders = builtinProviders();
 
 export function aiAuthMethods(provider: Provider): AiAuthMethod[] {
   const methods: AiAuthMethod[] = [];
-  if (provider.auth.oauth && provider.id !== "radius") methods.push("oauth");
+  if (provider.auth.oauth && !["openai", "radius"].includes(provider.id))
+    methods.push("oauth");
   if (provider.auth.apiKey?.login) methods.push("api_key");
   return methods;
 }
@@ -31,6 +32,8 @@ export const loginAiProvider: AiProviderLogin = async (
   interaction,
   options,
 ) => {
+  if (!aiAuthMethods(provider).includes(method))
+    throw new Error("Unsupported method");
   if (method === "oauth") {
     // These SDK overrides bypass AuthContext. Fail closed rather than inherit them
     // or mutate the shared process environment in a multi-user server.
@@ -43,20 +46,31 @@ export const loginAiProvider: AiProviderLogin = async (
     ) {
       throw new Error("Unsupported ambient OAuth configuration");
     }
-    if (!provider.auth.oauth || provider.id === "radius")
-      throw new Error("Unsupported method");
+    if (!provider.auth.oauth) throw new Error("Unsupported method");
     return provider.auth.oauth.login(interaction, options);
   }
   if (!provider.auth.apiKey?.login) throw new Error("Unsupported method");
   return provider.auth.apiKey.login(interaction);
 };
 
-// Keep local-file/ambient choices and callback-only Anthropic login off the wire.
+// Keep local-file/ambient choices and callback login methods off the wire.
 export function automaticAiChoice(
   provider: string,
   method: AiAuthMethod,
   prompt: AuthPrompt,
 ): string | undefined {
+  if (provider === "openai-codex" && method === "oauth") {
+    if (
+      prompt.type !== "select" ||
+      !Array.isArray(prompt.options) ||
+      prompt.options.length !== 2 ||
+      prompt.options.filter(({ id }) => id === "device_code").length !== 1 ||
+      prompt.options.filter(({ id }) => id === "browser").length !== 1 ||
+      prompt.options.some(({ label }) => typeof label !== "string")
+    )
+      throw new Error("Unsupported SDK prompt");
+    return "device_code";
+  }
   if (prompt.type !== "select") return undefined;
   const choice =
     method === "oauth" && provider === "anthropic"
@@ -84,11 +98,7 @@ export function supportedAiPrompt(
       (method === "api_key" &&
         ["cloudflare-ai-gateway", "cloudflare-workers-ai"].includes(provider))
     );
-  return (
-    method === "oauth" &&
-    provider === "openai-codex" &&
-    prompt.options.every(({ id }) => id === "browser" || id === "device_code")
-  );
+  return false;
 }
 
 export function validAiPromptValue(

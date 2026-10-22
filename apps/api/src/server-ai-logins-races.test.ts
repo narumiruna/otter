@@ -46,7 +46,7 @@ test("cancel waits for a persistence operation that already started, without del
   expect(broker.get("alice", "browser", state.id)).toBeUndefined();
 });
 
-test("generic select prompts reject stale IDs, unknown options, and excessive input", async () => {
+test("Codex selects device_code without exposing a browser selector or accepting responses", async () => {
   vi.useFakeTimers();
   const broker = new AiLoginBroker(
     Buffer.alloc(32, 7),
@@ -78,18 +78,11 @@ test("generic select prompts reject stale IDs, unknown options, and excessive in
   );
   if (!state) throw new Error("Expected login");
   await vi.advanceTimersByTimeAsync(0);
-  const prompt = broker.get("alice", "browser", state.id)?.prompt;
-  if (!prompt) throw new Error("Expected prompt");
-  for (const value of ["unknown", "x".repeat(16_385)]) {
-    expect(broker.respond("alice", "browser", state.id, prompt.id, value)).toBe(
-      "invalid",
-    );
-  }
-  expect(broker.respond("alice", "browser", state.id, "stale", "browser")).toBe(
-    "invalid",
-  );
-  broker.respond("alice", "browser", state.id, prompt.id, "device_code");
-  await vi.advanceTimersByTimeAsync(0);
+  expect(broker.get("alice", "browser", state.id)?.prompt).toBeUndefined();
+  for (const value of ["browser", "device_code", "unknown", "x".repeat(16_385)])
+    expect(
+      broker.respond("alice", "browser", state.id, "not-exposed", value),
+    ).toBe("invalid");
   expect(broker.get("alice", "browser", state.id)?.status).toBe("complete");
 });
 

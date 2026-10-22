@@ -24,8 +24,9 @@ Migration `026_user_ai_credentials.sql` stores one credential per `(user_id, pro
 
 1. Read `GET /api/auth/ai/catalog` and `GET /api/auth/ai/connections`.
    - Catalog provider names and authentication methods come from built-in provider metadata. Model options come only from the packaged chat catalog. No dynamic catalog, server environment credential, or local credential file is loaded.
-2. Send `POST /api/auth/ai/logins` with exactly `{ "provider": "openai", "method": "oauth" }`, or choose `api_key`.
+2. Send `POST /api/auth/ai/logins` with exactly `{ "provider": "openai-codex", "method": "oauth" }` for Codex device authorization, or `{ "provider": "openai", "method": "api_key" }` for an OpenAI API key.
    - HTTP 201 returns an initial pending `login`. The SDK login starts asynchronously.
+   - `openai` OAuth is not offered. A direct request for this provider/method returns HTTP 400 before the SDK starts.
 3. Poll `GET /api/auth/ai/logins/:id` while status is `pending`.
    - Show SDK information, authorization links, device codes, and progress events.
    - A prompt has an opaque `id` and type `text`, `secret`, `manual_code`, or `select`. A select response is the option ID.
@@ -47,9 +48,12 @@ Login state is bounded, process-local memory, not PostgreSQL. Use one API instan
 ## Provider restrictions
 
 - Anthropic OAuth automatically selects the SDK `copy_code` flow. It does not start Anthropic's local callback listener.
-- OpenAI OAuth needs the SDK loopback listener on port 1455. Do not publish that port. On a remote server, paste the final redirect URL in the Otter prompt. A port collision fails with a generic error; cancel the other pending login and retry. The SDK handles authorization state and PKCE. Otter does not implement a separate OAuth protocol.
-  - OpenAI receives agent name `otter` and a stable installation UUID derived by HMAC from the encryption key and a constant application label. It does not receive the account ID in this identifier.
-- OpenAI Codex offers the SDK browser/manual URL and device-code choices. OpenRouter supports a manual redirect URL. Other built-in device flows use the SDK device-code interaction.
+- OpenAI supports new API-key connections only. Its SDK OAuth flow reserves the shared callback port 1455, so Otter does not advertise or start that flow. One account cannot reserve this port through an OpenAI OAuth request.
+- OpenAI Codex account sign-in uses the SDK `device_code` method automatically. It shows the verification link and device code without a browser-method selector or callback listener.
+  - An unsupported SDK prompt, a missing device-code choice, or a provider rejection fails the login. Otter never falls back to browser login.
+  - `openai` and `openai-codex` remain separate providers with separate model catalogs. Otter does not rename, copy, or remap existing credentials or saved model preferences. Existing OpenAI OAuth connections remain listed, retain their saved preferences, and can be disconnected.
+  - The SDK handles device authorization and token exchange. Otter does not implement a separate OAuth protocol.
+- OpenRouter supports a manual redirect URL. Other built-in device flows use the SDK device-code interaction.
 - GitHub Copilot supports only a blank domain or `github.com`. Arbitrary enterprise domains are rejected before the SDK can use them as network targets. Copilot login can list and enable provider models as part of authentication, but does not run inference.
 - Bedrock automatically selects a bearer token. AWS profiles and the server credential chain are not available.
 - Vertex AI automatically selects an API key. ADC and service-account file paths are not available.
@@ -66,4 +70,10 @@ Login state is bounded, process-local memory, not PostgreSQL. Use one API instan
 
 Changing the key alone does not rotate existing ciphertext. This version has no automatic key-rotation command. To change keys, stop logins and coordinate a controlled decrypt/re-encrypt migration, or explicitly discard saved connections and require users to reconnect. Loss of the key makes saved credentials unrecoverable. Never replace a missing key with a new generated key and assume old connections still work.
 
-For rollback, stop new logins and restore the earlier API/Web pair. Keep the additive tables and key backup; do not drop credential rows or restore the whole database merely to remove this feature. An older API does not know the credential connection checks; do not leave old and new instances active together. If a credential is compromised, revoke it with its provider as well as disconnecting it in Otter. Disconnect deletes Otter's copy; it does not perform provider-side token revocation.
+For rollback of the account settings feature, stop new logins and restore the earlier API/Web pair. Keep the additive tables and key backup; do not drop credential rows or restore the whole database merely to remove this feature. An older API does not know the credential connection checks; do not leave old and new instances active together. If a credential is compromised, revoke it with its provider as well as disconnecting it in Otter. Disconnect deletes Otter's copy; it does not perform provider-side token revocation.
+
+### Shared-port OAuth fix rollout
+
+Deploy the corrected API and web build together. Restart every API instance to stop pending logins created by the earlier version and release their callback listeners. Do not leave an older API instance active alongside the fixed version.
+
+This fix does not require a database migration, credential rewrite, or encryption-key change. Do not roll back to a build that re-enables fixed-port OpenAI OAuth. If device authorization is unavailable, keep the restricted methods and use API-key sign-in until a safe flow is available.

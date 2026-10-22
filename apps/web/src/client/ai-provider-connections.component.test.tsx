@@ -25,6 +25,22 @@ const providers: AiProviderOption[] = [
     models: [],
   },
   { id: "unavailable", name: "Unavailable", authMethods: [], models: [] },
+  {
+    id: "openai",
+    name: "OpenAI",
+    authMethods: ["api_key"],
+    models: [
+      { id: "gpt-test", name: "GPT test model", thinkingLevels: ["off"] },
+    ],
+  },
+  {
+    id: "openai-codex",
+    name: "OpenAI Codex (legacy)",
+    authMethods: ["oauth"],
+    models: [
+      { id: "codex-test", name: "Codex test model", thinkingLevels: ["low"] },
+    ],
+  },
 ];
 
 function setup(
@@ -80,7 +96,11 @@ function setup(
         );
       return Response.json({ login: state.login });
     }
-    if (url === "/api/auth/ai/connections/both" && init?.method === "DELETE") {
+    if (
+      (url === "/api/auth/ai/connections/both" ||
+        url === "/api/auth/ai/connections/openai") &&
+      init?.method === "DELETE"
+    ) {
       if (state.disconnectFailures-- > 0)
         return Response.json({ error: "Unavailable" }, { status: 503 });
       return Response.json({ ok: true });
@@ -142,7 +162,8 @@ afterEach(() => {
 });
 
 test("chooses an authentication method first, filters providers, and starts only on explicit Connect", async () => {
-  const { fetch } = setup();
+  const { fetch, state } = setup();
+  state.login = { ...state.login, provider: "openai", method: "api_key" };
   await click("Add provider");
   const method = screen.getByRole("combobox", {
     name: "Authentication method",
@@ -155,7 +176,15 @@ test("chooses an authentication method first, filters providers, and starts only
   fireEvent.focus(provider);
   expect(
     within(screen.getByRole("listbox")).getAllByRole("option"),
-  ).toHaveLength(2);
+  ).toHaveLength(3);
+  expect(
+    screen.queryByRole("option", { name: "OpenAI openai" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("option", {
+      name: "OpenAI Codex (legacy) openai-codex",
+    }),
+  ).toBeVisible();
   expect(
     screen.queryByRole("option", { name: "Key only key-only" }),
   ).not.toBeInTheDocument();
@@ -173,14 +202,20 @@ test("chooses an authentication method first, filters providers, and starts only
   expect(
     screen.queryByRole("option", { name: "Unavailable unavailable" }),
   ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("option", { name: "Key only key-only" }));
+  expect(screen.getByRole("option", { name: "OpenAI openai" })).toBeVisible();
+  expect(
+    screen.queryByRole("option", {
+      name: "OpenAI Codex (legacy) openai-codex",
+    }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: "OpenAI openai" }));
   expect(fetch).not.toHaveBeenCalled();
   await click("Connect provider");
   expect(fetch.mock.calls[0]).toEqual([
     "/api/auth/ai/logins",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ provider: "key-only", method: "api_key" }),
+      body: JSON.stringify({ provider: "openai", method: "api_key" }),
     }),
   ]);
 });
@@ -323,26 +358,49 @@ test("poll completion keeps the mutation lock until connection refresh finishes"
   expect(screen.getByText("Provider connection saved")).toBeVisible();
 });
 
-test("device-code login displays its verification code and completes by polling", async () => {
-  const { state, onMutationChange } = setup();
+test("Codex displays device instructions without a method prompt and completes by polling", async () => {
+  const { state, fetch, onChange, onMutationChange } = setup();
+  state.login.provider = "openai-codex";
   state.login.events = [
     {
       type: "device_code",
       userCode: "TEST-1234",
       verificationUri: "https://device.example.test/activate",
     },
+    { type: "info", message: "Enter the code on the verification page" },
   ];
-  await selectProvider();
+  await selectProvider("openai-codex");
   await click("Connect provider");
   expect(screen.getByText("TEST-1234")).toBeVisible();
   expect(
     screen.getByRole("link", { name: "Open sign-in page" }),
   ).toHaveAttribute("href", "https://device.example.test/activate");
+  expect(
+    screen.getByText("Enter the code on the verification page"),
+  ).toBeVisible();
   expect(screen.queryByLabelText("Response")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: "Response" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Continue" }),
+  ).not.toBeInTheDocument();
+  expect(fetch.mock.calls[0]).toEqual([
+    "/api/auth/ai/logins",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ provider: "openai-codex", method: "oauth" }),
+    }),
+  ]);
   state.login = { ...state.login, status: "complete" };
   await tick(500);
   expect(screen.getByText("Provider connection saved")).toBeVisible();
+  expect(onChange).toHaveBeenCalledOnce();
   expect(onMutationChange).toHaveBeenLastCalledWith(false);
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+    "/api/auth/ai/logins",
+    "/api/auth/ai/logins/login-1",
+  ]);
 });
 
 test.each([
@@ -452,6 +510,29 @@ test("disconnect can be retried and refreshes connections without changing model
   expect(
     fetch.mock.calls.every(([url]) => url === "/api/auth/ai/connections/both"),
   ).toBe(true);
+});
+
+test("a stored OpenAI OAuth connection stays listed and disconnects under its original provider ID", async () => {
+  const { fetch, onChange } = setup({
+    connections: [{ provider: "openai", method: "oauth" }],
+  });
+  const connection = screen.getByRole("listitem");
+  expect(within(connection).getByText("OpenAI", { exact: true })).toBeVisible();
+  expect(within(connection).getByText("Sign in with an account")).toBeVisible();
+  expect(
+    within(connection).queryByText("OpenAI Codex (legacy)"),
+  ).not.toBeInTheDocument();
+  expect(
+    within(connection).getByRole("button", { name: "Disconnect" }),
+  ).toHaveAccessibleDescription("OpenAI");
+  await click("Disconnect");
+  expect(fetch.mock.calls).toEqual([
+    [
+      "/api/auth/ai/connections/openai",
+      expect.objectContaining({ method: "DELETE" }),
+    ],
+  ]);
+  expect(onChange).toHaveBeenCalledOnce();
 });
 
 test.each([{ disabled: true }, { authenticationEnabled: false }])(
