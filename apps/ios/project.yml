@@ -92,6 +92,7 @@ schemes:
     build:
       targets:
         Otter: all
+        OtterLiveUITests: [test]
     run:
       config: Debug
     test:

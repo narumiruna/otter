@@ -13,11 +13,6 @@ class LiveWorkflowTestCase: XCTestCase {
     }
 
     override func tearDown() async throws {
-        await cleanUpAfterTest()
-        try await super.tearDown()
-    }
-
-    private func cleanUpAfterTest() {
         if testRun?.hasSucceeded == false {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "workspace-failure"
