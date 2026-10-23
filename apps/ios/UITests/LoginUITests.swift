@@ -65,6 +65,8 @@ final class LoginUITests: XCTestCase {
     }
 
     func testInsecureServerIsRejectedWithoutLosingInput() {
+        // A cold iPad completed these assertions in 87s; use the existing CI maximum.
+        executionTimeAllowance = 90
         let app = XCUIApplication()
         app.launch()
         selectTokenMode(app)

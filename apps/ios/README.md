@@ -116,7 +116,8 @@ DATABASE_URL=<test-database-url> npm run test:ios:integration -- --web
 - `--ui-diagnostic-group` 與 `--ui-diagnostic-expense` 只執行指定 workflow，仍使用真實 API、280 秒 allowance 與嚴格 xcresult 數量。這些診斷不替代 `--ui`／`--ui-ipad` 的七案例完整驗收。
   - Add `--ui-ipad` to either diagnostic command to run it on iPad.
   - The group diagnostic runs owner permissions, archive, restore, and copy. The expense diagnostic runs all three expense cases.
-- `OtterUITests` 是不需 PostgreSQL 的四案例登入 smoke tests。`OtterLiveUITests` 則由 harness 啟動真實 API，不能以沒有設定 origin 的執行取代驗收。
+- `OtterUITests` 是不需 PostgreSQL 的四案例登入 smoke tests。
+  - The HTTPS case uses the existing 90-second maximum for cold iPad keyboard startup. Other smoke cases keep the 60-second default.`OtterLiveUITests` 則由 harness 啟動真實 API，不能以沒有設定 origin 的執行取代驗收。
 - Integration harness 使用真實 Hono、PostgreSQL、migrations 與 Swift URLSession；只把外部銀行／Visa 報價換成可重現資料。沒有假造 Provider 登入成功。
 - `--web` 使用真實 Web 密碼登入及檔案下載，與同帳號的 Swift App client 比較 ID、版本、指定份額、付款、分享邊界、CSV／JSON 及重開 process 後的 queue replay。這是 macOS Swift client，不替代完整 iPhone／iPad UI 操作。
 - `.github/workflows/ios.yml` 分開執行 iPhone／iPad native matrix 與 browser↔Swift jobs；各自啟動 loopback-only PostgreSQL process，不使用 macOS Linux service containers。
