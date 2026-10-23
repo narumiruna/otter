@@ -13,11 +13,8 @@ import { withTransaction } from "./server-support.js";
 export function aiCredentialsKey(
   value: string | undefined,
 ): Buffer | undefined {
-  if (!value || !/^[A-Za-z0-9+/]{43}=$/.test(value)) return undefined;
-  const key = Buffer.from(value, "base64");
-  return key.length === 32 && key.toString("base64") === value
-    ? key
-    : undefined;
+  if (value?.length !== 64 || /[^0-9a-f]/i.test(value)) return undefined;
+  return Buffer.from(value, "hex");
 }
 
 function aad(user: string, provider: string): Buffer {

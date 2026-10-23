@@ -4,14 +4,14 @@ Otter stores a separate provider connection for each account. Login uses the pro
 
 ## Encryption key
 
-Set `ENCRYPTION_KEY` to a canonical base64-encoded 32-byte key to enable new connections. An absent or invalid key sets catalog `authenticationEnabled` to `false` and makes new login requests return 503. Settings reads, connection metadata, and disconnect remain available. Otter never uses plaintext storage or a generated temporary key as a fallback.
+Set `ENCRYPTION_KEY` to a 32-byte key encoded as exactly 64 hexadecimal characters to enable new connections. Uppercase and lowercase letters are accepted. Base64, `0x` prefixes, and whitespace are not accepted. An absent or invalid key sets catalog `authenticationEnabled` to `false` and makes new login requests return 503. Settings reads, connection metadata, and disconnect remain available. Otter never uses plaintext storage or a generated temporary key as a fallback.
 
-Generate the key **once** and save it outside the repository and container:
+For a new installation, generate the key **once** and save it outside the repository and container. For an existing installation, keep the same key bytes and follow [Upgrade from Base64](#upgrade-from-base64).
 
 ```bash
 # AI_KEY_FILE must point to a protected, durable file outside the repository.
 umask 077
-openssl rand -base64 32 > "$AI_KEY_FILE"
+openssl rand -hex 32 > "$AI_KEY_FILE"
 export ENCRYPTION_KEY="$(tr -d '\r\n' < "$AI_KEY_FILE")"
 docker compose up --detach --build
 ```
@@ -19,6 +19,18 @@ docker compose up --detach --build
 Do not run key generation during container startup or restart. Supply the same saved value after each restart and deployment. A secret manager can supply the value instead of a file. Do not put it in source code, an image, command arguments, browser storage, or logs. Compose forwards the host variable to the API container.
 
 Migration `026_user_ai_credentials.sql` stores one credential per `(user_id, provider)` in PostgreSQL. AES-256-GCM uses a fresh nonce for each write. Authenticated additional data binds the ciphertext to the account, provider, and format version. Account deletion removes credentials through a cascading foreign key. Connection lists contain only provider and method metadata; they do not decrypt credentials. Encryption does not protect against a compromised running API process with access to both the database and key.
+
+### Upgrade from Base64
+
+This version accepts hex only. Before deployment:
+
+1. Back up the existing key in protected storage. Do not generate a replacement key.
+2. Check the saved encoding.
+   - If the key is already 64 hexadecimal characters, keep it unchanged.
+   - If the key is Base64, decode it to 32 bytes and encode those same bytes as 64 hexadecimal characters. Update the durable secret and `ENCRYPTION_KEY` together.
+3. Deploy the API and restart it with the hex value. Verify that the catalog returns `authenticationEnabled: true`.
+
+The decoded key bytes, saved ciphertext, and installation device ID stay unchanged. No database migration or credential rewrite is required. For rollback to the previous API, encode the same 32 bytes as Base64 again. Never generate a new key as part of an encoding change.
 
 ## Browser login process
 

@@ -14,18 +14,32 @@ const credential: Credential = {
   env: { CLOUDFLARE_ACCOUNT_ID: "account" },
 };
 
-test("AI encryption key is optional but must be canonical base64 with exactly 32 bytes", () => {
-  expect(aiCredentialsKey(key.toString("base64"))).toEqual(key);
+test("AI encryption key accepts exactly 32 bytes encoded as case-insensitive hex", () => {
+  const hex = key.toString("hex");
+  for (const value of [hex, hex.toUpperCase(), "2a2A".repeat(16)]) {
+    expect(aiCredentialsKey(value)).toEqual(key);
+  }
   for (const value of [
     undefined,
     "",
     "secret",
-    key.toString("hex"),
-    key.toString("base64").slice(0, -1),
-    Buffer.alloc(31).toString("base64"),
-    Buffer.alloc(33).toString("base64"),
+    key.toString("base64"),
+    hex.slice(0, -1),
+    Buffer.alloc(31).toString("hex"),
+    Buffer.alloc(33).toString("hex"),
+    "g".repeat(64),
+    `${hex.slice(0, -1)}g`,
+    `0x${hex}`,
+    ` ${hex}`,
+    `${hex} `,
+    `${hex}\n`,
+    `${hex}\r\n`,
+    `${hex.slice(0, -1)}\n`,
+    `${hex.slice(0, -2)}\r\n`,
+    `${hex.slice(0, 32)} ${hex.slice(33)}`,
+    `${hex.slice(0, -1)}\0`,
   ]) {
-    expect(aiCredentialsKey(value)).toBeUndefined();
+    expect(aiCredentialsKey(value), JSON.stringify(value)).toBeUndefined();
   }
 });
 
@@ -55,6 +69,22 @@ test("AES-256-GCM round-trips credentials with fresh nonces and binds account an
   expect(() =>
     decryptAiCredential(key, "alice", "openai", encrypted.subarray(0, 20)),
   ).toThrow();
+});
+
+test("converting an existing Base64 key to hex preserves credentials and the installation device ID", () => {
+  const previousKey = Buffer.from(key.toString("base64"), "base64");
+  const hexKey = aiCredentialsKey(previousKey.toString("hex"));
+  if (!hexKey) throw new Error("Expected a valid hex key");
+  const encrypted = encryptAiCredential(
+    previousKey,
+    "alice",
+    "openai",
+    credential,
+  );
+  expect(decryptAiCredential(hexKey, "alice", "openai", encrypted)).toEqual(
+    credential,
+  );
+  expect(aiDeviceId(hexKey)).toBe(aiDeviceId(previousKey));
 });
 
 test("installation device ID is a stable key-derived UUID, not an ephemeral ID", () => {

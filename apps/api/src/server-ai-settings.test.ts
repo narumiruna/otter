@@ -199,6 +199,37 @@ test("AI catalog exposes only static chat options and exact supported thinking l
   expect(query).toHaveBeenCalledTimes(2); // Session lookup only.
 });
 
+test.each([
+  { format: "lowercase hex", encryptionKey: "ab".repeat(32), enabled: true },
+  { format: "uppercase hex", encryptionKey: "AB".repeat(32), enabled: true },
+  { format: "mixed-case hex", encryptionKey: "aBAb".repeat(16), enabled: true },
+  {
+    format: "Base64",
+    encryptionKey: Buffer.alloc(32, 17).toString("base64"),
+    enabled: false,
+  },
+  { format: "invalid hex", encryptionKey: "g".repeat(64), enabled: false },
+])(
+  "AI catalog reports authentication availability for $format keys",
+  async ({ encryptionKey, enabled }) => {
+    const { app } = setup(true, encryptionKey);
+    const response = await app.request("/api/auth/ai/catalog", {
+      headers: { cookie },
+    });
+    expect(response.status).toBe(200);
+    const data: AiCatalogResponse = await response.json();
+    expect(data.authenticationEnabled).toBe(enabled);
+    if (!enabled) {
+      const login = await app.request("/api/auth/ai/logins", {
+        method: "POST",
+        headers: { cookie, "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "openai", method: "api_key" }),
+      });
+      expect(login.status).toBe(503);
+    }
+  },
+);
+
 test("AI settings stay null until saved and use only the session account", async () => {
   const { app, query } = setup();
   const initial = await app.request("/api/auth/ai/settings", {
@@ -353,7 +384,7 @@ test("AI connect is disabled without a valid persistent encryption key and accep
 });
 
 test("OpenAI OAuth returns 400 with a valid session and key, before broker or credential access", async () => {
-  const { app, query } = setup(true, Buffer.alloc(32, 17).toString("base64"));
+  const { app, query } = setup(true, Buffer.alloc(32, 17).toString("hex"));
   const start = vi.spyOn(AiLoginBroker.prototype, "start");
   const openai = aiProviders.find(({ id }) => id === "openai");
   if (!openai?.auth.oauth) throw new Error("Missing SDK OAuth");

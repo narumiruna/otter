@@ -25,7 +25,7 @@ for (const occupied of [false, true]) {
       const noCallback = await callbackPortSentinel(occupied);
       clearOAuthOverrides();
       const key = Buffer.alloc(32, 41);
-      vi.stubEnv("ENCRYPTION_KEY", key.toString("base64"));
+      vi.stubEnv("ENCRYPTION_KEY", key.toString("hex"));
       onTestFinished(() => {
         vi.unstubAllEnvs();
       });
