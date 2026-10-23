@@ -17,6 +17,7 @@ type UIDiagnostic = "group" | "expense";
 export function uiCaseCount(diagnostic?: UIDiagnostic): number {
   return diagnostic === "group" ? 1 : diagnostic === "expense" ? 3 : 7;
 }
+export const uiBuildBudgetMs = 600_000;
 const caseAllowanceSeconds = 280;
 const privateValues = new Set<string>();
 
@@ -296,6 +297,8 @@ export async function runUI(
       String(caseAllowanceSeconds),
       "CODE_SIGNING_ALLOWED=YES",
       "CODE_SIGN_IDENTITY=-",
+      "COMPILER_INDEX_STORE_ENABLE=NO",
+      "ONLY_ACTIVE_ARCH=YES",
       `OTTER_IOS_TEST_ORIGIN=${origin}`,
       ...(diagnostic
         ? [
@@ -311,7 +314,7 @@ export async function runUI(
       "xcodebuild",
       [...buildArguments, "build-for-testing"],
       signal,
-      240_000,
+      uiBuildBudgetMs,
       environment,
     );
     console.log(

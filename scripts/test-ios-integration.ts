@@ -720,7 +720,12 @@ async function main() {
             await admin.end();
           } finally {
             if (directory)
-              await rm(directory, { recursive: true, force: true });
+              await rm(directory, {
+                recursive: true,
+                force: true,
+                maxRetries: 5,
+                retryDelay: 1_000,
+              });
           }
         }
       }

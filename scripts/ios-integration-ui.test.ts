@@ -3,7 +3,11 @@ import {
   type SimulatorDevices,
   selectSimulator,
 } from "./ios-integration-simulator.js";
-import { uiCaseCount, uiSuiteBudgetMs } from "./ios-integration-ui.js";
+import {
+  uiBuildBudgetMs,
+  uiCaseCount,
+  uiSuiteBudgetMs,
+} from "./ios-integration-ui.js";
 
 const ios18 = "com.apple.CoreSimulator.SimRuntime.iOS-18-5";
 const ios26 = "com.apple.CoreSimulator.SimRuntime.iOS-26-2";
@@ -79,6 +83,7 @@ describe("iOS Simulator selection", () => {
 
 describe("live UI runner budget", () => {
   test("allows whole-minute XCTest limits and cold startup without assertion retries", () => {
+    expect(uiBuildBudgetMs).toBe(600_000);
     expect(uiCaseCount()).toBe(7);
     expect(uiCaseCount("group")).toBe(1);
     expect(uiCaseCount("expense")).toBe(3);
