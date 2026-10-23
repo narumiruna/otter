@@ -232,6 +232,10 @@ npm run test:e2e -- --workers=1
 
 ## Execution Evidence
 
+- 2026-10-23 resumed work（目前 HEAD `58616390ca6db35f96c3f1c56837109989f27b2e`）：已確認並清除先前精確 owned schemas `otter_ios_48008_9bb8a4566c7347edb824a4f93586a312` 與 `otter_ios_38575_c25cd1a0315b409a84f4fc7aa195c101`。共享 PostgreSQL 的 TCP 密碼與既有 volume 不一致，未重設憑證或資料；後續診斷改用獨立、loopback-only、tmpfs PostgreSQL container，密碼僅在 process memory。`package.json` 已加入 `pretest:ios:integration` 自動建置共享 packages，該 hook 與 Biome 檢查通過。
+- 群組複製失敗已重現：348 differential／102 live API assertions 通過，group UI 為 0 passed／1 failed／0 skipped。API 與資料庫確認副本獨立、無支出且保留兩位成員，原群組保留一筆支出；UI snapshot 卻顯示原群組名稱。`TripListView.onCreated` 原本將另一個含 TabView 的 workspace 推入 detail stack；已改為清除 detail path 並選取新群組作為 detail root，避免 tab reselection 回到原群組。新增實際名稱欄位與正常 tab 切換回歸斷言，沒有移除原資料保存斷言或增加 timeout。
+- 修正後 source-frozen parent diagnostic：348 differential／102 live API assertions 再次通過；build-for-testing 通過，但 UI 在登入的 `appearance.language` 控制項出現之前失敗（0 passed／1 failed／0 skipped），尚未到達複製操作，不能宣告導覽修正已通過 UI 驗收。Source fingerprints 前後相同；owned schema、Simulator、HTTP/pools、processes 與獨立 PostgreSQL container 均已清理。最新 Swift package tests 為 191 tests／19 suites 通過；三個變更 Swift 檔的 strict swift-format 與 Git whitespace checks 通過。完整 iPhone／iPad UI 仍待驗證。持久證據：`/Users/narumi/.cache/otter-validation/group-resume-bZr0dQvG/`，包含 initial-run failure evidence、parent-corrected-run result／cleanup／attachments 與 package-after-navigation.log。中途另一個 corrected-run 的 supervisor 被中斷、未產生測試結果；其精確 owned container 已移除，不算通過或 UI 回歸證據。
+
 - 2026-10-23：使用者停用 Goal mode，已停止後續實作與測試。Expense diagnostic 期間 OrbStack／Docker 消失，PostgreSQL `127.0.0.1:55432` 無法連線；該次結果屬 infrastructure-invalid。已停止 owned processes、關閉 API、刪除專用 Simulator、關閉 verifier pool；沒有重啟共享服務。Database schema 清理無法確認，僅知此次 owned schema prefix 為 `otter_ios_48008_`，完整 UUID 未記錄。恢復資料庫後須先確認 ownership，再清理該次 schema，不可刪除其他資料。交接：`/tmp/otter-native-serial-handoff-20261022T2219.json`。乾淨 source snapshot worktree 已移除；未執行其 build 驗證，未建立交付 commit／PR。
 
 - 2026-10-23 baseline：Web/API HEAD `0cb4dfd4719f3e3f17a2348db9285cd06351729e`；保留既有未提交的 iOS MVP、README 與 Changeset。尚未建立 PR 或宣告完整對齊。

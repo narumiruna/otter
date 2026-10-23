@@ -74,6 +74,10 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         XCTAssertNotEqual(copy.id, original.id)
         XCTAssertTrue(copy.expenses.isEmpty)
         XCTAssertEqual(Set(copy.participants.map(\.name)), Set(original.participants.map(\.name)))
+        // Normal tab navigation must keep the copied workspace, not pop to the original.
+        tab("群組設定")
+        XCTAssertEqual(
+            app.textFields["群組名稱（1–100 字）"].value as? String, name + " (copy)")
 
         // Select the original by its stable row ID, not a split-view Back container or title.
         app.terminate()

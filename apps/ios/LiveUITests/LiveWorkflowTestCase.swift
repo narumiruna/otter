@@ -81,20 +81,20 @@ class LiveWorkflowTestCase: XCTestCase {
     }
 
     func assertGroupName(_ name: String) {
-        // A split-view navigation title can refer to the parent. Check the actual group data.
+        // Check editable group data, not a parent navigation title. Resolve from the app
+        // so a destination change cannot leave the query tied to the previous Form.
         tab("群組設定")
-        let form = foregroundScroll
-        let actualName = form.descendants(matching: .any).matching(
-            NSPredicate(format: "label == %@ OR value == %@", name, name)
+        let actualName = app.textFields.matching(
+            NSPredicate(format: "value == %@", name)
         ).firstMatch
-        // Copy can push a new detail after the first tab tap. Select Settings again
+        // Copy can replace the detail after the first tab tap. Select Settings again
         // only while the requested group's actual content is not yet present.
         for _ in 0..<3 {
             if actualName.waitForExistence(timeout: 3) { break }
             tab("群組設定")
         }
         reveal(actualName)
-        XCTAssertTrue(actualName.exists)
+        XCTAssertEqual(actualName.value as? String, name)
     }
 
     func signOut() {

@@ -164,7 +164,10 @@ struct TripListView: View {
             tripID: id,
             onCreated: { value in
                 guard generation == session.sessionID else { return }
-                detailPath.append(value.trip.id)
+                // A created group is a new workspace, not a TabView pushed inside another.
+                // Tab reselection can pop a pushed workspace back to the original group.
+                detailPath = []
+                selectedTripID = value.trip.id
                 Task { await load() }
             },
             onDeleted: {
