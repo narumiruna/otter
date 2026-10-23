@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: otter_dev
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otter_dev_password}
@@ -18,6 +19,7 @@ services:
   otter:
     build: .
     image: ${OTTER_IMAGE:-otter:latest}
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy

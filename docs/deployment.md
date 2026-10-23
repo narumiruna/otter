@@ -10,6 +10,10 @@ docker compose up --build
 
 App 位於 <http://localhost:17463>。Container 啟動時會先套用 migrations；PostgreSQL host port 只綁定至 `127.0.0.1:55432`。
 
+`otter` 與 `postgres` 都使用 `restart: unless-stopped`。Docker engine 啟動後，未手動停止的 containers 會自動啟動；手動停止的 containers 不會自動恢復。Mac 重開機後，仍須確保 Docker Desktop 或 Docker daemon 已啟動。
+
+修改 `compose.yaml` 不會立即更新既有 containers。請使用原部署的 secrets 與相同 Compose project，重新執行 `docker compose up --detach --wait --wait-timeout 120` 以套用 policy；這可能重新建立 containers，但會保留既有資料 volume。
+
 正式環境至少要提供安全的資料庫密碼與公開的 HTTPS origin：
 
 ```bash
