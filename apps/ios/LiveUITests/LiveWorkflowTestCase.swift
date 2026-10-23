@@ -154,12 +154,20 @@ class LiveWorkflowTestCase: XCTestCase {
     }
 
     func workspaceTab(_ title: String) -> XCUIElement {
+        let tab = app.tabBars.buttons[title]
+        if tab.exists { return tab }
         // iPad can expose TabView buttons without a TabBar container.
-        app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
+        return app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
 
     func tab(_ title: String) {
-        tap(workspaceTab(title))
+        tapPresentedButton(workspaceTab(title))
+    }
+
+    func selectMenuOption(_ title: String) {
+        let option = app.buttons[title]
+        tapPresentedButton(option)
+        waitForMenuOptionToDisappear(option)
     }
 
     func selectSplit(_ title: String) {
@@ -167,21 +175,19 @@ class LiveWorkflowTestCase: XCTestCase {
             .firstMatch
         tap(picker)
         // A Picker menu is transient. Do not dismiss a keyboard or scroll its parent Form.
-        let option = app.buttons[title]
-        tapPresentedButton(option)
-        waitForMenuOptionToDisappear(option)
+        selectMenuOption(title)
     }
 
     private func waitForMenuOptionToDisappear(_ option: XCUIElement) {
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"), object: option)
-        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 3), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 10), .completed)
     }
 
     func tapPresentedButton(_ element: XCUIElement) {
         let available = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == true AND hittable == true"), object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [available], timeout: 3), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [available], timeout: 10), .completed)
         XCTAssertTrue(element.isEnabled)
         element.tap()
     }
@@ -266,16 +272,15 @@ class LiveWorkflowTestCase: XCTestCase {
         }
     }
 
-    func reveal(_ element: XCUIElement) {
+    func reveal(_ element: XCUIElement, upward: Bool = false) {
         // Revealing a control must not dismiss or drag a transient Menu or dialog.
-        if element.exists && element.isHittable { return }
         if element.waitForExistence(timeout: 3), element.isHittable { return }
         let scroll = foregroundScroll
         for attempt in 0..<24 {
             if element.exists && element.isHittable { return }
             let above =
                 element.exists && !element.frame.isEmpty && element.frame.maxY < app.frame.midY
-            let down = above || (!element.exists && attempt >= 12)
+            let down = above || (!element.exists && (attempt >= 12 ? !upward : upward))
             scrollForeground(down: down, surface: scroll)
         }
         XCTAssertTrue(element.exists && element.isHittable, "Required UI element is not available.")

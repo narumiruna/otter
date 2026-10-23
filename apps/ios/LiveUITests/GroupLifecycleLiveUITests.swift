@@ -14,7 +14,7 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         tap(app.buttons["建立"])
         XCTAssertTrue(workspaceTab("群組設定").waitForExistence(timeout: 15))
         assertGroupName(name)
-        let apiWrites = app.switches["允許 API token 修改此群組"]
+        let apiWrites = app.switches["允許 API token 修改此群組"].switches.firstMatch
         reveal(apiWrites)
         expectValue(apiWrites, "0")
 
@@ -36,20 +36,20 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         _ = try await fixture.seedUnequalExpense(
             in: original, description: "Original preserved dinner")
         app.buttons["群組操作"].tap()
-        tap(app.buttons["重新整理"])
+        selectMenuOption("重新整理")
         tab("總覽")
         reveal(app.staticTexts["1 筆支出 · 2 位成員"])
         assertMoney("待結算總額", digits: "75")
         tab("群組設定")
         reveal(apiWrites)
-        // The outer Switch is the full row. Tap its actual nested control.
-        tapPresentedButton(apiWrites.switches.firstMatch)
+        // Use the native control, not the labeled row without an activation point.
+        tapPresentedButton(apiWrites)
         tapPresentedButton(app.buttons["允許 API token 寫入"])
         expectValue(apiWrites, "1")
         let enabled = try await fixture.trip(id: original.id)
         XCTAssertTrue(enabled.allowApiWrites)
         reveal(apiWrites)
-        tapPresentedButton(apiWrites.switches.firstMatch)
+        tapPresentedButton(apiWrites)
         tapPresentedButton(app.buttons["停用 API token 寫入"])
         expectValue(apiWrites, "0")
         let disabled = try await fixture.trip(id: original.id)
@@ -62,6 +62,7 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         tab("群組設定")
         tap(app.buttons["還原群組"])
         tapLastButton("還原群組")
+        reveal(app.buttons["封存群組"])
         XCTAssertTrue(app.buttons["封存群組"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["已封存：日常資料僅供檢視"].exists)
         tap(app.buttons["複製群組"])

@@ -544,6 +544,9 @@ async function listen(server: Server): Promise<void> {
 
 async function main() {
   const args = process.argv.slice(2);
+  const focused = args.some((arg) =>
+    ["--ui-diagnostic-group", "--ui-diagnostic-expense"].includes(arg),
+  );
   assert.ok(
     args.every((arg) =>
       [
@@ -553,8 +556,10 @@ async function main() {
         "--ui-diagnostic-group",
         "--ui-diagnostic-expense",
       ].includes(arg),
-    ) && args.length <= 1,
-    "Usage: tsx scripts/test-ios-integration.ts [--ui | --ui-ipad | --web | --ui-diagnostic-group | --ui-diagnostic-expense]",
+    ) &&
+      (args.length <= 1 ||
+        (args.length === 2 && args.includes("--ui-ipad") && focused)),
+    "Usage: tsx scripts/test-ios-integration.ts [--ui | --ui-ipad | --web | --ui-diagnostic-group [--ui-ipad] | --ui-diagnostic-expense [--ui-ipad]]",
   );
   assert.equal(
     process.platform,

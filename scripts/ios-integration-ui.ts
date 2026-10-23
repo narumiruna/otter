@@ -12,7 +12,7 @@ import {
   selectSimulator,
 } from "./ios-integration-simulator.js";
 
-const workflowCaseCount = 4;
+export const workflowCaseCount = 6;
 const caseAllowanceSeconds = 280;
 const privateValues = new Set<string>();
 
@@ -295,7 +295,7 @@ export async function runUI(
       `OTTER_IOS_TEST_ORIGIN=${origin}`,
       ...(diagnostic
         ? [
-            `-only-testing:OtterLiveUITests/${diagnostic === "group" ? "GroupLifecycleLiveUITests" : "WorkspaceLiveUITests"}`,
+            `-only-testing:OtterLiveUITests/${diagnostic === "group" ? "GroupLifecycleLiveUITests" : "WorkspaceLiveUITests/testExpenseEditAndRevisionHistory"}`,
           ]
         : []),
     ];

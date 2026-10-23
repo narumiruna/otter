@@ -61,6 +61,7 @@ struct ExpenseBrowserView: View {
                         Button("修改紀錄", systemImage: "clock.arrow.circlepath") { onHistory(nil) }
                     }
                 }
+                .buttonStyle(.borderless)
                 Picker("排序", selection: $filters.sort) {
                     ForEach(ExpenseSort.allCases, id: \.self) { value in
                         Text(sortName(value)).tag(value)
