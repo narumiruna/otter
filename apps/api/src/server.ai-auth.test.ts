@@ -29,7 +29,7 @@ test.each(["oauth", "api_key"] as const)(
   "existing OpenAI %s credentials and selections remain readable and disconnectable without migration",
   postgresTestOptions,
   async (method) => {
-    vi.stubEnv("ENCRYPTION_KEY", key.toString("base64"));
+    vi.stubEnv("ENCRYPTION_KEY", key.toString("hex"));
     onTestFinished(() => vi.unstubAllEnvs());
     const login = vi.fn<AiProviderLogin>(async () => {
       throw new Error("SDK must not start");
@@ -151,7 +151,7 @@ test(
   "browser login stores only encrypted own credentials; failed replacements preserve prior data; disconnect clears selected settings",
   postgresTestOptions,
   async () => {
-    vi.stubEnv("ENCRYPTION_KEY", key.toString("base64"));
+    vi.stubEnv("ENCRYPTION_KEY", key.toString("hex"));
     onTestFinished(() => vi.unstubAllEnvs());
     let fail = false;
     const { baseUrl, pool } = await withTestApp({

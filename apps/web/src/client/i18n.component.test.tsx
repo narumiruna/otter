@@ -38,6 +38,7 @@ function renderApp(initialLocale?: Locale) {
 const storedValues = new Map<string, string>();
 
 beforeEach(() => {
+  window.history.replaceState({}, "", "/");
   storedValues.clear();
   Object.defineProperty(window, "localStorage", {
     configurable: true,

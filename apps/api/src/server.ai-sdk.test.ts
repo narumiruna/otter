@@ -18,7 +18,7 @@ test(
   postgresTestOptions,
   async () => {
     const key = Buffer.alloc(32, 19);
-    vi.stubEnv("ENCRYPTION_KEY", key.toString("base64"));
+    vi.stubEnv("ENCRYPTION_KEY", key.toString("hex"));
     vi.stubEnv("OPENAI_API_KEY", "ambient-server-key-must-not-be-used");
     const { baseUrl, pool } = await withTestApp(); // No injected login implementation.
     const provider = aiProviders.find(({ id }) => id === "openai");
