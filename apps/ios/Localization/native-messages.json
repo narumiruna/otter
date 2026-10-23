@@ -57347,58 +57347,42 @@
       {
         "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
         "line": 15,
-        "literal": "<h2>\\(escape(title))</h2><table><thead><tr>",
-        "context": "<literal>",
-        "kind": "structure",
-        "reason": "HTML/CSS encoder structure. Each inserted owned heading/notice/currency summary comes from NativeLocalization.string and is escaped; trip/user values are escaped, not looked up."
-      },
-      {
-        "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
-        "line": 16,
         "literal": "<th>\\(escape($0))</th>",
-        "context": "+ headers.map { <literal> }.joined()",
+        "context": "let headerCells = headers.map { <literal> }.joined()",
         "kind": "userdata",
         "reason": "Data/ID/amount composition, without owned linguistic copy; preserve values."
       },
       {
         "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
         "line": 17,
-        "literal": "</tr></thead><tbody>",
-        "context": "+ <literal>",
-        "kind": "constant",
-        "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
-      },
-      {
-        "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
-        "line": 18,
-        "literal": "<tr>",
-        "context": "+ rows.map { row in <literal> + row.map { \"<td>\\(escape($0))</td>\" }.joined() + \"</tr>\"",
-        "kind": "constant",
-        "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
-      },
-      {
-        "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
-        "line": 18,
         "literal": "<td>\\(escape($0))</td>",
-        "context": "+ rows.map { row in \"<tr>\" + row.map { <literal> }.joined() + \"</tr>\"",
+        "context": "let cells = row.map { <literal> }.joined()",
         "kind": "userdata",
         "reason": "Data/ID/amount composition, without owned linguistic copy; preserve values."
       },
       {
         "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
         "line": 18,
-        "literal": "</tr>",
-        "context": "+ rows.map { row in \"<tr>\" + row.map { \"<td>\\(escape($0))</td>\" }.joined() + <literal>",
-        "kind": "constant",
-        "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
+        "literal": "<tr>\\(cells)</tr>",
+        "context": "return <literal>",
+        "kind": "structure",
+        "reason": "HTML table row structure. The cells contain escaped data."
       },
       {
         "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
         "line": 20,
-        "literal": "</tbody></table>",
+        "literal": "<h2>\\(escape(title))</h2><table><thead><tr>\\(headerCells)</tr></thead>",
+        "context": "return <literal>",
+        "kind": "structure",
+        "reason": "HTML table structure. The title and header cells contain escaped localized headings."
+      },
+      {
+        "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",
+        "line": 21,
+        "literal": "<tbody>\\(bodyRows)</tbody></table>",
         "context": "+ <literal>",
-        "kind": "constant",
-        "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
+        "kind": "structure",
+        "reason": "HTML table body structure. The rows contain escaped data."
       },
       {
         "path": "apps/ios/Sources/OtterKit/SettlementPrint.swift",

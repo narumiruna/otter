@@ -12,12 +12,13 @@ enum SettlementPrint {
                 .replacingOccurrences(of: "'", with: "&#39;")
         }
         func table(_ title: String, _ headers: [String], _ rows: [[String]]) -> String {
-            "<h2>\(escape(title))</h2><table><thead><tr>"
-                + headers.map { "<th>\(escape($0))</th>" }.joined()
-                + "</tr></thead><tbody>"
-                + rows.map { row in "<tr>" + row.map { "<td>\(escape($0))</td>" }.joined() + "</tr>"
-                }.joined()
-                + "</tbody></table>"
+            let headerCells = headers.map { "<th>\(escape($0))</th>" }.joined()
+            let bodyRows = rows.map { row in
+                let cells = row.map { "<td>\(escape($0))</td>" }.joined()
+                return "<tr>\(cells)</tr>"
+            }.joined()
+            return "<h2>\(escape(title))</h2><table><thead><tr>\(headerCells)</tr></thead>"
+                + "<tbody>\(bodyRows)</tbody></table>"
         }
         let selectedLanguage = AppPreferences.matchDeviceLanguages([
             locale.identifier.replacingOccurrences(of: "_", with: "-")

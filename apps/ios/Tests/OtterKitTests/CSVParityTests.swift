@@ -261,6 +261,28 @@ struct CSVParityTests {
         #expect(preview.rows[0].tags == "one|two")
     }
 
+    @Test func printPreservesTableHeadersRowsAndEmptyBodies() {
+        let trip = Trip(
+            id: "t", name: "Trip", baseCurrency: .twd,
+            participants: [
+                .init(id: "alice", name: "Alice <&>"),
+                .init(id: "bob", name: "Bob", settledById: "alice"),
+            ])
+        let html = CSV.printHTML(
+            payload: TripPayload(trip: trip), locale: Locale(identifier: "zh-Hant"))
+        let participants = [
+            "<h2>參與者</h2><table><thead><tr><th>姓名</th><th>結算歸屬</th></tr></thead><tbody>",
+            "<tr><td>Alice &lt;&amp;&gt;</td><td></td></tr>",
+            "<tr><td>Bob</td><td>Alice &lt;&amp;&gt;</td></tr></tbody></table>",
+        ].joined()
+        let balances = [
+            "<h2>餘額</h2><table><thead><tr><th>參與者</th><th>金額</th></tr></thead>",
+            "<tbody></tbody></table>",
+        ].joined()
+        #expect(html.contains(participants))
+        #expect(html.contains(balances))
+    }
+
     @Test func printEscapesDangerousTextAndUsesOnlyAvailableData() {
         let dangerous = "<script>alert(\"x\")</script><img src='https://secret.test'>&"
         let trip = Trip(
