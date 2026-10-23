@@ -227,6 +227,7 @@ class LiveWorkflowTestCase: XCTestCase {
         let previous = field.value as? String ?? ""
         let placeholder = field.placeholderValue ?? ""
         if previous != placeholder && !previous.isEmpty {
+            field.tap(withNumberOfTaps: 3, numberOfTouches: 1)
             field.typeText(
                 String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count))
         }

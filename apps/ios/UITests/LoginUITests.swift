@@ -5,8 +5,18 @@ import XCTest
 final class LoginUITests: XCTestCase {
     private func selectTokenMode(_ app: XCUIApplication) {
         app.buttons["login.preferences"].tap()
-        app.buttons["appearance.language"].tap()
-        app.buttons["正體中文"].tap()
+        let language = app.buttons["appearance.language"]
+        let forms = app.collectionViews.allElementsBoundByIndex + app.tables.allElementsBoundByIndex
+        let form = forms.last ?? app
+        for _ in 0..<4 {
+            if language.exists && language.isHittable { break }
+            form.swipeUp()
+        }
+        XCTAssertTrue(language.waitForExistence(timeout: 5))
+        language.tap()
+        let option = app.buttons["正體中文"]
+        option.tap()
+        XCTAssertTrue(option.waitForNonExistence(timeout: 5))
         let done = app.buttons["login.preferences.done"]
         done.tap()
         XCTAssertTrue(
@@ -52,6 +62,7 @@ final class LoginUITests: XCTestCase {
         }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         let original = server.value as? String ?? ""
+        server.tap(withNumberOfTaps: 3, numberOfTouches: 1)
         server.typeText(
             String(repeating: XCUIKeyboardKey.delete.rawValue, count: original.count)
                 + "http://example.com")
