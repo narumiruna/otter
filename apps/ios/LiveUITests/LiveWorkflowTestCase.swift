@@ -12,7 +12,12 @@ class LiveWorkflowTestCase: XCTestCase {
         continueAfterFailure = false
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
+        await cleanUpAfterTest()
+        try await super.tearDown()
+    }
+
+    private func cleanUpAfterTest() {
         if testRun?.hasSucceeded == false {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "workspace-failure"
@@ -39,7 +44,6 @@ class LiveWorkflowTestCase: XCTestCase {
                 "Cleanup must sign out this test's account.")
         }
         app.terminate()
-        super.tearDown()
     }
 
     func launchLogin(origin: URL) {
