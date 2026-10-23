@@ -1,5 +1,11 @@
 # @narumitw/otter-api
 
+## 0.3.1
+
+### Patch Changes
+
+- a521338: Accept ENCRYPTION_KEY as exactly 64 hexadecimal characters and reject invalid nonempty keys before deployment. Existing Base64 keys must be converted to hex without changing their decoded bytes.
+
 ## 0.3.0
 
 ### Minor Changes
