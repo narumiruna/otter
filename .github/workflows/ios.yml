@@ -22,7 +22,7 @@ jobs:
           - family: iPad
             mode: ui-ipad
     # Includes setup, package/unit tests, smoke tests, and the bounded live step.
-    timeout-minutes: 55
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -65,7 +65,9 @@ jobs:
           console.log(`Selected ${candidate.name} (${candidate.runtime}).`);
           NODE
       - name: Build iOS and run native unit tests and three login smoke tests
-        timeout-minutes: 8
+        # Include cold Simulator boot, compilation, and XCTest startup.
+        # The per-test execution limits below remain unchanged.
+        timeout-minutes: 15
         run: |
           trap 'xcrun simctl shutdown "$OTTER_SMOKE_SIMULATOR" >/dev/null 2>&1 || true' EXIT
           xcrun simctl boot "$OTTER_SMOKE_SIMULATOR"
