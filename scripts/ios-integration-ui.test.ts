@@ -4,6 +4,7 @@ import {
   selectSimulator,
 } from "./ios-integration-simulator.js";
 import {
+  uiBootBudgetMs,
   uiBuildBudgetMs,
   uiCaseCount,
   uiSuiteBudgetMs,
@@ -83,6 +84,7 @@ describe("iOS Simulator selection", () => {
 
 describe("live UI runner budget", () => {
   test("allows whole-minute XCTest limits and cold startup without assertion retries", () => {
+    expect(uiBootBudgetMs).toBe(600_000);
     expect(uiBuildBudgetMs).toBe(600_000);
     expect(uiCaseCount()).toBe(7);
     expect(uiCaseCount("group")).toBe(1);

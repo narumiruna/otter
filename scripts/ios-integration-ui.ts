@@ -17,6 +17,7 @@ type UIDiagnostic = "group" | "expense";
 export function uiCaseCount(diagnostic?: UIDiagnostic): number {
   return diagnostic === "group" ? 1 : diagnostic === "expense" ? 3 : 7;
 }
+export const uiBootBudgetMs = 600_000;
 export const uiBuildBudgetMs = 600_000;
 const caseAllowanceSeconds = 280;
 const privateValues = new Set<string>();
@@ -266,8 +267,13 @@ export async function runUI(
       `Running ${expectedCaseCount} ${diagnostic ? `diagnostic ${diagnostic}` : "full workflow"} live XCUITests on a dedicated ${candidate.name} (${candidate.runtime}); each case is limited to ${caseAllowanceSeconds}s, runner budget ${suiteBudgetMs / 1_000}s.`,
     );
     await runTool("xcrun", ["simctl", "boot", id], signal, 30_000);
-    // A new iOS runtime can spend more than two minutes on first-boot data migration.
-    await runTool("xcrun", ["simctl", "bootstatus", id, "-b"], signal, 240_000);
+    // iOS 26.5 exceeded four minutes in CoreLocation first-boot migration in CI.
+    await runTool(
+      "xcrun",
+      ["simctl", "bootstatus", id, "-b"],
+      signal,
+      uiBootBudgetMs,
+    );
     await runTool(
       "xcodegen",
       ["generate", "--spec", "apps/ios/project.yml", "--project", "apps/ios"],
