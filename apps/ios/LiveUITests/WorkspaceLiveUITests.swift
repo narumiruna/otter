@@ -34,7 +34,11 @@ final class WorkspaceLiveUITests: LiveWorkflowTestCase {
         XCTAssertTrue(app.navigationBars["帳號設定"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["account.username"].waitForExistence(timeout: 10))
         expectValue(app.textFields["account.username"], username)
-        tap(app.buttons["完成"])
+        let done = app.buttons["完成"]
+        tap(done)
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: done)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 10), .completed)
         XCTAssertTrue(app.buttons["expense.accountSettings"].waitForExistence(timeout: 10))
         reveal(app.textFields["\(friend)的金額"])
         expectValue(app.textFields["\(friend)的金額"], "75")

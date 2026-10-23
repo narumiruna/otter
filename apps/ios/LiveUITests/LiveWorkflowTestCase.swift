@@ -44,17 +44,22 @@ class LiveWorkflowTestCase: XCTestCase {
     func launchLogin(origin: URL) {
         app.launch()
         XCTAssertTrue(app.textFields["login.username"].waitForExistence(timeout: 15))
-        // Use production Appearance UI. Do not override AppleLanguages or launch state.
-        tap(app.buttons["login.preferences"])
-        tap(app.buttons["appearance.language"])
-        let languageOption = app.buttons["正體中文"]
-        tapPresentedButton(languageOption)
-        waitForMenuOptionToDisappear(languageOption)
-        let preferencesDone = app.buttons["login.preferences.done"]
-        tap(preferencesDone)
-        let dismissed = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == false"), object: preferencesDone)
-        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        let chineseMode = app.segmentedControls["login.mode"].buttons["Token 受限模式"]
+        // Use production Appearance UI only when the saved locale needs to change.
+        // The smoke suite separately tests language selection and sheet dismissal.
+        if !chineseMode.exists {
+            tap(app.buttons["login.preferences"])
+            tap(app.buttons["appearance.language"])
+            let languageOption = app.buttons["正體中文"]
+            tapPresentedButton(languageOption)
+            waitForMenuOptionToDisappear(languageOption)
+            let preferencesDone = app.buttons["login.preferences.done"]
+            tap(preferencesDone)
+            let dismissed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == false"), object: preferencesDone)
+            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        }
+        XCTAssertTrue(chineseMode.waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["login.username"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.secureTextFields["login.password"].exists)
         XCTAssertFalse(app.secureTextFields["login.token"].exists)

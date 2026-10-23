@@ -110,6 +110,7 @@ npx playwright install chromium
 DATABASE_URL=<test-database-url> npm run test:ios:integration -- --web
 ```
 
+- Native CI uses macOS 26, Xcode 26.6, and the matching iOS 26.5 Simulator. The cross-client job keeps macOS 15 and its default Swift toolchain for Swift 6.1 coverage.
 - Swift package suites 使用測試 transport／記憶體 store，包含 DTO、金額、權限、queue、preferences 與失敗路徑。
 - `OtterTests` 是 hosted App tests，含 editor、management、真實 Simulator Keychain 與本機檔案保護；使用唯一測試 namespace，不清除實際帳號資料。
 - `--ui-diagnostic-group` 與 `--ui-diagnostic-expense` 只執行指定 workflow，仍使用真實 API、280 秒 allowance 與嚴格 xcresult 數量。這些診斷不替代 `--ui`／`--ui-ipad` 的七案例完整驗收。
