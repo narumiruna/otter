@@ -207,9 +207,9 @@ class LiveWorkflowTestCase: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func expectValue(_ element: XCUIElement, _ value: String) {
+    func expectValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 10) {
         expectation(for: NSPredicate(format: "value == %@", value), evaluatedWith: element)
-        waitForExpectations(timeout: 10)
+        waitForExpectations(timeout: timeout)
     }
 
     private var foregroundScroll: XCUIElement {

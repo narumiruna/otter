@@ -535,7 +535,8 @@ function fixtures() {
 async function listen(server: Server): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    // URLSession resolves the owned localhost origin to IPv6 first.
+    server.listen(0, "::1", () => {
       server.off("error", reject);
       resolve();
     });

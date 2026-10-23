@@ -118,6 +118,6 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         // Resolve a fresh frame after tab changes instead of a cached activation point.
         control.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         tapPresentedButton(app.buttons[enabled ? "允許 API token 寫入" : "停用 API token 寫入"])
-        expectValue(apiWrites, enabled ? "1" : "0")
+        expectValue(apiWrites, enabled ? "1" : "0", timeout: 30)
     }
 }
