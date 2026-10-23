@@ -3,7 +3,7 @@ import XCTest
 /// Run on a dedicated Simulator with no saved Otter login.
 @MainActor
 final class LoginUITests: XCTestCase {
-    private func selectTokenMode(_ app: XCUIApplication) {
+    private func selectChineseLocale(_ app: XCUIApplication) {
         app.buttons["login.preferences"].tap()
         let language = app.buttons["appearance.language"]
         let forms = app.collectionViews.allElementsBoundByIndex + app.tables.allElementsBoundByIndex
@@ -22,9 +22,23 @@ final class LoginUITests: XCTestCase {
         XCTAssertTrue(
             done.waitForNonExistence(timeout: 5),
             "Preferences must be dismissed, not hidden behind another query.")
+    }
+
+    private func selectTokenMode(_ app: XCUIApplication) {
         let mode = app.segmentedControls["login.mode"]
         XCTAssertTrue(mode.waitForExistence(timeout: 10))
-        mode.buttons["Token 受限模式"].tap()
+        XCTAssertEqual(mode.buttons.count, 3)
+        // Login, registration, and restricted token mode have a fixed order.
+        mode.buttons.element(boundBy: 2).tap()
+    }
+
+    func testLanguagePreferenceIsAppliedAndSettingsAreDismissed() {
+        let app = XCUIApplication()
+        app.launch()
+        selectChineseLocale(app)
+        XCTAssertTrue(
+            app.segmentedControls["login.mode"].buttons["Token 受限模式"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["login.username"].exists)
     }
 
     func testPasswordLoginIsDefaultAndPasskeyDoesNotNeedUsername() {
@@ -72,12 +86,13 @@ final class LoginUITests: XCTestCase {
         token.typeText("otter_api_ui_test")
         app.buttons["login.submit"].tap()
 
-        let alert = app.alerts["發生錯誤"]
+        let alert = app.alerts.firstMatch
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         XCTAssertTrue(
             alert.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "HTTPS"))
                 .firstMatch.exists)
-        alert.buttons["好"].tap()
+        XCTAssertEqual(alert.buttons.count, 1)
+        alert.buttons.firstMatch.tap()
         XCTAssertEqual(server.value as? String, "http://example.com")
         XCTAssertTrue(app.buttons["login.submit"].isEnabled)
     }
