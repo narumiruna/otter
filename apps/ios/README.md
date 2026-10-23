@@ -112,9 +112,9 @@ DATABASE_URL=<test-database-url> npm run test:ios:integration -- --web
 
 - Swift package suites 使用測試 transport／記憶體 store，包含 DTO、金額、權限、queue、preferences 與失敗路徑。
 - `OtterTests` 是 hosted App tests，含 editor、management、真實 Simulator Keychain 與本機檔案保護；使用唯一測試 namespace，不清除實際帳號資料。
-- `--ui-diagnostic-group` 與 `--ui-diagnostic-expense` 只執行單一已知 workflow，仍使用真實 API、280 秒 allowance 與嚴格 xcresult 數量。這些診斷不替代 `--ui`／`--ui-ipad` 的六案例完整驗收。
+- `--ui-diagnostic-group` 與 `--ui-diagnostic-expense` 只執行指定 workflow，仍使用真實 API、280 秒 allowance 與嚴格 xcresult 數量。這些診斷不替代 `--ui`／`--ui-ipad` 的七案例完整驗收。
   - Add `--ui-ipad` to either diagnostic command to run it on iPad.
-  - The expense diagnostic runs the edit and revision-history case. The full suite also checks split modes and draft settings in separate cases.
+  - The group diagnostic runs owner permissions, archive, restore, and copy. The expense diagnostic runs all three expense cases.
 - `OtterUITests` 是不需 PostgreSQL 的四案例登入 smoke tests。`OtterLiveUITests` 則由 harness 啟動真實 API，不能以沒有設定 origin 的執行取代驗收。
 - Integration harness 使用真實 Hono、PostgreSQL、migrations 與 Swift URLSession；只把外部銀行／Visa 報價換成可重現資料。沒有假造 Provider 登入成功。
 - `--web` 使用真實 Web 密碼登入及檔案下載，與同帳號的 Swift App client 比較 ID、版本、指定份額、付款、分享邊界、CSV／JSON 及重開 process 後的 queue replay。這是 macOS Swift client，不替代完整 iPhone／iPad UI 操作。

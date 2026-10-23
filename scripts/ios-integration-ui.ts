@@ -12,7 +12,11 @@ import {
   selectSimulator,
 } from "./ios-integration-simulator.js";
 
-export const workflowCaseCount = 6;
+type UIDiagnostic = "group" | "expense";
+
+export function uiCaseCount(diagnostic?: UIDiagnostic): number {
+  return diagnostic === "group" ? 1 : diagnostic === "expense" ? 3 : 7;
+}
 const caseAllowanceSeconds = 280;
 const privateValues = new Set<string>();
 
@@ -202,9 +206,9 @@ export async function runUI(
   directory: string,
   signal: AbortSignal,
   deviceFamily: "iPhone" | "iPad" = "iPhone",
-  diagnostic?: "group" | "expense",
+  diagnostic?: UIDiagnostic,
 ) {
-  const expectedCaseCount = diagnostic ? 1 : workflowCaseCount;
+  const expectedCaseCount = uiCaseCount(diagnostic);
   // Diagnostics cannot increase a scenario allowance or replace the full acceptance run.
   const suiteBudgetMs = uiSuiteBudgetMs(expectedCaseCount);
   const credentials = await registerUIFixture(origin, signal);
@@ -295,7 +299,7 @@ export async function runUI(
       `OTTER_IOS_TEST_ORIGIN=${origin}`,
       ...(diagnostic
         ? [
-            `-only-testing:OtterLiveUITests/${diagnostic === "group" ? "GroupLifecycleLiveUITests" : "WorkspaceLiveUITests/testExpenseEditAndRevisionHistory"}`,
+            `-only-testing:OtterLiveUITests/${diagnostic === "group" ? "GroupLifecycleLiveUITests/testOwnerPermissionsArchiveRestoreAndCopy" : "WorkspaceLiveUITests"}`,
           ]
         : []),
     ];

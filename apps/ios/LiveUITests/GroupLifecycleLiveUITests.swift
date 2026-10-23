@@ -2,7 +2,7 @@ import XCTest
 
 @MainActor
 final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
-    func testUIGroupMemberPermissionsArchiveRestoreAndCopy() async throws {
+    func testGroupCreationAndSessionMemberWrites() async throws {
         let origin = try LiveAPIFixture.origin()
         let fixture = try await LiveAPIFixture.shared(origin: origin)
         let name = "Live lifecycle " + UUID().uuidString
@@ -14,7 +14,6 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         tap(app.buttons["建立"])
         XCTAssertTrue(workspaceTab("群組設定").waitForExistence(timeout: 15))
         assertGroupName(name)
-        let apiWrites = app.switches["允許 API token 修改此群組"].switches.firstMatch
         reveal(apiWrites)
         expectValue(apiWrites, "0")
 
@@ -32,7 +31,6 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
             Set(original.participants.map(\.name)), Set([fixture.credentials.username, friend]))
         print("PASS live UI group creation and session member write with API token writes disabled")
 
-        // Expense UI is covered in its own case. Seed this group's copy-preservation data by REST.
         _ = try await fixture.seedUnequalExpense(
             in: original, description: "Original preserved dinner")
         app.buttons["群組操作"].tap()
@@ -40,18 +38,24 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         tab("總覽")
         reveal(app.staticTexts["1 筆支出 · 2 位成員"])
         assertMoney("待結算總額", digits: "75")
-        tab("群組設定")
+    }
+
+    func testOwnerPermissionsArchiveRestoreAndCopy() async throws {
+        let origin = try LiveAPIFixture.origin()
+        let fixture = try await LiveAPIFixture.shared(origin: origin)
+        let name = "Live owner " + UUID().uuidString
+        let original = try await fixture.createGroup(name: name, friend: "Lifecycle friend")
+        _ = try await fixture.seedUnequalExpense(
+            in: original, description: "Original preserved dinner")
+        launchLogin(origin: origin)
+        authenticate(fixture.credentials)
+        openGroup(original)
         reveal(apiWrites)
-        // Use the native control, not the labeled row without an activation point.
-        tapPresentedButton(apiWrites)
-        tapPresentedButton(app.buttons["允許 API token 寫入"])
-        expectValue(apiWrites, "1")
+        expectValue(apiWrites, "0")
+        setAPIWrites(true)
         let enabled = try await fixture.trip(id: original.id)
         XCTAssertTrue(enabled.allowApiWrites)
-        reveal(apiWrites)
-        tapPresentedButton(apiWrites)
-        tapPresentedButton(app.buttons["停用 API token 寫入"])
-        expectValue(apiWrites, "0")
+        setAPIWrites(false)
         let disabled = try await fixture.trip(id: original.id)
         XCTAssertFalse(disabled.allowApiWrites)
         tap(app.buttons["封存群組"])
@@ -101,5 +105,19 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         print(
             "PASS live UI owner API permission toggles, archive/restore/copy and original preserved"
         )
+    }
+
+    private var apiWrites: XCUIElement {
+        app.switches["允許 API token 修改此群組"].switches.firstMatch
+    }
+
+    private func setAPIWrites(_ enabled: Bool) {
+        let control = apiWrites
+        reveal(control)
+        XCTAssertTrue(control.isEnabled)
+        // Resolve a fresh frame after tab changes instead of a cached activation point.
+        control.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        tapPresentedButton(app.buttons[enabled ? "允許 API token 寫入" : "停用 API token 寫入"])
+        expectValue(apiWrites, enabled ? "1" : "0")
     }
 }

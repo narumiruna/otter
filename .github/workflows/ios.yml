@@ -24,7 +24,7 @@ jobs:
           - family: iPad
             mode: ui-ipad
     # Includes setup, package/unit tests, smoke tests, and the bounded live step.
-    timeout-minutes: 80
+    timeout-minutes: 85
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -98,11 +98,11 @@ jobs:
           import { appendFileSync } from 'node:fs';
           appendFileSync(process.env.GITHUB_ENV, `DATABASE_URL=postgresql://otter@127.0.0.1:${process.env.PORT}/otter_ios_test\n`);
           NODE
-      - name: Real Swift differential, live API, and six independent XCUITests
-        # Swift/API 240s + boot 240s + build 240s + (6 * 300s + startup 360s)
+      - name: Real Swift differential, live API, and seven independent XCUITests
+        # Swift/API 240s + boot 240s + build 240s + (7 * 300s + startup 360s)
         # + tool discovery, result inspection, and owned-resource cleanup.
         # XCTest rounds the unchanged 280s case limits up to whole minutes.
-        timeout-minutes: 52
+        timeout-minutes: 57
         run: npm run test:ios:integration -- --${{ matrix.mode }}
       - name: Retain failed live UI screenshots and hierarchy
         if: failure()

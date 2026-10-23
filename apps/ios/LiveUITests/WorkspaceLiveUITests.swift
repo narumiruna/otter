@@ -42,7 +42,7 @@ final class WorkspaceLiveUITests: LiveWorkflowTestCase {
         expectValue(app.textFields["\(username)的金額"], "25")
         let splitPicker = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "分帳方式"))
             .firstMatch
-        reveal(splitPicker)
+        reveal(splitPicker, upward: true)
         XCTAssertEqual(splitPicker.label, "分帳方式、指定金額")
         reveal(app.textFields["expense-amount"], upward: true)
         expectValue(app.textFields["expense-amount"], "100")

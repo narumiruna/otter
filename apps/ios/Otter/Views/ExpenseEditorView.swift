@@ -82,6 +82,7 @@ public struct ExpenseEditorView: View {
                     if state.busy { Section { ProgressView("正在處理…") } }
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
             .navigationTitle(state.title)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
