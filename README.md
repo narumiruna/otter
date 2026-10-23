@@ -19,6 +19,7 @@ npm run dev
 - [本機開發與架構](docs/development.md)
 - [部署與安全設定](docs/deployment.md)
 - [CLI](docs/cli.md)
+- [iOS App（SwiftUI）](apps/ios/README.md)
 - [Streamable HTTP MCP](docs/mcp.md)
 - [版本與發佈](docs/releasing.md)
 - [完整文件索引](docs/README.md)

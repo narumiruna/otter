@@ -38,6 +38,7 @@ docker compose up --detach --build --no-deps otter
 | `ENCRYPTION_KEY` | Optional canonical base64-encoded 32-byte key for AI provider credential encryption. An absent or invalid key disables new AI connections, not the application. Keep the same key across restarts. See [AI settings](ai-settings.md). |
 | `POSTGRES_PASSWORD` | Compose PostgreSQL 密碼；正式環境必須明確設定。 |
 | `PASSKEY_ORIGIN` | WebAuthn 與 MCP 的可信任公開 origin，只能包含 scheme、hostname 與選填 port。除 `localhost` 外必須使用 HTTPS。MCP 未設定此值時使用 API request URL 的 origin，不信任 forwarded headers。 |
+| `IOS_APP_ID` | Apple Team ID 與 iOS bundle identifier，格式為 `TEAMID.bundle.identifier`。設定後在 `/.well-known/apple-app-site-association` 提供 AASA JSON；缺少或格式錯誤時為 404 JSON，不回傳 SPA。 |
 | `PASSKEY_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 Passkey request rate limiting 使用。預設 `false`。 |
 | `DEVICE_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供 device authorization rate limiting 使用。預設 `false`。 |
 | `PASSWORD_AUTH_TRUST_PROXY` | 信任 reverse proxy 提供的 client IP，供密碼註冊及登入 rate limiting 使用。預設 `false`。 |
@@ -45,6 +46,14 @@ docker compose up --detach --build --no-deps otter
 | `PORT` | App port，預設 `17463`。 |
 
 不要提交 `.env*`、資料庫 dumps 或 credentials。`.env.example` 只包含本機開發預設值。
+
+## Native iOS domain association
+
+設定 `IOS_APP_ID` 為實際簽章 App 的 Apple Team ID 加 bundle identifier；不要使用文件範例或猜測 Team ID。Compose 會傳入此值。API 提供 AASA 的 `applinks`（`/share/*`、`/device`、`/`）與 `webcredentials`，不改動登入或 cookie 權限。
+
+Reverse proxy 必須將 `/.well-known/apple-app-site-association` 傳至 API，保留 JSON response，不套用 SPA fallback 或登入 redirect。正式站需 HTTPS，並與 App entitlements 及 `PASSKEY_ORIGIN` 的 RP ID／origin 相符。變更網域時同步修改 App 的 Associated Domains；自訂 server 不會自動取得已發佈 App 的網域權限。
+
+部署後檢查公開 AASA JSON 與實際簽章 identity，並在真機驗證 Passkey 與 Universal Links。Simulator build、HTTP 200 或本機測試不是網域關聯驗收。移除此設定會回到 404；回復時保留既有 Passkey、帳號及 sessions，不刪資料。Apple 的關聯快取可能延後反映變更。
 
 ## AI account connections (migrations 025 and 026)
 

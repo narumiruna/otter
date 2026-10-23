@@ -29,6 +29,7 @@ services:
       PASSWORD_AUTH_TRUST_PROXY: ${PASSWORD_AUTH_TRUST_PROXY:-false}
       PASSKEY_ORIGIN: ${PASSKEY_ORIGIN:-http://localhost:17463}
       PASSKEY_TRUST_PROXY: ${PASSKEY_TRUST_PROXY:-false}
+      IOS_APP_ID: ${IOS_APP_ID:-}
       PORT: 17463
     ports:
       - "17463:17463"

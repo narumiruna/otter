@@ -111,19 +111,27 @@ export async function mockWorkspace(
       fetchedAt: "2026-10-01T12:00:00Z",
     },
     collaborators: [
-      { userId: "owner", username: "alex", name: "Alex", role: "owner" },
+      {
+        userId: "owner",
+        username: "alex",
+        name: "Alex",
+        role: "owner",
+        createdAt: "2026-10-01T00:00:00Z",
+      },
     ],
     shareLinks: [
       {
         id: "link-1",
         mode: "readonly",
         createdAt: "2026-10-01T12:00:00Z",
+        expiresAt: null,
         revokedAt: null,
       },
       {
         id: "link-2",
         mode: "anyone-edit",
         createdAt: "2026-09-28T12:00:00Z",
+        expiresAt: null,
         revokedAt: "2026-10-01T12:00:00Z",
       },
     ],

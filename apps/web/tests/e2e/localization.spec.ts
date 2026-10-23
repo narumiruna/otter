@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { languageOptions } from "../../src/client/i18n/locales.js";
+import { expect, type Page, test } from "@playwright/test";
+import { type Locale, languageOptions } from "../../src/client/i18n/locales.js";
 import { translations } from "../../src/client/i18n/messages.js";
 import {
   accessible,
@@ -11,6 +11,92 @@ import { expectNoOverflow } from "./layout-assertions.js";
 const addedLanguages = languageOptions.filter(
   ({ locale }) => !["zh-TW", "en", "ja", "ko"].includes(locale),
 );
+
+async function localizedWorkspace(page: Page, locale: Locale) {
+  const trip = exampleTrip();
+  await mockWorkspace(page, trip, "owner", locale);
+  const mutations: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/") && request.method() !== "GET")
+      mutations.push(`${request.method()} ${request.url()}`);
+  });
+  await page.goto(`/?trip=${trip.id}`);
+  const navigation = page.getByRole("navigation", {
+    name: translations[locale].groupWorkspace,
+  });
+  return { navigation, mutations };
+}
+
+const workspaceTabs = [
+  "overview",
+  "spendingAnalysis",
+  "people",
+  "expenses",
+  "groupSettings",
+] as const;
+
+async function selectWorkspaceTab(
+  page: Page,
+  locale: Locale,
+  tab: (typeof workspaceTabs)[number],
+) {
+  const messages = translations[locale];
+  const navigation = page.getByRole("navigation", {
+    name: messages.groupWorkspace,
+  });
+  await navigation
+    .getByRole("button", { name: messages[tab], exact: true })
+    .click();
+  switch (tab) {
+    case "overview":
+      await expect(
+        page.getByRole("region", { name: messages.groupExpenseSummary }),
+      ).toBeVisible();
+      await expect(page.locator("#balances-heading")).toHaveText(
+        messages.balances,
+      );
+      await expect(page.locator("#settlement-heading")).toHaveText(
+        messages.settleUp,
+      );
+      await expect(
+        page.getByRole("table", { name: messages.memberAccounts }),
+      ).toHaveCount(0);
+      await expect(navigation.getByRole("button")).toHaveCount(5);
+      break;
+    case "spendingAnalysis": {
+      const analysis = page.getByRole("region", {
+        name: messages.spendingAnalysis,
+        exact: true,
+      });
+      await expect(analysis).toBeVisible();
+      await expect(
+        analysis.getByRole("table", { name: messages.memberAccounts }),
+      ).toBeVisible();
+      break;
+    }
+    case "people":
+      await expect(page.locator("#people-heading")).toHaveText(
+        messages.expenseParticipants,
+      );
+      await expect(
+        page.locator(".people-identity strong").filter({ hasText: /^Morgan$/ }),
+      ).toBeVisible();
+      break;
+    case "expenses":
+      await expect(
+        page.getByRole("button", {
+          name: "Dinner at the market",
+          exact: true,
+        }),
+      ).toBeVisible();
+      break;
+    case "groupSettings":
+      await expect(page.locator("#more-heading")).toHaveText(
+        messages.groupSettings,
+      );
+      break;
+  }
+}
 
 for (const { locale, label } of addedLanguages) {
   test.describe(locale, () => {
@@ -94,86 +180,42 @@ for (const { locale, label } of addedLanguages) {
       ).toBeVisible();
     });
 
-    test("keeps the localized expense workspace accessible without writes", async ({
+    for (const width of widths) {
+      // Give each tab and viewport one Axe scan in its own test budget.
+      for (const tab of workspaceTabs) {
+        test(`keeps localized ${tab} accessible at ${width}px without writes`, async ({
+          page,
+        }) => {
+          await page.setViewportSize({ width, height: 900 });
+          const { mutations } = await localizedWorkspace(page, locale);
+          await selectWorkspaceTab(page, locale, tab);
+          await expectNoOverflow(page);
+          await accessible(page);
+          expect(mutations).toEqual([]);
+        });
+      }
+
+      // Check transitions separately, without repeating the Axe scans.
+      test(`navigates all localized workspace tabs at ${width}px without writes`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 });
+        const { mutations } = await localizedWorkspace(page, locale);
+        for (const tab of workspaceTabs) {
+          await selectWorkspaceTab(page, locale, tab);
+          await expectNoOverflow(page);
+        }
+        expect(mutations).toEqual([]);
+      });
+    }
+
+    test("keeps localized account language controls accessible without writes", async ({
       page,
     }, testInfo) => {
-      const trip = exampleTrip();
-      await mockWorkspace(page, trip, "owner", locale);
-      const mutations: string[] = [];
-      page.on("request", (request) => {
-        if (request.url().includes("/api/") && request.method() !== "GET")
-          mutations.push(`${request.method()} ${request.url()}`);
-      });
-      await page.goto(`/?trip=${trip.id}`);
-      const navigation = page.getByRole("navigation", {
-        name: messages.groupWorkspace,
-      });
-      for (const width of widths) {
-        await page.setViewportSize({ width, height: 900 });
-        await navigation
-          .getByRole("button", { name: messages.overview, exact: true })
-          .click();
-        await expect(
-          page.getByRole("region", { name: messages.groupExpenseSummary }),
-        ).toBeVisible();
-        await expect(page.locator("#balances-heading")).toHaveText(
-          messages.balances,
-        );
-        await expect(page.locator("#settlement-heading")).toHaveText(
-          messages.settleUp,
-        );
-        await expect(
-          page.getByRole("table", { name: messages.memberAccounts }),
-        ).toHaveCount(0);
-        await expect(navigation.getByRole("button")).toHaveCount(5);
-        await expectNoOverflow(page);
-        await accessible(page);
-        await navigation
-          .getByRole("button", { name: messages.spendingAnalysis, exact: true })
-          .click();
-        const analysis = page.getByRole("region", {
-          name: messages.spendingAnalysis,
-          exact: true,
-        });
-        await expect(analysis).toBeVisible();
-        await expect(
-          analysis.getByRole("table", { name: messages.memberAccounts }),
-        ).toBeVisible();
-        await expectNoOverflow(page);
-        await accessible(page);
-        await navigation
-          .getByRole("button", { name: messages.people, exact: true })
-          .click();
-        await expect(page.locator("#people-heading")).toHaveText(
-          messages.expenseParticipants,
-        );
-        await expect(
-          page
-            .locator(".people-identity strong")
-            .filter({ hasText: /^Morgan$/ }),
-        ).toBeVisible();
-        await expectNoOverflow(page);
-        await accessible(page);
-        await navigation
-          .getByRole("button", { name: messages.expenses, exact: true })
-          .click();
-        await expect(
-          page.getByRole("button", {
-            name: "Dinner at the market",
-            exact: true,
-          }),
-        ).toBeVisible();
-        await expectNoOverflow(page);
-        await accessible(page);
-        await navigation
-          .getByRole("button", { name: messages.groupSettings, exact: true })
-          .click();
-        await expect(page.locator("#more-heading")).toHaveText(
-          messages.groupSettings,
-        );
-        await expectNoOverflow(page);
-        await accessible(page);
-      }
+      const { navigation, mutations } = await localizedWorkspace(page, locale);
+      await navigation
+        .getByRole("button", { name: messages.groupSettings, exact: true })
+        .click();
       await page.setViewportSize({ width: 375, height: 700 });
       const accountTrigger = page.getByRole("button", {
         name: messages.nameSAccountMenu({ name: "Alex" }),

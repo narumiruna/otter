@@ -64,6 +64,39 @@ npm run migrate -- --help
 
 `npm install` 或 `npm ci` 會透過 `prepare` 安裝 Husky。Pre-commit hook 執行 `npm run check`。
 
+## iOS 原生開發與驗證
+
+`apps/ios` 使用 Swift 6、SwiftUI、AuthenticationServices、PhotosUI 及 UIKit 系統列印。`project.yml` 是 XcodeGen 專案來源；不要提交產生的 project、Info.plist、DerivedData、`.build/` 或測試圖片。Native client 只呼叫 REST API，不匯入 TypeScript API implementation 或直接連線 PostgreSQL。
+
+需要完整 Xcode 與 XcodeGen。從 repository root 執行：
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+swift test --package-path apps/ios
+xcodegen generate --spec apps/ios/project.yml --project apps/ios
+# 使用自己的隔離測試 PostgreSQL；harness 只建立／移除自己命名的 schema。
+DATABASE_URL=<test-database-url> npm run test:ios:integration
+DATABASE_URL=<test-database-url> npm run test:ios:integration -- --ui
+DATABASE_URL=<test-database-url> npm run test:ios:integration -- --ui-ipad
+# 先安裝 Playwright Chromium；--web 與 --ui 使用獨立的 server／schema。
+DATABASE_URL=<test-database-url> npm run test:ios:integration -- --web
+```
+
+Unsigned Simulator build 只驗證編譯。Keychain 實際測試使用 `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-` 的 ad-hoc signing，不需 Apple certificate；unsigned App 可能回傳 `-34018`。Data Protection 的 physical-device test 在 Simulator 明確 skip，不能當作通過。Passkey、Associated Domains、相機、AirPrint、VoiceOver 與外部 Provider 授權仍需各自的實際證據。
+
+Swift package tests、hosted App tests、登入 smoke UI、真實 API／差分、四個完整 live UI workflows 及 browser↔Swift roundtrip 是不同驗證範圍。`--web` 使用真實 Web UI 與 macOS Swift App client，不代表已完成整條 iPhone UI 流程。真實測試不可注入假登入或以未設定 origin 的 skip 取代。每次測試保留 source、裝置／OS、工具版本及 pass／fail／skip 數；不記錄密碼、cookie、API token 或分享能力。完整命令見 [iOS README](../apps/ios/README.md)；功能與角色矩陣見 [iOS parity map](../apps/ios/PARITY.md)。
+
+### Native localization
+
+`apps/ios/Otter/Resources/Localizable.xcstrings` 是翻譯來源，18 種資源語言對應 Web registry；`zh-TW` 使用 Apple `zh-Hant` resource ID。保留每個 typed interpolation 與獨立 count 的全部 CLDR forms，不以 English fallback 隱藏缺漏。
+
+- SwiftUI literal labels 使用環境 locale；有歧義的短詞使用明確 semantic key。
+- Core 與 String producers 使用 `NativeLocalization.string`。它選擇實際的 locale `.lproj`；單靠 `String(localized:locale:)` 只改格式，不能選擇資源語言。
+- 不將姓名、描述、標籤、SDK prompts、外部診斷、URL 或 raw IDs 當作 localization key。Category 只轉換顯示 label，原 Chinese wire value 不改。
+- 日期／數字／清單只改顯示；decimal input、date-only wire、CSV headers、JSON keys 與 financial calculations 不改。
+- 語言切換不重建 editor identity，不清除草稿；不要用 `.id(locale)` 強制重設畫面。
+- Source-key、參數、複數與 18 語言完整性由 `scripts/check-ios-localization.ts` 檢查；有缺項時保持失敗，不把 pending 當成完成。
+
 ## Browser localization
 
 `apps/web/src/client/i18n/locales.ts` is the single language registry. Each entry needs a complete typed catalog in `messages.ts`; derive tests from `languageOptions`. Use `CatalogShape<typeof zhTW>` and translate every composed source key, including feature modules. Do not spread another language into a catalog to hide missing keys. Preserve each interpolation parameter and message type. Use `pluralForm` with the catalog locale for grammatical count forms; keep all parameters in each branch.
@@ -95,6 +128,7 @@ DATABASE_URL=postgres://user:pass@localhost:5432/otter npm run test:e2e -- --gre
 ```text
 apps/web        React/Vite browser app
 apps/api        Hono API, PostgreSQL access and migrations
+apps/ios        SwiftUI app, OtterKit, native tests and source project
 packages/core   Environment-neutral expense and settlement logic
 packages/contracts  HTTP DTOs and payload guards
 packages/exchange-rates  Bank exchange-rate clients and parsers

@@ -1,0 +1,173 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native (${{ matrix.family }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - family: iPhone
+            mode: ui
+          - family: iPad
+            mode: ui-ipad
+    # Includes setup, package/unit tests, smoke tests, and the bounded live step.
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+      - name: Show default Xcode and Swift
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Install native tools
+        run: brew install xcodegen postgresql@17
+      - run: npm ci
+      - run: npm run build:packages
+      - name: Check native localization contracts
+        run: npm run check:ios:localization
+      - name: Check Swift format
+        run: |
+          xcrun swift-format lint --strict --recursive \
+            --configuration '{"indentation":{"spaces":4}}' \
+            apps/ios/Sources apps/ios/Tests apps/ios/Otter \
+            apps/ios/UITests apps/ios/LiveUITests apps/ios/Integration apps/ios/Package.swift
+      - name: Swift package unit tests
+        run: swift test --package-path apps/ios
+      - name: Select a dedicated available Simulator
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          const { devices } = JSON.parse(execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '--json'], { encoding: 'utf8' }));
+          const family = '${{ matrix.family }}';
+          const candidate = Object.entries(devices)
+            .filter(([runtime]) => runtime.includes('.iOS-'))
+            .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
+            .flatMap(([runtime, values]) => values.filter(d => d.isAvailable && d.name.startsWith(family) && d.deviceTypeIdentifier).map(d => ({ ...d, runtime })))[0];
+          if (!candidate) throw new Error(`No available ${family} Simulator runtime.`);
+          const id = execFileSync('xcrun', ['simctl', 'create', 'Otter CI Smoke', candidate.deviceTypeIdentifier, candidate.runtime], { encoding: 'utf8' }).trim();
+          if (!/^[A-F0-9-]{36}$/i.test(id)) throw new Error('Invalid owned Simulator ID.');
+          appendFileSync(process.env.GITHUB_ENV, `OTTER_SMOKE_SIMULATOR=${id}\n`);
+          console.log(`Selected ${candidate.name} (${candidate.runtime}).`);
+          NODE
+      - name: Build iOS and run native unit tests and three login smoke tests
+        timeout-minutes: 8
+        run: |
+          trap 'xcrun simctl shutdown "$OTTER_SMOKE_SIMULATOR" >/dev/null 2>&1 || true' EXIT
+          xcrun simctl boot "$OTTER_SMOKE_SIMULATOR"
+          xcrun simctl bootstatus "$OTTER_SMOKE_SIMULATOR" -b
+          xcodegen generate --spec apps/ios/project.yml --project apps/ios
+          env -u DATABASE_URL xcodebuild \
+            -project apps/ios/Otter.xcodeproj -scheme Otter \
+            -destination "platform=iOS Simulator,id=$OTTER_SMOKE_SIMULATOR" \
+            -derivedDataPath "$RUNNER_TEMP/otter-smoke-build" \
+            -parallel-testing-enabled NO -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 60 \
+            -maximum-test-execution-time-allowance 90 \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- build test
+      - name: Start isolated PostgreSQL
+        run: |
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          export PGDATA="$RUNNER_TEMP/otter-postgres"
+          "$PG_BIN/initdb" -D "$PGDATA" -U otter --auth=trust --encoding=UTF8 --no-locale >/dev/null
+          PORT="$(node --input-type=module -e 'import net from "node:net"; const s = net.createServer(); s.listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close(); });')"
+          mkdir -p "$RUNNER_TEMP/otter-postgres-socket"
+          "$PG_BIN/pg_ctl" -D "$PGDATA" \
+            -l "$RUNNER_TEMP/otter-postgres.log" \
+            -o "-h 127.0.0.1 -p $PORT -k $RUNNER_TEMP/otter-postgres-socket" -w start >/dev/null
+          "$PG_BIN/createdb" -h 127.0.0.1 -p "$PORT" -U otter otter_ios_test
+          export PORT
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          appendFileSync(process.env.GITHUB_ENV, `DATABASE_URL=postgresql://otter@127.0.0.1:${process.env.PORT}/otter_ios_test\n`);
+          NODE
+      - name: Real Swift differential, live API, and four independent XCUITests
+        # Swift/API 240s + boot 240s + build 240s + (4 * 280s + runner 120s)
+        # + tool discovery, result inspection, and owned-resource cleanup.
+        timeout-minutes: 36
+        run: npm run test:ios:integration -- --${{ matrix.mode }}
+      - name: Retain failed live UI screenshots and hierarchy
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-live-ui-failure-${{ matrix.family }}
+          path: ${{ runner.temp }}/otter-ios-ui-results-*
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Remove only owned native resources
+        if: always()
+        run: |
+          if [ -n "${OTTER_SMOKE_SIMULATOR:-}" ]; then
+            xcrun simctl shutdown "$OTTER_SMOKE_SIMULATOR" || true
+            xcrun simctl delete "$OTTER_SMOKE_SIMULATOR"
+          fi
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          if [ -f "$RUNNER_TEMP/otter-postgres/postmaster.pid" ]; then
+            "$PG_BIN/pg_ctl" -D "$RUNNER_TEMP/otter-postgres" -m immediate -w stop >/dev/null
+          fi
+
+  cross-client:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+      - name: Show Xcode and Swift
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Install PostgreSQL
+        run: brew install postgresql@17
+      - run: npm ci
+      - run: npm run build:packages
+      - run: npx playwright install chromium
+      - name: Check Swift bridge format
+        run: |
+          xcrun swift-format lint --strict --recursive \
+            --configuration '{"indentation":{"spaces":4}}' \
+            apps/ios/CrossClientIntegration
+      - name: Start isolated PostgreSQL
+        run: |
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          export PGDATA="$RUNNER_TEMP/otter-cross-postgres"
+          "$PG_BIN/initdb" -D "$PGDATA" -U otter --auth=trust --encoding=UTF8 --no-locale >/dev/null
+          PORT="$(node --input-type=module -e 'import net from "node:net"; const s = net.createServer(); s.listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close(); });')"
+          mkdir -p "$RUNNER_TEMP/otter-cross-postgres-socket"
+          "$PG_BIN/pg_ctl" -D "$PGDATA" \
+            -l "$RUNNER_TEMP/otter-cross-postgres.log" \
+            -o "-h 127.0.0.1 -p $PORT -k $RUNNER_TEMP/otter-cross-postgres-socket" -w start >/dev/null
+          "$PG_BIN/createdb" -h 127.0.0.1 -p "$PORT" -U otter otter_cross_test
+          export PORT
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          appendFileSync(process.env.GITHUB_ENV, `DATABASE_URL=postgresql://otter@127.0.0.1:${process.env.PORT}/otter_cross_test\n`);
+          NODE
+      - name: Real browser and Swift client roundtrip
+        # Separate API process and schema from the native UI registration budget.
+        # Swift/API 240s + bridge 600s + cleanup; no assertion retries.
+        timeout-minutes: 15
+        run: npm run test:ios:integration -- --web
+      - name: Stop only owned PostgreSQL
+        if: always()
+        run: |
+          PG_BIN="$(brew --prefix postgresql@17)/bin"
+          if [ -f "$RUNNER_TEMP/otter-cross-postgres/postmaster.pid" ]; then
+            "$PG_BIN/pg_ctl" -D "$RUNNER_TEMP/otter-cross-postgres" -m immediate -w stop >/dev/null
+          fi

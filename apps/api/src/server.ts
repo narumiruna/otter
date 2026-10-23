@@ -19,6 +19,7 @@ import { Hono } from "hono";
 import type { Pool as PgPool } from "pg";
 import type { AiAuthOptions } from "./server-ai-auth.js";
 import { registerAiSettingsRoutes } from "./server-ai-settings.js";
+import { registerAppleAssociationRoutes } from "./server-apple-association.js";
 import { registerBackupRoutes } from "./server-backup.js";
 import { registerCollaborationRoutes } from "./server-collaboration.js";
 import { registerCsvImportRoutes } from "./server-csv-import.js";
@@ -159,6 +160,7 @@ export function createApp(
   options: CreateAppOptions = {},
 ): OtterApp {
   const app = new Hono<OtterEnv>();
+  registerAppleAssociationRoutes(app);
   const mustBeSignedIn = requireUserOrShare(pool);
   const mustHaveBrowserSession = requireSessionUser(pool);
   const exchangeRateService = createExchangeRateService(options.exchangeRates);
