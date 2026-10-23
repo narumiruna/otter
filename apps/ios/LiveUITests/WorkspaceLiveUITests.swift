@@ -50,12 +50,12 @@ final class WorkspaceLiveUITests: LiveWorkflowTestCase {
             "PASS live UI account settings Done preserves unsaved description, amount and unequal split"
         )
         tap(app.buttons["儲存"])
-        XCTAssertTrue(app.tabBars.buttons["支出"].waitForExistence(timeout: 15))
+        XCTAssertTrue(workspaceTab("支出").waitForExistence(timeout: 15))
         tab("支出")
         tap(app.buttons["Unequal dinner"])
         replace(app.textFields["expense-description"], with: "Unequal dinner updated")
         tap(app.buttons["儲存"])
-        XCTAssertTrue(app.tabBars.buttons["支出"].waitForExistence(timeout: 15))
+        XCTAssertTrue(workspaceTab("支出").waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["Unequal dinner updated"].waitForExistence(timeout: 10))
         tap(app.buttons["修改紀錄"])
         let updated = app.staticTexts.containing(

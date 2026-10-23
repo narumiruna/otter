@@ -41,7 +41,7 @@ final class SettlementLiveUITests: LiveWorkflowTestCase {
         ).firstMatch
         XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
         tap(app.buttons["確認並記錄已付款"])
-        XCTAssertTrue(app.tabBars.buttons["總覽"].waitForExistence(timeout: 15))
+        XCTAssertTrue(workspaceTab("總覽").waitForExistence(timeout: 15))
         assertMoney("待結算總額", digits: "55")
         reveal(app.staticTexts["Live partial payment"])
         let recorded = try await fixture.trip(id: trip.id)

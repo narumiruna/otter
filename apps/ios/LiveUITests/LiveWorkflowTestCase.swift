@@ -75,7 +75,7 @@ class LiveWorkflowTestCase: XCTestCase {
 
     func openGroup(_ trip: LiveAPIFixture.Trip) {
         tap(app.buttons["trip.\(trip.id)"])
-        XCTAssertTrue(app.tabBars.buttons["群組設定"].waitForExistence(timeout: 15))
+        XCTAssertTrue(workspaceTab("群組設定").waitForExistence(timeout: 15))
         assertGroupName(trip.name)
     }
 
@@ -153,8 +153,13 @@ class LiveWorkflowTestCase: XCTestCase {
         tapPresentedButton(button)
     }
 
+    func workspaceTab(_ title: String) -> XCUIElement {
+        // iPad can expose TabView buttons without a TabBar container.
+        app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
+    }
+
     func tab(_ title: String) {
-        tap(app.tabBars.buttons[title])
+        tap(workspaceTab(title))
     }
 
     func selectSplit(_ title: String) {
@@ -262,6 +267,7 @@ class LiveWorkflowTestCase: XCTestCase {
 
     func reveal(_ element: XCUIElement) {
         // Revealing a control must not dismiss or drag a transient Menu or dialog.
+        if element.exists && element.isHittable { return }
         if element.waitForExistence(timeout: 3), element.isHittable { return }
         let scroll = foregroundScroll
         for attempt in 0..<24 {

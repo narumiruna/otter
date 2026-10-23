@@ -12,7 +12,7 @@ final class GroupLifecycleLiveUITests: LiveWorkflowTestCase {
         tap(app.buttons["建立群組"])
         replace(app.textFields["群組名稱"], with: name)
         tap(app.buttons["建立"])
-        XCTAssertTrue(app.tabBars.buttons["群組設定"].waitForExistence(timeout: 15))
+        XCTAssertTrue(workspaceTab("群組設定").waitForExistence(timeout: 15))
         assertGroupName(name)
         let apiWrites = app.switches["允許 API token 修改此群組"]
         reveal(apiWrites)

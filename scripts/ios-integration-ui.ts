@@ -7,10 +7,20 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import {
+  type SimulatorDevices,
+  selectSimulator,
+} from "./ios-integration-simulator.js";
 
 const workflowCaseCount = 4;
 const caseAllowanceSeconds = 280;
 const privateValues = new Set<string>();
+
+export function uiSuiteBudgetMs(caseCount: number): number {
+  // XCTest rounds case limits up to whole minutes. Cold startup took 346s in CI.
+  const roundedCaseAllowance = Math.ceil(caseAllowanceSeconds / 60) * 60;
+  return (caseCount * roundedCaseAllowance + 360) * 1_000;
+}
 
 // Child tools do not need API configuration or database credentials. In particular,
 // xcodebuild must not copy those values into its test-runner environment or logs.
@@ -196,42 +206,24 @@ export async function runUI(
 ) {
   const expectedCaseCount = diagnostic ? 1 : workflowCaseCount;
   // Diagnostics cannot increase a scenario allowance or replace the full acceptance run.
-  const suiteBudgetMs =
-    (expectedCaseCount * caseAllowanceSeconds + 120) * 1_000;
+  const suiteBudgetMs = uiSuiteBudgetMs(expectedCaseCount);
   const credentials = await registerUIFixture(origin, signal);
-  const listing: {
-    devices: Record<
-      string,
-      {
-        name: string;
-        isAvailable: boolean;
-        deviceTypeIdentifier: string;
-      }[]
-    >;
-  } = JSON.parse(
+  const listing: { devices: SimulatorDevices } = JSON.parse(
     await runTool(
       "xcrun",
       ["simctl", "list", "devices", "available", "--json"],
       signal,
     ),
   );
-  const candidate = Object.entries(listing.devices)
-    .filter(([runtime]) => runtime.includes(".iOS-"))
-    .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
-    .flatMap(([runtime, devices]) =>
-      devices
-        .filter(
-          (device) =>
-            device.isAvailable &&
-            device.name.startsWith(deviceFamily) &&
-            device.deviceTypeIdentifier,
-        )
-        .map((device) => ({ runtime, ...device })),
-    )[0];
-  assert.ok(
-    candidate,
-    `No available ${deviceFamily} Simulator runtime. Install one in Xcode; UI verification cannot be skipped.`,
-  );
+  const sdkVersion = (
+    await runTool(
+      "xcrun",
+      ["--sdk", "iphonesimulator", "--show-sdk-version"],
+      signal,
+      30_000,
+    )
+  ).trim();
+  const candidate = selectSimulator(listing.devices, deviceFamily, sdkVersion);
   await runTool(
     "xcodebuild",
     ["-version"],

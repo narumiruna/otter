@@ -22,7 +22,7 @@ jobs:
           - family: iPad
             mode: ui-ipad
     # Includes setup, package/unit tests, smoke tests, and the bounded live step.
-    timeout-minutes: 60
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -49,16 +49,14 @@ jobs:
         run: swift test --package-path apps/ios
       - name: Select a dedicated available Simulator
         run: |
-          node --input-type=module <<'NODE'
+          node --import tsx --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process';
           import { appendFileSync } from 'node:fs';
+          import { selectSimulator } from './scripts/ios-integration-simulator.ts';
           const { devices } = JSON.parse(execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '--json'], { encoding: 'utf8' }));
           const family = '${{ matrix.family }}';
-          const candidate = Object.entries(devices)
-            .filter(([runtime]) => runtime.includes('.iOS-'))
-            .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
-            .flatMap(([runtime, values]) => values.filter(d => d.isAvailable && d.name.startsWith(family) && d.deviceTypeIdentifier).map(d => ({ ...d, runtime })))[0];
-          if (!candidate) throw new Error(`No available ${family} Simulator runtime.`);
+          const sdkVersion = execFileSync('xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-version'], { encoding: 'utf8' }).trim();
+          const candidate = selectSimulator(devices, family, sdkVersion);
           const id = execFileSync('xcrun', ['simctl', 'create', 'Otter CI Smoke', candidate.deviceTypeIdentifier, candidate.runtime], { encoding: 'utf8' }).trim();
           if (!/^[A-F0-9-]{36}$/i.test(id)) throw new Error('Invalid owned Simulator ID.');
           appendFileSync(process.env.GITHUB_ENV, `OTTER_SMOKE_SIMULATOR=${id}\n`);
@@ -98,9 +96,10 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `DATABASE_URL=postgresql://otter@127.0.0.1:${process.env.PORT}/otter_ios_test\n`);
           NODE
       - name: Real Swift differential, live API, and four independent XCUITests
-        # Swift/API 240s + boot 240s + build 240s + (4 * 280s + runner 120s)
+        # Swift/API 240s + boot 240s + build 240s + (4 * 300s + startup 360s)
         # + tool discovery, result inspection, and owned-resource cleanup.
-        timeout-minutes: 36
+        # XCTest rounds the unchanged 280s case limits up to whole minutes.
+        timeout-minutes: 42
         run: npm run test:ios:integration -- --${{ matrix.mode }}
       - name: Retain failed live UI screenshots and hierarchy
         if: failure()
