@@ -33447,6 +33447,18 @@
     },
     {
       "classification": "constant",
+      "value": "expense.form",
+      "reason": "Accessibility automation identifier, not user-visible presentation.",
+      "occurrences": [
+        {
+          "path": "apps/ios/Otter/Views/ExpenseEditorView.swift",
+          "line": 86,
+          "ordinal": 0
+        }
+      ]
+    },
+    {
+      "classification": "constant",
       "value": "expense.accountSettings",
       "reason": "Accessibility automation identifier, not user-visible presentation.",
       "occurrences": [
@@ -44835,6 +44847,14 @@
         "context": "Button(\"帳號設定\", systemImage: <literal>) { showsAccount = true }",
         "kind": "constant",
         "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
+      },
+      {
+        "path": "apps/ios/Otter/Views/ExpenseEditorView.swift",
+        "line": 86,
+        "literal": "expense.form",
+        "context": ".accessibilityIdentifier(<literal>)",
+        "kind": "constant",
+        "reason": "Accessibility automation identifier, not user-visible presentation."
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseEditorView.swift",

@@ -83,6 +83,7 @@ public struct ExpenseEditorView: View {
                 }
             }
             .scrollDismissesKeyboard(.immediately)
+            .accessibilityIdentifier("expense.form")
             .navigationTitle(state.title)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)

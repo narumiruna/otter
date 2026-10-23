@@ -111,6 +111,7 @@ final class WorkspaceLiveUITests: LiveWorkflowTestCase {
         tab("總覽")
         tap(app.buttons["新增支出"])
         XCTAssertTrue(app.buttons["expense.accountSettings"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.collectionViews["expense.form"].exists)
         replace(app.textFields["expense-description"], with: "Unequal dinner")
         replace(app.textFields["expense-amount"], with: "100")
         return (fixture, trip)

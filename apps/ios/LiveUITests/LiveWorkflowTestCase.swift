@@ -213,6 +213,9 @@ class LiveWorkflowTestCase: XCTestCase {
     }
 
     private var foregroundScroll: XCUIElement {
+        let editor = app.collectionViews["expense.form"]
+        let editorToolbar = app.buttons["expense.accountSettings"]
+        if editor.exists && editorToolbar.exists && editorToolbar.isHittable { return editor }
         // A keyboard can cover a Form's hit point while its visible cells remain interactive.
         let surfaces =
             app.collectionViews.allElementsBoundByIndex + app.tables.allElementsBoundByIndex
