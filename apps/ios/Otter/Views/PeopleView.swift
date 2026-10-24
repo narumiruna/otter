@@ -267,7 +267,7 @@ struct PeopleView: View {
         Task { @MainActor in
             await mutation.run(
                 request: request, session: session, payload: payload, operation: .editDailyData,
-                work: work
+                work: work, publish: onPayload
             ) { next in
                 if clearAddedName { addedName = "" }
                 if let person = next.trip.participants.first(where: { $0.id == selectedID }) {
@@ -276,7 +276,6 @@ struct PeopleView: View {
                     selectedID = ""
                     mergeTargetID = ""
                 }
-                onPayload(next)
             }
         }
     }

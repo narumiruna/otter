@@ -43,7 +43,8 @@ final class GroupManagementState {
         request: GroupManagementRequest,
         session: AppSession, payload: TripPayload, operation: TripOperation,
         work: @MainActor (OtterClient) async throws -> Value,
-        accept: @MainActor (Value) -> Void
+        publish: @MainActor (Value) -> Void = { _ in },
+        accept: @MainActor (Value) -> Void = { _ in }
     ) async {
         guard request.sessionID == session.sessionID, request.generation == generation,
             !busy, let client = session.client,
@@ -65,8 +66,11 @@ final class GroupManagementState {
         }
         do {
             let value = try await work(client)
+            guard session.sessionID == sessionID else { return }
+            // A completed write must update the workspace even after its page disappears.
+            publish(value)
             try Task.checkCancellation()
-            guard session.sessionID == sessionID, generation == requestGeneration else { return }
+            guard generation == requestGeneration else { return }
             accept(value)
         } catch {
             guard session.sessionID == sessionID, generation == requestGeneration else { return }

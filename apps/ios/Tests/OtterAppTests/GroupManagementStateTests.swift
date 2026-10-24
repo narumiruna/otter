@@ -121,6 +121,88 @@ final class GroupManagementStateTests: XCTestCase {
     }
 
     @MainActor
+    func testLateSuccessPublishesWorkspaceWithoutUpdatingInvalidatedPage() async throws {
+        let session = try session()
+        let state = GroupManagementState()
+        let pause = GroupTestPause()
+        var published = false
+        var accepted = false
+        let pending = Task { @MainActor in
+            await state.run(
+                request: state.request(sessionID: session.sessionID), session: session,
+                payload: payload, operation: .changePreferences
+            ) { _ in
+                await pause.wait()
+                return true
+            } publish: { value in
+                published = value
+            } accept: { _ in
+                accepted = true
+            }
+        }
+        while !state.busy { await Task.yield() }
+        state.invalidate()
+        pause.release()
+        await pending.value
+        XCTAssertTrue(published)
+        XCTAssertFalse(accepted)
+    }
+
+    @MainActor
+    func testCompletedWritePublishesAfterTaskCancellation() async throws {
+        let session = try session()
+        let state = GroupManagementState()
+        let pause = GroupTestPause()
+        var published = false
+        var accepted = false
+        let pending = Task { @MainActor in
+            await state.run(
+                request: state.request(sessionID: session.sessionID), session: session,
+                payload: payload, operation: .changePreferences
+            ) { _ in
+                await pause.wait()
+                return true
+            } publish: { value in
+                published = value
+            } accept: { _ in
+                accepted = true
+            }
+        }
+        while !state.busy { await Task.yield() }
+        pending.cancel()
+        pause.release()
+        await pending.value
+        XCTAssertTrue(published)
+        XCTAssertFalse(accepted)
+        XCTAssertNil(state.issue)
+    }
+
+    @MainActor
+    func testLateSuccessCannotPublishIntoAnotherAccount() async throws {
+        let session = try session()
+        let state = GroupManagementState()
+        let pause = GroupTestPause()
+        let pending = Task { @MainActor in
+            await state.run(
+                request: state.request(sessionID: session.sessionID), session: session,
+                payload: payload, operation: .changePreferences
+            ) { _ in
+                await pause.wait()
+                return true
+            } publish: { _ in
+                XCTFail("A response for the old account must not update the workspace")
+            } accept: { _ in
+                XCTFail("A response for the old account must not update the page")
+            }
+        }
+        while !state.busy { await Task.yield() }
+        try login(session, userID: "other")
+        pause.release()
+        await pending.value
+        XCTAssertEqual(session.user?.id, "other")
+    }
+
+    @MainActor
     func testManagementScreensUseOneMutationGate() async throws {
         let session = try session()
         let first = GroupManagementState()

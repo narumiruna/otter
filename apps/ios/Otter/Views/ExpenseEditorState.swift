@@ -28,7 +28,8 @@ final class ExpenseEditorState {
     var photo: Data?
     var removeReceipt = false
     var existingPhoto: Data?
-    var receiptLoading = false
+    let receiptRequest = ReceiptRequestState()
+    var receiptLoading: Bool { receiptRequest.loading }
     var issue: String?
     var notice: String?
     var busy = false
@@ -137,7 +138,7 @@ final class ExpenseEditorState {
             paidById: paidByID, participantIds: participantIDs,
             expenseDate: invalidDate ?? Self.dateString(date), splitMode: splitMode,
             splitValues: splitValues.filter { participantIDs.contains($0.key) },
-            category: category.isEmpty ? nil : category, tags: normalizedTags)
+            category: category.isEmpty && !isEdit ? nil : category, tags: normalizedTags)
     }
     var missingIDs: [String] {
         let valid = Set(payload.trip.participants.map(\.id))
@@ -145,8 +146,12 @@ final class ExpenseEditorState {
     }
     var preview: [ParticipantShare]? {
         guard let minor = try? currency.parseAmount(input.amount) else { return nil }
+        let previewIDs =
+            splitMode == .equal
+            ? payload.trip.participants.map(\.id).filter { participantIDs.contains($0) }
+            : participantIDs
         return try? ExpenseMath.preview(
-            mode: splitMode, participantIDs: participantIDs,
+            mode: splitMode, participantIDs: previewIDs,
             amountMinor: minor, values: splitValues, currency: currency)
     }
     var validation: String? {

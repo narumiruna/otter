@@ -21,6 +21,7 @@ private actor EditorTransport: HTTPTransport {
     let scenario: Scenario
     var writes: [String] = []
     var versions: [String?] = []
+    var bodies: [Data] = []
     var blocked: CheckedContinuation<Void, Never>?
     init(_ scenario: Scenario) { self.scenario = scenario }
 
@@ -38,6 +39,7 @@ private actor EditorTransport: HTTPTransport {
         } else {
             writes.append(method + " " + path)
             versions.append(request.value(forHTTPHeaderField: "If-Match"))
+            bodies.append(request.httpBody ?? Data())
             switch scenario {
             case .receiptFailure:
                 if method == "PUT" && writes.count == 2 {
@@ -176,7 +178,7 @@ final class ExpenseEditorTests: XCTestCase {
         }
     }
 
-    func testDescriptionOnlyEqualEditKeepsRemainderParticipantOrder() {
+    func testDescriptionOnlyEqualEditKeepsInputOrderAndPreviewsGroupRemainderOrder() {
         let expense = Expense(
             id: "equal", description: "Original", amountMinor: 101, currency: .twd,
             paidById: "a", participantIds: ["b", "a"], expenseDate: "2026-10-23", version: 1)
@@ -186,10 +188,65 @@ final class ExpenseEditorTests: XCTestCase {
         XCTAssertEqual(
             state.preview,
             [
-                ParticipantShare(participantId: "b", shareMinor: 51),
-                ParticipantShare(participantId: "a", shareMinor: 50),
+                ParticipantShare(participantId: "a", shareMinor: 51),
+                ParticipantShare(participantId: "b", shareMinor: 50),
             ])
         XCTAssertNil(state.validation)
+    }
+
+    func testReselectingParticipantKeepsEqualPreviewInSavedAccountOrder() throws {
+        let participants = [
+            Participant(id: "a", name: "Alice"), Participant(id: "b", name: "Bob"),
+            Participant(id: "c", name: "Charlie"),
+        ]
+        let state = ExpenseEditorState(
+            payload: TripPayload(
+                trip: Trip(id: "t", name: "Trip", baseCurrency: .twd, participants: participants)),
+            mode: .new)
+        state.description = "Dinner"
+        state.amount = "100"
+        state.toggle("a", selected: false)
+        state.toggle("a", selected: true)
+        XCTAssertEqual(state.input.participantIds, ["b", "c", "a"])
+        let expense = Expense(
+            id: "e", description: state.description, amountMinor: 100, currency: .twd,
+            paidById: "a", participantIds: state.input.participantIds, expenseDate: "2026-10-24")
+        let saved = Trip(
+            id: "t", name: "Trip", baseCurrency: .twd,
+            participants: participants, expenses: [expense])
+        let accounts = try Finance.memberAccounts(trip: saved)
+        XCTAssertEqual(
+            state.preview,
+            accounts.map {
+                ParticipantShare(participantId: $0.participantId, shareMinor: $0.sharedMinor)
+            })
+        XCTAssertEqual(state.preview?.map(\.shareMinor), [34, 33, 33])
+        XCTAssertNil(state.validation)
+    }
+
+    func testCategoryResetIsIncludedInVersionedPatch() async throws {
+        let transport = EditorTransport(.receiptFailure)
+        let session = await session(transport)
+        let state = ExpenseEditorState(
+            payload: EditorTransport.payload(), mode: .edit(EditorTransport.expense()))
+        state.bind(session: session)
+        state.category = ""
+        await state.submit(session: session) { _ in }
+        let bodies = await transport.bodies
+        let writes = await transport.writes
+        let versions = await transport.versions
+        XCTAssertEqual(writes, ["PATCH /api/trips/t/expenses/e"])
+        XCTAssertEqual(versions, ["\"1\""])
+        let body = try XCTUnwrap(bodies.first)
+        let patch = try JSONDecoder().decode(ExpenseUpdate.self, from: body)
+        XCTAssertEqual(patch.category, "")
+        XCTAssertTrue(state.finished)
+    }
+
+    func testNewExpenseWithoutCategoryKeepsTheDefaultContract() {
+        let state = ExpenseEditorState(payload: EditorTransport.payload(), mode: .new)
+        state.category = ""
+        XCTAssertNil(state.input.category)
     }
 
     private func session(_ transport: EditorTransport) async -> AppSession {

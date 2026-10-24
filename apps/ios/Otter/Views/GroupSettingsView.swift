@@ -451,10 +451,11 @@ struct GroupSettingsView: View {
             ) { client in
                 try await client.setVisa(
                     tripID: payload.trip.id, enabled: enabled, currency: currency)
+            } publish: { next in
+                onPayload(next)
             } accept: { next in
                 visaEnabled = next.trip.visaSettlementEnabled == true
                 visaCurrency = next.trip.visaSettlementCurrency ?? next.trip.baseCurrency
-                onPayload(next)
             }
         }
     }
@@ -476,9 +477,10 @@ struct GroupSettingsView: View {
                 request: request, session: session, payload: payload, operation: operation
             ) { client in
                 try await client.updateTrip(id: payload.trip.id, patch: patch)
+            } publish: { next in
+                onPayload(next)
             } accept: { next in
                 accepted(next)
-                onPayload(next)
             }
         }
     }
@@ -490,7 +492,7 @@ struct GroupSettingsView: View {
                 request: request, session: session, payload: payload, operation: .copyTrip
             ) { client in
                 try await client.copyTrip(id: payload.trip.id)
-            } accept: { next in
+            } publish: { next in
                 onCreated(next)
             }
         }
@@ -505,7 +507,7 @@ struct GroupSettingsView: View {
             ) { client in
                 try await client.deleteTrip(id: payload.trip.id)
                 return true
-            } accept: { _ in
+            } publish: { _ in
                 onDeleted()
             }
         }

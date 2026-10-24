@@ -9,14 +9,14 @@ import UIKit
 struct ReceiptPickerView: View {
     @Binding var photo: Data?
     @Binding var removeExisting: Bool
-    @Binding var loading: Bool
+    let request: ReceiptRequestState
+    private var loading: Bool { request.loading }
     let existingPhoto: Data?
     let hasExisting: Bool
     let sessionGeneration: UUID
     @State private var selection: PhotosPickerItem?
     @State private var camera = false
     @State private var issue: String?
-    @State private var requestID = UUID()
 
     var body: some View {
         let hasPhoto = photo != nil
@@ -47,7 +47,7 @@ struct ReceiptPickerView: View {
                 Button("移除所選照片", role: .destructive) {
                     photo = nil
                     selection = nil
-                    requestID = UUID()
+                    request.invalidate()
                 }
             }
             if hasExisting {
@@ -56,59 +56,58 @@ struct ReceiptPickerView: View {
                         if value {
                             photo = nil
                             selection = nil
-                            requestID = UUID()
+                            request.invalidate()
                         }
                     }
             }
             if loading { ProgressView("正在處理照片…") }
             if let issue { Text(issue).foregroundStyle(.red) }
         }
-        .sheet(isPresented: $camera, onDismiss: { loading = false }) {
+        .sheet(isPresented: $camera, onDismiss: { request.invalidate() }) {
             ReceiptCameraView { image in
                 guard camera else { return }
                 camera = false
-                loading = false
+                request.invalidate()
                 guard let image else { return }
                 accept(image)
             }.ignoresSafeArea()
         }
         .onChange(of: selection) { _, item in
+            guard let item else {
+                request.invalidate()
+                return
+            }
             let generation = sessionGeneration
-            let request = UUID()
-            requestID = request
-            guard let item else { return }
-            loading = true
+            let requestID = request.begin()
             issue = nil
             Task { @MainActor in
-                defer { if requestID == request { loading = false } }
+                defer { request.finish(requestID) }
                 do {
                     guard let data = try await item.loadTransferable(type: Data.self),
-                        generation == sessionGeneration, request == requestID,
+                        generation == sessionGeneration, request.id == requestID,
                         let image = UIImage(data: data)
                     else {
-                        if request == requestID {
+                        if request.id == requestID {
                             issue = NativeLocalization.string("無法讀取圖片。請選擇其他照片。")
                         }
                         return
                     }
                     accept(image)
                 } catch {
-                    if generation == sessionGeneration && request == requestID {
+                    if generation == sessionGeneration && request.id == requestID {
                         issue = NativeLocalization.string("無法讀取圖片：\(error.localizedDescription)")
                     }
                 }
             }
         }
         .onChange(of: sessionGeneration) { _, _ in
-            requestID = UUID()
+            request.invalidate()
             selection = nil
             photo = nil
-            loading = false
             camera = false
         }
         .onDisappear {
-            requestID = UUID()
-            loading = false
+            request.invalidate()
         }
     }
     private func accept(_ image: UIImage) {
@@ -128,8 +127,7 @@ struct ReceiptPickerView: View {
             return
         }
         let generation = sessionGeneration
-        let request = UUID()
-        requestID = request
+        let requestID = request.begin()
         let granted: Bool
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: granted = true
@@ -137,12 +135,12 @@ struct ReceiptPickerView: View {
         case .denied, .restricted: granted = false
         @unknown default: granted = false
         }
-        guard generation == sessionGeneration, requestID == request else { return }
+        guard generation == sessionGeneration, request.id == requestID else { return }
         if granted {
-            loading = true
             camera = true
             issue = nil
         } else {
+            request.finish(requestID)
             issue = NativeLocalization.string("相機權限已拒絕或受限制。可在 iOS 設定中允許相機，或改從相簿選擇。")
         }
     }

@@ -277,9 +277,7 @@ struct OverviewView: View {
             defer { deleting = false }
             do {
                 let result = try await client.deletePayment(tripID: tripID, paymentID: payment.id)
-                guard !Task.isCancelled, session.sessionID == generation,
-                    revision == requestRevision
-                else { return }
+                guard session.sessionID == generation else { return }
                 onPayload(result)
             } catch {
                 guard !Task.isCancelled, session.sessionID == generation,

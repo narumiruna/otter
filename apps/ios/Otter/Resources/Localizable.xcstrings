@@ -40861,116 +40861,116 @@
         }
       }
     },
-    "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。": {
+    "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。": {
       "comment": "native.expenseEditorView.splitRules. Application-owned text.",
       "extractionState": "manual",
       "localizations": {
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。"
+            "value": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Equal splits allocate rounding remainders in selection order. Ratios and share units are relative weights. Specified amounts do not adjust automatically when the total, members, or currency change."
+            "value": "Equal splits use the group participant order for rounding remainders. Ratios and share units are relative weights. Specified amounts do not adjust automatically when the total, members, or currency change."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "均等分担の端数は選択順に配分します。比率と口数は相対的な重みです。総額、メンバー、通貨を変更しても、指定金額は自動調整されません。"
+            "value": "均等分担の端数はグループの参加者順に配分します。比率と口数は相対的な重みです。総額、メンバー、通貨を変更しても、指定金額は自動調整されません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "균등 분담의 나머지 금액은 선택 순서대로 배분합니다. 비율과 지분 수는 상대 가중치입니다. 총액, 구성원 또는 통화가 변경되어도 지정 금액은 자동 조정되지 않습니다."
+            "value": "균등 분담의 나머지 금액은 그룹 참여자 순서대로 배분합니다. 비율과 지분 수는 상대 가중치입니다. 총액, 구성원 또는 통화가 변경되어도 지정 금액은 자동 조정되지 않습니다."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "बराबर बाँटने पर बची छोटी राशि चयन के क्रम के अनुसार बाँटी जाती है। अनुपात और हिस्सों की संख्या सापेक्ष भार हैं। कुल, सदस्य या मुद्रा बदलने से तय राशियाँ अपने आप नहीं बदलेंगी।"
+            "value": "बराबर बाँटने पर बची छोटी राशि समूह के प्रतिभागियों के क्रम के अनुसार बाँटी जाती है। अनुपात और हिस्सों की संख्या सापेक्ष भार हैं। कुल, सदस्य या मुद्रा बदलने से तय राशियाँ अपने आप नहीं बदलेंगी।"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "El reparto a partes iguales asigna los restos según el orden de selección. Las proporciones y las participaciones son pesos relativos. Los importes especificados no se ajustan automáticamente si cambia el total, los miembros o la moneda."
+            "value": "El reparto a partes iguales asigna los restos según el orden de los participantes del grupo. Las proporciones y las participaciones son pesos relativos. Los importes especificados no se ajustan automáticamente si cambia el total, los miembros o la moneda."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le partage à parts égales attribue les restes selon l’ordre de sélection. Les proportions et les nombres de parts sont des poids relatifs. Les montants spécifiés ne sont pas ajustés automatiquement lorsque le total, les membres ou la devise changent."
+            "value": "Le partage à parts égales attribue les restes selon l’ordre des participants du groupe. Les proportions et les nombres de parts sont des poids relatifs. Les montants spécifiés ne sont pas ajustés automatiquement lorsque le total, les membres ou la devise changent."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "O rateio em partes iguais distribui os restos conforme a ordem de seleção. Proporções e quantidades de cotas são pesos relativos. Os valores especificados não são ajustados automaticamente quando o total, os membros ou a moeda mudam."
+            "value": "O rateio em partes iguais distribui os restos conforme a ordem dos participantes do grupo. Proporções e quantidades de cotas são pesos relativos. Os valores especificados não são ajustados automaticamente quando o total, os membros ou a moeda mudam."
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pembagian rata menangani selisih pembulatan sesuai urutan pemilihan. Proporsi dan jumlah bagian adalah bobot relatif. Jumlah yang ditentukan tidak disesuaikan otomatis saat total, anggota, atau mata uang berubah."
+            "value": "Pembagian rata menangani selisih pembulatan sesuai urutan peserta dalam grup. Proporsi dan jumlah bagian adalah bobot relatif. Jumlah yang ditentukan tidak disesuaikan otomatis saat total, anggota, atau mata uang berubah."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bei gleichmäßiger Aufteilung werden Rundungsreste nach Auswahlreihenfolge verteilt. Verhältnisse und Anteile sind relative Gewichtungen. Festgelegte Beträge werden bei Änderungen an Gesamtbetrag, Mitgliedern oder Währung nicht automatisch angepasst."
+            "value": "Bei gleichmäßiger Aufteilung werden Rundungsreste in der Reihenfolge der Gruppenteilnehmer verteilt. Verhältnisse und Anteile sind relative Gewichtungen. Festgelegte Beträge werden bei Änderungen an Gesamtbetrag, Mitgliedern oder Währung nicht automatisch angepasst."
           }
         },
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Chia đều xử lý chênh lệch làm tròn theo thứ tự chọn. Tỷ lệ và số phần là trọng số tương đối. Số tiền chỉ định không tự điều chỉnh khi tổng tiền, thành viên hoặc tiền tệ thay đổi."
+            "value": "Chia đều xử lý chênh lệch làm tròn theo thứ tự người tham gia trong nhóm. Tỷ lệ và số phần là trọng số tương đối. Số tiền chỉ định không tự điều chỉnh khi tổng tiền, thành viên hoặc tiền tệ thay đổi."
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eşit paylaşımda yuvarlama farkı seçim sırasına göre dağıtılır. Oranlar ve pay sayıları göreli ağırlıklardır. Belirtilen tutarlar toplam, üye veya para birimi değiştiğinde otomatik olarak ayarlanmaz."
+            "value": "Eşit paylaşımda yuvarlama farkı gruptaki katılımcı sırasına göre dağıtılır. Oranlar ve pay sayıları göreli ağırlıklardır. Belirtilen tutarlar toplam, üye veya para birimi değiştiğinde otomatik olarak ayarlanmaz."
           }
         },
         "fil": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sa pantay na paghahati, inaayos ang natitirang butal ayon sa pagkakasunod ng pagpili. Relatibong timbang ang proporsyon at bilang ng bahagi. Hindi awtomatikong iaangkop ang itinakdang halaga kapag binago ang kabuuan, mga miyembro o salapi."
+            "value": "Sa pantay na paghahati, inaayos ang natitirang butal ayon sa pagkakasunod ng mga kalahok sa grupo. Relatibong timbang ang proporsyon at bilang ng bahagi. Hindi awtomatikong iaangkop ang itinakdang halaga kapag binago ang kabuuan, mga miyembro o salapi."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "การแบ่งเท่ากันจะจัดสรรเศษตามลำดับที่เลือก สัดส่วนและจำนวนส่วนเป็นน้ำหนักสัมพัทธ์ จำนวนเงินที่ระบุจะไม่ปรับโดยอัตโนมัติเมื่อเปลี่ยนยอดรวม สมาชิก หรือสกุลเงิน"
+            "value": "การแบ่งเท่ากันจะจัดสรรเศษตามลำดับผู้เข้าร่วมในกลุ่ม สัดส่วนและจำนวนส่วนเป็นน้ำหนักสัมพัทธ์ จำนวนเงินที่ระบุจะไม่ปรับโดยอัตโนมัติเมื่อเปลี่ยนยอดรวม สมาชิก หรือสกุลเงิน"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "La divisione in parti uguali distribuisce i resti di arrotondamento nell'ordine di selezione. Proporzioni e quote sono pesi relativi. Gli importi specificati non vengono adeguati automaticamente se cambiano totale, membri o valuta."
+            "value": "La divisione in parti uguali distribuisce i resti di arrotondamento nell'ordine dei partecipanti del gruppo. Proporzioni e quote sono pesi relativi. Gli importi specificati non vengono adeguati automaticamente se cambiano totale, membri o valuta."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Przy równym podziale różnice zaokrągleń są rozdzielane według kolejności wyboru. Proporcje i liczby udziałów są względnymi wagami. Podane kwoty nie są automatycznie dostosowywane po zmianie sumy, członków lub waluty."
+            "value": "Przy równym podziale różnice zaokrągleń są rozdzielane według kolejności uczestników grupy. Proporcje i liczby udziałów są względnymi wagami. Podane kwoty nie są automatycznie dostosowywane po zmianie sumy, członków lub waluty."
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perkongsian sama rata mengendalikan beza pembundaran mengikut urutan pilihan. Nisbah dan bilangan bahagian ialah pemberat relatif. Amaun yang ditetapkan tidak dilaraskan secara automatik apabila jumlah, ahli atau mata wang berubah."
+            "value": "Perkongsian sama rata mengendalikan beza pembundaran mengikut urutan peserta kumpulan. Nisbah dan bilangan bahagian ialah pemberat relatif. Amaun yang ditetapkan tidak dilaraskan secara automatik apabila jumlah, ahli atau mata wang berubah."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bij gelijke verdeling worden afrondingsresten in selectievolgorde verdeeld. Verhoudingen en aandelen zijn relatieve gewichten. Opgegeven bedragen worden niet automatisch aangepast als het totaal, de leden of de valuta wijzigen."
+            "value": "Bij gelijke verdeling worden afrondingsresten in de volgorde van de groepsdeelnemers verdeeld. Verhoudingen en aandelen zijn relatieve gewichten. Opgegeven bedragen worden niet automatisch aangepast als het totaal, de leden of de valuta wijzigen."
           }
         }
       }

@@ -153,7 +153,7 @@ public struct ExpenseEditorView: View {
         Section("收據") {
             ReceiptPickerView(
                 photo: $state.photo, removeExisting: $state.removeReceipt,
-                loading: $state.receiptLoading,
+                request: state.receiptRequest,
                 existingPhoto: state.existingPhoto,
                 hasExisting: state.receiptExpense?.receiptId != nil
                     || state.receiptExpense?.receiptUrl != nil,
@@ -332,7 +332,7 @@ struct ExpenseDraftFields: View {
         } header: {
             Text("分攤成員與設定")
         } footer: {
-            Text("平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。")
+            Text("平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。")
         }
         Section("逐人分攤預覽") {
             if let preview = state.preview {

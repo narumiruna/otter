@@ -164,15 +164,17 @@ struct TripListView: View {
             tripID: id,
             onCreated: { value in
                 guard generation == session.sessionID else { return }
-                // A created group is a new workspace, not a TabView pushed inside another.
-                // Tab reselection can pop a pushed workspace back to the original group.
-                detailPath = []
-                selectedTripID = value.trip.id
+                // Keep a different workspace selected if the user left during the request.
+                if currentTripID == id {
+                    // A copied workspace must not be pushed inside the original TabView.
+                    detailPath = []
+                    selectedTripID = value.trip.id
+                }
                 Task { await load() }
             },
             onDeleted: {
                 guard generation == session.sessionID else { return }
-                if detailPath.isEmpty { selectedTripID = nil }
+                if currentTripID == id && detailPath.isEmpty { selectedTripID = nil }
                 Task { await load() }
             },
             route: navigation.route?.tripID == id ? navigation.route : nil)

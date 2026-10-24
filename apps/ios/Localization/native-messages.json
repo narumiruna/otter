@@ -14346,7 +14346,7 @@
     },
     {
       "id": "native.expenseEditorView.splitRules",
-      "sourceChinese": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
+      "sourceChinese": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
       "classification": "ui-static",
       "occurrences": [
         {
@@ -14357,7 +14357,7 @@
       ],
       "format": {
         "state": "specified",
-        "swiftKey": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
+        "swiftKey": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
         "arguments": [],
         "pluralParameters": []
       },
@@ -14366,9 +14366,9 @@
       },
       "migration": {
         "status": "verified",
-        "catalogKey": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
+        "catalogKey": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/ExpenseEditorView.swift\",\"平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。\",\"Text(<literal>)\"]"
+          "[\"apps/ios/Otter/Views/ExpenseEditorView.swift\",\"平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。\",\"Text(<literal>)\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -45535,12 +45535,12 @@
       {
         "path": "apps/ios/Otter/Views/ExpenseEditorView.swift",
         "line": 333,
-        "literal": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
+        "literal": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
         "context": "Text(<literal>)",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [],
-        "catalogKey": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。"
+        "catalogKey": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。"
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseEditorView.swift",
@@ -59612,7 +59612,7 @@
     "native.expenseEditorView.missingParticipants": "不存在的成員：%@",
     "native.expenseEditorView.removeMissingParticipants": "移除不存在的分攤成員",
     "native.expenseEditorView.participantSettings": "分攤成員與設定",
-    "native.expenseEditorView.splitRules": "平均分攤依選取順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
+    "native.expenseEditorView.splitRules": "平均分攤依群組參與者順序處理尾差。比例與份數為相對權重。指定金額不會因總額、成員或幣別改變而自動調整。",
     "native.expenseEditorView.splitPreview": "逐人分攤預覽",
     "native.expenseHistoryView.sessionChanged": "登入狀態已變更。請關閉並重新開啟修改紀錄。",
     "native.expenseHistoryView.permissionDenied": "目前權限不允許讀取修改紀錄。唯讀分享不提供此功能。",

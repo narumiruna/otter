@@ -13,6 +13,7 @@ struct ExpenseQueueView: View {
     @State private var retry: QueuedExpense?
     @State private var editor: QueueEditor?
     @State private var lockedItem: QueuedExpense?
+    @State private var editRequestID: UUID?
     @State private var busy = false
     @State private var issue: String?
 
@@ -111,6 +112,11 @@ struct ExpenseQueueView: View {
                 }
             }
         }
+        .interactiveDismissDisabled(busy)
+        .onDisappear {
+            editRequestID = nil
+            if editor == nil { unlock() }
+        }
     }
 
     private func status(_ item: QueuedExpense) -> LocalizedStringKey {
@@ -131,18 +137,27 @@ struct ExpenseQueueView: View {
     private func edit(_ item: QueuedExpense) async {
         guard !busy, let client = session.client else { return }
         let generation = session.sessionID
+        let requestID = UUID()
+        editRequestID = requestID
         busy = true
-        defer { busy = false }
+        defer {
+            busy = false
+            if editRequestID == requestID { editRequestID = nil }
+        }
         do {
             try await local.beginEditing(item, session: session)
             lockedItem = item
+            guard editRequestID == requestID, generation == session.sessionID else {
+                unlock()
+                return
+            }
             let payload: TripPayload
             if let currentPayload, currentPayload.trip.id == item.context.tripID {
                 payload = currentPayload
             } else {
                 payload = try await client.trip(id: item.context.tripID)
             }
-            guard generation == session.sessionID else {
+            guard editRequestID == requestID, generation == session.sessionID else {
                 unlock()
                 return
             }
@@ -150,7 +165,9 @@ struct ExpenseQueueView: View {
             editor = QueueEditor(item: item, payload: payload, generation: generation)
         } catch {
             unlock()
-            guard generation == session.sessionID, !(error is CancellationError) else { return }
+            guard editRequestID == requestID, generation == session.sessionID,
+                !(error is CancellationError)
+            else { return }
             issue = error.localizedDescription
             session.handle(error, for: generation)
         }

@@ -266,6 +266,23 @@ struct ExpenseQueueTests {
         #expect(await sender.captured().first?.body == revised.body)
     }
 
+    @Test func abandonedEditCanSynchronizeTheOriginalDraftAfterUnlock() async throws {
+        let queue = ExpenseQueue(storage: ExpenseTestStorage().storage)
+        let context = try queueContext()
+        let original = try await queue.enqueue(queueDraft(), in: context)
+        try await queue.beginEditing(id: original.id, in: context)
+        let sender = QueueSender()
+        try await activate(queue, sender, context)
+        #expect(try await queue.synchronize().successes.isEmpty)
+        #expect(await sender.captured().isEmpty)
+        await queue.endEditing(id: original.id)
+        #expect(try await queue.synchronize().successes.count == 1)
+        let request = try #require(await sender.captured().first)
+        #expect(request.body == original.body)
+        #expect(request.operationID == original.operationID)
+        #expect(try await queue.list(in: context).isEmpty)
+    }
+
     @Test func unauthorizedStopsUntilCredentialGenerationChanges() async throws {
         let queue = ExpenseQueue(storage: ExpenseTestStorage().storage)
         let context = try queueContext()

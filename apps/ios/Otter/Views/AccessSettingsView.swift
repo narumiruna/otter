@@ -237,9 +237,10 @@ struct AccessSettingsView: View {
                 request: request, session: session, payload: payload, operation: .manageAccess
             ) { client in
                 try await client.addCollaborator(tripID: payload.trip.id, username: value)
-            } accept: { next in
-                username = ""
+            } publish: { next in
                 onPayload(next)
+            } accept: { _ in
+                username = ""
             }
         }
     }
@@ -252,7 +253,7 @@ struct AccessSettingsView: View {
                 request: request, session: session, payload: payload, operation: .manageAccess
             ) { client in
                 try await client.removeCollaborator(tripID: payload.trip.id, userID: person.userId)
-            } accept: { next in
+            } publish: { next in
                 onPayload(next)
             }
         }
@@ -266,6 +267,8 @@ struct AccessSettingsView: View {
                 request: request, session: session, payload: payload, operation: .manageAccess
             ) { client in
                 try await client.createShare(tripID: payload.trip.id, mode: selectedMode)
+            } publish: { next in
+                onPayload(next)
             } accept: { next in
                 let fresh = next.shareLinks?.first {
                     !previousIDs.contains($0.id) && $0.mode == selectedMode && $0.revokedAt == nil
@@ -282,7 +285,6 @@ struct AccessSettingsView: View {
                     linkWarning = true
                 }
                 copied = false
-                onPayload(next)
             }
         }
     }
@@ -294,12 +296,13 @@ struct AccessSettingsView: View {
                 request: request, session: session, payload: payload, operation: .manageAccess
             ) { client in
                 try await client.revokeShare(tripID: payload.trip.id, linkID: link.id)
-            } accept: { next in
+            } publish: { next in
+                onPayload(next)
+            } accept: { _ in
                 if createdLink?.id == link.id {
                     createdLink = nil
                     copied = false
                 }
-                onPayload(next)
             }
         }
     }
