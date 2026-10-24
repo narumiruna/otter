@@ -1,4 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
+import type {
+  AiCatalogResponse,
+  AiConnectionsResponse,
+  AiSettingsResponse,
+} from "@narumitw/otter-contracts";
 import {
   calculateBalances,
   calculateSettlements,
@@ -30,6 +35,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     };
     await page.route("**/api/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
+      if (route.request().method() !== "GET") {
+        throw new Error(
+          `Unexpected request: ${route.request().method()} ${path}`,
+        );
+      }
       if (path === "/api/config") {
         await route.fulfill({ json: { devLoginCredentials: null } });
       } else if (path === "/api/me") {
@@ -72,6 +82,21 @@ for (const colorScheme of ["light", "dark"] as const) {
         await route.fulfill({ json: { passkeys: [] } });
       } else if (path === "/api/auth/tokens") {
         await route.fulfill({ json: { tokens: [] } });
+      } else if (path === "/api/auth/ai/catalog") {
+        await route.fulfill({
+          json: {
+            providers: [],
+            authenticationEnabled: true,
+          } satisfies AiCatalogResponse,
+        });
+      } else if (path === "/api/auth/ai/settings") {
+        await route.fulfill({
+          json: { settings: null } satisfies AiSettingsResponse,
+        });
+      } else if (path === "/api/auth/ai/connections") {
+        await route.fulfill({
+          json: { connections: [] } satisfies AiConnectionsResponse,
+        });
       } else {
         throw new Error(`Unexpected request: ${path}`);
       }

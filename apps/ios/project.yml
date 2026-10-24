@@ -1,0 +1,105 @@
+name: Otter
+options:
+  bundleIdPrefix: dev.narumi.otter
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  developmentLanguage: zh-Hant
+packages:
+  OtterKit:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    # The String Catalog is maintained and checked with explicit typed contracts.
+    SWIFT_EMIT_LOC_STRINGS: NO
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: A4YQL6FFTK
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+targets:
+  Otter:
+    type: application
+    platform: iOS
+    sources:
+      - path: Otter
+    dependencies:
+      - package: OtterKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.otter.ios
+        CODE_SIGN_ENTITLEMENTS: Otter/Otter.entitlements
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: otter
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: zh-Hant
+        CFBundleLocalizations: [zh-Hant, en, ja, ko, hi, es, fr, pt, id, de, vi, tr, fil, th, it, pl, ms, nl]
+        NSCameraUsageDescription: 拍攝支出收據，並在確認後上傳到所選群組。
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+  OtterTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/OtterAppTests
+    dependencies:
+      - target: Otter
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Otter.app/Otter"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  OtterLiveUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LiveUITests
+    dependencies:
+      - target: Otter
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  OtterUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Otter
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  OtterLive:
+    build:
+      targets:
+        Otter: all
+    test:
+      targets:
+        - OtterLiveUITests
+      environmentVariables:
+        OTTER_IOS_TEST_ORIGIN: "$(OTTER_IOS_TEST_ORIGIN)"
+  Otter:
+    build:
+      targets:
+        Otter: all
+        OtterLiveUITests: [test]
+    run:
+      config: Debug
+    test:
+      targets:
+        - OtterTests
+        - OtterUITests
