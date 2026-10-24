@@ -10,6 +10,8 @@ struct OverviewView: View {
     let onAdd: @MainActor () -> Void
     @Environment(AppSession.self) private var session
     @Environment(\.locale) private var locale
+    @Environment(AppPreferences.self) private var preferences
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedSettlement: Settlement?
     @State private var pendingDeletion: SettlementPayment?
     @State private var deleting = false
@@ -61,6 +63,7 @@ struct OverviewView: View {
             recent
             if !isPublic { paymentHistory }
         }
+        .otterList()
         .navigationTitle("總覽")
         .disabled(deleting)
         .overlay { if deleting { ProgressView("正在刪除付款紀錄…") } }
@@ -95,39 +98,50 @@ struct OverviewView: View {
 
     private var summary: some View {
         Section("群組概覽") {
-            Text(verbatim: payload.trip.name).font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
-            switch Result(catching: { try Finance.spendingSummary(trip: payload.trip) }) {
-            case .success(let summary):
-                OverviewMoneyRow(
-                    title: "共同支出總額（基本幣別）", amount: summary.totalMinor,
-                    currency: payload.trip.baseCurrency)
-            case .failure(let error): mathIssue(error)
-            }
-            // Do not add different server settlement currencies together.
-            if payload.settlements.isEmpty {
-                Text("目前沒有待結算款項。")
-            } else {
-                ForEach(
-                    Currency.allCases.filter { currency in
-                        payload.settlements.contains { $0.currency == currency }
-                    }
-                ) { currency in
-                    switch Result(catching: {
-                        try OverviewFinanceSupport.checkedSum(
-                            payload.settlements.filter { $0.currency == currency }.map(
-                                \.amountMinor))
-                    }) {
-                    case .success(let total):
-                        OverviewMoneyRow(title: "待結算總額", amount: total, currency: currency)
-                    case .failure(let error): mathIssue(error)
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: payload.trip.name).font(.title2.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "\(payload.trip.expenses.count) 筆支出 · \(payload.trip.participants.count) 位成員"
+                    )
+                    .font(.subheadline).otterSecondaryText()
+                }
+                switch Result(catching: { try Finance.spendingSummary(trip: payload.trip) }) {
+                case .success(let summary):
+                    OtterMetric(
+                        title: "共同支出總額（基本幣別）", amount: summary.totalMinor,
+                        currency: payload.trip.baseCurrency)
+                case .failure(let error): mathIssue(error)
+                }
+                // Do not add different server settlement currencies together.
+                if payload.settlements.isEmpty {
+                    Text("目前沒有待結算款項。")
+                } else {
+                    ForEach(
+                        Currency.allCases.filter { currency in
+                            payload.settlements.contains { $0.currency == currency }
+                        }
+                    ) { currency in
+                        switch Result(catching: {
+                            try OverviewFinanceSupport.checkedSum(
+                                payload.settlements.filter { $0.currency == currency }.map(
+                                    \.amountMinor))
+                        }) {
+                        case .success(let total):
+                            OverviewMoneyRow(title: "待結算總額", amount: total, currency: currency)
+                        case .failure(let error): mathIssue(error)
+                        }
                     }
                 }
+                Text("支出總額換算為基本幣別；結算使用伺服器回傳的幣別。不同幣別不直接加總。")
+                    .font(.footnote).otterSecondaryText()
             }
-            Text("\(payload.trip.expenses.count) 筆支出 · \(payload.trip.participants.count) 位成員")
-            Text("支出總額換算為基本幣別；結算使用伺服器回傳的幣別。不同幣別不直接加總。")
-                .font(.footnote).foregroundStyle(.secondary)
+            .padding(.bottom, 4)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
+        .textCase(nil)
     }
 
     private var settlements: some View {
@@ -145,6 +159,8 @@ struct OverviewView: View {
                         Button("記錄已付款", systemImage: "checkmark.circle") {
                             selectedSettlement = settlement
                         }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle(radius: 8))
                         .disabled(
                             settlement.amountMinor <= 0
                                 || settlement.amountMinor > ExpenseMath.maximumSafeInteger
@@ -152,6 +168,7 @@ struct OverviewView: View {
                         .accessibilityLabel("記錄 \(settlement.fromName) 付給 \(settlement.toName) 的付款")
                     }
                 }
+                .padding(.vertical, 8)
             }
         } header: {
             Text("待結算款項（\(payload.settlements.count)）")
@@ -169,7 +186,14 @@ struct OverviewView: View {
                     OverviewMoneyRow(
                         title:
                             "\(OverviewFinanceSupport.name(account.participantId, trip: payload.trip, locale: locale)) · \(NativeExpenseLabels.balance(account.balanceMinor, locale: locale))",
-                        amount: account.balanceMinor, currency: account.balanceCurrency)
+                        amount: account.balanceMinor, currency: account.balanceCurrency
+                    )
+                    .foregroundStyle(
+                        account.balanceMinor < 0
+                            ? preferences.palette.colors.destructive
+                            : preferences.palette.colors.accentText
+                    )
+                    .padding(.vertical, 8)
                 }
             case .failure(let error): mathIssue(error)
             }
@@ -214,7 +238,7 @@ struct OverviewView: View {
                             localizedTitle: route(payment), amount: payment.amountMinor,
                             currency: payment.currency)
                         Text(verbatim: OverviewFinanceSupport.date(payment.paidAt, locale: locale))
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.subheadline).otterSecondaryText()
                         if !payment.note.isEmpty {
                             Text(verbatim: payment.note).fixedSize(
                                 horizontal: false, vertical: true)
@@ -234,17 +258,27 @@ struct OverviewView: View {
     }
 
     private func expenseRow(_ expense: Expense) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: expense.description)
-                Text(verbatim: expense.currency.formatted(expense.amountMinor)).monospacedDigit()
+        HStack(alignment: .top, spacing: 12) {
+            OtterIconBadge(symbol: "receipt")
+            VStack(alignment: .leading, spacing: 8) {
+                let layout =
+                    dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+                layout {
+                    Text(verbatim: expense.description).font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(verbatim: expense.currency.formatted(expense.amountMinor))
+                        .font(.headline).monospacedDigit().layoutPriority(1)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    "\(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale)) · \(OverviewFinanceSupport.name(expense.paidById, trip: payload.trip, locale: locale)) 付款 · \(expense.participantIds.count) 人分攤"
+                )
+                .font(.footnote).otterSecondaryText()
             }
-            .fixedSize(horizontal: false, vertical: true)
-            Text(
-                "\(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale)) · \(OverviewFinanceSupport.name(expense.paidById, trip: payload.trip, locale: locale)) 付款 · \(expense.participantIds.count) 人分攤"
-            )
-            .font(.subheadline).foregroundStyle(.secondary)
         }
+        .padding(.vertical, 8)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .combine)
     }

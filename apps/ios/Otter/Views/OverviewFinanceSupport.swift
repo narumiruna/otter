@@ -21,9 +21,10 @@ struct OverviewMoneyRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            title
-            Text(verbatim: currency.formatted(amount)).monospacedDigit()
+        VStack(alignment: .leading, spacing: 6) {
+            title.font(.subheadline).otterSecondaryText()
+            Text(verbatim: currency.formatted(amount))
+                .font(.title3.weight(.semibold)).monospacedDigit()
         }
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .ignore)

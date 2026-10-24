@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import {
@@ -527,6 +528,14 @@ describe("current integration contracts", () => {
     expect(
       validateManifest(f.manifest, f.catalogs, f.sources, catalog).errors,
     ).toEqual([]);
+  });
+
+  test("keeps automatic extraction disabled for the manually maintained catalog", () => {
+    const project = readFileSync(
+      new URL("../apps/ios/project.yml", import.meta.url),
+      "utf8",
+    );
+    expect(project).toMatch(/^ {4}SWIFT_EMIT_LOC_STRINGS: NO$/m);
   });
 
   test("audits the actual repository source and published resources", () => {

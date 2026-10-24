@@ -82,6 +82,7 @@ public struct ExpenseEditorView: View {
                     if state.busy { Section { ProgressView("正在處理…") } }
                 }
             }
+            .otterList()
             .scrollDismissesKeyboard(.immediately)
             .accessibilityIdentifier("expense.form")
             .navigationTitle(state.title)
@@ -269,6 +270,8 @@ struct ExpenseDraftFields: View {
             TextField("支出說明", text: $state.description, axis: .vertical).lineLimit(1...4)
                 .accessibilityIdentifier("expense-description")
             TextField("金額", text: $state.amount).keyboardType(.decimalPad)
+                .font(.title2.weight(.semibold)).monospacedDigit()
+                .padding(.vertical, 6)
                 .accessibilityIdentifier("expense-amount")
             Picker("幣別", selection: $state.currency) {
                 ForEach(Currency.allCases) { Text($0.rawValue).tag($0) }

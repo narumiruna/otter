@@ -88,6 +88,7 @@ struct AccessSettingsView: View {
             }
             shareListSection
         }
+        .otterList()
         .navigationTitle("存取與分享")
         .confirmationDialog(
             "確認存取權變更？",

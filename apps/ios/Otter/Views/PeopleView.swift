@@ -59,19 +59,24 @@ struct PeopleView: View {
                     Button {
                         select(person)
                     } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(verbatim: person.name).foregroundStyle(.primary)
-                            if let id = person.settledById {
-                                let name =
-                                    payload.trip.participants.first { $0.id == id }?.name ?? id
-                                Text("由 \(name) 代為結算").font(.caption).foregroundStyle(.secondary)
-                            } else {
-                                Text("自行結算").font(.caption).foregroundStyle(.secondary)
-                            }
-                            if selectedID == person.id {
-                                Text("已選取").font(.caption).foregroundStyle(.tint)
+                        HStack(alignment: .top, spacing: 12) {
+                            OtterAvatar(name: person.name)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(verbatim: person.name).font(.headline).foregroundStyle(
+                                    .primary)
+                                if let id = person.settledById {
+                                    let name =
+                                        payload.trip.participants.first { $0.id == id }?.name ?? id
+                                    Text("由 \(name) 代為結算").font(.caption).otterSecondaryText()
+                                } else {
+                                    Text("自行結算").font(.caption).otterSecondaryText()
+                                }
+                                if selectedID == person.id {
+                                    Text("已選取").font(.caption).foregroundStyle(.tint)
+                                }
                             }
                         }
+                        .padding(.vertical, 6)
                     }
                     .disabled(busy)
                 }
@@ -93,6 +98,7 @@ struct PeopleView: View {
                 }
             }
         }
+        .otterList()
         .navigationTitle("web.people")
         .confirmationDialog(
             confirming == .merge ? LocalizedStringKey("確認合併參與者？") : LocalizedStringKey("確認刪除參與者？"),

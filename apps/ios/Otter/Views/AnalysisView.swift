@@ -17,9 +17,12 @@ struct AnalysisView: View {
             switch Result(catching: { try Finance.spendingSummary(trip: payload.trip) }) {
             case .success(let summary):
                 Section("共同支出總額") {
-                    OverviewMoneyRow(
+                    OtterMetric(
                         title: "基本幣別總額", amount: summary.totalMinor,
-                        currency: payload.trip.baseCurrency)
+                        currency: payload.trip.baseCurrency
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
                 AnalysisBarSection(
                     title: "每日支出", currency: payload.trip.baseCurrency,
@@ -54,13 +57,14 @@ struct AnalysisView: View {
             }
             memberAccounts
         }
+        .otterList()
         .navigationTitle("分析")
     }
 
     private var memberAccounts: some View {
         Section {
             Text("實付是代墊的支出，分攤是應負擔的支出。淨額包含已記錄的付款與代表人調整；正數為應收，負數為應付。不同幣別不直接加總。")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.footnote).otterSecondaryText()
             switch Result(catching: { try Finance.memberAccounts(payload: payload) }) {
             case .success(let accounts):
                 if accounts.isEmpty { Text("尚無成員帳目。") }
@@ -95,8 +99,9 @@ private struct AnalysisBarSection: View {
             ForEach(rows) { row in
                 VStack(alignment: .leading, spacing: 6) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: row.label)
-                        Text(verbatim: currency.formatted(row.amount)).monospacedDigit()
+                        Text(verbatim: row.label).font(.subheadline.weight(.medium))
+                        Text(verbatim: currency.formatted(row.amount))
+                            .font(.headline).monospacedDigit()
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     ProgressView(
@@ -106,7 +111,7 @@ private struct AnalysisBarSection: View {
                     .tint(.accentColor)
                     .accessibilityHidden(true)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(verbatim: row.label))
                 .accessibilityValue(Text(verbatim: currency.formatted(row.amount)))
@@ -130,14 +135,14 @@ private struct AnalysisMemberAccountView: View {
                 verbatim: OverviewFinanceSupport.name(
                     account.participantId, trip: trip, locale: locale)
             )
-            .font(.headline).accessibilityAddTraits(.isHeader)
+            .font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
             if let representative = trip.participants.first(where: {
                 $0.id == account.participantId
             })?.settledById {
                 Text(
                     "由 \(OverviewFinanceSupport.name(representative, trip: trip, locale: locale)) 代為結算"
                 )
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.subheadline).otterSecondaryText()
             }
             OverviewMoneyRow(title: "實付支出", amount: account.paidMinor, currency: account.currency)
             OverviewMoneyRow(
@@ -155,7 +160,7 @@ private struct AnalysisMemberAccountView: View {
                         adjustments
                     } else {
                         Text("未提供付款與代表人調整明細。不能由餘額反推隱藏付款；淨額以伺服器資料為準。")
-                            .foregroundStyle(.secondary)
+                            .otterSecondaryText()
                     }
                 }
                 .padding(.vertical, 8)
@@ -187,7 +192,7 @@ private struct AnalysisMemberAccountView: View {
                                 "\(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale)) · \(expense.description)",
                             amount: entry.amountMinor, currency: account.currency)
                         Text("原始支出總額：\(expense.currency.formatted(expense.amountMinor))")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.footnote).otterSecondaryText()
                     } else {
                         OverviewMoneyRow(
                             title: "支出明細無法取得", amount: entry.amountMinor, currency: account.currency
@@ -213,7 +218,7 @@ private struct AnalysisMemberAccountView: View {
                                 "\(entry.direction == .paid ? NativeLocalization.string("已付出", locale: locale) : NativeLocalization.string("已收到", locale: locale)) · \(OverviewFinanceSupport.date(payment.paidAt, locale: locale)) · \(OverviewFinanceSupport.name(payment.fromId, trip: trip, locale: locale)) 付給 \(OverviewFinanceSupport.name(payment.toId, trip: trip, locale: locale))",
                             amount: entry.amountMinor, currency: account.currency)
                         Text("原始付款金額：\(payment.currency.formatted(payment.amountMinor))")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.footnote).otterSecondaryText()
                         if !payment.note.isEmpty { Text(verbatim: payment.note).font(.subheadline) }
                     } else {
                         Text("付款明細無法取得，請重新載入。")

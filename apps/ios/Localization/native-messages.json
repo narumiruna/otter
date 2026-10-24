@@ -7275,7 +7275,7 @@
         "catalogKey": "由 %@ 代為結算",
         "currentSources": [
           "[\"apps/ios/Otter/Views/AnalysisView.swift\",\"由 \\\\(OverviewFinanceSupport.name(representative, trip: trip, locale: locale)) 代為結算\",\"Text( <literal>\"]",
-          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"由 \\\\(name) 代為結算\",\"Text(<literal>).font(.caption).foregroundStyle(.secondary)\"]"
+          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"由 \\\\(name) 代為結算\",\"Text(<literal>).font(.caption).otterSecondaryText()\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -9602,7 +9602,7 @@
         "status": "verified",
         "catalogKey": "%@ 的操作",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"\\\\(expense.description) 的操作\",\"}.accessibilityLabel(<literal>)\"]"
+          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"\\\\(expense.description) 的操作\",\".accessibilityLabel(<literal>)\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -9648,7 +9648,7 @@
         "status": "verified",
         "catalogKey": "付款人：%@",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.subheadline)\"]",
+          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.footnote)\"]",
           "[\"apps/ios/Otter/Views/ExpenseEditorSnapshotDetails.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>)\"]",
           "[\"apps/ios/Otter/Views/TripDataToolsView.swift\",\"付款人：\\\\(row.paidBy)\",\"Text(<literal>)\"]"
         ],
@@ -11048,7 +11048,7 @@
         "status": "verified",
         "catalogKey": "付款人：%@",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.subheadline)\"]",
+          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.footnote)\"]",
           "[\"apps/ios/Otter/Views/ExpenseEditorSnapshotDetails.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>)\"]",
           "[\"apps/ios/Otter/Views/TripDataToolsView.swift\",\"付款人：\\\\(row.paidBy)\",\"Text(<literal>)\"]"
         ],
@@ -20434,7 +20434,7 @@
         "status": "verified",
         "catalogKey": "%lld 筆支出 · %lld 位成員",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/OverviewView.swift\",\"\\\\(payload.trip.expenses.count) 筆支出 · \\\\(payload.trip.participants.count) 位成員\",\"Text(<literal>)\"]"
+          "[\"apps/ios/Otter/Views/OverviewView.swift\",\"\\\\(payload.trip.expenses.count) 筆支出 · \\\\(payload.trip.participants.count) 位成員\",\"Text( <literal>\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -22438,7 +22438,7 @@
         "catalogKey": "由 %@ 代為結算",
         "currentSources": [
           "[\"apps/ios/Otter/Views/AnalysisView.swift\",\"由 \\\\(OverviewFinanceSupport.name(representative, trip: trip, locale: locale)) 代為結算\",\"Text( <literal>\"]",
-          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"由 \\\\(name) 代為結算\",\"Text(<literal>).font(.caption).foregroundStyle(.secondary)\"]"
+          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"由 \\\\(name) 代為結算\",\"Text(<literal>).font(.caption).otterSecondaryText()\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -22477,7 +22477,7 @@
         "status": "verified",
         "catalogKey": "自行結算",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"自行結算\",\"Text(<literal>).font(.caption).foregroundStyle(.secondary)\"]",
+          "[\"apps/ios/Otter/Views/PeopleView.swift\",\"自行結算\",\"Text(<literal>).font(.caption).otterSecondaryText()\"]",
           "[\"apps/ios/Otter/Views/PeopleView.swift\",\"自行結算\",\"Text(<literal>).tag(\\\"\\\")\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
@@ -24870,7 +24870,7 @@
         "status": "verified",
         "catalogKey": "與朋友一起管理旅行與共同支出。",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/RootView.swift\",\"與朋友一起管理旅行與共同支出。\",\"Text(<literal>).foregroundStyle(.secondary)\"]"
+          "[\"apps/ios/Otter/Views/RootView.swift\",\"與朋友一起管理旅行與共同支出。\",\"Text(<literal>)\"]"
         ],
         "note": "Reviewed current lexical source/context and typed producer; verified physical catalog key, argument types and all 18 locale values. Line numbers are informational."
       }
@@ -27002,7 +27002,7 @@
         "status": "verified",
         "catalogKey": "付款人：%@",
         "currentSources": [
-          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.subheadline)\"]",
+          "[\"apps/ios/Otter/Views/ExpenseBrowserView.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>).font(.footnote)\"]",
           "[\"apps/ios/Otter/Views/ExpenseEditorSnapshotDetails.swift\",\"付款人：\\\\(name(expense.paidById))\",\"Text(<literal>)\"]",
           "[\"apps/ios/Otter/Views/TripDataToolsView.swift\",\"付款人：\\\\(row.paidBy)\",\"Text(<literal>)\"]"
         ],
@@ -39917,6 +39917,38 @@
     "version": 1,
     "anchors": [
       {
+        "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
+        "line": 130,
+        "literal": "receipt",
+        "context": "OtterIconBadge(symbol: <literal>)",
+        "kind": "constant",
+        "reason": "SF Symbols identifier for a decorative icon. Not display text."
+      },
+      {
+        "path": "apps/ios/Otter/Views/OverviewView.swift",
+        "line": 260,
+        "literal": "receipt",
+        "context": "OtterIconBadge(symbol: <literal>)",
+        "kind": "constant",
+        "reason": "SF Symbols identifier for a decorative icon. Not display text."
+      },
+      {
+        "path": "apps/ios/Otter/Views/RootView.swift",
+        "line": 81,
+        "literal": "OtterMark",
+        "context": "Image(<literal>).resizable().frame(width: 48, height: 48)",
+        "kind": "constant",
+        "reason": "Asset catalog name for the existing web otter logo. Not display text."
+      },
+      {
+        "path": "apps/ios/Otter/Views/TripListView.swift",
+        "line": 215,
+        "literal": "globe.asia.australia",
+        "context": "OtterIconBadge(symbol: <literal>)",
+        "kind": "constant",
+        "reason": "SF Symbols identifier for a decorative icon. Not display text."
+      },
+      {
         "path": "apps/ios/Otter/LocalExpenseState.swift",
         "line": 23,
         "literal": "Otter",
@@ -42376,7 +42408,7 @@
         "path": "apps/ios/Otter/Views/AppearanceSettingsView.swift",
         "line": 16,
         "literal": "circle.fill",
-        "context": "symbol: <literal>, color: palette.tint",
+        "context": "symbol: <literal>, color: palette.accessibleTint",
         "kind": "constant",
         "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
       },
@@ -43051,17 +43083,17 @@
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 135,
+        "line": 180,
         "literal": "ellipsis",
-        "context": "Image(systemName: <literal>).padding(10)",
+        "context": "Image(systemName: <literal>).frame(minWidth: 44, minHeight: 44)",
         "kind": "constant",
         "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 136,
+        "line": 182,
         "literal": "\\(expense.description) 的操作",
-        "context": "}.accessibilityLabel(<literal>)",
+        "context": ".accessibilityLabel(<literal>)",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [
@@ -43084,9 +43116,9 @@
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 142,
+        "line": 147,
         "literal": "付款人：\\(name(expense.paidById))",
-        "context": "Text(<literal>).font(.subheadline)",
+        "context": "Text(<literal>).font(.footnote)",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [
@@ -48103,9 +48135,9 @@
       },
       {
         "path": "apps/ios/Otter/Views/OverviewView.swift",
-        "line": 127,
+        "line": 106,
         "literal": "\\(payload.trip.expenses.count) 筆支出 · \\(payload.trip.participants.count) 位成員",
-        "context": "Text(<literal>)",
+        "context": "Text( <literal>",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [
@@ -49308,9 +49340,9 @@
       },
       {
         "path": "apps/ios/Otter/Views/PeopleView.swift",
-        "line": 67,
+        "line": 70,
         "literal": "由 \\(name) 代為結算",
-        "context": "Text(<literal>).font(.caption).foregroundStyle(.secondary)",
+        "context": "Text(<literal>).font(.caption).otterSecondaryText()",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [
@@ -49325,9 +49357,9 @@
       },
       {
         "path": "apps/ios/Otter/Views/PeopleView.swift",
-        "line": 69,
+        "line": 72,
         "literal": "自行結算",
-        "context": "Text(<literal>).font(.caption).foregroundStyle(.secondary)",
+        "context": "Text(<literal>).font(.caption).otterSecondaryText()",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [],
@@ -50383,25 +50415,17 @@
       },
       {
         "path": "apps/ios/Otter/Views/RootView.swift",
-        "line": 80,
+        "line": 83,
         "literal": "Otter",
-        "context": "Label(<literal>, systemImage: \"creditcard\").font(.largeTitle.bold())",
+        "context": "Text(<literal>).font(.largeTitle.weight(.bold)).tracking(-1.2)",
         "kind": "constant",
         "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
       },
       {
         "path": "apps/ios/Otter/Views/RootView.swift",
-        "line": 80,
-        "literal": "creditcard",
-        "context": "Label(\"Otter\", systemImage: <literal>).font(.largeTitle.bold())",
-        "kind": "constant",
-        "reason": "Nonlinguistic code, symbol or storage ID; keep unchanged."
-      },
-      {
-        "path": "apps/ios/Otter/Views/RootView.swift",
-        "line": 81,
+        "line": 87,
         "literal": "與朋友一起管理旅行與共同支出。",
-        "context": "Text(<literal>).foregroundStyle(.secondary)",
+        "context": "Text(<literal>)",
         "kind": "lookup",
         "reason": "Application-owned presentation resource; typed producer or SwiftUI literal.",
         "arguments": [],
@@ -58330,6 +58354,27 @@
     ],
     "boundaries": [
       {
+        "path": "apps/ios/Otter/OtterStyle.swift",
+        "line": 59,
+        "source": "Text(verbatim: String(name.prefix(1)))",
+        "disposition": "userdata",
+        "reason": "A participant name initial is user data. The decorative avatar is hidden from accessibility."
+      },
+      {
+        "path": "apps/ios/Otter/OtterStyle.swift",
+        "line": 76,
+        "source": "Text(title)",
+        "disposition": "localized",
+        "reason": "OtterMetric.title is LocalizedStringKey and Text performs the locale-aware lookup."
+      },
+      {
+        "path": "apps/ios/Otter/OtterStyle.swift",
+        "line": 78,
+        "source": "Text(verbatim: currency.formatted(amount))",
+        "disposition": "formatted",
+        "reason": "Currency.formatted returns the existing localized monetary value, not a resource key."
+      },
+      {
         "path": "apps/ios/Otter/Views/AISettingsView.swift",
         "line": 66,
         "source": "Text(verbatim: providerName(connection.provider)).font(.headline)",
@@ -58506,15 +58551,15 @@
       },
       {
         "path": "apps/ios/Otter/Views/AnalysisView.swift",
-        "line": 98,
-        "source": "Text(verbatim: row.label)",
+        "line": 102,
+        "source": "Text(verbatim: row.label).font(.subheadline.weight(.medium))",
         "disposition": "category",
         "reason": "Core ExpenseCategory.displayName localizes only six known category IDs; unknown user categories and payer/date headings remain verbatim."
       },
       {
         "path": "apps/ios/Otter/Views/AnalysisView.swift",
-        "line": 99,
-        "source": "Text(verbatim: currency.formatted(row.amount)).monospacedDigit()",
+        "line": 103,
+        "source": "Text(verbatim: currency.formatted(row.amount))",
         "disposition": "formatted",
         "reason": "Selected-locale date/number/list presentation. Canonical stored values are unchanged."
       },
@@ -58604,22 +58649,22 @@
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 140,
-        "source": "Text(expense.currency.formatted(expense.amountMinor)).monospacedDigit()",
+        "line": 305,
+        "source": "Text(expense.currency.formatted(expense.amountMinor))",
         "disposition": "formatted",
         "reason": "Selected-locale date/number/list presentation. Canonical stored values are unchanged."
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 145,
-        "source": "Text(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale)).font(",
+        "line": 151,
+        "source": "Text(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale))",
         "disposition": "formatted",
         "reason": "Selected-locale date/number/list presentation. Canonical stored values are unchanged."
       },
       {
         "path": "apps/ios/Otter/Views/ExpenseBrowserView.swift",
-        "line": 149,
-        "source": "Text(NativeExpenseLabels.category(expense.category, locale: locale)).font(",
+        "line": 157,
+        "source": "Text(NativeExpenseLabels.category(expense.category, locale: locale))",
         "disposition": "category",
         "reason": "Core ExpenseCategory.displayName localizes only six known category IDs; unknown user categories and payer/date headings remain verbatim."
       },
@@ -58892,7 +58937,7 @@
       {
         "path": "apps/ios/Otter/Views/OverviewFinanceSupport.swift",
         "line": 26,
-        "source": "Text(verbatim: currency.formatted(amount)).monospacedDigit()",
+        "source": "Text(verbatim: currency.formatted(amount))",
         "disposition": "formatted",
         "reason": "Selected-locale date/number/list presentation. Canonical stored values are unchanged."
       },
@@ -58919,8 +58964,8 @@
       },
       {
         "path": "apps/ios/Otter/Views/OverviewView.swift",
-        "line": 98,
-        "source": "Text(verbatim: payload.trip.name).font(.headline)",
+        "line": 103,
+        "source": "Text(verbatim: payload.trip.name).font(.title2.weight(.semibold))",
         "disposition": "userdata",
         "reason": "User/server name, description, identifier, URL, token, note, language autonym or technical currency code. Do not use as a lookup key."
       },
@@ -58940,15 +58985,15 @@
       },
       {
         "path": "apps/ios/Otter/Views/OverviewView.swift",
-        "line": 239,
-        "source": "Text(verbatim: expense.description)",
+        "line": 267,
+        "source": "Text(verbatim: expense.description).font(.body.weight(.semibold))",
         "disposition": "userdata",
         "reason": "User/server name, description, identifier, URL, token, note, language autonym or technical currency code. Do not use as a lookup key."
       },
       {
         "path": "apps/ios/Otter/Views/OverviewView.swift",
-        "line": 240,
-        "source": "Text(verbatim: expense.currency.formatted(expense.amountMinor)).monospacedDigit()",
+        "line": 269,
+        "source": "Text(verbatim: expense.currency.formatted(expense.amountMinor))",
         "disposition": "formatted",
         "reason": "Selected-locale date/number/list presentation. Canonical stored values are unchanged."
       },
@@ -58975,8 +59020,8 @@
       },
       {
         "path": "apps/ios/Otter/Views/PeopleView.swift",
-        "line": 63,
-        "source": "Text(verbatim: person.name).foregroundStyle(.primary)",
+        "line": 65,
+        "source": "Text(verbatim: person.name).font(.headline).foregroundStyle(",
         "disposition": "userdata",
         "reason": "User/server name, description, identifier, URL, token, note, language autonym or technical currency code. Do not use as a lookup key."
       },
@@ -59158,8 +59203,8 @@
       },
       {
         "path": "apps/ios/Otter/Views/TripListView.swift",
-        "line": 202,
-        "source": "Text(trip.name).font(.headline)",
+        "line": 217,
+        "source": "Text(trip.name).font(.headline.weight(.semibold))",
         "disposition": "userdata",
         "reason": "User/server name, description, identifier, URL, token, note, language autonym or technical currency code. Do not use as a lookup key."
       },
@@ -59179,6 +59224,14 @@
       }
     ],
     "declarations": [
+      {
+        "path": "apps/ios/Otter/OtterStyle.swift",
+        "source": "let title: LocalizedStringKey"
+      },
+      {
+        "path": "apps/ios/Otter/OtterStyle.swift",
+        "source": "let title: LocalizedStringKey"
+      },
       {
         "path": "apps/ios/Otter/Views/AISettingsView.swift",
         "source": "let title: LocalizedStringKey"

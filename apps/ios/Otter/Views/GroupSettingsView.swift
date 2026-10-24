@@ -82,6 +82,7 @@ struct GroupSettingsView: View {
             apiSection
             ownerActionsSection
         }
+        .otterList()
         .navigationTitle("群組設定")
         .confirmationDialog(
             "確認群組變更？",

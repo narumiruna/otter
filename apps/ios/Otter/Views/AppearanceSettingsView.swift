@@ -13,7 +13,7 @@ struct AppearanceSettingsView: View {
                 ForEach(AppPalette.allCases, id: \.self) { palette in
                     selectionRow(
                         palette.title, selected: preferences.palette == palette,
-                        symbol: "circle.fill", color: palette.tint
+                        symbol: "circle.fill", color: palette.accessibleTint
                     ) {
                         preferences.palette = palette
                     }
@@ -40,6 +40,7 @@ struct AppearanceSettingsView: View {
                 .accessibilityIdentifier("appearance.language")
             }
         }
+        .otterList()
         .navigationTitle("外觀")
     }
 
@@ -90,18 +91,6 @@ extension AppAppearance {
 }
 
 extension AppPalette {
-    /// Use semantic system colors so controls adapt to light and dark modes.
-    var tint: Color {
-        switch self {
-        case .forest: .green
-        case .parchment: .brown
-        case .ocean: .blue
-        case .lavender: .purple
-        case .sunset: .orange
-        case .rose: .pink
-        }
-    }
-
     fileprivate var title: LocalizedStringKey {
         switch self {
         case .forest: "森林"

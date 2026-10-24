@@ -40,7 +40,7 @@ struct TripListView: View {
                     Section("使用中的群組") {
                         if response.trips.isEmpty {
                             Text("尚無使用中的群組。點選右上角的加號來建立群組。")
-                                .foregroundStyle(.secondary)
+                                .otterSecondaryText()
                         }
                         ForEach(response.trips) { trip in
                             NavigationLink(value: trip.id) { TripSummaryRow(trip: trip) }
@@ -67,6 +67,7 @@ struct TripListView: View {
                     }
                 }
             }
+            .otterList()
             .overlay {
                 if isLoading && response == nil { ProgressView("正在載入群組…") }
             }
@@ -210,16 +211,20 @@ private struct TripSummaryRow: View {
     let trip: TripSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(trip.name).font(.headline)
-            Text("\(trip.participantCount) 位成員 · \(trip.expenseCount) 筆支出")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text("基本幣別：\(trip.baseCurrency.rawValue)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 14) {
+            OtterIconBadge(symbol: "globe.asia.australia")
+            VStack(alignment: .leading, spacing: 6) {
+                Text(trip.name).font(.headline.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(trip.participantCount) 位成員 · \(trip.expenseCount) 筆支出")
+                    .font(.footnote)
+                    .otterSecondaryText()
+                Text("基本幣別：\(trip.baseCurrency.rawValue)")
+                    .font(.caption)
+                    .otterSecondaryText()
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
     }
 }
@@ -254,6 +259,7 @@ private struct CreateTripView: View {
                 }
                 if isSubmitting { ProgressView("正在建立群組…") }
             }
+            .otterList()
             .disabled(isSubmitting)
             .navigationTitle("建立群組")
             .navigationBarTitleDisplayMode(.inline)

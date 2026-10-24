@@ -42,6 +42,8 @@ struct OtterApp: App {
                     if navigation.route?.sessionID != session.sessionID { navigation.route = nil }
                     if pendingRoute?.sessionID != session.sessionID { pendingRoute = nil }
                 }
+                .foregroundStyle(preferences.palette.colors.text)
+                .background(preferences.palette.colors.background)
                 .tint(preferences.palette.accessibleTint)
                 .task { await session.restore() }
                 .task(id: "\(session.sessionID):\(session.user?.id ?? "none")") {

@@ -39,6 +39,15 @@ xcodegen generate --spec apps/ios/project.yml --project apps/ios
 
 `project.yml` 是專案來源。不要提交產生的 project、Info.plist、DerivedData、測試結果或 `.build/`。
 
+### String Catalog maintenance
+
+`Otter/Resources/Localizable.xcstrings` is maintained with the typed contracts in `Localization/native-messages.json`.
+
+- Keep `SWIFT_EMIT_LOC_STRINGS: NO` in `project.yml`. Automatic Swift extraction can add untranslated object-placeholder entries that do not match the typed catalog.
+- Update the catalog and source audit together when application-owned text changes.
+  - Include all 18 resource locales. Keep integer `%lld` arguments and CLDR plural forms; do not replace them with `%@` arguments.
+- Run `npm run check:ios:localization` from the repository root after each change.
+
 ### Passkey 與網域關聯
 
 `Otter/Otter.entitlements` 包含正式站的 `webcredentials`／`applinks`。必須在對應 server 設定實際簽章的 `IOS_APP_ID`，部署有效 AASA JSON，並確認 `PASSKEY_ORIGIN`、RP ID 與 entitlement 網域一致。詳見 [`../../docs/deployment.md`](../../docs/deployment.md)。自訂 server 不會自動取得已簽章 App 的 Associated Domains。

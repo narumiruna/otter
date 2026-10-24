@@ -23,6 +23,20 @@ final class LocalizationResourceTests: XCTestCase {
             "カテゴリ：\(value)")
     }
 
+    func testTypedNumbersResolveTranslatedResourcesAndPlurals() {
+        let locale = Locale(identifier: "en")
+        let count = 2
+        let message = "User text <%@>"
+        XCTAssertEqual(
+            NativeLocalization.string("第 \(count) 列：\(message)", locale: locale),
+            "Row 2: \(message)")
+        XCTAssertEqual(
+            NativeLocalization.string("版本：\(count)", locale: locale), "Version: 2")
+        XCTAssertEqual(
+            NativeLocalization.string("驗證碼有效時間：\(count) 秒", locale: locale),
+            "Code valid for 2 seconds")
+    }
+
     func testPrintLocalizesPresentationWithoutChangingExpenseDataOrAddingHiddenPayments() {
         let expense = Expense(
             id: "expense", description: "餐飲 <script>", amountMinor: 101,

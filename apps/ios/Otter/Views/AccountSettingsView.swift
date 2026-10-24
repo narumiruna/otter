@@ -101,6 +101,7 @@ struct AccountSettingsView: View {
                 if busy { ProgressView("正在處理…") }
             }
             .disabled(busy)
+            .otterList()
             .navigationTitle("帳號設定")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

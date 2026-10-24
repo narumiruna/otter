@@ -77,8 +77,15 @@ struct LoginView: View {
         NavigationStack {
             Form {
                 Section {
-                    Label("Otter", systemImage: "creditcard").font(.largeTitle.bold())
-                    Text("與朋友一起管理旅行與共同支出。").foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Image("OtterMark").resizable().frame(width: 48, height: 48)
+                            .accessibilityHidden(true)
+                        Text("Otter").font(.largeTitle.weight(.bold)).tracking(-1.2)
+                            .textCase(.lowercase)
+                    }
+                    .padding(.vertical, 8)
+                    Text("與朋友一起管理旅行與共同支出。")
+                        .font(.subheadline).otterSecondaryText()
                     Picker("native.rootView.authMethod", selection: $mode) {
                         ForEach(Mode.allCases, id: \.self) { mode in
                             Text(LocalizedStringKey(mode.rawValue)).tag(mode)
@@ -87,6 +94,8 @@ struct LoginView: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("login.mode")
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 Section("連線資料") {
                     TextField("伺服器網址", text: $server)
                         .accessibilityIdentifier("login.server")
@@ -127,10 +136,10 @@ struct LoginView: View {
                             Text(
                                 LocalizedStringKey(
                                     busy ? "正在處理…" : mode == .register ? "使用密碼註冊" : "登入"))
-                            Spacer()
                             if busy { ProgressView() }
                         }
                     }
+                    .buttonStyle(OtterPrimaryButtonStyle())
                     .accessibilityIdentifier("login.submit")
                     .disabled(!canSubmit)
                     if mode != .token {
@@ -149,6 +158,7 @@ struct LoginView: View {
                     }
                 }
             }
+            .otterList()
             .disabled(busy || session.isSigningIn)
             .navigationTitle(Text(LocalizedStringKey(mode == .register ? "建立帳號" : "登入")))
             .toolbar {

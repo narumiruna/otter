@@ -5,6 +5,8 @@ import SwiftUI
 struct ExpenseBrowserView: View {
     @Environment(AppSession.self) private var session
     @Environment(\.locale) private var locale
+    @Environment(AppPreferences.self) private var preferences
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let payload: TripPayload
     let onEdit: @MainActor (Expense) -> Void
     let onCopy: @MainActor (Expense) -> Void
@@ -117,52 +119,70 @@ struct ExpenseBrowserView: View {
                 }
             }
         }
+        .otterList()
         .sheet(isPresented: $showFilters) { filterSheet }
         .sheet(item: $deletion) { expense in
             ExpenseDeleteConfirmation(expense: expense) { try await onDelete(expense) }
         }
     }
     private func row(_ expense: Expense) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Button(expense.description) {
-                    if permissions.allows(.editDailyData) { onEdit(expense) }
+        HStack(alignment: .top, spacing: 12) {
+            OtterIconBadge(symbol: "receipt")
+            VStack(alignment: .leading, spacing: 8) {
+                let layout =
+                    dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                    : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+                layout {
+                    Button(expense.description) {
+                        if permissions.allows(.editDailyData) { onEdit(expense) }
+                    }
+                    .buttonStyle(.plain).font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(expense.currency.formatted(expense.amountMinor))
+                        .font(.headline).monospacedDigit().layoutPriority(1)
                 }
-                .buttonStyle(.plain).font(.headline)
-                Spacer()
-                Menu {
-                    actions(expense)
-                } label: {
-                    Image(systemName: "ellipsis").padding(10)
-                }.accessibilityLabel("\(expense.description) 的操作")
-                    .disabled(
-                        !permissions.allows(.readHistory) && !permissions.allows(.editDailyData))
+                .fixedSize(horizontal: false, vertical: true)
+                if columns.contains("payer") {
+                    Text("付款人：\(name(expense.paidById))").font(.footnote)
+                        .otterSecondaryText()
+                }
+                if columns.contains("date") {
+                    Text(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale))
+                        .font(
+                            .caption
+                        ).otterSecondaryText()
+                }
+                if columns.contains("category") {
+                    Text(NativeExpenseLabels.category(expense.category, locale: locale))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(preferences.palette.colors.accentText)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(
+                            preferences.palette.colors.softAccent,
+                            in: RoundedRectangle(cornerRadius: 6))
+                }
+                if columns.contains("participants") {
+                    Text(
+                        "分攤：\(NativeDisplayFormatting.list(expense.participantIds.map(name), locale: locale))"
+                    ).font(.caption)
+                }
+                if columns.contains("tags"), let tags = expense.tags, !tags.isEmpty {
+                    Text(tags.joined(separator: " · ")).font(.caption)
+                }
+                if columns.contains("receipt"), expense.receiptId != nil {
+                    Label("有收據", systemImage: "photo").font(.caption)
+                }
             }
-            Text(expense.currency.formatted(expense.amountMinor)).monospacedDigit()
-            if columns.contains("payer") {
-                Text("付款人：\(name(expense.paidById))").font(.subheadline)
+            Menu {
+                actions(expense)
+            } label: {
+                Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44)
             }
-            if columns.contains("date") {
-                Text(NativeDisplayFormatting.dateOnly(expense.expenseDate, locale: locale)).font(
-                    .subheadline)
-            }
-            if columns.contains("category") {
-                Text(NativeExpenseLabels.category(expense.category, locale: locale)).font(
-                    .subheadline)
-            }
-            if columns.contains("participants") {
-                Text(
-                    "分攤：\(NativeDisplayFormatting.list(expense.participantIds.map(name), locale: locale))"
-                ).font(.caption)
-            }
-            if columns.contains("tags"), let tags = expense.tags, !tags.isEmpty {
-                Text(tags.joined(separator: " · ")).font(.caption)
-            }
-            if columns.contains("receipt"), expense.receiptId != nil {
-                Label("有收據", systemImage: "photo").font(.caption)
-            }
+            .accessibilityLabel("\(expense.description) 的操作")
+            .disabled(!permissions.allows(.readHistory) && !permissions.allows(.editDailyData))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
     }
     @ViewBuilder private func actions(_ expense: Expense) -> some View {
         if permissions.allows(.editDailyData) {
@@ -203,6 +223,7 @@ struct ExpenseBrowserView: View {
                 }
                 Button("清除篩選") { filters = ExpenseFilters() }
             }
+            .otterList()
             .navigationTitle("支出篩選")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("完成") { showFilters = false } }

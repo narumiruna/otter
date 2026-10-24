@@ -123,6 +123,7 @@ struct PaymentEditorView: View {
                 }
             }
             .disabled(saving)
+            .otterList()
             .navigationTitle("記錄已付款")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
