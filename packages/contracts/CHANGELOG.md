@@ -1,5 +1,18 @@
 # @narumitw/otter-contracts
 
+## 0.4.0
+
+### Minor Changes
+
+- d0aaab5: Use Visa as the only automatic exchange-rate source. Save dated base-currency, payment, and bridge snapshots without bank or fixed-rate fallback. Keep historical snapshots and the bank-rate workspace. Export complete version 3 backups and retain old backup readers.
+  
+  Deploy compatible API, Web, and CLI readers together after migrations 027 and 028. Floating legacy conversions require an approved cutover baseline; missing data stops the migration. See docs/visa-rate-cutover.md before deployment.
+
+### Patch Changes
+
+- Updated dependencies [d0aaab5]
+  - @narumitw/otter-core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
