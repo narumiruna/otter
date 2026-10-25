@@ -13,6 +13,7 @@ import {
 } from "@narumitw/otter-core/expense-metadata";
 import type { Currency } from "@narumitw/otter-core/money";
 import {
+  convertExpenseMinor,
   currencyInfo,
   isCurrency,
   parseAmountToMinor,
@@ -24,7 +25,11 @@ import {
   recordExpenseChanges,
   requireExpenseVersion,
 } from "./server-expense-history.js";
-import { expenseExchangeRate } from "./server-expense-rates.js";
+import {
+  ExpenseRateError,
+  expenseExchangeRate,
+  rateBridge,
+} from "./server-expense-rates.js";
 import {
   insertExpense,
   insertExpenseParticipants,
@@ -256,8 +261,9 @@ export function registerExpenseRoutes(
           exchangeRate: expenseExchangeRate(
             trip,
             currencyValue,
-            candidate?.bank ?? null,
+            candidate?.visa ?? null,
             amountMinor,
+            expenseDate,
           ),
           visaExchangeRate: visaExpenseSnapshot(
             trip,
@@ -460,10 +466,43 @@ export function registerExpenseRoutes(
             );
           }
         }
+        const reprice =
+          currencyValue !== expense.currency ||
+          expenseDate !== expense.expenseDate;
+        const exchangeRate = reprice
+          ? expenseExchangeRate(
+              trip,
+              currencyValue,
+              candidate?.visa ?? null,
+              amountMinor,
+              expenseDate,
+            )
+          : expense.exchangeRate;
+        if (!exchangeRate) throw new ExpenseRateError("支出缺少匯率快照");
+        const bridge = rateBridge(
+          exchangeRate,
+          trip.baseCurrency,
+          expenseDate,
+          candidate?.visa ?? null,
+          reprice ? undefined : expense.exchangeRateBridge,
+        );
+        try {
+          convertExpenseMinor(
+            amountMinor,
+            currencyValue,
+            trip.baseCurrency,
+            exchangeRate,
+            undefined,
+            bridge,
+            expenseDate,
+          );
+        } catch {
+          throw new ExpenseRateError("支出換算金額超出範圍");
+        }
         const updatedExpense = await pool.query(
           `UPDATE expenses
            SET description = $1, amount_minor = $2, currency = $3, category = $4, tags = $5, paid_by_id = $6, expense_date = $7,
-               exchange_rate = $10, visa_exchange_rate = $11
+               exchange_rate = $10, visa_exchange_rate = $11, exchange_rate_bridge = $12
            WHERE trip_id = $8 AND id = $9`,
           [
             description,
@@ -475,20 +514,13 @@ export function registerExpenseRoutes(
             expenseDate,
             trip.id,
             context.req.param("expenseId"),
-            amountMinor !== expense.amountMinor ||
-            currencyValue !== expense.currency
-              ? expenseExchangeRate(
-                  trip,
-                  currencyValue,
-                  candidate?.bank ?? null,
-                  amountMinor,
-                )
-              : expense.exchangeRate,
+            exchangeRate,
             visaExpenseSnapshot(
               trip,
               { ...expense, currency: currencyValue, expenseDate, amountMinor },
               candidate?.visa,
             ) ?? null,
+            bridge ?? null,
           ],
         );
         if (updatedExpense.rowCount !== 0 && shouldReplaceSplits) {

@@ -126,6 +126,48 @@ test("v2 requires a positive quote in the matching base; v1 remains importable",
   assert.equal(validateTripBackupV1(backup).version, 1);
 });
 
+test("v1 ignores newer rate fields; v2 validates them", () => {
+  const legacy = {
+    ...backup,
+    trip: {
+      ...backup.trip,
+      expenses: backup.trip.expenses.map((expense) => ({
+        ...expense,
+        exchangeRate: { invalid: true },
+        exchangeRateBridge: { invalid: true },
+      })),
+      settlementPayments: [
+        {
+          id: "payment",
+          fromId: "participant_alice",
+          toId: "participant_bob",
+          amountMinor: 1,
+          currency: "TWD",
+          paidAt: "2026-06-25",
+          note: "",
+          createdAt: "2026-06-25T00:00:00Z",
+          exchangeRate: { invalid: true },
+          exchangeRateBridge: { invalid: true },
+        },
+      ],
+    },
+  };
+  assert.equal(validateTripBackupV1(legacy).version, 1);
+  assert.throws(
+    () => validateTripBackupV1({ ...legacy, version: 2 }),
+    /備份支出匯率格式錯誤/,
+  );
+  assert.throws(
+    () =>
+      validateTripBackupV1({
+        ...legacy,
+        version: 2,
+        trip: { ...legacy.trip, expenses: [] },
+      }),
+    /備份付款匯率格式錯誤/,
+  );
+});
+
 test("validation uses the base rate actually restored for cross-base snapshots", () => {
   const modern = {
     ...backup,

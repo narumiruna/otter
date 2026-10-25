@@ -2,12 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve as serveNode } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import {
-  type Currency,
-  convertExpenseMinor,
-  fixedExchangeRates,
-  isCurrency,
-} from "@narumitw/otter-core/money";
+import { type Currency, isCurrency } from "@narumitw/otter-core/money";
 import { participantDeletionBlock } from "@narumitw/otter-core/participant-deletion";
 import type { Participant } from "@narumitw/otter-core/settlement";
 import {
@@ -87,6 +82,7 @@ import {
 } from "./server-support.js";
 import { registerTripCopyRoute } from "./server-trip-copy.js";
 import { tripMutation } from "./server-trip-mutation.js";
+import { registerTripSettingsRoute } from "./server-trip-settings.js";
 import {
   isUsernameReserved,
   lockUsernameClaim,
@@ -107,32 +103,6 @@ type TripSummaryRow = {
   participant_count: string | number;
   expense_count: string | number;
 };
-
-function tripExchangeRatesFromBody(
-  value: unknown,
-  baseCurrency: Currency,
-): [Currency, number][] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("匯率格式錯誤");
-  }
-  const rows: [Currency, number][] = [];
-  for (const [currency, rawRate] of Object.entries(value)) {
-    if (!isCurrency(currency)) {
-      throw new Error("不支援的匯率貨幣");
-    }
-    if (currency === baseCurrency || String(rawRate ?? "").trim() === "") {
-      continue;
-    }
-    const rate = Number(rawRate);
-    if (!Number.isFinite(rate) || rate < 0.00000001 || rate >= 10000000000) {
-      throw new Error(
-        "匯率須在資料庫可保存的範圍內 (0.00000001–9999999999.99999999)",
-      );
-    }
-    rows.push([currency, rate]);
-  }
-  return rows;
-}
 
 const passwordRateLimitWindowMs = 60 * 1000;
 const loginPerClientLimit = 10;
@@ -161,17 +131,19 @@ export function createApp(
   const app = new Hono<OtterEnv>();
   const mustBeSignedIn = requireUserOrShare(pool);
   const mustHaveBrowserSession = requireSessionUser(pool);
-  const exchangeRateService = createExchangeRateService(options.exchangeRates);
+  const exchangeRateService = createExchangeRateService({
+    ...options.exchangeRates,
+    fetchRate:
+      options.exchangeRates?.fetchRate ?? options.visaSettlement?.fetchRate,
+  });
   const { buildTripPayload } = exchangeRateService;
-  const visaService = createVisaSettlementService(options.visaSettlement);
+  const visaService = createVisaSettlementService({
+    fetchRate: exchangeRateService.getRate,
+  });
   const prefetchExpenseRates = async (
     context: Context<OtterEnv>,
   ): Promise<ExpenseRateCandidate> => {
-    const [bank, visa] = await Promise.all([
-      exchangeRateService.getSnapshot("TWD").catch(() => null),
-      visaService.prepareRequest(pool, context),
-    ]);
-    return { bank, visa };
+    return { visa: await visaService.prepareRequest(pool, context) };
   };
   registerVisaSettlementRoute(
     app,
@@ -197,13 +169,7 @@ export function createApp(
   });
 
   registerPasskeyRoutes(app, pool, mustHaveBrowserSession, options.passkeys);
-  registerBackupRoutes(
-    app,
-    pool,
-    mustBeSignedIn,
-    buildTripPayload,
-    exchangeRateService.getSnapshot,
-  );
+  registerBackupRoutes(app, pool, mustBeSignedIn, buildTripPayload);
   registerTripCopyRoute(app, pool, mustBeSignedIn, buildTripPayload);
   registerDeviceAuthRoutes(app, pool, mustBeSignedIn, mustHaveBrowserSession);
   registerExchangeRateRoutes(app, mustBeSignedIn, exchangeRateService);
@@ -495,186 +461,12 @@ export function createApp(
     },
   );
 
-  app.patch(
-    "/api/trips/:tripId",
+  registerTripSettingsRoute(
+    app,
+    pool,
     mustBeSignedIn,
-    parseRequestBody,
-    async (context) => {
-      const body = requestBody(context);
-      // Finish network I/O before taking the trip lock, as with expense writes.
-      const candidate =
-        "exchangeRates" in body || "baseCurrency" in body
-          ? await exchangeRateService.getSnapshot("TWD").catch(() => null)
-          : null;
-      return tripMutation<"/api/trips/:tripId">(pool, async (context, pool) => {
-        const user = currentUser(context);
-        const trip = await loadTripForUser(
-          pool,
-          user.id,
-          context.req.param("tripId"),
-        );
-        if (!trip) {
-          return sendError(context, 404, "找不到旅行");
-        }
-        if (trip.currentUserRole !== "owner") {
-          return sendError(context, 403, "只有擁有者可管理旅行設定");
-        }
-
-        const body = requestBody(context);
-        const hasName = "name" in body;
-        const hasBaseCurrency = "baseCurrency" in body;
-        const hasArchived = "archived" in body;
-        const hasExchangeRates = "exchangeRates" in body;
-        const hasAllowApiWrites = "allowApiWrites" in body;
-        if (
-          !hasName &&
-          !hasBaseCurrency &&
-          !hasArchived &&
-          !hasExchangeRates &&
-          !hasAllowApiWrites
-        ) {
-          return sendError(context, 400, "請提供要更新的旅行內容");
-        }
-        if (
-          trip.archivedAt &&
-          (hasName || hasBaseCurrency || hasExchangeRates)
-        ) {
-          return archivedTripResponse(context);
-        }
-        if (hasAllowApiWrites) {
-          if (context.req.header("authorization")) {
-            return sendError(context, 403, "只有瀏覽器登入可管理 API 修改權限");
-          }
-          if (typeof body.allowApiWrites !== "boolean") {
-            return sendError(context, 400, "API 修改權限格式錯誤");
-          }
-        }
-
-        const name = hasName ? stringField(body, "name") : trip.name;
-        if (!name || name.length > 100) {
-          return sendError(context, 400, "請輸入 1-100 字的旅行名稱");
-        }
-        if (hasName) await lockTripNamesForUser(pool, user.id);
-        if (await tripNameExistsForUser(pool, user.id, name, trip.id)) {
-          return sendError(context, 409, "旅行名稱已存在");
-        }
-
-        const baseCurrencyValue = hasBaseCurrency
-          ? body.baseCurrency
-          : trip.baseCurrency;
-        if (!isCurrency(baseCurrencyValue)) {
-          return sendError(context, 400, "不支援的基準貨幣");
-        }
-
-        let archivedAt: string | null | undefined;
-        if (hasArchived) {
-          if (typeof body.archived !== "boolean") {
-            return sendError(context, 400, "封存狀態格式錯誤");
-          }
-          archivedAt = body.archived === true ? nowIso() : null;
-        }
-
-        let exchangeRates: [Currency, number][] = [];
-        if (hasExchangeRates) {
-          try {
-            exchangeRates = tripExchangeRatesFromBody(
-              body.exchangeRates,
-              baseCurrencyValue,
-            );
-          } catch (error) {
-            return sendError(
-              context,
-              400,
-              error instanceof Error ? error.message : "匯率格式錯誤",
-            );
-          }
-        }
-
-        const baseCurrencyChanged =
-          hasBaseCurrency && baseCurrencyValue !== trip.baseCurrency;
-
-        if (hasExchangeRates || baseCurrencyChanged) {
-          const baseRate = candidate?.rates[baseCurrencyValue];
-          const defaults = baseRate
-            ? Object.fromEntries(
-                Object.entries(candidate.rates).map(([currency, rate]) => [
-                  currency,
-                  rate / baseRate,
-                ]),
-              )
-            : fixedExchangeRates(baseCurrencyValue);
-          const proposedRates = {
-            ...defaults,
-            ...Object.fromEntries(exchangeRates),
-            [baseCurrencyValue]: 1,
-          };
-          try {
-            for (const expense of trip.expenses) {
-              const converted = convertExpenseMinor(
-                expense.amountMinor,
-                expense.currency,
-                baseCurrencyValue,
-                expense.exchangeRate,
-                proposedRates,
-              );
-              if (!Number.isSafeInteger(converted))
-                throw new Error("Converted amount is out of range");
-            }
-          } catch {
-            return sendError(context, 400, "匯率會使既有支出換算金額超出範圍");
-          }
-        }
-
-        if (hasArchived) {
-          await pool.query(
-            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3, allow_api_writes = $4 WHERE id = $5 AND owner_id = $6",
-            [
-              name,
-              baseCurrencyValue,
-              archivedAt,
-              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-              context.req.param("tripId"),
-              user.id,
-            ],
-          );
-        } else {
-          await pool.query(
-            "UPDATE trips SET name = $1, base_currency = $2, allow_api_writes = $3 WHERE id = $4 AND owner_id = $5",
-            [
-              name,
-              baseCurrencyValue,
-              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-              context.req.param("tripId"),
-              user.id,
-            ],
-          );
-        }
-
-        if (hasExchangeRates || baseCurrencyChanged) {
-          await pool.query(
-            "DELETE FROM trip_exchange_rates WHERE trip_id = $1",
-            [context.req.param("tripId")],
-          );
-          for (const [currency, rate] of exchangeRates) {
-            await pool.query(
-              `INSERT INTO trip_exchange_rates (trip_id, currency, rate_to_base)
-             VALUES ($1, $2, $3)`,
-              [context.req.param("tripId"), currency, rate],
-            );
-          }
-        }
-
-        const updated = await loadTripForUser(
-          pool,
-          user.id,
-          context.req.param("tripId"),
-        );
-        if (!updated) {
-          throw new Error("Trip disappeared after rename");
-        }
-        return async () => context.json(await buildTripPayload(updated));
-      })(context);
-    },
+    buildTripPayload,
+    visaService,
   );
 
   app.delete(
@@ -926,7 +718,13 @@ export function createApp(
     prefetchExpenseRates,
   );
   registerReceiptRoutes(app, pool, mustBeSignedIn, buildTripPayload);
-  registerSettlementPaymentRoutes(app, pool, mustBeSignedIn, buildTripPayload);
+  registerSettlementPaymentRoutes(
+    app,
+    pool,
+    mustBeSignedIn,
+    buildTripPayload,
+    visaService,
+  );
   registerShareRoutes(app, pool, mustHaveBrowserSession, buildTripPayload);
 
   app.notFound((context) =>

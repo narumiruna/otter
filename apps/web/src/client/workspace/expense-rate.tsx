@@ -31,19 +31,27 @@ export function ExpenseRateDetails({
         visa.targetCurrency,
       )
     : undefined;
-  const converted = formatMoney(
-    convertExpenseMinor(
-      expense.amountMinor,
-      expense.currency,
+  let converted: string | undefined;
+  try {
+    converted = formatMoney(
+      convertExpenseMinor(
+        expense.amountMinor,
+        expense.currency,
+        trip.baseCurrency,
+        rate,
+        trip.exchangeRates,
+        expense.exchangeRateBridge,
+        expense.expenseDate,
+      ),
       trip.baseCurrency,
-      rate,
-      trip.exchangeRates,
-    ),
-    trip.baseCurrency,
-  );
+    );
+  } catch {
+    /* Older payloads can lack a required snapshot. Do not invent a rate. */
+  }
   const source = rate
     ? {
         bank: messages.expenseHistoryRateBank,
+        visa: messages.visaRateLabel,
         custom: messages.expenseHistoryRateCustom,
         fixed: messages.expenseHistoryRateFixed,
         legacy: messages.expenseHistoryRateLegacy,
@@ -72,8 +80,11 @@ export function ExpenseRateDetails({
           {visa ? (
             <p>{`${messages.visaRateLabel} · ${visa.date} · 1 ${expense.currency} = ${visa.rate} ${visa.targetCurrency} · ${visaAmount}`}</p>
           ) : null}
+          {expense.exchangeRateBridge ? (
+            <p>{`1 ${expense.exchangeRateBridge.sourceCurrency} = ${expense.exchangeRateBridge.rateToBase} ${expense.exchangeRateBridge.baseCurrency} · ${expense.exchangeRateBridge.source === "visa" ? messages.visaRateLabel : messages.expenseHistoryRateLegacy} · ${expense.exchangeRateBridge.date ?? messages.expenseHistoryRateTimeUnavailable}`}</p>
+          ) : null}
           {rate ? (
-            <p>{`1 ${expense.currency} = ${rate.rateToBase} ${rate.baseCurrency} · ${source}${rate.provider ? ` (${rate.provider}, ${rate.rateType})` : ""} · ${rate.fetchedAt ? new Date(rate.fetchedAt).toLocaleString(locale) : messages.expenseHistoryRateTimeUnavailable} · ${converted}`}</p>
+            <p>{`1 ${expense.currency} = ${rate.rateToBase} ${rate.baseCurrency} · ${source}${rate.source === "visa" ? ` · ${rate.date}` : ""}${rate.provider ? ` (${rate.provider}, ${rate.rateType})` : ""} · ${rate.fetchedAt ? new Date(rate.fetchedAt).toLocaleString(locale) : messages.expenseHistoryRateTimeUnavailable} · ${converted ?? messages.rateUnavailable}`}</p>
           ) : (
             <p>{messages.rateUnavailable}</p>
           )}
@@ -82,7 +93,7 @@ export function ExpenseRateDetails({
       {visaAmount ? (
         <small>≈ {visaAmount} · Visa</small>
       ) : expense.currency !== trip.baseCurrency ? (
-        <small>≈ {converted}</small>
+        <small>{converted ? `≈ ${converted}` : messages.rateUnavailable}</small>
       ) : null}
     </span>
   );

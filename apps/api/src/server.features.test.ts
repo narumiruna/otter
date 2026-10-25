@@ -304,7 +304,7 @@ test(
       { headers: { cookie: ownerCookie } },
     );
     assert.equal(backup.response.status, 200);
-    assert.equal(backup.data.version, 2);
+    assert.equal(backup.data.version, 3);
     assert.equal(JSON.stringify(backup.data).includes("ownerId"), false);
     const editorBackup = await api<{ error: string }>(
       baseUrl,

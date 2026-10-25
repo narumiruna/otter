@@ -1,7 +1,12 @@
-import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
+import { expenseOperationHeader } from "@narumitw/otter-contracts";
 import { parseExpenseImportCsv } from "@narumitw/otter-core/csv";
 import { isDateOnly } from "@narumitw/otter-core/date";
-import { type Currency, isCurrency } from "@narumitw/otter-core/money";
+import {
+  type Currency,
+  isCurrency,
+  isExchangeRateBridge,
+  isExpenseExchangeRate,
+} from "@narumitw/otter-core/money";
 import {
   type Expense,
   settlementCurrency,
@@ -22,6 +27,7 @@ import {
 import { ExpenseRateError } from "./server-expense-rates.js";
 import type { OtterApp, OtterEnv, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
+import { savePaymentRates } from "./server-payment-rates.js";
 import {
   archivedTripResponse,
   type BuildTripPayload,
@@ -37,12 +43,13 @@ export type VisaSettlementOptions = { fetchRate?: typeof fetchVisaRate };
 export type VisaRates = Map<string, VisaExpenseRate>;
 type DatedExpense = Pick<
   Expense,
-  "currency" | "expenseDate" | "visaExchangeRate"
+  | "currency"
+  | "expenseDate"
+  | "visaExchangeRate"
+  | "exchangeRate"
+  | "exchangeRateBridge"
 >;
-export type ExpenseRateCandidate = {
-  bank: ExchangeRateSnapshot | null;
-  visa: VisaRates;
-};
+export type ExpenseRateCandidate = { visa: VisaRates };
 const key = (expense: DatedExpense, target: Currency) =>
   `${expense.currency}/${target}/${expense.expenseDate}`;
 
@@ -76,6 +83,7 @@ export function visaExpenseSnapshot(
   } catch {
     throw new ExpenseRateError(
       `無法取得 ${expense.expenseDate} ${expense.currency}/${target} Visa 匯率，請稍後再試`,
+      502,
     );
   }
   return snapshot;
@@ -85,12 +93,56 @@ export function createVisaSettlementService(
   options: VisaSettlementOptions = {},
 ) {
   const fetchRate = options.fetchRate ?? fetchVisaRate;
-  async function prepare(
+  function savedRates(
     expenses: readonly DatedExpense[],
     target: Currency,
-  ): Promise<VisaRates> {
+  ): VisaRates {
     const rates: VisaRates = new Map();
     for (const expense of expenses) {
+      const saved = expense.exchangeRate;
+      if (
+        saved?.source === "visa" &&
+        saved.baseCurrency === target &&
+        typeof saved.fetchedAt === "string" &&
+        isExpenseExchangeRate(saved, expense.currency, expense.expenseDate)
+      ) {
+        rates.set(key(expense, target), {
+          sourceCurrency: expense.currency,
+          targetCurrency: target,
+          date: expense.expenseDate,
+          rate: saved.rateToBase,
+          fetchedAt: saved.fetchedAt,
+        });
+      }
+      const bridge = expense.exchangeRateBridge;
+      if (
+        isExpenseExchangeRate(saved, expense.currency, expense.expenseDate) &&
+        bridge?.source === "visa" &&
+        typeof bridge.fetchedAt === "string" &&
+        isExchangeRateBridge(
+          bridge,
+          saved.baseCurrency,
+          target,
+          expense.expenseDate,
+        )
+      ) {
+        rates.set(
+          key(
+            {
+              currency: bridge.sourceCurrency,
+              expenseDate: expense.expenseDate,
+            },
+            target,
+          ),
+          {
+            sourceCurrency: bridge.sourceCurrency,
+            targetCurrency: target,
+            date: expense.expenseDate,
+            rate: bridge.rateToBase,
+            fetchedAt: bridge.fetchedAt,
+          },
+        );
+      }
       if (
         isVisaExpenseRate(
           expense.visaExchangeRate,
@@ -101,6 +153,14 @@ export function createVisaSettlementService(
       )
         rates.set(key(expense, target), expense.visaExchangeRate);
     }
+    return rates;
+  }
+
+  async function prepare(
+    expenses: readonly DatedExpense[],
+    target: Currency,
+  ): Promise<VisaRates> {
+    const rates = savedRates(expenses, target);
     // Sequential requests avoid a request burst for a large imported trip.
     for (const expense of expenses) {
       if (rates.has(key(expense, target))) continue;
@@ -143,6 +203,53 @@ export function createVisaSettlementService(
     return rates;
   }
 
+  async function prepareGeneral(
+    trip: Pick<Trip, "baseCurrency" | "exchangeRates">,
+    expenses: readonly DatedExpense[],
+  ): Promise<VisaRates> {
+    const rates = savedRates(expenses, trip.baseCurrency);
+    for (const expense of expenses) {
+      const saved = expense.exchangeRate;
+      if (isExpenseExchangeRate(saved, expense.currency, expense.expenseDate)) {
+        if (
+          saved.baseCurrency === trip.baseCurrency ||
+          isExchangeRateBridge(
+            expense.exchangeRateBridge,
+            saved.baseCurrency,
+            trip.baseCurrency,
+            expense.expenseDate,
+          )
+        )
+          continue;
+        if (
+          rates.has(
+            key(
+              {
+                currency: saved.baseCurrency,
+                expenseDate: expense.expenseDate,
+              },
+              trip.baseCurrency,
+            ),
+          )
+        )
+          continue;
+        const prepared = await prepare(
+          [{ currency: saved.baseCurrency, expenseDate: expense.expenseDate }],
+          trip.baseCurrency,
+        );
+        for (const [key, value] of prepared) rates.set(key, value);
+      } else if (
+        expense.currency !== trip.baseCurrency &&
+        trip.exchangeRates?.[expense.currency] === undefined
+      ) {
+        if (rates.has(key(expense, trip.baseCurrency))) continue;
+        const prepared = await prepare([expense], trip.baseCurrency);
+        for (const [key, value] of prepared) rates.set(key, value);
+      }
+    }
+    return rates;
+  }
+
   async function prepareRequest(
     pool: Pool,
     context: Context<OtterEnv>,
@@ -152,7 +259,24 @@ export function createVisaSettlementService(
       currentUser(context).id,
       context.req.param("tripId") ?? "",
     );
-    if (!trip?.visaSettlementEnabled || trip.archivedAt) return new Map();
+    if (
+      !trip ||
+      trip.archivedAt ||
+      (context.req.header("authorization") && trip.allowApiWrites === false)
+    )
+      return new Map();
+    const operationId = context.req.header(expenseOperationHeader);
+    if (
+      operationId &&
+      context.req.method === "POST" &&
+      !context.req.param("expenseId")
+    ) {
+      const replay = await pool.query(
+        "SELECT 1 FROM expense_create_operations WHERE trip_id = $1 AND user_id = $2 AND operation_id = $3",
+        [trip.id, currentUser(context).id, operationId],
+      );
+      if (replay.rowCount) return new Map();
+    }
     const body = requestBody(context);
     const expenses: DatedExpense[] = [...trip.expenses];
     if (context.req.path.endsWith("/import") && typeof body.csv === "string") {
@@ -187,11 +311,22 @@ export function createVisaSettlementService(
         typeof expenseDate === "string" &&
         isDateOnly(expenseDate)
       )
-        expenses.push({ currency, expenseDate });
+        expenses.push(
+          existing &&
+            currency === existing.currency &&
+            expenseDate === existing.expenseDate
+            ? existing
+            : { currency, expenseDate },
+        );
     }
-    return prepare(expenses, settlementCurrency(trip));
+    const rates = await prepareGeneral(trip, expenses);
+    if (trip.visaSettlementEnabled) {
+      const selected = await prepare(expenses, settlementCurrency(trip));
+      for (const [key, value] of selected) rates.set(key, value);
+    }
+    return rates;
   }
-  return { prepare, prepareRequest };
+  return { prepare, prepareGeneral, prepareRequest };
 }
 
 export type VisaSettlementService = ReturnType<
@@ -235,16 +370,28 @@ export function registerVisaSettlementRoute(
       )
         return sendError(context, 400, "既有付款紀錄必須使用所選結清貨幣");
       let rates: VisaRates = new Map();
-      if (enabled) {
-        try {
+      try {
+        if (
+          context.req.header("authorization") &&
+          trip.allowApiWrites === false
+        ) {
+          // The locked mutation below returns the existing API-write error.
+        } else if (enabled)
           rates = await service.prepare(trip.expenses, target);
-        } catch {
-          return sendError(
-            context,
-            502,
-            "目前無法取得 Visa 匯率，設定未變更，請稍後再試",
+        else
+          rates = await service.prepareGeneral(
+            trip,
+            (trip.settlementPayments ?? []).map((payment) => ({
+              ...payment,
+              expenseDate: payment.paidAt,
+            })),
           );
-        }
+      } catch {
+        return sendError(
+          context,
+          502,
+          "目前無法取得 Visa 匯率，設定未變更，請稍後再試",
+        );
       }
       return tripMutation<"/api/trips/:tripId/visa-settlement">(
         pool,
@@ -274,6 +421,7 @@ export function registerVisaSettlementRoute(
               );
             }
           }
+          if (!enabled) await savePaymentRates(client, locked, rates);
           await client.query(
             "UPDATE trips SET visa_settlement_enabled = $2, visa_settlement_currency = $3 WHERE id = $1",
             [trip.id, enabled, target],

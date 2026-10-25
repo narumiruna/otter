@@ -5,12 +5,14 @@ import {
 } from "./message-types.js";
 import { msAi } from "./messages-ai.js";
 import { msAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { msErrors } from "./messages-ms-errors.js";
 import { msFeatures } from "./messages-ms-features.js";
 import { msSettings } from "./messages-ms-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ms = {
+  ...automaticRateMessages("ms"),
   ...msAi,
   ...msAiAuth,
   backToExpenseList: "Kembali ke senarai perbelanjaan",

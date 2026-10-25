@@ -14,6 +14,7 @@ export type {
 
 export type SpendingSummary = {
   totalMinor: number;
+  rateUnavailable?: true;
   dailyTotals: { amountMinor: number; date: string }[];
   payerTotals: { amountMinor: number; name: string; participantId: string }[];
   categoryTotals: { amountMinor: number; category: string }[];
@@ -135,13 +136,15 @@ export function spendingSummary(trip: Trip): SpendingSummary {
   let totalMinor = 0;
 
   for (const expense of trip.expenses) {
-    const amount = convertExpenseMinor(
-      expense.amountMinor,
-      expense.currency,
-      trip.baseCurrency,
-      expense.exchangeRate,
-      trip.exchangeRates,
-    );
+    const amount = savedBaseAmount(trip, expense);
+    if (amount === undefined)
+      return {
+        totalMinor: 0,
+        dailyTotals: [],
+        payerTotals: [],
+        categoryTotals: [],
+        rateUnavailable: true,
+      };
     totalMinor += amount;
     dailyTotals.set(
       expense.expenseDate,
@@ -171,6 +174,25 @@ export function spendingSummary(trip: Trip): SpendingSummary {
       .sort((left, right) => right.amountMinor - left.amountMinor),
     totalMinor,
   };
+}
+
+function savedBaseAmount(
+  trip: Trip,
+  expense: Trip["expenses"][number],
+): number | undefined {
+  try {
+    return convertExpenseMinor(
+      expense.amountMinor,
+      expense.currency,
+      trip.baseCurrency,
+      expense.exchangeRate,
+      trip.exchangeRates,
+      expense.exchangeRateBridge,
+      expense.expenseDate,
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 export function filterAndSortExpenses(
@@ -223,20 +245,10 @@ export function filterAndSortExpenses(
         );
       }
       if (filters.sort === "amount-asc" || filters.sort === "amount-desc") {
-        const leftAmount = convertExpenseMinor(
-          left.amountMinor,
-          left.currency,
-          trip.baseCurrency,
-          left.exchangeRate,
-          trip.exchangeRates,
-        );
-        const rightAmount = convertExpenseMinor(
-          right.amountMinor,
-          right.currency,
-          trip.baseCurrency,
-          right.exchangeRate,
-          trip.exchangeRates,
-        );
+        const leftAmount = savedBaseAmount(trip, left);
+        const rightAmount = savedBaseAmount(trip, right);
+        if (leftAmount === undefined) return rightAmount === undefined ? 0 : 1;
+        if (rightAmount === undefined) return -1;
         return (
           (filters.sort === "amount-asc" ? 1 : -1) * (leftAmount - rightAmount)
         );

@@ -695,7 +695,13 @@ async function insertDevelopmentTrip(
         expense.expenseDate,
         expense.category,
         expense.tags,
-        expenseExchangeRate(trip, expense.currency, null),
+        expenseExchangeRate(
+          trip,
+          expense.currency,
+          null,
+          expense.amountMinor,
+          expense.expenseDate,
+        ),
       ],
     );
     for (const [position, split] of expense.splits.entries()) {
@@ -720,8 +726,8 @@ async function insertDevelopmentTrip(
     await client.query(
       `INSERT INTO settlement_payments
          (id, trip_id, from_id, to_id, amount_minor, currency, paid_at, note,
-          created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          created_at, exchange_rate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (id) DO NOTHING`,
       [
         payment.id,
@@ -733,6 +739,13 @@ async function insertDevelopmentTrip(
         payment.paidAt,
         payment.note,
         payment.createdAt,
+        expenseExchangeRate(
+          trip,
+          payment.currency,
+          null,
+          payment.amountMinor,
+          payment.paidAt,
+        ),
       ],
     );
   }

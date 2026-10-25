@@ -5,6 +5,7 @@ import {
 } from "./message-types.js";
 import { filAi } from "./messages-ai.js";
 import { filAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { filAuth } from "./messages-fil-auth.js";
 import { filExpenses } from "./messages-fil-expenses.js";
 import { filGroups } from "./messages-fil-groups.js";
@@ -12,6 +13,7 @@ import { filSettings } from "./messages-fil-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const fil = {
+  ...automaticRateMessages("fil"),
   ...filAi,
   ...filAiAuth,
   ...filAuth,

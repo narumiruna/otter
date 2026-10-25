@@ -144,8 +144,9 @@ export function registerCsvImportRoutes(
             exchangeRate: expenseExchangeRate(
               trip,
               expense.currency,
-              candidate?.bank ?? null,
+              candidate?.visa ?? null,
               expense.amountMinor,
+              expense.expenseDate,
             ),
           });
         }

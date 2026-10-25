@@ -53,6 +53,14 @@ otter settlements preview --input trip.json
 
 Run `otter --help` for all commands and options. Successful data commands print JSON to stdout; errors print JSON to stderr and exit non-zero. `settlements preview` validates a saved trip payload and calculates balances locally without credentials or network access; use `--input -` to read JSON from stdin.
 
+## Dated exchange rates
+
+The API uses Visa as its only automatic rate source. Pass the actual expense date with `--date YYYY-MM-DD`; late entries retain that date. Automatic conversions use 0% bank fees. The selected settlement currency can differ from the group base currency.
+
+Saved base rates, selected-currency rates, payment rates, and conversion bridges are preserved in trip payloads. `settlements preview` uses those saved values without network access. Missing required rates produce an input error, not a fixed estimate. Update the CLI with the API to read new Visa snapshot formats. Existing bank snapshots remain valid historical data.
+
+See the repository [rate rules](https://github.com/narumiruna/otter/blob/main/docs/visa-settlements.md) and [cutover procedure](https://github.com/narumiruna/otter/blob/main/docs/visa-rate-cutover.md). Visa estimates are not actual card-posted amounts.
+
 ## Expense concurrency (breaking change)
 
 `expenses list` and `trips get` include each expense's `version`. Updates and deletions require the version you reviewed:

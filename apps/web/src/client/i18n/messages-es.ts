@@ -6,11 +6,13 @@ import {
 } from "./message-types.js";
 import { esAi } from "./messages-ai.js";
 import { esAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { esAccount } from "./messages-es-account.js";
 import { esSettings } from "./messages-es-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const es = {
+  ...automaticRateMessages("es"),
   ...esAi,
   ...esAiAuth,
   ...esAccount,

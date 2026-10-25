@@ -1,6 +1,10 @@
 import { isDateOnly } from "@narumitw/otter-core/date";
 import { isExpenseCategory } from "@narumitw/otter-core/expense-metadata";
-import { isCurrency, isExpenseExchangeRate } from "@narumitw/otter-core/money";
+import {
+  isCurrency,
+  isExchangeRateBridge,
+  isExpenseExchangeRate,
+} from "@narumitw/otter-core/money";
 import type {
   Expense as DomainExpense,
   Trip as DomainTrip,
@@ -38,6 +42,7 @@ export const expenseChangeFields = [
   "amountMinor",
   "currency",
   "exchangeRate",
+  "exchangeRateBridge",
   "visaExchangeRate",
   "expenseDate",
   "paidById",
@@ -114,7 +119,19 @@ export function isExpenseSnapshot(value: unknown): value is ExpenseSnapshot {
     !isExpenseVersion(e.amountMinor) ||
     !isCurrency(e.currency) ||
     (e.exchangeRate !== undefined &&
-      !isExpenseExchangeRate(e.exchangeRate, e.currency)) ||
+      !isExpenseExchangeRate(
+        e.exchangeRate,
+        e.currency,
+        typeof e.expenseDate === "string" ? e.expenseDate : undefined,
+      )) ||
+    (e.exchangeRateBridge !== undefined &&
+      (!isExpenseExchangeRate(e.exchangeRate, e.currency) ||
+        !isExchangeRateBridge(
+          e.exchangeRateBridge,
+          e.exchangeRate.baseCurrency,
+          undefined,
+          typeof e.expenseDate === "string" ? e.expenseDate : undefined,
+        ))) ||
     !text(e.paidById) ||
     !strings(e.participantIds) ||
     !e.participantIds.length ||

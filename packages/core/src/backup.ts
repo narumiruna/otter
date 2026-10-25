@@ -1,10 +1,16 @@
 import { isDateOnly } from "./date.js";
 import { isExpenseCategory } from "./expense-metadata.js";
-import type { Currency, ExchangeRates, ExpenseExchangeRate } from "./money.js";
+import type {
+  Currency,
+  ExchangeRateBridge,
+  ExchangeRates,
+  ExpenseExchangeRate,
+} from "./money.js";
 import {
   convertExpenseMinor,
   fixedExchangeRates,
   isCurrency,
+  isExchangeRateBridge,
   isExpenseExchangeRate,
 } from "./money.js";
 
@@ -35,6 +41,7 @@ export type TripBackupV1 = {
       participantIds: string[];
       participantShares?: { participantId: string; shareMinor: number }[];
       visaExchangeRate?: VisaExpenseRate;
+      exchangeRateBridge?: ExchangeRateBridge;
       expenseDate: string;
       createdAt: string;
     }[];
@@ -45,6 +52,8 @@ export type TripBackupV1 = {
       amountMinor: number;
       currency: Currency;
       paidAt: string;
+      exchangeRate?: ExpenseExchangeRate;
+      exchangeRateBridge?: ExchangeRateBridge;
       note: string;
       createdAt: string;
     }[];
@@ -59,7 +68,8 @@ export type TripBackupV2 = Omit<TripBackupV1, "version" | "trip"> & {
     })[];
   };
 };
-export type TripBackup = TripBackupV1 | TripBackupV2;
+export type TripBackupV3 = Omit<TripBackupV2, "version"> & { version: 3 };
+export type TripBackup = TripBackupV1 | TripBackupV2 | TripBackupV3;
 
 export function validateTripBackupV1(
   value: unknown,
@@ -69,7 +79,7 @@ export function validateTripBackupV1(
     throw new Error("備份格式錯誤");
   }
   const backup = value as { version?: unknown; trip?: unknown };
-  if (backup.version !== 1 && backup.version !== 2) {
+  if (backup.version !== 1 && backup.version !== 2 && backup.version !== 3) {
     throw new Error("不支援的備份版本");
   }
   if (!backup.trip || typeof backup.trip !== "object") {
@@ -196,14 +206,15 @@ export function validateTripBackupV1(
       );
     const rate = (expense as { exchangeRate?: unknown }).exchangeRate;
     if (
-      backup.version === 2 &&
-      !isExpenseExchangeRate(rate, expense.currency)
+      backup.version !== 1 &&
+      !isExpenseExchangeRate(rate, expense.currency, expense.expenseDate)
     ) {
       throw new Error("備份支出匯率格式錯誤");
     }
     try {
       const snapshot =
-        backup.version === 2 && isExpenseExchangeRate(rate, expense.currency)
+        backup.version !== 1 &&
+        isExpenseExchangeRate(rate, expense.currency, expense.expenseDate)
           ? rate
           : {
               baseCurrency: trip.baseCurrency,
@@ -219,11 +230,32 @@ export function validateTripBackupV1(
         expense.currency,
         trip.baseCurrency,
         snapshot,
-        { ...defaultRates, ...trip.exchangeRates, [trip.baseCurrency]: 1 },
+        backup.version === 3
+          ? undefined
+          : {
+              ...fixedExchangeRates(trip.baseCurrency),
+              ...defaultRates,
+              ...trip.exchangeRates,
+              [trip.baseCurrency]: 1,
+            },
+        backup.version === 1 ? undefined : expense.exchangeRateBridge,
+        expense.expenseDate,
       );
     } catch {
       throw new Error("備份支出換算金額超出範圍");
     }
+    if (
+      backup.version !== 1 &&
+      expense.exchangeRateBridge !== undefined &&
+      (!isExpenseExchangeRate(rate, expense.currency) ||
+        !isExchangeRateBridge(
+          expense.exchangeRateBridge,
+          rate.baseCurrency,
+          trip.baseCurrency,
+          expense.expenseDate,
+        ))
+    )
+      throw new Error("備份支出匯率格式錯誤");
     const expenseParticipantIds = new Set<string>();
     for (const participantId of expense.participantIds) {
       if (!participantIds.has(participantId)) {
@@ -291,6 +323,59 @@ export function validateTripBackupV1(
       typeof payment.createdAt !== "string"
     ) {
       throw new Error("備份付款紀錄格式錯誤");
+    }
+    if (
+      backup.version !== 1 &&
+      payment.exchangeRate !== undefined &&
+      !isExpenseExchangeRate(
+        payment.exchangeRate,
+        payment.currency,
+        payment.paidAt,
+      )
+    )
+      throw new Error("備份付款匯率格式錯誤");
+    if (
+      backup.version !== 1 &&
+      payment.exchangeRateBridge !== undefined &&
+      (!payment.exchangeRate ||
+        !isExchangeRateBridge(
+          payment.exchangeRateBridge,
+          payment.exchangeRate.baseCurrency,
+          trip.baseCurrency,
+          payment.paidAt,
+        ))
+    )
+      throw new Error("備份付款匯率格式錯誤");
+    if (!trip.visaSettlementEnabled) {
+      if (
+        backup.version === 3 &&
+        payment.currency !== trip.baseCurrency &&
+        !payment.exchangeRate
+      )
+        throw new Error("備份付款缺少匯率");
+      const legacyRates =
+        backup.version === 3
+          ? undefined
+          : {
+              ...fixedExchangeRates(trip.baseCurrency),
+              ...defaultRates,
+              ...trip.exchangeRates,
+              [trip.baseCurrency]: 1,
+            };
+      const snapshot = backup.version === 1 ? undefined : payment.exchangeRate;
+      try {
+        convertExpenseMinor(
+          payment.amountMinor,
+          payment.currency,
+          trip.baseCurrency,
+          snapshot,
+          backup.version === 3 ? undefined : legacyRates,
+          backup.version === 1 ? undefined : payment.exchangeRateBridge,
+          payment.paidAt,
+        );
+      } catch {
+        throw new Error("備份付款換算金額超出範圍");
+      }
     }
   }
 

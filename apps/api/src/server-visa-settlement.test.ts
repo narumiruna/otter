@@ -174,3 +174,63 @@ test.each(currencies)(
     });
   },
 );
+
+test("a fresh service reuses saved dated base and bridge Visa quotes, but never old bank quotes", async () => {
+  const fetchRate = vi.fn(async (_query: VisaRateQuery) => {
+    throw new Error("Provider unavailable");
+  });
+  const service = createVisaSettlementService({ fetchRate });
+  const rated: Expense = {
+    ...expense,
+    exchangeRate: {
+      baseCurrency: "TWD",
+      source: "visa",
+      provider: "VISA",
+      rateType: "visa",
+      date: expense.expenseDate,
+      rateToBase: 0.2,
+      fetchedAt: expense.createdAt,
+    },
+  };
+  const rates = await service.prepareGeneral({ baseCurrency: "TWD" }, [
+    rated,
+    expense,
+  ]);
+  expect(rates.get("JPY/TWD/2026-07-05")?.rate).toBe(0.2);
+  expect(fetchRate).not.toHaveBeenCalled();
+  const bridged: Expense = {
+    ...expense,
+    exchangeRate: { baseCurrency: "USD", rateToBase: 0.01, source: "custom" },
+    exchangeRateBridge: {
+      sourceCurrency: "USD",
+      baseCurrency: "TWD",
+      source: "visa",
+      provider: "VISA",
+      rateType: "visa",
+      date: expense.expenseDate,
+      rateToBase: 32,
+      fetchedAt: expense.createdAt,
+    },
+  };
+  const bridgeRates = await service.prepareGeneral({ baseCurrency: "TWD" }, [
+    bridged,
+    { ...expense, currency: "USD" },
+  ]);
+  expect(bridgeRates.get("USD/TWD/2026-07-05")?.rate).toBe(32);
+  expect(fetchRate).not.toHaveBeenCalled();
+  const old: Expense = {
+    ...expense,
+    exchangeRate: {
+      baseCurrency: "TWD",
+      source: "bank",
+      provider: "BANK_OF_TAIWAN",
+      rateType: "spotMid",
+      rateToBase: 0.2,
+      fetchedAt: expense.createdAt,
+    },
+  };
+  await expect(
+    service.prepareGeneral({ baseCurrency: "TWD" }, [old, expense]),
+  ).rejects.toThrow("Provider unavailable");
+  expect(fetchRate).toHaveBeenCalledTimes(1);
+});

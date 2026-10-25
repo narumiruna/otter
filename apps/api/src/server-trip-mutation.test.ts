@@ -1,25 +1,14 @@
 import assert from "node:assert/strict";
 import type { TripPayload } from "@narumitw/otter-contracts";
-import type { Rate } from "@narumitw/otter-exchange-rates";
 import type { PoolClient } from "pg";
 import { expect, test, vi } from "vitest";
 import { createSession } from "./server-support.js";
-import { api, postgresTestOptions, withTestApp } from "./server-test-utils.js";
-
-const rates: Rate[] = (
-  [
-    ["JPY", 0.22],
-    ["USD", 32],
-    ["EUR", 35],
-  ] as const
-).map(([source, mid]) => ({
-  exchange: "BANK_OF_TAIWAN",
-  fetchedAt: "2026-09-21T00:00:00.000Z",
-  source,
-  spotBuy: mid,
-  spotSell: mid,
-  target: "TWD",
-}));
+import {
+  api,
+  postgresTestOptions,
+  testVisaRate,
+  withTestApp,
+} from "./server-test-utils.js";
 
 function barrier() {
   let release = () => {};
@@ -30,9 +19,9 @@ function barrier() {
 }
 
 async function setup() {
-  const fetchRates = vi.fn(async (): Promise<readonly Rate[]> => rates);
+  const fetchRate = vi.fn(testVisaRate);
   const { baseUrl, pool } = await withTestApp({
-    appOptions: { exchangeRates: { fetchRates } },
+    appOptions: { exchangeRates: { fetchRate } },
     prepare: async (pool) => {
       await pool.query(
         "INSERT INTO users (id, name, username, password_hash) VALUES ('owner','Owner','owner','unused')",
@@ -71,10 +60,10 @@ async function setup() {
       headers: { cookie, "If-Match": version },
       body: JSON.stringify({ amount }),
     });
-  fetchRates.mockClear();
+  fetchRate.mockClear();
   return {
     pool,
-    fetchRates,
+    fetchRate,
     tripId,
     expenseId,
     patch,
@@ -84,39 +73,42 @@ async function setup() {
   };
 }
 
-for (const outcome of ["bank", "fallback"] as const) {
+for (const outcome of ["quote", "failure"] as const) {
   test(
-    `slow ${outcome} enrichment releases the client and trip lock before responding with its committed snapshot`,
+    `slow Visa ${outcome} holds no trip lock and cannot overwrite a concurrent expense edit`,
     postgresTestOptions,
     async () => {
       const s = await setup();
       const entered = barrier();
       const finish = barrier();
-      s.fetchRates.mockImplementationOnce(async () => rates);
-      s.fetchRates.mockImplementationOnce(async () => {
+      s.fetchRate.mockImplementationOnce(async (q) => {
         entered.release();
         await finish.promise;
-        if (outcome === "fallback") throw new Error("provider unavailable");
-        return rates;
+        if (outcome === "failure") throw new Error("Provider unavailable");
+        return testVisaRate(q);
       });
-      const pending = s.patch("200");
+      const pending = api<TripPayload>(
+        s.baseUrl,
+        `/api/trips/${s.tripId}/expenses/${s.expenseId}`,
+        {
+          method: "PATCH",
+          headers: { cookie: s.cookie, "If-Match": '"1"' },
+          body: JSON.stringify({
+            amount: "2",
+            currency: "USD",
+            expenseDate: "2026-07-05",
+          }),
+        },
+      );
       try {
         await entered.promise;
-        // Deterministic provider barrier: the response is pending, but no pool
-        // client or transaction lock may remain occupied by that request.
         expect(s.pool.idleCount).toBe(s.pool.totalCount);
         const stored = await s.pool.query(
           "SELECT version, amount_minor FROM expenses WHERE id = $1",
           [s.expenseId],
         );
-        expect(stored.rows[0].version).toBe(2);
-        expect(Number(stored.rows[0].amount_minor)).toBe(200);
-        const history = await s.pool.query(
-          "SELECT version, snapshot FROM expense_revisions WHERE expense_id = $1 ORDER BY version",
-          [s.expenseId],
-        );
-        expect(history.rows.map((row) => row.version)).toEqual([1, 2]);
-        expect(history.rows[1].snapshot.expense.amountMinor).toBe(200);
+        expect(stored.rows[0].version).toBe(1);
+        expect(Number(stored.rows[0].amount_minor)).toBe(100);
         const client = await s.pool.connect();
         try {
           await client.query("BEGIN");
@@ -128,27 +120,32 @@ for (const outcome of ["bank", "fallback"] as const) {
           await client.query("ROLLBACK");
           client.release();
         }
-        // A same-trip writer can commit while the first response still awaits
-        // the provider; its new snapshot must not leak into the first response.
-        const newer = await s.patch("300", '"2"');
+        const newer = await s.patch("300");
         expect(newer.response.status).toBe(200);
         expect(newer.data.trip.expenses[0]).toMatchObject({
-          version: 3,
+          version: 2,
           amountMinor: 300,
+          currency: "TWD",
         });
       } finally {
         finish.release();
         await pending;
       }
-      const original = await pending;
-      expect(original.response.status).toBe(200);
-      expect(original.data.trip.expenses[0]).toMatchObject({
-        version: 2,
-        amountMinor: 200,
-      });
-      expect(original.data.exchangeRateInfo?.source).toBe(
-        outcome === "bank" ? "bank" : "fixed",
+      expect((await pending).response.status).toBe(412);
+      const current = await api<TripPayload>(
+        s.baseUrl,
+        `/api/trips/${s.tripId}`,
+        { headers: { cookie: s.cookie } },
       );
+      expect(current.data.trip.expenses[0]).toMatchObject({
+        version: 2,
+        amountMinor: 300,
+        currency: "TWD",
+      });
+      expect(
+        (await s.pool.query("SELECT * FROM expense_revisions")).rowCount,
+      ).toBe(2);
+      expect(s.fetchRate).toHaveBeenCalledTimes(1);
     },
   );
 }
@@ -241,7 +238,7 @@ for (const timing of ["write", "commit"] as const) {
       const s = await setup();
       expect((await s.patch("-1")).response.status).toBe(400);
       expect((await s.patch("200", '"2"')).response.status).toBe(412);
-      s.fetchRates.mockClear();
+      s.fetchRate.mockClear();
       await s.pool.query(
         `CREATE FUNCTION reject_revision() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'revision rejected'; END $$`,
       );
@@ -251,7 +248,7 @@ for (const timing of ["write", "commit"] as const) {
           : "CREATE TRIGGER reject_revision BEFORE INSERT ON expense_revisions FOR EACH ROW EXECUTE FUNCTION reject_revision()",
       );
       expect((await s.patch("200")).response.status).toBe(500);
-      expect(s.fetchRates).toHaveBeenCalledTimes(1); // candidate only, not post-commit enrichment
+      expect(s.fetchRate).not.toHaveBeenCalled(); // Amount-only edits and error responses never reprice.
       expect(s.pool.idleCount).toBe(s.pool.totalCount);
       const current = await s.pool.query(
         "SELECT version, amount_minor FROM expenses WHERE id = $1",

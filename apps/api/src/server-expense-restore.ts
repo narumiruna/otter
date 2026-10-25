@@ -6,11 +6,11 @@ import {
 import { convertExpenseMinor } from "@narumitw/otter-core/money";
 import type { Context } from "hono";
 import type { Pool } from "pg";
-import { effectiveTripRates } from "./server-exchange-rates.js";
 import {
   recordExpenseChanges,
   requireExpenseVersion,
 } from "./server-expense-history.js";
+import { rateBridge } from "./server-expense-rates.js";
 import {
   insertExpense,
   insertExpenseParticipants,
@@ -101,7 +101,6 @@ export function registerExpenseRestoreRoute(
           current?.version ?? last?.version,
         );
 
-        const quote = candidate?.bank ?? null;
         const restored = {
           ...snapshot.expense,
           visaExchangeRate: visaExpenseSnapshot(
@@ -110,16 +109,25 @@ export function registerExpenseRestoreRoute(
             candidate?.visa,
           ),
         };
-        const restoredSnapshot = { ...snapshot, expense: restored };
         if (!restored.exchangeRate)
           return sendError(context, 409, "支出版本缺少匯率快照，請先遷移資料");
+        restored.exchangeRateBridge = rateBridge(
+          restored.exchangeRate,
+          trip.baseCurrency,
+          restored.expenseDate,
+          candidate?.visa ?? null,
+          restored.exchangeRateBridge,
+        );
+        const restoredSnapshot = { ...snapshot, expense: restored };
         try {
           convertExpenseMinor(
             restored.amountMinor,
             restored.currency,
             trip.baseCurrency,
             restored.exchangeRate,
-            effectiveTripRates(trip, quote),
+            undefined,
+            restored.exchangeRateBridge,
+            restored.expenseDate,
           );
         } catch {
           return sendError(context, 400, "支出版本換算金額超出範圍");
@@ -142,13 +150,13 @@ export function registerExpenseRestoreRoute(
             receipt: previous.snapshot.receipt,
           }).length === 0
         ) {
-          return async () => context.json(await buildTripPayload(trip, quote));
+          return async () => context.json(await buildTripPayload(trip));
         }
 
         if (current) {
           await client.query(
             `UPDATE expenses SET description = $3, amount_minor = $4, currency = $5,
-            category = $6, tags = $7, paid_by_id = $8, expense_date = $9, exchange_rate = $10, visa_exchange_rate = $11
+            category = $6, tags = $7, paid_by_id = $8, expense_date = $9, exchange_rate = $10, visa_exchange_rate = $11, exchange_rate_bridge = $12
            WHERE trip_id = $1 AND id = $2`,
             [
               tripId,
@@ -162,6 +170,7 @@ export function registerExpenseRestoreRoute(
               restored.expenseDate,
               restored.exchangeRate,
               restored.visaExchangeRate ?? null,
+              restored.exchangeRateBridge ?? null,
             ],
           );
           await client.query(
@@ -185,7 +194,7 @@ export function registerExpenseRestoreRoute(
         );
         const updated = await loadTripForUser(client, user.id, tripId);
         if (!updated) throw new Error("Trip disappeared after expense restore");
-        return async () => context.json(await buildTripPayload(updated, quote));
+        return async () => context.json(await buildTripPayload(updated));
       },
       prefetch,
     ),

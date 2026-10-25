@@ -68,6 +68,9 @@ export function VisaSettlementSettings({
       <div className="grid gap-4 pt-5" aria-busy={busy}>
         <p id={`${id}-help`} className="text-sm text-muted-foreground">
           {messages.visaSettlementHelp}
+          <br />
+          {messages.baseCurrency}: {payload.trip.baseCurrency} ·{" "}
+          {messages.automaticVisaRates}
         </p>
         <label className="grid gap-2" htmlFor={`${id}-currency`}>
           <span>{messages.visaSettlementCurrency}</span>

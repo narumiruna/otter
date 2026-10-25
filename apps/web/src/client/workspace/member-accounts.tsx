@@ -10,7 +10,23 @@ import { useI18n } from "../i18n.js";
 export function MemberAccounts({ payload }: { payload: TripPayload }) {
   const { messages, formatMoney } = useI18n();
   const { trip } = payload;
-  const accounts = useMemo(() => calculateMemberAccounts(trip), [trip]);
+  const accounts = useMemo(() => {
+    try {
+      return calculateMemberAccounts(trip);
+    } catch {
+      return undefined;
+    }
+  }, [trip]);
+  if (!accounts) {
+    return (
+      <section className="member-accounts" aria-label={messages.memberAccounts}>
+        <header>
+          <h4>{messages.memberAccounts}</h4>
+        </header>
+        <p role="status">{messages.rateUnavailable}</p>
+      </section>
+    );
+  }
   const balanceById = new Map(
     payload.balances.map((balance) => [balance.participantId, balance]),
   );

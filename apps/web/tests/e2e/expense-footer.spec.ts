@@ -66,6 +66,8 @@ test("localized compact preview retains total, people and shares without mutatio
 }) => {
   const trip = exampleTrip();
   trip.baseCurrency = "TWD";
+  // This old-payload fixture needs an explicit book for its JPY-base snapshots.
+  trip.exchangeRates = { TWD: 1, JPY: 0.22, USD: 32 };
   await mockWorkspace(page, trip, "owner", "zh-TW");
   let mutations = 0;
   page.on("request", (request) => {

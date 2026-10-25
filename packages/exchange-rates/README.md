@@ -8,7 +8,7 @@ Typed Taiwanese-bank exchange-rate fetching for Otter. The package follows the n
 - Additional source: SinoPac Bank (`BANK_SINOPAC`) public exchange-rate endpoint.
 - Target currency: TWD.
 - Normalized values: spot buy/sell and optional cash buy/sell.
-- Otter default conversion: midpoint of Bank of Taiwan's spot buy and sell prices.
+- The app no longer calls this package for automatic quotes; it uses Visa instead. This package, its tests, and its build entries remain available. Historical bank snapshots retain their original values.
 - Missing, zero, malformed, non-finite, and anti-bot responses are never exposed as valid rates.
 
 Bank of Taiwan serves an anti-bot challenge to ordinary Node HTTP clients. The package uses `impit` with a Chrome TLS fingerprint, matching the browser impersonation approach used by the Python `twrate` package. Prebuilt `impit` binaries support both glibc and Alpine/musl Linux containers.

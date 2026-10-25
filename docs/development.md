@@ -47,7 +47,7 @@ npm run check
 DATABASE_URL=postgres://otter:otter_dev_password@127.0.0.1:55432/otter_dev npm test
 ```
 
-E2E tests 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility。它需要 Chromium 與已遷移的 `DATABASE_URL`：
+E2E tests 驗證主要流程、responsive reflow、dialog focus 與 axe accessibility。Playwright 使用 `apps/api/scripts/serve-e2e.ts` 啟動真實 API／PostgreSQL，只注入外部 Visa transport fixtures，不連線市場匯率；此入口不得用於部署。它需要 Chromium 與已遷移的隔離 `DATABASE_URL`：
 
 ```bash
 npx playwright install chromium
@@ -97,7 +97,8 @@ apps/web        React/Vite browser app
 apps/api        Hono API, PostgreSQL access and migrations
 packages/core   Environment-neutral expense and settlement logic
 packages/contracts  HTTP DTOs and payload guards
-packages/exchange-rates  Bank exchange-rate clients and parsers
+packages/visa-exchange-rates  Automatic Visa rate client
+packages/exchange-rates  Retained bank clients; not called by the app
 packages/cli    Published non-interactive CLI
 ```
 
@@ -119,21 +120,23 @@ Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/sc
 
 `server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。只有支出／收據／CSV／合併／單筆版本還原 route 使用 `expenseMutation` 明確啟用 before snapshot；設定、參與者、協作者與付款 route 只使用共同的 trip lock，不額外建立 before snapshot。Expense route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；`tripMutation`／`expenseMutation` 的 handler 直接使用傳入的 PoolClient，`withTransaction` 僅用於沒有外層 transaction 的 Pool。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。備份還原與開發 fixtures 各在自己的 transaction 記錄建立來源。
 
-支出匯率政策：API／CLI 新增、CSV 匯入、開發 fixtures 使用同一 `expenseExchangeRate` 決策；依序採用同幣別 1、自訂、銀行候選、內建固定匯率。銀行候選在 `expenseMutation` 鎖外抓取；鎖內依最新群組貨幣及自訂值決定快照，和支出、revision 同 transaction 寫入。修改金額或貨幣重新定價；只改描述、參與者、日期或收據保留快照；版本還原保留所選版本的快照。JSON v2 備份保存快照；v1 匯入及 migration 前歷史資料優先使用群組已保存的自訂匯率，否則以固定表推算，標示 `legacy`，不假裝是歷史銀行報價。舊版 payload 缺快照時仍可讀取，展示為未提供匯率；不得以其缺漏資料寫入新報價當作舊歷史；未經 migration 而缺快照的版本還原回傳 409。貨幣換算使用 JS number，銀行與固定匯率以 12 位有效數字、群組自訂值依 PostgreSQL `numeric(18,8)` 精度保存於支出的 JSONB numeric，先換算整筆原幣 minor units 並 `Math.round` 到基準幣 minor units，再換算各指定份額，按參與者順序分配差額以守恆。外幣付款仍浮動；改基準幣後使用當前匯率 bridge 由舊快照的基準幣換算到新基準幣，不改寫快照。
+支出匯率政策：一般新快照依序使用同幣別 1、群組手動匯率、支出日期的 Visa 報價，不再自動使用銀行或固定估算。指定貨幣結清獨立使用支出日期的 Visa 報價，手續費為 0%，不受一般手動匯率覆蓋。修改金額、描述、分帳或收據保留快照；日期或原幣改變時取得匹配的新快照。一般統計仍用群組基準貨幣，結清使用所選貨幣。取價在 trip lock 外完成，鎖內重新驗證日期、目標與最新設定；失敗不部分寫入。詳見 [匯率與結清規則](visa-settlements.md)。
 
 | 寫入／讀取入口 | 快照政策 | 驗證案例 |
 | --- | --- | --- |
-| API／CLI 新增與 CSV 匯入 | 鎖外預取銀行候選；鎖內採用自訂／銀行／固定報價並與 revision 原子寫入 | `server.expense-exchange-rate.test.ts`、`server-trip-mutation.test.ts`、`server.features.test.ts`；CLI 沿用 API route |
-| 修改支出或收據、參與者合併 | 金額／幣別改動才重新定價；其餘保留快照 | `server.expense-exchange-rate.test.ts`、`server.expense-history.test.ts` |
-| 歷史版本還原 | 沿用所選版本原快照，不查詢新報價 | `server.expense-exchange-rate.test.ts`、`server.expense-restore.test.ts` |
-| JSON 備份 v2／舊版 v1 匯入 | v2 原樣保存；v1 以 `legacy` 估算、永不偽造銀行時間 | `backup.test.ts`、`server.expense-exchange-rate.test.ts` |
-| Migration 與開發 fixtures | 舊支出及 revision 標 `legacy`；fixtures 新建走相同快照函式 | `server.expense-rate-migration.test.ts`、`server-dev.test.ts` |
-| 改基準幣及付款 | 舊快照保留原基準幣，用當下匯率橋接；外幣付款仍浮動 | `server.expense-exchange-rate.test.ts`、`server.settlement-payments.test.ts` |
-| 舊版 payload | 無快照可讀但不冒充歷史快照；服務端遷移資料另有明確 `legacy` | `index.test.ts`、`expense-history.test.ts` |
+| API／CLI 新增、複製與 CSV 匯入 | 共用日期化 Visa 候選；一般手動匯率只影響新快照；與 revision 原子保存 | `server.expense-exchange-rate.test.ts`、`server.expense-copy.test.ts` |
+| 金額／描述／分帳修改及離線重播 | 使用有效既有快照，不重新定價；同步保留 draft 日期 | `server.visa-settlement.test.ts`、`server.expense-operations.test.ts` |
+| 歷史版本還原 | 保留所選版本原報價；只為目前目標補足必要匯率或 bridge；缺原快照維持 409 | `server.expense-exchange-rate.test.ts`、`server.expense-restore.test.ts` |
+| JSON 備份 | v3 保存支出、付款及 bridge；完整還原不連線取價；v1／v2 缺漏明確標 `legacy` | `backup.test.ts`、`server.expense-exchange-rate.test.ts` |
+| 改基準幣及異幣付款 | 保留原快照，保存支出日期的 bridge；付款依 `paidAt` 保存，不再浮動 | `dated-rates.test.ts`、`server.visa-settlement.test.ts` |
+| 舊版 payload | 缺必要匯率顯示 unavailable，不默默使用固定表；排序將未知金額置後 | `client-support.test.ts`、`overview-summary.component.test.tsx` |
+| Migration 與開發 fixtures | 027／028 需明確切換基準，保留原報價及 revisions；開發 fixtures 使用明確手動值 | `server.visa-rate-cutover.test.ts`、`server-dev.test.ts` |
+
+Migration 028 遇到舊異幣付款或跨基準幣快照缺少可重現匯率時會停止。不得直接用今日 Visa 或固定值補出歷史。先在隔離 production 副本確認切換基準，再依 [切換與回復程序](visa-rate-cutover.md) 匯入核准資料；不能回退到無法讀取新快照的舊版。
 
 新增支出 `POST /api/trips/:tripId/expenses` 的成功回應除 `TripPayload` 外，還有 `createdExpenseId`，指向本次 transaction 真正建立的支出；重播既有操作 ID 也回傳原始 ID（即使該支出後來被刪除）。瀏覽器用此 ID 與該筆支出版本再 `PUT /expenses/:expenseId/receipt`，不能從清單差異猜 ID。兩個請求不是原子交易；第一個成功、第二個失敗時保留支出，只重試收據 PUT。線上建檔回應不明時不自動重送 POST，提示使用者先檢查清單；離線操作 ID 流程維持原有 guest 限制。照片檔案只存在表單記憶體，不進 IndexedDB。
 
-成功的 `tripMutation` handler 回傳 deferred response function：先在 transaction 內載入完整的 `LoadedTrip`，由 wrapper commit 並 release client 後，才呼叫 `buildTripPayload` 取得銀行匯率與產生回應。Deferred function 不可再使用 transaction client 或重新載入目前支出；否則會誤用已釋放的連線，或把後續修改混入本次回應。銀行失敗仍使用既有固定匯率 fallback；commit 後的回應處理錯誤不會回滾已完成的 mutation。慢速 provider 不應占用 trip lock 或 DB pool。`loadTrip` 收到 Pool 時平行執行六個獨立 detail queries；收到 transaction client 時循序執行，避免在單一連線排入尚未完成的 query。兩種路徑的支出 version、分帳與收據仍由同一 SQL snapshot 讀取。
+成功的 `tripMutation` handler 回傳 deferred response function：先在 transaction 內載入完整 `LoadedTrip`，由 wrapper commit 並 release client 後，才呼叫 `buildTripPayload` 以已保存快照產生回應，不查外部匯率。Deferred function 不可使用已釋放的 client，也不可重新載入目前支出而混入後續修改。慢速 Visa 取價在 mutation 取鎖前完成，不占用 trip lock；鎖內候選不匹配即整筆失敗，不補發網路請求。`loadTrip` 收到 Pool 時平行讀取六個 detail queries，收到 transaction client 時循序完成；支出 version、分帳與收據仍由同一 SQL snapshot 讀取。
 
 單筆支出 PATCH／DELETE 與收據 PUT／DELETE 要求觀察到的版本，例如：
 

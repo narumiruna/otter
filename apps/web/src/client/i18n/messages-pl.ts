@@ -6,12 +6,14 @@ import {
 } from "./message-types.js";
 import { plAi } from "./messages-ai.js";
 import { plAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { plAccount } from "./messages-pl-account.js";
 import { plExpenses } from "./messages-pl-expenses.js";
 import { plSettings } from "./messages-pl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const pl = {
+  ...automaticRateMessages("pl"),
   ...plAi,
   ...plAiAuth,
   backToExpenseList: "Wróć do listy wydatków",

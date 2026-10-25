@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { Trip } from "@narumitw/otter-core/settlement";
-import { test } from "vitest";
+import { expect, test } from "vitest";
 import {
   ApiResponseError,
   api,
@@ -131,6 +131,7 @@ test("summarizes spending charts", () => {
 test("filters and sorts expenses", () => {
   const trip: Trip = {
     ...baseTrip,
+    exchangeRates: { TWD: 1, JPY: 0.22 },
     expenses: [
       {
         amountMinor: 100,
@@ -324,4 +325,32 @@ test("participant delete affordance explains blocked deletes", () => {
     ),
     "已有支出",
   );
+});
+
+test("missing legacy rates stay unavailable and sort after known amounts", () => {
+  const expense = {
+    id: "known",
+    amountMinor: 100,
+    currency: "TWD" as const,
+    description: "Known",
+    createdAt: "2026-07-05T00:00:00Z",
+    expenseDate: "2026-07-05",
+    paidById: "alice",
+    participantIds: ["alice"],
+  };
+  const trip: Trip = {
+    ...baseTrip,
+    expenses: [{ ...expense, id: "unknown", currency: "USD" }, expense],
+  };
+  expect(spendingSummary(trip)).toMatchObject({
+    rateUnavailable: true,
+    dailyTotals: [],
+    categoryTotals: [],
+  });
+  for (const sort of ["amount-asc", "amount-desc"] as const)
+    expect(
+      filterAndSortExpenses(trip, { ...defaultExpenseFilters, sort }).map(
+        (e) => e.id,
+      ),
+    ).toEqual(["known", "unknown"]);
 });

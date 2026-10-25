@@ -13,10 +13,12 @@ import type { zhTW } from "./messages-zh-tw.js";
 
 type Messages = CatalogShape<typeof zhTW>;
 
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { enPersonal } from "./messages-personal.js";
 import { enVisa } from "./messages-visa.js";
 
 export const en = {
+  ...automaticRateMessages("en"),
   ...enAi,
   ...enAiAuth,
   ...enPersonal,

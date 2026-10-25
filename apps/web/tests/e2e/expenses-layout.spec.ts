@@ -57,12 +57,7 @@ for (const colorScheme of ["light", "dark"] as const) {
             trip,
             balances: calculateBalances(trip),
             settlements: calculateSettlements(trip),
-            exchangeRateInfo: {
-              fetchedAt: "2026-09-20T00:00:00.000Z",
-              provider: "BANK_OF_TAIWAN",
-              rateType: "spotMid",
-              source: "bank",
-            },
+            exchangeRateInfo: { source: "visa" },
             currentUserRole: "owner",
             collaborators: [],
             shareLinks: [],
@@ -72,6 +67,14 @@ for (const colorScheme of ["light", "dark"] as const) {
         await route.fulfill({ json: { passkeys: [] } });
       } else if (path === "/api/auth/tokens") {
         await route.fulfill({ json: { tokens: [] } });
+      } else if (path === "/api/auth/ai/catalog") {
+        await route.fulfill({
+          json: { providers: [], authenticationEnabled: true },
+        });
+      } else if (path === "/api/auth/ai/settings") {
+        await route.fulfill({ json: { settings: null } });
+      } else if (path === "/api/auth/ai/connections") {
+        await route.fulfill({ json: { connections: [] } });
       } else {
         throw new Error(`Unexpected request: ${path}`);
       }

@@ -62,6 +62,27 @@ function payload(trip = fixture()) {
   };
 }
 
+test("older other-currency payments without a rate remain explicitly unavailable", () => {
+  const previous = payload();
+  const missing = {
+    ...previous,
+    trip: {
+      ...previous.trip,
+      settlementPayments: previous.trip.settlementPayments?.map((payment) => ({
+        ...payment,
+        currency: "USD" as const,
+      })),
+    },
+  };
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <MemberAccounts payload={missing} />
+    </I18nProvider>,
+  );
+  expect(view.getByRole("status")).toHaveTextContent("Rate unavailable");
+  expect(view.queryByRole("table")).toBeNull();
+});
+
 test("all members have expense-only paid/share totals and payment-adjusted balances", async () => {
   const view = render(
     <I18nProvider initialLocale="en">

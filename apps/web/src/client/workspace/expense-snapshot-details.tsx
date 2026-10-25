@@ -11,6 +11,7 @@ export function ExpenseSnapshotDetails({
     "amountMinor",
     "currency",
     "exchangeRate",
+    "exchangeRateBridge",
     "visaExchangeRate",
     "expenseDate",
     "paidById",
@@ -33,6 +34,7 @@ export function ExpenseSnapshotDetails({
     amountMinor: messages.amount,
     currency: messages.currency,
     exchangeRate: messages.expenseHistoryRate,
+    exchangeRateBridge: messages.currencyConversion,
     visaExchangeRate: messages.visaRateLabel,
     expenseDate: messages.date,
     paidById: messages.paidBy,
@@ -45,6 +47,7 @@ export function ExpenseSnapshotDetails({
   const rateSource = e.exchangeRate
     ? {
         bank: messages.expenseHistoryRateBank,
+        visa: messages.visaRateLabel,
         custom: messages.expenseHistoryRateCustom,
         fixed: messages.expenseHistoryRateFixed,
         legacy: messages.expenseHistoryRateLegacy,
@@ -55,7 +58,10 @@ export function ExpenseSnapshotDetails({
     amountMinor: formatMoney(e.amountMinor, e.currency),
     currency: e.currency,
     exchangeRate: e.exchangeRate
-      ? `1 ${e.currency} = ${e.exchangeRate.rateToBase} ${e.exchangeRate.baseCurrency} · ${rateSource} · ${e.exchangeRate.fetchedAt ?? messages.expenseHistoryRateTimeUnavailable}`
+      ? `1 ${e.currency} = ${e.exchangeRate.rateToBase} ${e.exchangeRate.baseCurrency} · ${rateSource} · ${e.exchangeRate.fetchedAt ?? messages.expenseHistoryRateTimeUnavailable}${e.exchangeRate.source === "visa" ? ` · ${e.exchangeRate.date}` : ""}`
+      : messages.expenseHistoryRateUnavailable,
+    exchangeRateBridge: e.exchangeRateBridge
+      ? `1 ${e.exchangeRateBridge.sourceCurrency} = ${e.exchangeRateBridge.rateToBase} ${e.exchangeRateBridge.baseCurrency} · ${e.exchangeRateBridge.date ?? messages.expenseHistoryRateLegacy}`
       : messages.expenseHistoryRateUnavailable,
     visaExchangeRate: e.visaExchangeRate
       ? `1 ${e.currency} = ${e.visaExchangeRate.rate} ${e.visaExchangeRate.targetCurrency} · ${e.visaExchangeRate.date} · ${e.visaExchangeRate.fetchedAt}`

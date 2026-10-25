@@ -4,7 +4,7 @@ import {
   parseTripPayload,
   type TripPayload,
 } from "@narumitw/otter-contracts";
-import type { TripBackupV2 } from "@narumitw/otter-core/backup";
+import type { TripBackupV3 } from "@narumitw/otter-core/backup";
 import type { VisaRateQuery } from "@narumitw/otter-visa-exchange-rates";
 import { expect, test, vi } from "vitest";
 import { createSession } from "./server-support.js";
@@ -25,8 +25,12 @@ const quote = (query: VisaRateQuery) => ({
 async function setup(
   fetchRate = vi.fn(async (query: VisaRateQuery) => quote(query)),
 ) {
+  let now = Date.parse("2026-10-25T00:00:00Z");
   const app = await withTestApp({
-    appOptions: { visaSettlement: { fetchRate } },
+    appOptions: {
+      exchangeRates: { now: () => new Date(now) },
+      visaSettlement: { fetchRate },
+    },
     prepare: async (pool) => {
       await pool.query(
         "INSERT INTO users (id,name,username,password_hash) VALUES ('owner','Alice','owner','unused'), ('editor','Editor','editor','unused')",
@@ -64,7 +68,17 @@ async function setup(
     paidById: alice.id,
     participantIds: [alice.id, bob.id],
   };
-  return { ...app, cookie, path, request, input, fetchRate };
+  return {
+    ...app,
+    cookie,
+    path,
+    request,
+    input,
+    fetchRate,
+    expireFailure: () => {
+      now += 60_000;
+    },
+  };
 }
 
 test.each(["SGD", "GBP", "AUD", "CAD", "KRW"] as const)(
@@ -148,6 +162,8 @@ test(
       source: "JPY",
       target: "TWD",
       date: "2026-07-05",
+      amount: 1,
+      bankFeePercent: 0,
     });
     const described = await s.request(
       `${s.path}/expenses/${id}`,
@@ -223,7 +239,7 @@ test(
     );
     expect(restored.response.status).toBe(200);
     expect(restored.data.trip.expenses[0].visaExchangeRate).toEqual(snap);
-    const backup = await api<TripBackupV2>(s.baseUrl, `${s.path}/backup`, {
+    const backup = await api<TripBackupV3>(s.baseUrl, `${s.path}/backup`, {
       headers: { cookie: s.cookie },
     });
     expect(backup.data.trip.visaSettlementEnabled).toBe(true);
@@ -242,10 +258,25 @@ test(
     );
     const reads = await s.request(s.path);
     expect(reads.data.settlements).toEqual(restored.data.settlements);
+    expect(
+      (
+        await s.request(`${s.path}/visa-settlement`, "PATCH", {
+          enabled: false,
+          currency: "TWD",
+        })
+      ).response.status,
+    ).toBe(502);
+    expect((await s.request(s.path)).data.trip.visaSettlementEnabled).toBe(
+      true,
+    );
+    s.fetchRate.mockImplementation(async (q) => quote(q));
+    s.expireFailure();
     const disabled = await s.request(`${s.path}/visa-settlement`, "PATCH", {
       enabled: false,
       currency: "TWD",
     });
+    expect(disabled.response.status).toBe(200);
+    s.fetchRate.mockRejectedValue(new Error("Visa unavailable"));
     expect(disabled.data.trip.visaSettlementEnabled).toBe(false);
     expect(disabled.data.trip.expenses[0].visaExchangeRate).toEqual(snap);
     expect(disabled.data.balances[0].currency).toBe("JPY");
@@ -277,6 +308,7 @@ test(
     expect(unchanged.data.trip.visaSettlementEnabled).toBe(false);
     expect(unchanged.data.trip.expenses[0].visaExchangeRate).toBeUndefined();
     s.fetchRate.mockImplementation(async (query) => quote(query));
+    s.expireFailure();
     const enabled = await s.request(`${s.path}/visa-settlement`, "PATCH", {
       enabled: true,
       currency: "TWD",
@@ -288,7 +320,7 @@ test(
       { expenseDate: "2026-07-08" },
       enabled.data.trip.expenses[0].version,
     );
-    expect(edit.response.status).toBe(400);
+    expect(edit.response.status).toBe(502);
     expect(
       (
         await s.request(`${s.path}/expenses`, "POST", {
@@ -296,10 +328,15 @@ test(
           expenseDate: "2026-07-08",
         })
       ).response.status,
-    ).toBe(400);
+    ).toBe(502);
     const current = await s.request(s.path);
     expect(current.data.trip.expenses).toEqual(enabled.data.trip.expenses);
     expect(current.data.settlements).toEqual(enabled.data.settlements);
+    // A same-currency settlement still needs a saved conversion to the group base.
+    expect(
+      (await s.request(s.path, "PATCH", { exchangeRates: { TWD: 5 } })).response
+        .status,
+    ).toBe(200);
     expect(
       (
         await s.request(`${s.path}/expenses`, "POST", {
@@ -414,7 +451,7 @@ test(
       enabled: true,
       currency: "TWD",
     });
-    expect(enabled.response.status).toBe(400);
+    expect(enabled.response.status).toBe(502);
     const current = await s.request(s.path);
     expect(current.data.trip.visaSettlementEnabled).toBe(false);
     expect(current.data.trip.expenses).toHaveLength(2);
@@ -467,6 +504,8 @@ test(
       source: "JPY",
       target: "USD",
       date: s.input.expenseDate,
+      amount: 1,
+      bankFeePercent: 0,
     });
     const later = await s.request(`${s.path}/expenses`, "POST", {
       ...s.input,
@@ -500,7 +539,7 @@ test(
       (
         await s.request(`${s.path}/visa-settlement`, "PATCH", {
           enabled: true,
-          currency: "USD",
+          currency: "GBP",
         })
       ).response.status,
     ).toBe(502);
@@ -568,7 +607,7 @@ test(
     expect(
       restoredVersion.data.trip.expenses[0].visaExchangeRate?.targetCurrency,
     ).toBe("EUR");
-    const backup = await api<TripBackupV2>(s.baseUrl, `${s.path}/backup`, {
+    const backup = await api<TripBackupV3>(s.baseUrl, `${s.path}/backup`, {
       headers: { cookie: s.cookie },
     });
     expect(backup.data.trip.visaSettlementCurrency).toBe("EUR");
