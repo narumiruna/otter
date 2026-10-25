@@ -260,6 +260,7 @@ test("falls back when explicit participant shares do not match the amount", () =
 
 test("keeps explicit multi-currency shares balanced after rounding", () => {
   const trip: Trip = {
+    exchangeRates: { TWD: 1, USD: 32 },
     baseCurrency: "TWD",
     createdAt: "2026-06-25T00:00:00.000Z",
     expenses: [
@@ -423,6 +424,7 @@ test("uses trip exchange rates when present", () => {
 
 test("splits multi-currency expenses and suggests settlements", () => {
   const trip: Trip = {
+    exchangeRates: { TWD: 1, USD: 32, EUR: 35, JPY: 0.22 },
     baseCurrency: "TWD",
     createdAt: "2026-06-25T00:00:00.000Z",
     expenses: [

@@ -285,7 +285,9 @@ test("consequential settings preview without mutating until apply", async ({
     .getByRole("link", { name: "群組偏好", exact: true })
     .click();
   await page.locator('select[name="baseCurrency"]').selectOption("JPY");
-  await expect(page.getByText("變更預覽", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(/套用時將依各筆記錄日期取得必要匯率/),
+  ).toBeVisible();
   expect(settingMutations).toBe(0);
   await page.getByRole("button", { name: "取消變更" }).first().click();
 
@@ -304,7 +306,7 @@ test("consequential settings preview without mutating until apply", async ({
     .getByRole("link", { name: "群組偏好", exact: true })
     .click();
   await page.getByLabel("JPY → TWD").fill("0.22");
-  await expect(page.getByText("換算預覽", { exact: true })).toBeVisible();
+  await expect(page.getByText(/手動匯率只影響新的換算快照/)).toBeVisible();
   expect(settingMutations).toBe(0);
 
   await page

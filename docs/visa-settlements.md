@@ -1,50 +1,76 @@
-# Visa-based settlements
+# Exchange rates and Visa settlements
 
-## Choose a settlement currency
+## Automatic rates
 
-The group owner can choose **Settlement currency** under **Group settings → Group preferences → Visa-based settlements**. The selector offers the app's supported currencies: TWD, JPY, USD, EUR, SGD, GBP, AUD, CAD, and KRW. It initially uses the group base currency if no selection has been saved.
+Visa is the only automatic rate source. The API does not request bank rate boards. `packages/exchange-rates` remains in the workspace, with its source, tests, and build commands.
 
-Visa mode is off by default. Choose a currency and enable the option to convert every expense, including cash expenses, with a dated Visa rate. The group keeps its base currency and all original expense amounts. For example, a JPY group can settle in TWD, USD, or EUR.
+Original expense amounts and currencies do not change. New automatic conversions use the expense date, with 0% bank fees. A late entry or an offline sync uses the saved expense date, not the sync date. The app supports TWD, JPY, USD, EUR, SGD, GBP, AUD, CAD, and KRW. Visa determines which dates and currency pairs are available.
 
-Balances, settlement suggestions, and new settlement payments use the selected currency when enabled. The spending summary still uses the group base currency. Expense details show the saved Visa rate, date, and converted amount.
+Visa rates are estimates, not final card charges. An issuer can use another processing date or add fees. Cash expenses use the same rule. The app does not read card statements or processing dates.
 
-Visa rates are indicative. The issuer can use a different processing date or add fees. This option uses 0% bank fees. Set the expense date to the card transaction date if you want that date's indicative rate. The feature does not read card statements or processing dates.
+## Base currency and settlement currency
+
+The group base currency controls spending totals, daily and category charts, and amount sorting. New base-currency conversions use dated Visa rates unless the owner has set a manual rate. Manual changes apply to new conversion snapshots only. They do not replace saved expense rates.
+
+The owner can enable a separate settlement currency under **Group settings → Group preferences → Visa-based settlements**. This option is off by default.
+
+- When off, balances and settlement suggestions use the group base currency.
+  - Automatic base-currency rates still come from Visa.
+- When on, balances and settlement suggestions use the selected settlement currency.
+  - All expenses use dated Visa rates for this target, including cash expenses.
+  - Manual base-currency rates do not override this settlement rate.
+  - Existing payments must use the selected currency before enabling or changing the target.
+
+For example, a JPY group can keep JPY expense records and spending totals, then settle in TWD. Each JPY expense uses its own expense date for the JPY/TWD rate. A TWD expense needs a separate TWD/JPY rate for spending totals, but its TWD settlement rate is 1.
+
+The switch selects the settlement rule and target. It is not a switch between bank and Visa providers.
 
 ## Saved rates and rounding
 
-- Enabling fetches missing dated rates for existing expenses before changing the setting.
-- Each expense stores a separate `visaExchangeRate` snapshot: source currency, target currency, date, rate, and fetch time. The existing `exchangeRate` snapshot remains unchanged.
-- Reads do not query Visa or change saved Visa rates. Unrelated edits and amount-only edits keep the saved rate. Date or source currency changes require a matching quote.
-- Rates are reused only for the same source currency, target currency, and date. When source and target are identical, the rate is 1 and Visa is not queried.
-- Each expense is converted and rounded to the selected currency's minor units before splitting. USD, EUR, SGD, GBP, AUD, and CAD use two decimal places; JPY, TWD, and KRW use whole units. Explicit shares use the same saved rate. Rounding differences are allocated so the split total equals the converted expense total.
-- Missing rates cause an error. There is no bank-rate or fixed-rate fallback in Visa settlement calculations.
+- `expense.exchangeRate` stores the base-currency conversion.
+  - New Visa snapshots include the source, quote date, target, rate, and fetch time.
+  - Existing bank, custom, fixed, and legacy snapshots retain their original values and labels.
+- `expense.visaExchangeRate` stores the separate selected-currency Visa conversion.
+  - Enabling or changing the target fetches missing rates before saving the setting.
+- Reads, amount-only edits, description edits, and operation-ID replays do not fetch a replacement rate.
+  - A changed expense date, source currency, or conversion target needs a matching snapshot.
+  - A new or copied expense can reuse a matching Visa quote, but does not reuse another expense's old bank estimate as a new quote.
+- A change to the group base currency retains the original snapshot and saves a separate conversion bridge.
+  - The bridge uses the record date for the required conversion to the new base.
+  - The calculation retains both rounding steps. It does not multiply the rates into one rounded conversion.
+- Each expense is rounded to the target's minor units before splitting.
+  - USD, EUR, SGD, GBP, AUD, and CAD use two decimal places; JPY, TWD, and KRW use whole units.
+  - Explicit shares use the same saved rate. Remainders follow participant order so shares equal the converted total.
+- Fetch time is not the rate publication time or the expense date.
 
-Outside Visa mode, bank snapshots contain only available Bank of Taiwan spot quotes. A missing spot quote uses a fixed estimate for that expense and is not saved as a bank quote. The new fixed estimates are SGD 24, GBP 41, AUD 21, CAD 23, and KRW 0.024 TWD per unit; these are not current market quotes.
+A matching saved snapshot remains usable if Visa later becomes unavailable. The API shares concurrent rate requests by source, target, and date. It caches successful requests for 15 minutes and failed requests for 1 minute. External requests are sequential. The cache holds at most 1,024 completed entries and permits at most 64 pending requests. These limits do not expire saved record snapshots.
 
-The public calculator limits date and currency-pair availability. An old trip can fail to enable if its rates are no longer available. Saved snapshots remain usable if the calculator later becomes unavailable.
+## Payments and failures
 
-## Change the currency or disable the option
+In base-currency mode, an other-currency payment saves a conversion for its `paidAt` date. It does not float with the next page load. In selected-currency mode, payments must use the selected currency and reduce the balance directly.
 
-Select another currency and use **Apply changes**. If Visa mode is enabled, the API obtains matching rates and replaces the snapshots in one transaction. It does not reuse snapshots for a different target currency. If a rate request or validation fails, the existing setting and snapshots stay unchanged.
+Disabling selected-currency mode can need base-currency rates for existing payments. Changing the base currency can also need conversion bridges. The API gets these rates before taking the trip lock. It checks the locked records and settings again before saving.
 
-Existing payment records must use the selected currency before enabling or changing targets. While enabled, the API defaults new payments to that currency and rejects payments in other currencies. Payments reduce balances directly, without a second exchange conversion.
+A missing rate, invalid response, timeout, or stale candidate does not cause a bank or fixed-rate fallback. Provider failures return HTTP 502. Invalid amounts and unsafe conversions return HTTP 400. The operation leaves settings, records, and history unchanged. A stale manual-rate form can return HTTP 409 if its expected base currency has changed.
 
-Disabling restores the existing base-currency calculation. The selected currency and Visa snapshots are retained for re-enabling. Payment records stay unchanged and use the existing base-currency conversion when the option is off. An expense date or currency edit while off removes a stale Visa snapshot.
+The owner can set an explicit manual rate and retry a base-currency conversion. Selected-currency Visa settlements still need a valid Visa rate. A public calculator can stop serving old dates; an old group can therefore fail to enable or change targets.
 
-## API and persistence
+## Rate preview and backups
 
-`PATCH /api/trips/:tripId/visa-settlement` accepts:
+**View today's Visa rates** is a read-only preview. It uses today's date in `Asia/Taipei` and shows unavailable currencies. It does not clear manual inputs, save rates to expenses, or apply one date's quote to the whole group. Opening a group, reading a share, and exporting a backup do not request current rates.
+
+Backup version 3 preserves payment snapshots and conversion bridges as well as both expense rate snapshots. A complete version 3 backup restores without a rate-provider connection. Versions 1 and 2 remain accepted. Missing data in old formats uses saved custom rates or a labelled legacy estimate, not an invented historical Visa quote. Expense history retains the original snapshots; restoring a version only obtains missing conversions required by the current target.
+
+## API and deployment
+
+`PATCH /api/trips/:tripId/visa-settlement` keeps its existing input:
 
 ```json
-{ "enabled": true, "currency": "USD" }
+{ "enabled": true, "currency": "TWD" }
 ```
 
-Use `enabled: false` to disable. The currency can be saved while the option is off. If omitted, the API uses the previously selected currency or the group base currency. Unsupported currencies are rejected.
+Use `enabled: false` to return to base-currency settlement. The API retains the selected currency and expense Visa snapshots. Only owners can change these settings. Archived, read-only, and API-write-disabled groups retain their existing restrictions.
 
-Only owners can change the setting. Archived and read-only groups cannot change it. API tokens remain subject to the group's API write permission.
+`GET /api/exchange-rates/:baseCurrency` returns a read-only Visa preview with `source: "VISA"`, `rateType: "visa"`, `date`, `fetchedAt`, `rates`, and `unavailableCurrencies`. Group `exchangeRateInfo.source` is `visa`, or `custom` with a `visa` default policy. It does not claim a single quote date for all expenses. First-party readers still accept historical bank metadata.
 
-Run `npm run migrate` before deploying the updated API. Migration `023_visa_settlement.sql` adds a default-false Visa mode, an optional selected currency, and nullable target-aware expense snapshots. Existing amounts, exchange-rate snapshots, payment records, and history remain unchanged. Migration `024_travel_currencies.sql` extends currency constraints and legacy estimates for SGD, GBP, AUD, CAD, and KRW. Apply it before the new application writes these currencies. Older application versions cannot read records that use the new currencies.
-
-Backup export and restore preserve the setting, selected currency, and snapshots. Expense history records snapshot changes. A restored expense version uses a snapshot that matches the current target, rather than reverting the group to its historical target. CSV imports fetch required quotes before their transaction. Group copies preserve the setting and selected currency but do not copy expenses.
-
-The API uses `@narumitw/otter-visa-exchange-rates`. It finishes rate requests before taking trip row locks and checks the locked data again before saving. Concurrent changes that introduce an unprepared pair or date cause an error without partial changes. Retry with the current group data.
+Migrations 027 and 028 must complete before the new API serves requests. Floating legacy payments and conversions can require an approved cutover baseline. Do not deploy over a missing baseline. See [Visa rate cutover](visa-rate-cutover.md) for migration, compatibility, verification, and recovery steps.

@@ -9,6 +9,7 @@ import {
   currencies,
   type ExchangeRates,
   isCurrency,
+  isExchangeRateBridge,
   isExpenseExchangeRate,
 } from "@narumitw/otter-core/money";
 import type { Balance, Settlement } from "@narumitw/otter-core/settlement";
@@ -100,6 +101,7 @@ export type TripShareLink = {
 };
 
 export type ExchangeRateDefaults =
+  | { source: "visa" }
   | {
       fetchedAt: string;
       provider: "BANK_OF_TAIWAN";
@@ -110,6 +112,7 @@ export type ExchangeRateDefaults =
   | { rates: Record<Currency, number>; source: "fixed" };
 
 export type ExchangeRateInfo =
+  | { source: "visa" }
   | {
       fetchedAt: string;
       provider: "BANK_OF_TAIWAN";
@@ -156,9 +159,15 @@ export type ExchangeRateSnapshot = {
   baseCurrency: Currency;
   fetchedAt: string;
   rates: ExchangeRates;
-  rateType: "spotMid";
-  source: "BANK_OF_TAIWAN";
-};
+} & (
+  | { rateType: "spotMid"; source: "BANK_OF_TAIWAN" }
+  | {
+      rateType: "visa";
+      source: "VISA";
+      date: string;
+      unavailableCurrencies: Currency[];
+    }
+);
 
 export type ApiToken = {
   createdAt: string;
@@ -273,8 +282,15 @@ export function parseExchangeRateSnapshot(
     !isCurrency(value.baseCurrency) ||
     !isNonEmptyString(value.fetchedAt) ||
     !Number.isFinite(Date.parse(value.fetchedAt)) ||
-    value.rateType !== "spotMid" ||
-    value.source !== "BANK_OF_TAIWAN" ||
+    !(
+      (value.rateType === "spotMid" && value.source === "BANK_OF_TAIWAN") ||
+      (value.rateType === "visa" &&
+        value.source === "VISA" &&
+        typeof value.date === "string" &&
+        isDateOnly(value.date) &&
+        Array.isArray(value.unavailableCurrencies) &&
+        value.unavailableCurrencies.every(isCurrency))
+    ) ||
     !isRecord(value.rates)
   ) {
     throw new Error("Invalid exchange-rate snapshot");
@@ -284,6 +300,19 @@ export function parseExchangeRateSnapshot(
   }
   if (value.rates[value.baseCurrency] !== 1) {
     throw new Error("Invalid exchange-rate snapshot");
+  }
+  if (value.source === "VISA") {
+    const unavailable = value.unavailableCurrencies;
+    const rates = value.rates;
+    if (
+      !Array.isArray(unavailable) ||
+      new Set(unavailable).size !== unavailable.length ||
+      currencies.some(
+        (currency) =>
+          (rates[currency] === undefined) !== unavailable.includes(currency),
+      )
+    )
+      throw new Error("Invalid exchange-rate availability");
   }
   return value as ExchangeRateSnapshot;
 }
@@ -348,7 +377,23 @@ function validateTrip(value: unknown): asserts value is Trip {
       !isPositiveSafeInteger(expense.amountMinor) ||
       !isCurrency(expense.currency) ||
       (expense.exchangeRate !== undefined &&
-        !isExpenseExchangeRate(expense.exchangeRate, expense.currency)) ||
+        !isExpenseExchangeRate(
+          expense.exchangeRate,
+          expense.currency,
+          typeof expense.expenseDate === "string"
+            ? expense.expenseDate
+            : undefined,
+        )) ||
+      (expense.exchangeRateBridge !== undefined &&
+        (!isExpenseExchangeRate(expense.exchangeRate, expense.currency) ||
+          !isExchangeRateBridge(
+            expense.exchangeRateBridge,
+            expense.exchangeRate.baseCurrency,
+            value.baseCurrency,
+            typeof expense.expenseDate === "string"
+              ? expense.expenseDate
+              : undefined,
+          ))) ||
       (expense.category !== undefined &&
         !isExpenseCategory(expense.category)) ||
       !isOptionalStringArray(expense.tags) ||
@@ -407,6 +452,20 @@ function validateTrip(value: unknown): asserts value is Trip {
           payment.currency !== value.visaSettlementCurrency) ||
         typeof payment.paidAt !== "string" ||
         !isDateOnly(payment.paidAt) ||
+        (payment.exchangeRate !== undefined &&
+          !isExpenseExchangeRate(
+            payment.exchangeRate,
+            payment.currency,
+            payment.paidAt,
+          )) ||
+        (payment.exchangeRateBridge !== undefined &&
+          (!isExpenseExchangeRate(payment.exchangeRate, payment.currency) ||
+            !isExchangeRateBridge(
+              payment.exchangeRateBridge,
+              payment.exchangeRate.baseCurrency,
+              value.baseCurrency,
+              payment.paidAt,
+            ))) ||
         typeof payment.note !== "string" ||
         !isNonEmptyString(payment.createdAt)
       ) {
@@ -466,7 +525,7 @@ function validateExchangeRateInfo(value: unknown): void {
   if (!isRecord(value)) {
     throw invalidTripPayload();
   }
-  if (value.source === "fixed") {
+  if (value.source === "fixed" || value.source === "visa") {
     return;
   }
   if (value.source === "custom") {
@@ -487,6 +546,7 @@ function validateExchangeRateInfo(value: unknown): void {
 }
 
 function isExchangeRateDefaults(value: Record<string, unknown>): boolean {
+  if (value.source === "visa") return true;
   if (!isExchangeRateMap(value.rates, value.source === "fixed")) {
     return false;
   }

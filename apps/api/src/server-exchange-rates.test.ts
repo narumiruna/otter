@@ -1,166 +1,179 @@
-import assert from "node:assert/strict";
-import { type Currency, currencies } from "@narumitw/otter-core/money";
-import type { Rate } from "@narumitw/otter-exchange-rates";
+import { currencies } from "@narumitw/otter-core/money";
+import { fetchRates as fetchBankRates } from "@narumitw/otter-exchange-rates";
+import type {
+  VisaRate,
+  VisaRateQuery,
+} from "@narumitw/otter-visa-exchange-rates";
 import { Hono } from "hono";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
-  buildExchangeRateSnapshot,
   createExchangeRateService,
   registerExchangeRateRoutes,
 } from "./server-exchange-rates.js";
-import { expenseExchangeRate } from "./server-expense-rates.js";
 import type { OtterEnv, OtterMiddleware } from "./server-http.js";
 import type { LoadedTrip } from "./server-support.js";
 
-const fetchedAt = "2026-09-20T12:00:00.000Z";
-const rateToTwd = {
-  EUR: 36.5,
-  JPY: 0.2,
-  TWD: 1,
-  USD: 31.8,
-  SGD: 24.5,
-  GBP: 42,
-  AUD: 21.5,
-  CAD: 23.5,
-  KRW: 0.025,
+vi.mock("@narumitw/otter-exchange-rates", () => ({
+  fetchRates: vi.fn(() => {
+    throw new Error("Bank transport must never be called");
+  }),
+}));
+
+const date = "2026-07-05";
+const query = { source: "JPY", target: "TWD", date };
+function quote(q: VisaRateQuery): VisaRate {
+  return {
+    ...q,
+    date: q.date ?? date,
+    amount: 1,
+    bankFeePercent: 0,
+    rate: 0.2,
+    visaRate: 0.2,
+    convertedAmount: 0.2,
+    fetchedAt: "2026-07-05T00:00:00Z",
+  };
+}
+const emptyTrip: LoadedTrip = {
+  baseCurrency: "TWD",
+  createdAt: "2026-07-05T00:00:00Z",
+  expenses: [],
+  id: "t",
+  name: "Japan",
+  ownerId: "u",
+  participants: [],
 };
-const rates: Rate[] = currencies
-  .filter((code) => code !== "TWD")
-  .map((code) => rate(code, rateToTwd[code]));
 
-test.each(currencies)(
-  "normalizes Bank of Taiwan spot mid-rates to %s",
-  (baseCurrency) => {
-    const snapshot = buildExchangeRateSnapshot(rates, baseCurrency);
+test("record reads use saved data without fetching any current rate", async () => {
+  const fetchRate = vi.fn(async () => {
+    throw new Error("No provider access");
+  });
+  const service = createExchangeRateService({ fetchRate });
+  expect((await service.buildTripPayload(emptyTrip)).exchangeRateInfo).toEqual({
+    source: "visa",
+  });
+  const custom = await service.buildTripPayload({
+    ...emptyTrip,
+    exchangeRates: { USD: 30, TWD: 1 },
+  });
+  expect(custom.exchangeRateInfo).toEqual({
+    source: "custom",
+    customRates: { USD: 30 },
+    defaults: { source: "visa" },
+  });
+  expect(custom.trip.exchangeRates).toEqual({ USD: 30, TWD: 1 });
+  expect(fetchRate).not.toHaveBeenCalled();
+  expect(fetchBankRates).not.toHaveBeenCalled();
+});
 
-    assert.equal(snapshot.baseCurrency, baseCurrency);
-    assert.equal(snapshot.fetchedAt, fetchedAt);
-    assert.equal(snapshot.rateType, "spotMid");
-    assert.equal(snapshot.source, "BANK_OF_TAIWAN");
-    assert.equal(snapshot.rates[baseCurrency], 1);
-    for (const [currency, value] of Object.entries(snapshot.rates)) {
-      expect(value).toBeCloseTo(
-        rateToTwd[currency as Currency] / rateToTwd[baseCurrency],
-        10,
-      );
-    }
-  },
-);
+test("coalesces requests, caches successes, and separates both targets and dates", async () => {
+  let now = Date.parse("2026-07-05T00:00:00Z");
+  const fetchRate = vi.fn(async (q: VisaRateQuery) => quote(q));
+  const service = createExchangeRateService({
+    fetchRate,
+    now: () => new Date(now),
+  });
+  const [first, second] = await Promise.all([
+    service.getRate(query),
+    service.getRate(query),
+  ]);
+  expect(first).toEqual(second);
+  await service.getRate(query);
+  expect(fetchRate).toHaveBeenCalledTimes(1);
+  await service.getRate({ ...query, date: "2026-07-06" });
+  await service.getRate({ ...query, target: "USD" });
+  expect(fetchRate).toHaveBeenCalledTimes(3);
+  now += 15 * 60_000;
+  await service.getRate(query);
+  expect(fetchRate).toHaveBeenCalledTimes(4);
+  expect(fetchRate).toHaveBeenLastCalledWith({
+    ...query,
+    amount: 1,
+    bankFeePercent: 0,
+  });
+});
 
-test("keeps missing spot quotes out of bank metadata and uses explicit fixed expense estimates", () => {
-  const partialRates = rates.filter((quote) => quote.source !== "KRW");
-  const snapshot = buildExchangeRateSnapshot(partialRates, "TWD");
+test("backs off failed requests without fallback and retries after expiry", async () => {
+  let now = 0;
+  const fetchRate = vi
+    .fn(async (q: VisaRateQuery) => quote(q))
+    .mockRejectedValueOnce(new Error("Provider timeout"));
+  const service = createExchangeRateService({
+    fetchRate,
+    now: () => new Date(now),
+  });
+  await expect(service.getRate(query)).rejects.toThrow("timeout");
+  await expect(service.getRate(query)).rejects.toThrow("timeout");
+  expect(fetchRate).toHaveBeenCalledTimes(1);
+  now += 60_000;
+  await expect(service.getRate(query)).resolves.toMatchObject({
+    visaRate: 0.2,
+  });
+  expect(fetchRate).toHaveBeenCalledTimes(2);
+});
+
+test.each([
+  { visaRate: 0 },
+  { bankFeePercent: 1.5 },
+  { amount: 2 },
+  { date: "2026-07-06" },
+  { source: "USD" },
+  { fetchedAt: "invalid" },
+])("rejects a mismatched Visa response %j", async (invalid) => {
+  const service = createExchangeRateService({
+    fetchRate: async (q) => ({ ...quote(q), ...invalid }),
+  });
+  await expect(service.getRate(query)).rejects.toThrow("Invalid Visa quote");
+});
+
+test("identity rates do not query a provider, but still validate dates", async () => {
+  const fetchRate = vi.fn(async (q: VisaRateQuery) => quote(q));
+  const service = createExchangeRateService({ fetchRate });
+  await expect(
+    service.getRate({ source: "JPY", target: "JPY", date }),
+  ).resolves.toMatchObject({ visaRate: 1 });
+  await expect(
+    service.getRate({ source: "JPY", target: "JPY", date: "invalid" }),
+  ).rejects.toThrow("Invalid rate query");
+  expect(fetchRate).not.toHaveBeenCalled();
+});
+
+test("preview queries direct pairs, uses the Taiwan date, and reports missing currencies", async () => {
+  const fetchRate = vi.fn(async (q: VisaRateQuery) => {
+    if (q.source === "KRW") throw new Error("Unavailable");
+    return quote(q);
+  });
+  const service = createExchangeRateService({
+    fetchRate,
+    now: () => new Date("2026-07-05T18:00:00Z"),
+  });
+  const snapshot = await service.getSnapshot("USD");
+  expect(snapshot).toMatchObject({
+    source: "VISA",
+    rateType: "visa",
+    date: "2026-07-06",
+    rates: { USD: 1, JPY: 0.2 },
+    unavailableCurrencies: ["KRW"],
+  });
   expect(snapshot.rates.KRW).toBeUndefined();
-  expect(snapshot.rates.SGD).toBe(24.5);
-  expect(expenseExchangeRate(emptyTrip(), "KRW", snapshot)).toMatchObject({
-    source: "fixed",
-    rateToBase: 0.024,
-  });
-  expect(expenseExchangeRate(emptyTrip(), "SGD", snapshot)).toMatchObject({
-    source: "bank",
-    rateToBase: 24.5,
-  });
-  expect(() => buildExchangeRateSnapshot(partialRates, "KRW")).toThrow(
-    "Missing KRW/TWD spot rate",
-  );
+  expect(fetchRate).toHaveBeenCalledTimes(currencies.length - 1);
+  expect(fetchRate.mock.calls.every(([q]) => q.target === "USD")).toBe(true);
 });
 
-test("payload builder applies bank defaults, preserves custom rates, and falls back", async () => {
-  const trip = emptyTrip();
-  const service = createExchangeRateService({ fetchRates: async () => rates });
-  const bankPayload = await service.buildTripPayload(trip);
-  assert.equal(bankPayload.exchangeRateInfo?.source, "bank");
-  assert.equal(bankPayload.trip.exchangeRates?.USD, 31.8);
-
-  const customPayload = await service.buildTripPayload({
-    ...trip,
-    exchangeRates: { TWD: 1, USD: 30 },
-  });
-  assert.equal(customPayload.exchangeRateInfo?.source, "custom");
-  assert.equal(customPayload.trip.exchangeRates?.EUR, 36.5);
-  assert.equal(customPayload.trip.exchangeRates?.JPY, 0.2);
-  assert.equal(customPayload.trip.exchangeRates?.USD, 30);
-  if (customPayload.exchangeRateInfo?.source !== "custom") {
-    assert.fail("Expected custom exchange-rate metadata");
-  }
-  assert.deepEqual(customPayload.exchangeRateInfo.customRates, { USD: 30 });
-  assert.equal(customPayload.exchangeRateInfo.defaults.source, "bank");
-
-  const fallbackService = createExchangeRateService({
-    fetchRates: async () => {
-      throw new Error("upstream unavailable");
-    },
-  });
-  const fallbackPayload = await fallbackService.buildTripPayload(trip);
-  assert.equal(fallbackPayload.exchangeRateInfo?.source, "fixed");
-  assert.equal(fallbackPayload.trip.exchangeRates, undefined);
-
-  const fallbackCustomPayload = await fallbackService.buildTripPayload({
-    ...trip,
-    exchangeRates: { TWD: 1, USD: 30 },
-  });
-  assert.equal(fallbackCustomPayload.trip.exchangeRates?.EUR, 35);
-  assert.equal(fallbackCustomPayload.trip.exchangeRates?.JPY, 0.22);
-  assert.equal(fallbackCustomPayload.trip.exchangeRates?.USD, 30);
-  if (fallbackCustomPayload.exchangeRateInfo?.source !== "custom") {
-    assert.fail("Expected custom exchange-rate metadata");
-  }
-  assert.equal(fallbackCustomPayload.exchangeRateInfo.defaults.source, "fixed");
-});
-
-test("exchange-rate endpoint returns injected rates and handles failures", async () => {
+test("preview endpoint validates inputs and returns a stable provider error", async () => {
   const allowed: OtterMiddleware = async (_context, next) => next();
   const app = new Hono<OtterEnv>();
+  const fetchRate = vi.fn(async () => {
+    throw new Error("Provider unavailable");
+  });
   registerExchangeRateRoutes(
     app,
     allowed,
-    createExchangeRateService({ fetchRates: async () => rates }),
+    createExchangeRateService({ fetchRate }),
   );
-
-  const response = await app.request("/api/exchange-rates/USD");
-  assert.equal(response.status, 200);
-  const payload = (await response.json()) as { rates: Record<string, number> };
-  assert.equal(payload.rates.USD, 1);
-
-  const invalid = await app.request("/api/exchange-rates/BTC");
-  assert.equal(invalid.status, 400);
-
-  const failingApp = new Hono<OtterEnv>();
-  registerExchangeRateRoutes(
-    failingApp,
-    allowed,
-    createExchangeRateService({
-      fetchRates: async () => {
-        throw new Error("upstream unavailable");
-      },
-    }),
-  );
-  const unavailable = await failingApp.request("/api/exchange-rates/TWD");
-  assert.equal(unavailable.status, 502);
-  assert.deepEqual(await unavailable.json(), {
-    error: "目前無法取得銀行匯率，請稍後再試",
+  expect((await app.request("/api/exchange-rates/BTC")).status).toBe(400);
+  const unavailable = await app.request("/api/exchange-rates/TWD");
+  expect(unavailable.status).toBe(502);
+  expect(await unavailable.json()).toEqual({
+    error: "目前無法取得 Visa 匯率，請稍後再試",
   });
 });
-
-function emptyTrip(): LoadedTrip {
-  return {
-    baseCurrency: "TWD",
-    createdAt: "2026-09-20T00:00:00.000Z",
-    expenses: [],
-    id: "trip_1",
-    name: "Tokyo",
-    ownerId: "user_1",
-    participants: [],
-  };
-}
-
-function rate(source: string, mid: number): Rate {
-  return {
-    exchange: "BANK_OF_TAIWAN",
-    fetchedAt,
-    source,
-    spotBuy: mid - 0.01,
-    spotSell: mid + 0.01,
-    target: "TWD",
-  };
-}

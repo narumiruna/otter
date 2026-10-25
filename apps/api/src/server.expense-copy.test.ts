@@ -11,33 +11,34 @@ test.each([false, true])(
   "a copied expense POST gets new snapshots and history (Visa %s)",
   postgresTestOptions,
   async (visa) => {
-    let bankMid = 32;
     const fetchRate = vi.fn(async (q: VisaRateQuery) => ({
       source: q.source,
       target: q.target,
       date: q.date ?? "2026-10-01",
       amount: 1,
       bankFeePercent: 0,
-      visaRate: q.date === "2026-10-02" ? 0.9 : 0.8,
-      rate: q.date === "2026-10-02" ? 0.9 : 0.8,
+      visaRate:
+        q.target === "TWD"
+          ? q.date === "2026-10-02"
+            ? 40
+            : 32
+          : q.date === "2026-10-02"
+            ? 0.9
+            : 0.8,
+      rate:
+        q.target === "TWD"
+          ? q.date === "2026-10-02"
+            ? 40
+            : 32
+          : q.date === "2026-10-02"
+            ? 0.9
+            : 0.8,
       convertedAmount: 0.8,
       fetchedAt: "2026-10-02T00:00:00Z",
     }));
     const s = await withTestApp({
       appOptions: {
         visaSettlement: { fetchRate },
-        exchangeRates: {
-          fetchRates: async () => [
-            {
-              exchange: "BANK_OF_TAIWAN",
-              fetchedAt: "2026-10-02T00:00:00Z",
-              source: "USD",
-              target: "TWD",
-              spotBuy: bankMid,
-              spotSell: bankMid,
-            },
-          ],
-        },
       },
       prepare: async (pool) => {
         await pool.query(
@@ -98,7 +99,6 @@ test.each([false, true])(
       (e) => e.id === sourceId,
     );
     expect(source?.receiptId).toBeDefined();
-    bankMid = 40;
     const copied = await request(`${path}/expenses`, "POST", {
       ...input,
       expenseDate: "2026-10-02",
@@ -132,6 +132,8 @@ test.each([false, true])(
         source: "USD",
         target: "EUR",
         date: "2026-10-02",
+        amount: 1,
+        bankFeePercent: 0,
       });
     }
     const revisions = await s.pool.query(

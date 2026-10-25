@@ -5,7 +5,7 @@ import { useI18n } from "../i18n.js";
 export function OverviewSummary({ payload }: { payload: TripPayload }) {
   const { formatMoney, messages } = useI18n();
   const { trip, settlements } = payload;
-  const { totalMinor } = spendingSummary(trip);
+  const summary = spendingSummary(trip);
   const outstandingMinor = settlements.reduce(
     (total, settlement) => total + settlement.amountMinor,
     0,
@@ -20,7 +20,9 @@ export function OverviewSummary({ payload }: { payload: TripPayload }) {
           <span>{messages.totalSharedExpenses}</span>
         </div>
         <strong className="summary-card-value">
-          {formatMoney(totalMinor, trip.baseCurrency)}
+          {summary.rateUnavailable
+            ? messages.rateUnavailable
+            : formatMoney(summary.totalMinor, trip.baseCurrency)}
         </strong>
         <span className="summary-card-hint">
           {trip.baseCurrency} · {messages.convertedToBaseCurrency}

@@ -1,6 +1,7 @@
 import type { Messages } from "./messages.js";
 
 export const sourceMessageKeys = {
+  "旅行設定已變更，請重新載入": "visaSettingsChanged",
   "Visa 結清設定格式錯誤": "visaSettingInvalid",
   既有付款紀錄必須使用所選結清貨幣: "visaIncompatiblePayments",
   "請選擇 Visa 結清貨幣": "visaSettlementCurrency",
@@ -643,6 +644,14 @@ export const sourceMessageKeys = {
   分類或標籤格式錯誤: "invalidCategoryOrTagFormat",
   "匯率必須大於 0": "exchangeRatesMustBeGreaterThan0",
   匯率格式錯誤: "invalidExchangeRateFormat",
+  "Visa 匯率格式錯誤": "invalidExchangeRateFormat",
+  支出缺少匯率快照: "expenseHistoryRateUnavailable",
+  備份付款匯率格式錯誤: "invalidPaymentRecordsInBackup",
+  備份付款缺少匯率: "invalidPaymentRecordsInBackup",
+  備份付款換算金額超出範圍: "invalidPaymentRecordsInBackup",
+  備份支出換算金額超出範圍: "invalidExpenseDataInBackup",
+  備份支出匯率格式錯誤: "invalidExchangeRatesInBackup",
+  "備份 Visa 匯率格式錯誤": "invalidExchangeRatesInBackup",
   參與者名稱已存在: "aParticipantWithThisNameAlreadyExists",
   "參與者已有付款紀錄，不能刪除":
     "thisParticipantHasPaymentRecordsAndCannotBeDeleted",

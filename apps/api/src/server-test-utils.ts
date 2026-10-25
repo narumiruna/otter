@@ -7,7 +7,11 @@ import type {
   TripsResponse,
   UserResponse,
 } from "@narumitw/otter-contracts";
-import type { Rate } from "@narumitw/otter-exchange-rates";
+import { fixedExchangeRates, isCurrency } from "@narumitw/otter-core/money";
+import type {
+  VisaRate,
+  VisaRateQuery,
+} from "@narumitw/otter-visa-exchange-rates";
 import type { Pool as PgPool } from "pg";
 import pg from "pg";
 import { onTestFinished } from "vitest";
@@ -16,11 +20,6 @@ import { createApp } from "./server.js";
 
 const { Pool } = pg;
 const silentLogger = { log: (..._messages: unknown[]) => {} };
-const testExchangeRates: Rate[] = [
-  testExchangeRate("JPY", 0.22),
-  testExchangeRate("USD", 32),
-  testExchangeRate("EUR", 35),
-];
 export const testDatabaseUrl = process.env.DATABASE_URL;
 
 export const postgresTestOptions = {
@@ -60,14 +59,18 @@ export async function withTestApp(
     await adminPool.end();
   });
 
-  assert.equal(await runMigrations(pool, { logger: silentLogger }), 26);
+  assert.equal(await runMigrations(pool, { logger: silentLogger }), 28);
   assert.equal(await runMigrations(pool, { logger: silentLogger }), 0);
   await options.prepare?.(pool);
 
   const app = createApp(pool, {
     ...options.appOptions,
-    exchangeRates: options.appOptions?.exchangeRates ?? {
-      fetchRates: async () => testExchangeRates,
+    exchangeRates: {
+      ...options.appOptions?.exchangeRates,
+      fetchRate:
+        options.appOptions?.exchangeRates?.fetchRate ??
+        options.appOptions?.visaSettlement?.fetchRate ??
+        testVisaRate,
     },
   });
   server = await listen(createAdaptorServer({ fetch: app.fetch }));
@@ -89,14 +92,21 @@ export async function api<T>(
   return { data, response };
 }
 
-function testExchangeRate(source: string, mid: number): Rate {
+export async function testVisaRate(query: VisaRateQuery): Promise<VisaRate> {
+  const rates = fixedExchangeRates("TWD");
+  if (!isCurrency(query.source) || !isCurrency(query.target))
+    throw new Error("Unsupported test currency");
+  const rate = rates[query.source] / rates[query.target];
   return {
-    exchange: "BANK_OF_TAIWAN",
-    fetchedAt: "2026-09-20T00:00:00.000Z",
-    source,
-    spotBuy: mid,
-    spotSell: mid,
-    target: "TWD",
+    source: query.source,
+    target: query.target,
+    date: query.date ?? "2026-10-25",
+    amount: 1,
+    bankFeePercent: 0,
+    visaRate: rate,
+    rate,
+    convertedAmount: rate,
+    fetchedAt: "2026-10-25T00:00:00.000Z",
   };
 }
 

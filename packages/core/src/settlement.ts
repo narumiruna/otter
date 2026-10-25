@@ -1,6 +1,11 @@
 import type { ExpenseCategory } from "./expense-metadata.js";
-import type { Currency, ExchangeRates, ExpenseExchangeRate } from "./money.js";
-import { convertExpenseMinor, convertMinorWithRates } from "./money.js";
+import type {
+  Currency,
+  ExchangeRateBridge,
+  ExchangeRates,
+  ExpenseExchangeRate,
+} from "./money.js";
+import { convertExpenseMinor } from "./money.js";
 
 import {
   convertVisaExpenseMinor,
@@ -24,6 +29,7 @@ export type Expense = {
   amountMinor: number;
   currency: Currency;
   exchangeRate?: ExpenseExchangeRate;
+  exchangeRateBridge?: ExchangeRateBridge;
   visaExchangeRate?: VisaExpenseRate;
   category?: ExpenseCategory;
   tags?: string[];
@@ -43,6 +49,8 @@ export type SettlementPayment = {
   amountMinor: number;
   currency: Currency;
   paidAt: string;
+  exchangeRate?: ExpenseExchangeRate;
+  exchangeRateBridge?: ExchangeRateBridge;
   note: string;
   createdAt: string;
 };
@@ -130,6 +138,8 @@ function expenseTotals(
           trip.baseCurrency,
           expense.exchangeRate,
           trip.exchangeRates,
+          expense.exchangeRateBridge,
+          expense.expenseDate,
         );
   const participantOrder = new Map(
     trip.participants.map((participant, index) => [participant.id, index]),
@@ -267,12 +277,17 @@ function balancesWithEntries(
       throw new Error(
         "Visa settlement payments must use the selected currency",
       );
-    const amount = convertMinorWithRates(
-      payment.amountMinor,
-      payment.currency,
-      currency,
-      trip.exchangeRates,
-    );
+    const amount = trip.visaSettlementEnabled
+      ? payment.amountMinor
+      : convertExpenseMinor(
+          payment.amountMinor,
+          payment.currency,
+          currency,
+          payment.exchangeRate,
+          trip.exchangeRates,
+          payment.exchangeRateBridge,
+          payment.paidAt,
+        );
     recordPayment?.(payment.fromId, {
       paymentId: payment.id,
       amountMinor: amount,

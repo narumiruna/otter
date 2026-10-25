@@ -1,7 +1,6 @@
-import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
 import {
   type TripBackup,
-  type TripBackupV2,
+  type TripBackupV3,
   validateTripBackupV1,
 } from "@narumitw/otter-core/backup";
 import {
@@ -12,7 +11,6 @@ import {
   isCurrency,
 } from "@narumitw/otter-core/money";
 import type { Pool as PgPool, PoolClient } from "pg";
-import { effectiveTripRates } from "./server-exchange-rates.js";
 import { recordExpenseChanges } from "./server-expense-history.js";
 import { ExpenseRateError } from "./server-expense-rates.js";
 import { insertExpense } from "./server-expense-store.js";
@@ -36,7 +34,6 @@ export function registerBackupRoutes(
   pool: PgPool,
   mustBeSignedIn: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
-  getSnapshot: (baseCurrency: Currency) => Promise<ExchangeRateSnapshot>,
 ) {
   app.get(
     "/api/trips/:tripId/backup",
@@ -54,7 +51,7 @@ export function registerBackupRoutes(
       if (trip.currentUserRole !== "owner") {
         return sendError(context, 403, "只有擁有者可下載完整備份");
       }
-      return context.json(tripBackupV2(trip));
+      return context.json(tripBackupV3(trip));
     },
   );
 
@@ -65,26 +62,10 @@ export function registerBackupRoutes(
     async (context) => {
       const user = currentUser(context);
       let backup: TripBackup;
-      let quote: ExchangeRateSnapshot | null = null;
       try {
         const body = requestBody(context);
         const input = "version" in body ? body : body.backup;
-        // Read only the proposed base before full validation so the validator
-        // can check cross-base snapshots against the actual response rates.
-        const proposedTrip =
-          input && typeof input === "object" && "trip" in input
-            ? input.trip
-            : null;
-        const proposedBase =
-          proposedTrip &&
-          typeof proposedTrip === "object" &&
-          "baseCurrency" in proposedTrip
-            ? proposedTrip.baseCurrency
-            : null;
-        if (isCurrency(proposedBase)) {
-          quote = await getSnapshot(proposedBase).catch(() => null);
-        }
-        backup = validateTripBackupV1(input, quote?.rates);
+        backup = validateTripBackupV1(input);
       } catch (error) {
         return sendError(
           context,
@@ -177,13 +158,20 @@ export function registerBackupRoutes(
             restoredRates[currency] = Number(saved.rows[0].rate_to_base);
           }
 
-          const effectiveRates = effectiveTripRates(
-            {
-              baseCurrency: backup.trip.baseCurrency,
-              exchangeRates: restoredRates,
-            },
-            quote,
-          );
+          // Only old backup formats need explicit, labelled legacy estimates.
+          const effectiveRates: ExchangeRates =
+            backup.version === 3
+              ? restoredRates
+              : {
+                  ...fixedExchangeRates(backup.trip.baseCurrency),
+                  ...restoredRates,
+                };
+          const legacyRate = (currency: Currency): number => {
+            const rate = effectiveRates[currency];
+            if (rate === undefined)
+              throw new ExpenseRateError("備份匯率格式錯誤");
+            return rate;
+          };
           const restoredParticipantId = (id: string): string => {
             const restored = participantIds.get(id);
             if (!restored)
@@ -192,7 +180,7 @@ export function registerBackupRoutes(
           };
           for (const expense of backup.trip.expenses) {
             const exchangeRate =
-              backup.version === 2 && "exchangeRate" in expense
+              backup.version !== 1 && "exchangeRate" in expense
                 ? expense.exchangeRate
                 : {
                     baseCurrency: backup.trip.baseCurrency,
@@ -207,13 +195,26 @@ export function registerBackupRoutes(
                           )),
                     source: "legacy" as const,
                   };
+            const bridge =
+              (backup.version === 1 ? undefined : expense.exchangeRateBridge) ??
+              (backup.version !== 3 &&
+              exchangeRate.baseCurrency !== backup.trip.baseCurrency
+                ? {
+                    sourceCurrency: exchangeRate.baseCurrency,
+                    baseCurrency: backup.trip.baseCurrency,
+                    rateToBase: legacyRate(exchangeRate.baseCurrency),
+                    source: "legacy" as const,
+                  }
+                : undefined);
             try {
               convertExpenseMinor(
                 expense.amountMinor,
                 expense.currency,
                 backup.trip.baseCurrency,
                 exchangeRate,
-                effectiveRates,
+                undefined,
+                bridge,
+                expense.expenseDate,
               );
             } catch {
               throw new ExpenseRateError("備份支出換算金額超出範圍");
@@ -221,6 +222,7 @@ export function registerBackupRoutes(
             await insertExpense(client, newTripId, {
               ...expense,
               exchangeRate,
+              exchangeRateBridge: bridge,
               id: makeId("expense"),
               category: expense.category ?? "其他",
               tags: expense.tags ?? [],
@@ -234,10 +236,46 @@ export function registerBackupRoutes(
           }
 
           for (const payment of backup.trip.settlementPayments ?? []) {
+            const exchangeRate =
+              (backup.version === 1 ? undefined : payment.exchangeRate) ??
+              (backup.version !== 3
+                ? {
+                    baseCurrency: backup.trip.baseCurrency,
+                    rateToBase: legacyRate(payment.currency),
+                    source: "legacy" as const,
+                  }
+                : undefined);
+            const bridge =
+              (backup.version === 1 ? undefined : payment.exchangeRateBridge) ??
+              (backup.version !== 3 &&
+              exchangeRate &&
+              exchangeRate.baseCurrency !== backup.trip.baseCurrency
+                ? {
+                    sourceCurrency: exchangeRate.baseCurrency,
+                    baseCurrency: backup.trip.baseCurrency,
+                    rateToBase: legacyRate(exchangeRate.baseCurrency),
+                    source: "legacy" as const,
+                  }
+                : undefined);
+            if (!backup.trip.visaSettlementEnabled) {
+              try {
+                convertExpenseMinor(
+                  payment.amountMinor,
+                  payment.currency,
+                  backup.trip.baseCurrency,
+                  exchangeRate,
+                  undefined,
+                  bridge,
+                  payment.paidAt,
+                );
+              } catch {
+                throw new ExpenseRateError("備份付款換算金額超出範圍");
+              }
+            }
             await client.query(
               `INSERT INTO settlement_payments
-               (id, trip_id, from_id, to_id, amount_minor, currency, paid_at, note, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+               (id, trip_id, from_id, to_id, amount_minor, currency, paid_at, note, created_at, exchange_rate, exchange_rate_bridge)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
               [
                 makeId("payment"),
                 newTripId,
@@ -248,6 +286,8 @@ export function registerBackupRoutes(
                 payment.paidAt,
                 payment.note,
                 payment.createdAt,
+                exchangeRate ?? null,
+                bridge ?? null,
               ],
             );
           }
@@ -271,14 +311,14 @@ export function registerBackupRoutes(
       if (!restored) {
         throw new Error("Trip disappeared after restore");
       }
-      return context.json(await buildTripPayload(restored, quote), 201);
+      return context.json(await buildTripPayload(restored), 201);
     },
   );
 }
 
-function tripBackupV2(
+function tripBackupV3(
   trip: NonNullable<Awaited<ReturnType<typeof loadTripForUser>>>,
-): TripBackupV2 {
+): TripBackupV3 {
   return {
     exportedAt: nowIso(),
     trip: {
@@ -296,15 +336,10 @@ function tripBackupV2(
         ...(expense.visaExchangeRate
           ? { visaExchangeRate: expense.visaExchangeRate }
           : {}),
-        exchangeRate: expense.exchangeRate ?? {
-          baseCurrency: trip.baseCurrency,
-          rateToBase: Number(
-            fixedExchangeRates(trip.baseCurrency)[expense.currency].toPrecision(
-              12,
-            ),
-          ),
-          source: "legacy" as const,
-        },
+        exchangeRate: requiredSavedRate(expense.exchangeRate),
+        ...(expense.exchangeRateBridge
+          ? { exchangeRateBridge: expense.exchangeRateBridge }
+          : {}),
         description: expense.description,
         expenseDate: expense.expenseDate,
         id: expense.id,
@@ -319,8 +354,15 @@ function tripBackupV2(
       participants: trip.participants,
       settlementPayments: trip.settlementPayments ?? [],
     },
-    version: 2,
+    version: 3,
   };
+}
+
+function requiredSavedRate(
+  rate: import("@narumitw/otter-core/money").ExpenseExchangeRate | undefined,
+) {
+  if (!rate) throw new ExpenseRateError("支出缺少匯率快照");
+  return rate;
 }
 
 async function uniqueRestoredTripName(

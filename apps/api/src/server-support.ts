@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import type {
   ExchangeRateInfo,
-  ExchangeRateSnapshot,
   ExpenseSnapshot,
   User as PublicUser,
   Trip,
@@ -101,6 +100,12 @@ type SettlementPaymentRow = {
   amount_minor: string | number;
   currency: string;
   paid_at: Date | string;
+  exchange_rate:
+    | import("@narumitw/otter-core/money").ExpenseExchangeRate
+    | null;
+  exchange_rate_bridge:
+    | import("@narumitw/otter-core/money").ExchangeRateBridge
+    | null;
   note: string;
   created_at: Date | string;
 };
@@ -268,12 +273,8 @@ export function clearSessionCookie(context: OtterContext) {
   context.header("Set-Cookie", clearSessionCookieHeader());
 }
 
-// Passing a quote (or null for fixed fallback) reuses the exact rates validated
-// before a mutation commits. Omit it for ordinary reads that fetch fresh rates.
-export type BuildTripPayload = (
-  trip: LoadedTrip,
-  quote?: ExchangeRateSnapshot | null,
-) => Promise<TripPayload>;
+// Responses use the captured committed trip. No external rates are fetched here.
+export type BuildTripPayload = (trip: LoadedTrip) => Promise<TripPayload>;
 
 export function tripPayload(
   trip: LoadedTrip,
@@ -583,7 +584,7 @@ async function loadTrip(
     );
   const readPayments = () =>
     db.query<SettlementPaymentRow>(
-      `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, note, created_at
+      `SELECT id, from_id, to_id, amount_minor, currency, paid_at::text AS paid_at, exchange_rate, exchange_rate_bridge, note, created_at
        FROM settlement_payments
        WHERE trip_id = $1
        ORDER BY paid_at, created_at, id`,
@@ -697,6 +698,10 @@ async function loadTrip(
       id: row.id,
       note: row.note,
       paidAt: dateOnly(row.paid_at),
+      ...(row.exchange_rate ? { exchangeRate: row.exchange_rate } : {}),
+      ...(row.exchange_rate_bridge
+        ? { exchangeRateBridge: row.exchange_rate_bridge }
+        : {}),
       toId: row.to_id,
     })),
     shareLinks: shareLinksResult.rows.map((row) => ({

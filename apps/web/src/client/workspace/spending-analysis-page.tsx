@@ -20,9 +20,14 @@ export function SpendingAnalysisPage({ payload }: { payload: TripPayload }) {
           {messages.spendingAnalysis}
         </h3>
         <p className="text-sm text-muted-foreground">
-          {messages.totalAmount({
-            amount: formatMoney(summary.totalMinor, payload.trip.baseCurrency),
-          })}
+          {summary.rateUnavailable
+            ? messages.rateUnavailable
+            : messages.totalAmount({
+                amount: formatMoney(
+                  summary.totalMinor,
+                  payload.trip.baseCurrency,
+                ),
+              })}
         </p>
       </header>
       <SpendingAnalysisContent payload={payload} summary={summary} />
@@ -54,9 +59,11 @@ export function SpendingAnalysisDisclosure({
         <ChevronDown aria-hidden="true" />
         <h3 className="inline text-lg">{messages.spendingAnalysis}</h3>{" "}
         <span className="summary-meta">
-          {messages.totalAmount({
-            amount: formatMoney(summary.totalMinor, trip.baseCurrency),
-          })}
+          {summary.rateUnavailable
+            ? messages.rateUnavailable
+            : messages.totalAmount({
+                amount: formatMoney(summary.totalMinor, trip.baseCurrency),
+              })}
         </span>
       </summary>
       <div className="pt-4">
@@ -75,6 +82,8 @@ function SpendingAnalysisContent({
 }) {
   const { trip } = payload;
   const { formatMoney, messages } = useI18n();
+  if (summary.rateUnavailable)
+    return <p role="status">{messages.rateUnavailable}</p>;
   const charts = [
     {
       title: messages.dailySpending,

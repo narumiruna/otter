@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import type { TripPayload } from "@narumitw/otter-contracts";
+import type { ExpenseExchangeRate } from "@narumitw/otter-core/money";
 import { describe, expect, test } from "vitest";
 import {
   executeSettlementPreview,
@@ -71,6 +72,69 @@ describe("settlement preview", () => {
     expect(settlementPreview(payload)).toEqual({
       balances: payload.balances,
       settlements: payload.settlements,
+    });
+  });
+
+  test("previews dated Visa base and payment snapshots without network access", async () => {
+    const date = "2026-09-20";
+    const rate: ExpenseExchangeRate = {
+      source: "visa" as const,
+      provider: "VISA",
+      rateType: "visa",
+      date,
+      fetchedAt: "2026-09-20T00:00:00Z",
+      baseCurrency: "TWD" as const,
+      rateToBase: 32,
+    };
+    const dated: TripPayload = {
+      ...payload,
+      exchangeRateInfo: { source: "visa" },
+      trip: {
+        ...payload.trip,
+        expenses: [
+          { ...payload.trip.expenses[0], currency: "USD", exchangeRate: rate },
+        ],
+        settlementPayments: [
+          {
+            id: "p",
+            fromId: "bob",
+            toId: "alice",
+            currency: "JPY",
+            amountMinor: 10,
+            paidAt: date,
+            note: "",
+            createdAt: rate.fetchedAt,
+            exchangeRate: { ...rate, rateToBase: 0.2 },
+          },
+        ],
+      },
+    };
+    const preview = await executeSettlementPreview(
+      "-",
+      Readable.from([JSON.stringify(dated)]),
+    );
+    expect(preview.balances.map((b) => [b.amountMinor, b.currency])).toEqual([
+      [14, "TWD"],
+      [-14, "TWD"],
+    ]);
+    expect(preview.settlements[0]).toMatchObject({
+      amountMinor: 14,
+      currency: "TWD",
+    });
+    const missing = {
+      ...dated,
+      trip: {
+        ...dated.trip,
+        expenses: dated.trip.expenses.map(
+          ({ exchangeRate: _rate, ...expense }) => expense,
+        ),
+      },
+    };
+    await expect(
+      executeSettlementPreview("-", Readable.from([JSON.stringify(missing)])),
+    ).rejects.toMatchObject({
+      code: "INPUT_ERROR",
+      message: expect.stringContaining("Missing saved"),
     });
   });
 

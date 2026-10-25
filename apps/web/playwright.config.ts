@@ -19,7 +19,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm run dev --workspace @narumitw/otter-api",
+      command:
+        "npm exec --workspace @narumitw/otter-api -- tsx scripts/serve-e2e.ts",
       env: {
         ...process.env,
         DEV_ADMIN_PASSWORD: "admin1234",

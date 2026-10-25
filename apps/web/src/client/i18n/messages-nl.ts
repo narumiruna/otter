@@ -6,12 +6,14 @@ import {
 } from "./message-types.js";
 import { nlAi } from "./messages-ai.js";
 import { nlAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { nlErrors } from "./messages-nl-errors.js";
 import { nlFeatures } from "./messages-nl-features.js";
 import { nlSettings } from "./messages-nl-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const nl = {
+  ...automaticRateMessages("nl"),
   ...nlAi,
   ...nlAiAuth,
   backToExpenseList: "Terug naar de uitgavenlijst",

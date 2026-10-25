@@ -269,13 +269,8 @@ test("auth and trip APIs use Postgres", postgresTestOptions, async () => {
   );
   assert.equal(rebasedAfterRates.response.status, 200);
   assert.equal(rebasedAfterRates.data.trip.baseCurrency, "TWD");
-  assert.deepEqual(rebasedAfterRates.data.trip.exchangeRates, {
-    EUR: 35,
-    JPY: 0.22,
-    TWD: 1,
-    USD: 32,
-  });
-  assert.equal(rebasedAfterRates.data.exchangeRateInfo?.source, "bank");
+  assert.equal(rebasedAfterRates.data.trip.exchangeRates, undefined);
+  assert.equal(rebasedAfterRates.data.exchangeRateInfo?.source, "visa");
 
   const invalidExchangeRate = await api<{ error: string }>(
     baseUrl,

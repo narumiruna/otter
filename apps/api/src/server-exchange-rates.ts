@@ -1,134 +1,159 @@
-import type {
-  ExchangeRateDefaults,
-  ExchangeRateSnapshot,
-} from "@narumitw/otter-contracts";
+import type { ExchangeRateSnapshot } from "@narumitw/otter-contracts";
+import { isDateOnly } from "@narumitw/otter-core/date";
 import {
   type Currency,
+  currencies,
   type ExchangeRates,
-  fixedExchangeRates,
   isCurrency,
 } from "@narumitw/otter-core/money";
 import {
-  createCachedRateFetcher,
-  fetchRates,
-  type Rate,
-  spotMid,
-} from "@narumitw/otter-exchange-rates";
+  fetchVisaRate,
+  type VisaRate,
+  type VisaRateQuery,
+} from "@narumitw/otter-visa-exchange-rates";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
   type BuildTripPayload,
-  type LoadedTrip,
   sendError,
   tripPayload,
 } from "./server-support.js";
 
 export type ExchangeRateRouteOptions = {
-  fetchRates?: () => Promise<readonly Rate[]>;
+  fetchRate?: typeof fetchVisaRate;
+  now?: () => Date;
 };
 
-export type ExchangeRateService = {
-  buildTripPayload: BuildTripPayload;
-  getRates: () => Promise<readonly Rate[]>;
-  getSnapshot: (baseCurrency: Currency) => Promise<ExchangeRateSnapshot>;
-};
+export function rateKey(source: string, target: string, date: string): string {
+  return `${source}/${target}/${date}`;
+}
 
 export function createExchangeRateService(
   options: ExchangeRateRouteOptions = {},
-): ExchangeRateService {
-  const fetchCurrentRates =
-    options.fetchRates ??
-    createCachedRateFetcher(() => fetchRates("BANK_OF_TAIWAN"));
-  const getSnapshot = async (baseCurrency: Currency) =>
-    buildExchangeRateSnapshot(await fetchCurrentRates(), baseCurrency);
-
-  return {
-    getRates: fetchCurrentRates,
-    getSnapshot,
-    buildTripPayload: async (trip, prefetchedQuote) => {
-      const customRates = customExchangeRates(trip);
-      const hasCustomRates = Object.keys(customRates).length > 0;
-      let defaults: ExchangeRateDefaults;
-      let candidate: ExchangeRateSnapshot | null = null;
-      try {
-        candidate =
-          prefetchedQuote === undefined
-            ? await getSnapshot(trip.baseCurrency)
-            : prefetchedQuote;
-        if (!candidate) throw new Error("Bank quote unavailable");
-        defaults = {
-          fetchedAt: candidate.fetchedAt,
-          provider: candidate.source,
-          rates: candidate.rates,
-          rateType: candidate.rateType,
-          source: "bank",
-        };
-      } catch {
-        if (!hasCustomRates) {
-          return tripPayload(trip, { source: "fixed" });
-        }
-        defaults = {
-          rates: fixedExchangeRates(trip.baseCurrency),
-          source: "fixed",
-        };
-      }
-
-      if (hasCustomRates) {
-        return tripPayload(
-          {
-            ...trip,
-            exchangeRates: effectiveTripRates(trip, candidate),
-          },
-          { customRates, defaults, source: "custom" },
-        );
-      }
-
-      if (defaults.source !== "bank") {
-        return tripPayload(trip, { source: "fixed" });
-      }
-      return tripPayload(
-        { ...trip, exchangeRates: effectiveTripRates(trip, candidate) },
-        {
-          fetchedAt: defaults.fetchedAt,
-          provider: defaults.provider,
-          rateType: defaults.rateType,
-          source: "bank",
-        },
-      );
-    },
+) {
+  const fetchRate = options.fetchRate ?? fetchVisaRate;
+  const now = options.now ?? (() => new Date());
+  const cache = new Map<
+    string,
+    { expiresAt: number; result: Promise<VisaRate> }
+  >();
+  let tail: Promise<unknown> = Promise.resolve();
+  let pending = 0;
+  const getRate = async (query: VisaRateQuery): Promise<VisaRate> => {
+    const date = query.date ?? taiwanDate(now());
+    const source = query.source;
+    const target = query.target;
+    if (!isCurrency(source) || !isCurrency(target) || !isDateOnly(date))
+      throw new Error("Invalid rate query");
+    const key = rateKey(source, target, date);
+    const saved = cache.get(key);
+    if (saved && saved.expiresAt > now().getTime()) return saved.result;
+    const fetchedAt = now().toISOString();
+    if (source === target)
+      return {
+        source,
+        target,
+        date,
+        fetchedAt,
+        amount: 1,
+        bankFeePercent: 0,
+        rate: 1,
+        visaRate: 1,
+        convertedAmount: 1,
+      };
+    if (pending >= 64) throw new Error("Too many pending Visa requests");
+    pending += 1;
+    const result = tail
+      .then(async () => {
+        const quote = await fetchRate({
+          source,
+          target,
+          date,
+          amount: 1,
+          bankFeePercent: 0,
+        });
+        if (
+          quote.source !== source ||
+          quote.target !== target ||
+          quote.date !== date ||
+          quote.amount !== 1 ||
+          quote.bankFeePercent !== 0 ||
+          !Number.isFinite(quote.visaRate) ||
+          quote.visaRate <= 0 ||
+          quote.visaRate >= 1e308 ||
+          !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(quote.fetchedAt) ||
+          !Number.isFinite(Date.parse(quote.fetchedAt))
+        )
+          throw new Error("Invalid Visa quote");
+        entry.expiresAt = now().getTime() + 15 * 60_000;
+        return quote;
+      })
+      .catch((error: unknown) => {
+        entry.expiresAt = now().getTime() + 60_000;
+        throw error;
+      })
+      .finally(() => {
+        pending -= 1;
+      });
+    const entry = { expiresAt: Number.POSITIVE_INFINITY, result };
+    cache.set(key, entry);
+    tail = result.catch(() => {});
+    // Expired entries are not historical storage. Saved record snapshots are.
+    for (const [oldKey, old] of cache) {
+      if (
+        old.expiresAt <= now().getTime() ||
+        (cache.size > 1024 && Number.isFinite(old.expiresAt))
+      )
+        cache.delete(oldKey);
+    }
+    return result;
   };
+  const buildTripPayload: BuildTripPayload = async (trip) => {
+    const customRates = Object.fromEntries(
+      Object.entries(trip.exchangeRates ?? {}).filter(
+        ([currency]) => currency !== trip.baseCurrency,
+      ),
+    );
+    return tripPayload(
+      trip,
+      Object.keys(customRates).length
+        ? { source: "custom", customRates, defaults: { source: "visa" } }
+        : { source: "visa" },
+    );
+  };
+  const getSnapshot = async (
+    baseCurrency: Currency,
+  ): Promise<ExchangeRateSnapshot> => {
+    const date = taiwanDate(now());
+    const rates: ExchangeRates = { [baseCurrency]: 1 };
+    const unavailableCurrencies: Currency[] = [];
+    const fetchedAt = now().toISOString();
+    for (const source of currencies) {
+      if (source === baseCurrency) continue;
+      try {
+        rates[source] = (
+          await getRate({ source, target: baseCurrency, date })
+        ).visaRate;
+      } catch {
+        unavailableCurrencies.push(source);
+      }
+    }
+    if (unavailableCurrencies.length === currencies.length - 1)
+      throw new Error("Visa unavailable");
+    return {
+      baseCurrency,
+      date,
+      fetchedAt,
+      rates,
+      source: "VISA",
+      rateType: "visa",
+      unavailableCurrencies,
+    };
+  };
+  return { buildTripPayload, getSnapshot, getRate };
 }
 
-// Matches response enrichment for either a current bank quote or fixed fallback.
-// A TWD-base prefetched quote can be normalized after the locked trip is loaded.
-export function effectiveTripRates(
-  trip: Pick<LoadedTrip, "baseCurrency" | "exchangeRates">,
-  candidate: ExchangeRateSnapshot | null,
-): ExchangeRates {
-  const base = candidate?.rates[trip.baseCurrency];
-  const defaults =
-    candidate?.baseCurrency === trip.baseCurrency
-      ? candidate.rates
-      : base
-        ? Object.fromEntries(
-            Object.entries(candidate.rates).map(([currency, rate]) => [
-              currency,
-              currency === trip.baseCurrency
-                ? 1
-                : Number((rate / base).toPrecision(12)),
-            ]),
-          )
-        : fixedExchangeRates(trip.baseCurrency);
-  return { ...defaults, ...trip.exchangeRates, [trip.baseCurrency]: 1 };
-}
-
-function customExchangeRates(trip: LoadedTrip): ExchangeRates {
-  return Object.fromEntries(
-    Object.entries(trip.exchangeRates ?? {}).filter(
-      ([currency]) => currency !== trip.baseCurrency,
-    ),
-  ) as ExchangeRates;
-}
+export type ExchangeRateService = ReturnType<typeof createExchangeRateService>;
 
 export function registerExchangeRateRoutes(
   app: OtterApp,
@@ -141,60 +166,25 @@ export function registerExchangeRateRoutes(
     parseRequestBody,
     async (context) => {
       const baseCurrency = context.req.param("baseCurrency");
-      if (!isCurrency(baseCurrency)) {
+      if (!isCurrency(baseCurrency))
         return sendError(context, 400, "不支援的基準貨幣");
-      }
       try {
         return context.json(await service.getSnapshot(baseCurrency));
       } catch {
-        return sendError(context, 502, "目前無法取得銀行匯率，請稍後再試");
+        return sendError(context, 502, "目前無法取得 Visa 匯率，請稍後再試");
       }
     },
   );
 }
 
-export function buildExchangeRateSnapshot(
-  bankRates: readonly Rate[],
-  baseCurrency: Currency,
-): ExchangeRateSnapshot {
-  const ratesToTwd = new Map<Currency, number>([["TWD", 1]]);
-  for (const rate of bankRates) {
-    if (rate.target !== "TWD" || !isCurrency(rate.source)) {
-      continue;
-    }
-    const mid = spotMid(rate);
-    if (mid !== undefined && Number.isFinite(mid) && mid > 0) {
-      ratesToTwd.set(rate.source, mid);
-    }
-  }
-
-  const baseRate = ratesToTwd.get(baseCurrency);
-  if (!baseRate) {
-    throw new Error(`Missing ${baseCurrency}/TWD spot rate`);
-  }
-
-  // Return only actual spot quotes. Some currencies, such as KRW, have no
-  // Bank of Taiwan spot rate. Their expenses retain an explicit fixed estimate.
-  const normalizedRates = Object.fromEntries(
-    Array.from(ratesToTwd, ([currency, rateToTwd]) => {
-      return [
-        currency,
-        currency === baseCurrency
-          ? 1
-          : Number((rateToTwd / baseRate).toPrecision(12)),
-      ];
-    }),
-  ) as ExchangeRates;
-  const fetchedAt = bankRates[0]?.fetchedAt;
-  if (!fetchedAt) {
-    throw new Error("No exchange rates were returned");
-  }
-
-  return {
-    baseCurrency,
-    fetchedAt,
-    rates: normalizedRates,
-    rateType: "spotMid",
-    source: "BANK_OF_TAIWAN",
-  };
+function taiwanDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: string) =>
+    parts.find((value) => value.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }

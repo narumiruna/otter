@@ -1,6 +1,6 @@
 # Visa card exchange rates
 
-`@narumitw/otter-visa-exchange-rates` queries the public API used by the [Visa Taiwan calculator](https://www.visa.com.tw/support/consumer/travel-support/exchange-rate-calculator.html). This package is an internal workspace package. It does not change the app UI or bank-rate providers.
+`@narumitw/otter-visa-exchange-rates` queries the public API used by the [Visa Taiwan calculator](https://www.visa.com.tw/support/consumer/travel-support/exchange-rate-calculator.html). This internal workspace package supplies the app's only automatic rate source. The API saves dated snapshots with 0% bank fees. Base-currency and selected-settlement-currency snapshots are separate. See [app rate rules](../../docs/visa-settlements.md).
 
 ## Use
 

@@ -5,12 +5,14 @@ import {
 } from "./message-types.js";
 import { idAi } from "./messages-ai.js";
 import { idAiAuth } from "./messages-ai-auth.js";
+// Provisional machine-authored translations; fluent review is pending.
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { idAccount } from "./messages-id-account.js";
 import { idSettings } from "./messages-id-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
-// Provisional machine-authored translations; fluent review is pending.
 export const id = {
+  ...automaticRateMessages("id"),
   ...idAi,
   ...idAiAuth,
   backToExpenseList: "Kembali ke daftar pengeluaran",

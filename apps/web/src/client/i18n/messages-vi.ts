@@ -5,12 +5,14 @@ import {
 } from "./message-types.js";
 import { viAi } from "./messages-ai.js";
 import { viAiAuth } from "./messages-ai-auth.js";
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { viErrors } from "./messages-vi-errors.js";
 import { viExpenses } from "./messages-vi-expenses.js";
 import { viSettings } from "./messages-vi-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const vi = {
+  ...automaticRateMessages("vi"),
   ...viAi,
   ...viAiAuth,
   ...viErrors,

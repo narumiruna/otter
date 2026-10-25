@@ -6,12 +6,14 @@ import {
 } from "./message-types.js";
 import { hiAi } from "./messages-ai.js";
 import { hiAiAuth } from "./messages-ai-auth.js";
+// Provisional machine-authored translations; fluent review is pending.
+import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { hiAccount } from "./messages-hi-account.js";
 import { hiSettings } from "./messages-hi-settings.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
-// Provisional machine-authored translations; fluent review is pending.
 export const hi = {
+  ...automaticRateMessages("hi"),
   ...hiAi,
   ...hiAiAuth,
   backToExpenseList: "खर्चों की सूची पर वापस जाएँ",

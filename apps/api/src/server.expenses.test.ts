@@ -485,7 +485,13 @@ test(
     const afterDelete = await api<TripPayload>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/expenses/${expense.id}`,
-      { headers: { cookie, "If-Match": '"7"' }, method: "DELETE" },
+      {
+        headers: {
+          cookie,
+          "If-Match": `"${loadedTrip.data.trip.expenses[0].version}"`,
+        },
+        method: "DELETE",
+      },
     );
     assert.equal(afterDelete.response.status, 200);
     assert.equal(afterDelete.data.trip.expenses.length, 0);

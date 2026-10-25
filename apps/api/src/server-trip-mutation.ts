@@ -60,7 +60,7 @@ export function tripMutation<Path extends string>(
     } catch (error) {
       await client.query("ROLLBACK");
       if (error instanceof ExpenseRateError) {
-        return context.json({ error: error.message }, 400);
+        return context.json({ error: error.message }, error.status);
       }
       if (error instanceof ExpenseVersionError) {
         return context.json(

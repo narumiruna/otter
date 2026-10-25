@@ -1,3 +1,5 @@
+import { isDateOnly } from "./date.js";
+
 export const currencies = [
   "TWD",
   "JPY",
@@ -23,39 +25,80 @@ export type ExchangeRates = Partial<Record<Currency, number>>;
 export type ExpenseExchangeRate = {
   baseCurrency: Currency;
   rateToBase: number;
-  source: "bank" | "custom" | "fixed" | "legacy";
-  provider?: string;
-  rateType?: string;
-  fetchedAt?: string;
+} & (
+  | {
+      source: "visa";
+      provider: "VISA";
+      rateType: "visa";
+      fetchedAt: string;
+      date: string;
+    }
+  | {
+      source: "bank" | "custom" | "fixed" | "legacy";
+      provider?: string;
+      rateType?: string;
+      fetchedAt?: string;
+      // Older JSON readers ignored this extra property. Do not reinterpret it.
+      date?: unknown;
+    }
+);
+
+export type ExchangeRateBridge = ExpenseExchangeRate & {
+  sourceCurrency: Currency;
 };
 
 export function isExpenseExchangeRate(
   value: unknown,
   currency: Currency,
+  date?: string,
 ): value is ExpenseExchangeRate {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const rate = value as Partial<ExpenseExchangeRate>;
+  if (
+    !isCurrency(rate.baseCurrency) ||
+    typeof rate.rateToBase !== "number" ||
+    !Number.isFinite(rate.rateToBase) ||
+    rate.rateToBase <= 0 ||
+    rate.rateToBase >= 1e308 ||
+    (currency === rate.baseCurrency && rate.rateToBase !== 1)
+  )
+    return false;
+  if (rate.source === "visa" || rate.source === "bank") {
+    const visa = rate.source === "visa";
+    return (
+      rate.provider === (visa ? "VISA" : "BANK_OF_TAIWAN") &&
+      rate.rateType === (visa ? "visa" : "spotMid") &&
+      typeof rate.fetchedAt === "string" &&
+      Number.isFinite(Date.parse(rate.fetchedAt)) &&
+      (visa
+        ? /^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(rate.fetchedAt) &&
+          typeof rate.date === "string" &&
+          isDateOnly(rate.date) &&
+          (date === undefined || rate.date === date)
+        : true)
+    );
+  }
   return (
-    isCurrency(rate.baseCurrency) &&
-    typeof rate.rateToBase === "number" &&
-    Number.isFinite(rate.rateToBase) &&
-    rate.rateToBase > 0 &&
-    (currency !== rate.baseCurrency || rate.rateToBase === 1) &&
-    ["bank", "custom", "fixed", "legacy"].includes(rate.source ?? "") &&
-    (rate.source === "bank" ||
-      (rate.provider === undefined &&
-        rate.rateType === undefined &&
-        rate.fetchedAt === undefined)) &&
-    (rate.source !== "bank" ||
-      (rate.provider === "BANK_OF_TAIWAN" &&
-        rate.rateType === "spotMid" &&
-        typeof rate.fetchedAt === "string" &&
-        Number.isFinite(Date.parse(rate.fetchedAt)))) &&
-    (rate.provider === undefined || rate.provider === "BANK_OF_TAIWAN") &&
-    (rate.rateType === undefined || rate.rateType === "spotMid") &&
-    (rate.fetchedAt === undefined ||
-      (typeof rate.fetchedAt === "string" &&
-        Number.isFinite(Date.parse(rate.fetchedAt))))
+    ["custom", "fixed", "legacy"].includes(rate.source ?? "") &&
+    rate.provider === undefined &&
+    rate.rateType === undefined &&
+    rate.fetchedAt === undefined
+  );
+}
+
+export function isExchangeRateBridge(
+  value: unknown,
+  source?: Currency,
+  target?: Currency,
+  date?: string,
+): value is ExchangeRateBridge {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const bridge = value as Partial<ExchangeRateBridge>;
+  return (
+    isCurrency(bridge.sourceCurrency) &&
+    (source === undefined || bridge.sourceCurrency === source) &&
+    (target === undefined || bridge.baseCurrency === target) &&
+    isExpenseExchangeRate(value, bridge.sourceCurrency, date)
   );
 }
 
@@ -65,10 +108,12 @@ export function convertExpenseMinor(
   baseCurrency: Currency,
   snapshot?: ExpenseExchangeRate,
   rates?: ExchangeRates,
+  bridge?: ExchangeRateBridge,
+  date?: string,
 ): number {
   if (!snapshot)
     return convertMinorWithRates(amountMinor, currency, baseCurrency, rates);
-  if (!isExpenseExchangeRate(snapshot, currency))
+  if (!isExpenseExchangeRate(snapshot, currency, date))
     throw new Error("Invalid expense exchange rate");
   if (
     currency === snapshot.baseCurrency &&
@@ -85,12 +130,20 @@ export function convertExpenseMinor(
   const converted =
     snapshot.baseCurrency === baseCurrency
       ? originalBaseMinor
-      : convertMinorWithRates(
-          originalBaseMinor,
-          snapshot.baseCurrency,
-          baseCurrency,
-          rates,
-        );
+      : bridge
+        ? convertBridgeMinor(
+            originalBaseMinor,
+            snapshot.baseCurrency,
+            baseCurrency,
+            bridge,
+            date,
+          )
+        : convertMinorWithRates(
+            originalBaseMinor,
+            snapshot.baseCurrency,
+            baseCurrency,
+            rates,
+          );
   if (!Number.isSafeInteger(converted))
     throw new Error("Converted amount is out of range");
   return converted;
@@ -163,13 +216,42 @@ export function convertMinorWithRates(
   }
   const fromRate = rates?.[from];
   const toRate = rates?.[to];
-  if (fromRate && toRate) {
+  if (
+    fromRate &&
+    toRate &&
+    Number.isFinite(fromRate) &&
+    Number.isFinite(toRate) &&
+    fromRate > 0 &&
+    toRate > 0
+  ) {
     const targetMajor = (toMajor(amountMinor, from) * fromRate) / toRate;
-    return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
+    const converted = Math.round(
+      targetMajor * 10 ** currencyInfo[to].minorUnits,
+    );
+    if (!Number.isSafeInteger(converted))
+      throw new Error("Converted amount is out of range");
+    return converted;
   }
-  const amountTwd = toMajor(amountMinor, from) * currencyInfo[from].rateToTwd;
-  const targetMajor = amountTwd / currencyInfo[to].rateToTwd;
-  return Math.round(targetMajor * 10 ** currencyInfo[to].minorUnits);
+  throw new Error(`Missing saved ${from}/${to} exchange rate`);
+}
+
+function convertBridgeMinor(
+  amountMinor: number,
+  source: Currency,
+  target: Currency,
+  bridge: ExchangeRateBridge,
+  date?: string,
+): number {
+  if (!isExchangeRateBridge(bridge, source, target, date))
+    throw new Error("Invalid exchange-rate bridge");
+  const amount = Math.round(
+    toMajor(amountMinor, source) *
+      bridge.rateToBase *
+      10 ** currencyInfo[target].minorUnits,
+  );
+  if (!Number.isSafeInteger(amount))
+    throw new Error("Converted amount is out of range");
+  return amount;
 }
 
 export function formatMinor(amountMinor: number, currency: Currency): string {
