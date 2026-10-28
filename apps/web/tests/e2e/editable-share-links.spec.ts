@@ -60,6 +60,28 @@ test("owner-selected edit links work with and without sign-in, and guest access 
     );
 
     const signedInLink = await createLink("signed-in-edit");
+    const readonlyLink = await createLink("readonly");
+    const ownerPage = await owner.newPage();
+    await ownerPage.goto(`/?trip=${tripId}&view=more`);
+    const addresses = ownerPage.getByRole("textbox", {
+      name: "分享連結網址",
+      exact: true,
+    });
+    for (const reload of [false, true]) {
+      if (reload) await ownerPage.reload();
+      await expect(addresses).toHaveCount(2);
+      expect(
+        await addresses.evaluateAll((inputs) =>
+          inputs.map((input) => (input as HTMLInputElement).value).sort(),
+        ),
+      ).toEqual([signedInLink.url, readonlyLink.url].sort());
+      await expect(
+        ownerPage
+          .locator(".share-link-row")
+          .filter({ hasText: "已撤銷" })
+          .getByRole("textbox"),
+      ).toHaveCount(0);
+    }
     const editorPage = await editor.newPage();
     await editorPage.goto(signedInLink.url);
     await expect(

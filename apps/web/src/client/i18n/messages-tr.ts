@@ -6,6 +6,7 @@ import {
 import { trAi } from "./messages-ai.js";
 import { trAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
+import { spendingMessages } from "./messages-spending.js";
 import { trErrors } from "./messages-tr-errors.js";
 import { trExpenses } from "./messages-tr-expenses.js";
 import { trSettings } from "./messages-tr-settings.js";
@@ -13,6 +14,7 @@ import type { zhTW } from "./messages-zh-tw.js";
 
 export const tr = {
   ...automaticRateMessages("tr"),
+  ...spendingMessages("tr"),
   ...trAi,
   ...trAiAuth,
   ...trErrors,

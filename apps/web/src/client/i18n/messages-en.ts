@@ -15,10 +15,12 @@ type Messages = CatalogShape<typeof zhTW>;
 
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { enPersonal } from "./messages-personal.js";
+import { spendingMessages } from "./messages-spending.js";
 import { enVisa } from "./messages-visa.js";
 
 export const en = {
   ...automaticRateMessages("en"),
+  ...spendingMessages("en"),
   ...enAi,
   ...enAiAuth,
   ...enPersonal,

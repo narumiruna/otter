@@ -1,4 +1,4 @@
-import type { ShareMode } from "@narumitw/otter-contracts";
+import type { ShareMode, TripShareLink } from "@narumitw/otter-contracts";
 import {
   CopyIcon as Copy,
   Link2Icon as Link,
@@ -6,10 +6,11 @@ import {
   TrashIcon as Trash2,
   PersonIcon as UserRoundPlus,
 } from "@radix-ui/react-icons";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import type { TripPayload } from "../client-support.js";
+import { api, type TripPayload } from "../client-support.js";
 import { useI18n } from "../i18n.js";
 import { ActionError, useWorkspace } from "./workspace-context.js";
 import {
@@ -19,6 +20,12 @@ import {
   SectionHeading,
 } from "./workspace-ui.js";
 
+function isUsable(link: TripShareLink, now = Date.now()) {
+  return (
+    !link.revokedAt && (!link.expiresAt || Date.parse(link.expiresAt) > now)
+  );
+}
+
 export function AccessSettings({
   payload,
   expanded = false,
@@ -27,14 +34,17 @@ export function AccessSettings({
   expanded?: boolean;
 }) {
   const { messages } = useI18n();
-  const activeLinks = (payload.shareLinks ?? []).filter(
-    (link) => !link.revokedAt,
+  const { userId } = useWorkspace();
+  const [open, setOpen] = useState(expanded);
+  const activeLinks = (payload.shareLinks ?? []).filter((link) =>
+    isUsable(link),
   ).length;
   return (
     <details
       className="surface disclosure"
       name={expanded ? undefined : "trip-settings"}
-      open={expanded || undefined}
+      open={expanded || open || undefined}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
         <ShieldCheck aria-hidden="true" />
@@ -47,7 +57,9 @@ export function AccessSettings({
         </span>
       </summary>
       <div className="settings-grid pt-2">
-        <ShareLinks payload={payload} />
+        {expanded || open ? (
+          <ShareLinks key={`${userId}:${payload.trip.id}`} payload={payload} />
+        ) : null}
         <Collaborators payload={payload} />
       </div>
     </details>
@@ -56,41 +68,189 @@ export function AccessSettings({
 
 function ShareLinks({ payload }: { payload: TripPayload }) {
   const { messages } = useI18n();
-  const { announce, offline, requestPayload } = useWorkspace();
+  const { announce, offline, replacePayload, userId } = useWorkspace();
+  const queryClient = useQueryClient();
+  const queryKey = ["owner-share-links", userId, payload.trip.id] as const;
+  const owner = !!userId && payload.currentUserRole === "owner";
+  const endpoint = `/api/trips/${payload.trip.id}/share-links`;
+  const recovery = useQuery({
+    queryKey,
+    queryFn: ({ signal }) =>
+      api<{ shareLinks: TripShareLink[] }>(endpoint, { signal }),
+    enabled: owner && !offline,
+    gcTime: 0,
+    retry: false,
+  });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<ShareMode>("readonly");
+  const [now, setNow] = useState(Date.now);
+  const currentTime = Math.max(now, Date.now());
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // Expiry must also remove actions while this screen stays open.
+  useEffect(() => {
+    const expirations = [
+      ...(payload.shareLinks ?? []),
+      ...(recovery.data?.shareLinks ?? []),
+    ]
+      .filter((link) => !link.revokedAt && link.expiresAt)
+      .map((link) => Date.parse(link.expiresAt ?? ""))
+      .filter((time) => time > now);
+    if (!expirations.length) return;
+    const timer = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.min(Math.min(...expirations) - Date.now() + 1, 2_147_483_647),
+    );
+    return () => window.clearTimeout(timer);
+  }, [payload.shareLinks, recovery.data, now]);
+  const knownLinks = new Map(
+    (payload.shareLinks ?? []).map((link) => [link.id, link]),
+  );
+  // A create can finish after navigation, before the trip metadata refreshes.
+  if (owner)
+    for (const link of recovery.data?.shareLinks ?? [])
+      if (!knownLinks.has(link.id)) knownLinks.set(link.id, link);
+  const links = [...knownLinks.values()].map((link) => {
+    const recovered = owner
+      ? recovery.data?.shareLinks.find(
+          (item) => item.id === link.id && item.mode === link.mode,
+        )
+      : undefined;
+    const expiresAt =
+      link.expiresAt && recovered?.expiresAt
+        ? Date.parse(link.expiresAt) < Date.parse(recovered.expiresAt)
+          ? link.expiresAt
+          : recovered.expiresAt
+        : (link.expiresAt ?? recovered?.expiresAt ?? null);
+    const metadata = {
+      ...link,
+      revokedAt: link.revokedAt ?? recovered?.revokedAt ?? null,
+      expiresAt,
+    };
+    return {
+      ...metadata,
+      url:
+        isUsable(metadata, currentTime) &&
+        recovered &&
+        isUsable(recovered, currentTime)
+          ? recovered.url
+          : undefined,
+    };
+  });
+
+  useEffect(() => {
+    if (
+      owner &&
+      links.some((link) => {
+        const current = payload.shareLinks?.find((item) => item.id === link.id);
+        return (
+          !current ||
+          current.revokedAt !== link.revokedAt ||
+          (current.expiresAt ?? null) !== link.expiresAt
+        );
+      })
+    )
+      replacePayload({
+        ...payload,
+        shareLinks: links.map(({ url: _url, ...link }) => link),
+      });
+  }, [links, owner, payload, replacePayload]);
+
+  async function saveResponse(next: TripPayload) {
+    await queryClient.cancelQueries({ queryKey, exact: true });
+    if (!mounted.current) {
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+      return;
+    }
+    const previous = queryClient.getQueryData<{
+      shareLinks: TripShareLink[];
+    }>(queryKey);
+    queryClient.setQueryData(queryKey, {
+      shareLinks: (next.shareLinks ?? []).map((link) => ({
+        ...link,
+        url: isUsable(link)
+          ? (link.url ??
+            previous?.shareLinks.find(
+              (item) =>
+                item.id === link.id &&
+                item.mode === link.mode &&
+                isUsable(item),
+            )?.url)
+          : undefined,
+      })),
+    });
+    // Capability URLs belong only in the short-lived, account-scoped query.
+    replacePayload({
+      ...next,
+      shareLinks: next.shareLinks?.map(({ url: _url, ...link }) => link),
+    });
+    void recovery.refetch();
+  }
   async function create() {
     setBusy(true);
     setError("");
     try {
-      const next = await requestPayload(
-        `/api/trips/${payload.trip.id}/share-links`,
-        { method: "POST", body: JSON.stringify({ mode }) },
-        messages.shareLinkCreated,
-      );
-      const url = next.shareLinks?.find((item) => item.url)?.url;
+      if (offline || !owner)
+        throw new Error(messages.youAreOfflineReconnectAndTryAgain);
+      const previousIds = new Set(payload.shareLinks?.map((link) => link.id));
+      const next = await api<TripPayload>(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ mode }),
+      });
+      await saveResponse(next);
+      if (!mounted.current) return;
+      announce(messages.shareLinkCreated);
+      const url = next.shareLinks?.find(
+        (item) =>
+          !!item.url &&
+          !previousIds.has(item.id) &&
+          item.mode === mode &&
+          isUsable(item),
+      )?.url;
       if (url) {
         try {
           await navigator.clipboard.writeText(url);
           announce(messages.shareLinkCreatedAndCopied);
         } catch {
+          setError(
+            messages.shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually,
+          );
           announce(
             messages.shareLinkCreatedYourBrowserBlockedAutomaticCopyingCopyItManually,
           );
         }
       }
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : messages.unableToCreateLink,
-      );
+      if (mounted.current)
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : messages.unableToCreateLink,
+        );
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
-  async function copy(url: string) {
+  async function revoke(id: string) {
+    if (offline || !owner)
+      throw new Error(messages.youAreOfflineReconnectAndTryAgain);
+    const next = await api<TripPayload>(`${endpoint}/${id}`, {
+      method: "DELETE",
+    });
+    await saveResponse(next);
+    if (!mounted.current) return;
+    announce(messages.shareLinkRevoked);
+  }
+  async function copy(link: TripShareLink) {
+    if (!link.url || !isUsable(link)) return;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(link.url);
       announce(messages.shareLinkCopied);
       setError("");
     } catch {
@@ -123,7 +283,7 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
         </label>
         <ConfirmDialog
           confirmLabel={messages.createShareLink}
-          disabled={offline}
+          disabled={offline || !owner}
           description={
             mode === "anyone-edit"
               ? messages.anyoneEditLinkDescription
@@ -148,6 +308,30 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
             ? messages.signedInEditLinkDescription
             : messages.anyoneEditLinkDescription}
       </p>
+      {offline ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {messages.youAreOfflineReconnectAndTryAgain}
+        </p>
+      ) : recovery.isPending && owner ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {messages.loading}
+        </p>
+      ) : null}
+      {recovery.isError ? (
+        <div className="grid gap-2">
+          <ActionError
+            message={recovery.error.message || messages.loadingFailed}
+          />
+          <BusyButton
+            busy={recovery.isFetching}
+            disabled={offline || !owner}
+            onClick={() => void recovery.refetch()}
+            variant="outline"
+          >
+            {messages.reload}
+          </BusyButton>
+        </div>
+      ) : null}
       <div className="share-link-table-heading" aria-hidden="true">
         <span>{messages.createdLabel}</span>
         <span>{messages.linkPermission}</span>
@@ -155,8 +339,8 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
         <span>{messages.actions}</span>
       </div>
       <ul className="share-link-list">
-        {payload.shareLinks?.length ? (
-          payload.shareLinks.map((link) => (
+        {links.length ? (
+          links.map((link) => (
             <li className="share-link-row" key={link.id}>
               <time dateTime={link.createdAt}>
                 {link.createdAt.slice(0, 10)}
@@ -170,9 +354,13 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
               </span>
               <span
                 className="share-link-status"
-                data-active={!link.revokedAt || undefined}
+                data-active={isUsable(link, currentTime) || undefined}
               >
-                {link.revokedAt ? messages.revoked : messages.active}
+                {link.revokedAt
+                  ? messages.revoked
+                  : isUsable(link, currentTime)
+                    ? messages.active
+                    : messages.shareLinkExpired}
               </span>
               <div className="share-link-actions">
                 {link.url ? (
@@ -188,30 +376,24 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => void copy(link.url ?? "")}
+                      onClick={() => void copy(link)}
                     >
                       <Copy aria-hidden="true" />
                       {messages.copy}
                     </Button>
                   </>
                 ) : null}
-                {!link.revokedAt ? (
+                {isUsable(link, currentTime) ? (
                   <ConfirmDialog
                     confirmLabel={messages.revokeLink}
-                    disabled={offline}
+                    disabled={offline || !owner}
                     description={
                       link.mode === "signed-in-edit"
                         ? messages.revokingSignedInLinkDoesNotRemoveExistingCollaborators
                         : messages.afterRevocationTheOldLinkWillImmediatelyStopWorking
                     }
                     destructive
-                    onConfirm={() =>
-                      requestPayload(
-                        `/api/trips/${payload.trip.id}/share-links/${link.id}`,
-                        { method: "DELETE" },
-                        messages.shareLinkRevoked,
-                      )
-                    }
+                    onConfirm={() => revoke(link.id)}
                     title={messages.revokeThisShareLink}
                     trigger={
                       <Button
@@ -226,6 +408,26 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
                   />
                 ) : null}
               </div>
+              {link.url ? (
+                <label className="share-link-address grid gap-2 text-sm">
+                  {messages.shareLinkAddress}
+                  <input
+                    className="form-control"
+                    type="text"
+                    readOnly
+                    value={link.url}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onClick={(event) => event.currentTarget.select()}
+                    spellCheck={false}
+                  />
+                </label>
+              ) : isUsable(link, currentTime) &&
+                recovery.isSuccess &&
+                !offline ? (
+                <p className="share-link-address text-sm text-muted-foreground">
+                  {messages.shareLinkUnavailable}
+                </p>
+              ) : null}
             </li>
           ))
         ) : (

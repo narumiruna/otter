@@ -10,10 +10,12 @@ import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { frAccount } from "./messages-fr-account.js";
 import { frExpenses } from "./messages-fr-expenses.js";
 import { frSettings } from "./messages-fr-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const fr = {
   ...automaticRateMessages("fr"),
+  ...spendingMessages("fr"),
   ...frAi,
   ...frAiAuth,
   ...frAccount,

@@ -161,6 +161,31 @@ test("analysis retains fixed chart amounts and stored foreign-currency conversio
     .locator("..");
   for (const amount of ["¥101,715", "¥17,150", "¥2,100"])
     await expect(payers).toContainText(amount);
+  const metrics = analysis.locator(".spending-metrics");
+  await expect(
+    metrics.getByText("Expenses", { exact: true }).locator(".."),
+  ).toContainText("5");
+  await expect(
+    metrics.getByText("Calendar days", { exact: true }).locator(".."),
+  ).toContainText("42026-10-01 to 2026-10-04");
+  await expect(
+    metrics.getByText("Average expense", { exact: true }).locator(".."),
+  ).toContainText("¥24,193");
+  await expect(
+    metrics.getByText("Daily average", { exact: true }).locator(".."),
+  ).toContainText("¥30,241");
+  await expect(payers).toContainText("84.1% of total");
+  const largest = analysis.getByRole("region", { name: "Largest expenses" });
+  await expect(largest.getByRole("listitem")).toHaveCount(5);
+  await expect(largest.getByRole("listitem").first()).toContainText(
+    "A quiet place to stay",
+  );
+  await expect(largest.getByRole("listitem").first()).toContainText("¥89,640");
+  const originals = analysis.getByRole("region", {
+    name: "Original currency totals",
+  });
+  await expect(originals).toContainText("JPY4 entries¥114,590");
+  await expect(originals).toContainText("USD1 entry$42.50");
   await analysis
     .getByRole("region", { name: "Member accounts" })
     .locator("summary")
@@ -176,6 +201,43 @@ test("analysis retains fixed chart amounts and stored foreign-currency conversio
   await expect(
     analysis.getByText("Travel booking", { exact: false }).first(),
   ).toBeVisible();
+});
+
+test("missing rates show original amounts and counts instead of incomplete converted totals", async ({
+  page,
+}) => {
+  await mockWorkspace(page);
+  const trip = exampleTrip();
+  trip.exchangeRates = undefined;
+  const foreign = trip.expenses.find((expense) => expense.currency === "USD");
+  if (!foreign) throw new Error("Missing foreign-currency fixture expense");
+  foreign.exchangeRate = undefined;
+  await page.route(`**/api/trips/${trip.id}`, (route) =>
+    route.fulfill({
+      json: { trip, currentUserRole: "owner", balances: [], settlements: [] },
+    }),
+  );
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(`/?trip=${trip.id}&view=analysis`);
+  const analysis = page.getByRole("region", {
+    name: "Spending analysis",
+    exact: true,
+  });
+  await expect(
+    analysis.getByText(translations.en.analysisMissingRatesHelp),
+  ).toBeVisible();
+  await expect(
+    analysis.getByText("Average expense", { exact: true }),
+  ).toHaveCount(0);
+  await expect(analysis.getByText("Total ¥0", { exact: true })).toHaveCount(0);
+  await expect(
+    analysis.getByRole("region", { name: "Largest expenses" }),
+  ).toHaveCount(0);
+  await expect(
+    analysis.getByRole("region", { name: "Original currency totals" }),
+  ).toContainText("USD1 entry$42.50");
+  await expectNoOverflow(page);
+  await accessible(page);
 });
 
 test("group changes reset to Overview and history restores the correct group's analysis", async ({
@@ -595,6 +657,7 @@ for (const { locale } of languageOptions) {
         await page.screenshot({
           path: testInfo.outputPath(`analysis-${width}-${colorScheme}.png`),
           fullPage: true,
+          animations: "disabled",
         });
       }
     }

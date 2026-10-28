@@ -10,10 +10,12 @@ import { filAuth } from "./messages-fil-auth.js";
 import { filExpenses } from "./messages-fil-expenses.js";
 import { filGroups } from "./messages-fil-groups.js";
 import { filSettings } from "./messages-fil-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const fil = {
   ...automaticRateMessages("fil"),
+  ...spendingMessages("fil"),
   ...filAi,
   ...filAiAuth,
   ...filAuth,

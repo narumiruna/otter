@@ -104,8 +104,8 @@ test("analysis shows unchanged snapshot-based chart totals and payment-adjusted 
   expect(within(region).getByText("Total NT$3,350")).toBeVisible();
   for (const [title, expected] of [
     ["Daily spending", ["2026-10-01NT$350", "2026-10-02NT$3,000"]],
-    ["Paid by person", ["AliceNT$3,250", "BobNT$100"]],
-    ["By category", ["FoodNT$3,250", "TransportNT$100"]],
+    ["Paid by person", ["AliceNT$3,25097% of total", "BobNT$1003% of total"]],
+    ["By category", ["FoodNT$3,25097% of total", "TransportNT$1003% of total"]],
   ] as const) {
     const chart = within(region).getByRole("heading", {
       name: title,
@@ -130,6 +130,32 @@ test("analysis shows unchanged snapshot-based chart totals and payment-adjusted 
   expect(
     view.queryByRole("button", { name: "Record payment" }),
   ).not.toBeInTheDocument();
+  const averageExpense = view.getByText("Average expense").parentElement;
+  const averageDay = view.getByText("Daily average").parentElement;
+  expect(averageExpense).toHaveTextContent("NT$1,117");
+  expect(averageDay).toHaveTextContent("NT$1,675");
+  expect(view.getByText("Calendar days").parentElement).toHaveTextContent(
+    "22026-10-01 to 2026-10-02",
+  );
+  const largest = view.getByRole("region", { name: "Largest expenses" });
+  expect(
+    within(largest)
+      .getAllByRole("listitem")
+      .map((row) => row.textContent),
+  ).toEqual([
+    "Dinner2026-10-02Paid by AliceNT$3,000$100.00",
+    "Lunch2026-10-01Paid by AliceNT$250¥1,000",
+    "Bus2026-10-01Paid by BobNT$100",
+  ]);
+  const originals = view.getByRole("region", {
+    name: "Original currency totals",
+  });
+  expect(originals).toHaveTextContent("JPY1 entry¥1,000");
+  expect(originals).toHaveTextContent("TWD1 entryNT$100");
+  expect(originals).toHaveTextContent("USD1 entry$100.00");
+  expect(
+    view.getByText(translations.en.analysisBasis({ currency: "TWD" })),
+  ).toBeVisible();
   expect(payload).toEqual(before);
 });
 
@@ -193,6 +219,16 @@ test.each(languageOptions)(
       view.getByRole("heading", { name: messages.dailySpending, level: 4 }),
     ).toBeVisible();
     expect(view.getByText(messages.food, { exact: true })).toBeVisible();
+    expect(view.getByText(messages.analysisAverageExpense)).toBeVisible();
+    expect(view.getByText(messages.analysisDailyAverageHelp)).toBeVisible();
+    expect(
+      view.getByRole("region", { name: messages.analysisLargestExpenses }),
+    ).toBeVisible();
+    expect(
+      view.getByRole("region", {
+        name: messages.analysisOriginalCurrencyTotals,
+      }),
+    ).toBeVisible();
   },
 );
 
@@ -213,6 +249,16 @@ test.each([false, true])(
       view.getByRole("region", { name: "Spending analysis" }),
     ).toBeVisible();
     expect(view.getByText("Total NT$0")).toBeVisible();
+    expect(view.getByText("Average expense").parentElement).toHaveTextContent(
+      "NT$0",
+    );
+    expect(view.getByText("Daily average").parentElement).toHaveTextContent(
+      "NT$0",
+    );
+    expect(view.getByText("Calendar days").parentElement).toHaveTextContent(
+      "0",
+    );
+    expect(view.queryByText(/NaN|Infinity/)).not.toBeInTheDocument();
     for (const title of ["Daily spending", "Paid by person", "By category"]) {
       const chart = view.getByRole("heading", { name: title }).parentElement;
       if (!chart) throw new Error(`Missing chart: ${title}`);
@@ -226,3 +272,71 @@ test.each([false, true])(
     );
   },
 );
+
+test("daily average includes date gaps rather than only dates with expenses", () => {
+  const trip = fixture();
+  trip.expenses[2].expenseDate = "2026-10-04";
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <SpendingAnalysisPage payload={payloadFor(trip)} />
+    </I18nProvider>,
+  );
+  expect(view.getByText("Calendar days").parentElement).toHaveTextContent(
+    "42026-10-01 to 2026-10-04",
+  );
+  expect(view.getByText("Daily average").parentElement).toHaveTextContent(
+    "NT$838",
+  );
+  expect(
+    view.getByText(translations.en.analysisDailyAverageHelp),
+  ).toBeVisible();
+});
+
+test("missing conversion rates retain counts and original amounts without partial totals or rankings", () => {
+  const trip = fixture();
+  trip.exchangeRates = undefined;
+  trip.expenses[2].exchangeRate = undefined;
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <SpendingAnalysisPage payload={{ trip, balances: [], settlements: [] }} />
+    </I18nProvider>,
+  );
+  expect(
+    view.getByText(translations.en.analysisMissingRatesHelp),
+  ).toBeVisible();
+  expect(view.getByText("Expenses").parentElement).toHaveTextContent("3");
+  expect(view.getByText("Calendar days").parentElement).toHaveTextContent("2");
+  expect(view.queryByText("Average expense")).not.toBeInTheDocument();
+  expect(view.queryByText("Daily average")).not.toBeInTheDocument();
+  expect(
+    view.queryByRole("heading", { name: "Largest expenses" }),
+  ).not.toBeInTheDocument();
+  expect(view.queryByText("Total NT$0")).not.toBeInTheDocument();
+  const originals = view.getByRole("region", {
+    name: "Original currency totals",
+  });
+  expect(originals).toHaveTextContent("USD1 entry$100.00");
+});
+
+test("zero converted totals have zero percentages and no visible bar fill", () => {
+  const trip = fixture();
+  trip.expenses = [
+    {
+      ...trip.expenses[2],
+      amountMinor: 1,
+      exchangeRate: { baseCurrency: "TWD", rateToBase: 0.01, source: "custom" },
+    },
+  ];
+  trip.settlementPayments = [];
+  const view = render(
+    <I18nProvider initialLocale="en">
+      <SpendingAnalysisPage payload={payloadFor(trip)} />
+    </I18nProvider>,
+  );
+  expect(view.getAllByText("0% of total")).toHaveLength(2);
+  for (const fill of view.container.querySelectorAll(
+    ".spending-chart-bar > span",
+  ))
+    expect(fill).toHaveStyle({ width: "0%" });
+  expect(view.queryByText(/NaN|Infinity/)).not.toBeInTheDocument();
+});

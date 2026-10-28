@@ -112,6 +112,14 @@ test("summarizes spending charts", () => {
     dailyTotals: [],
     payerTotals: [],
     totalMinor: 0,
+    expenseCount: 0,
+    calendarDays: 0,
+    firstDate: undefined,
+    lastDate: undefined,
+    averageExpenseMinor: 0,
+    averageDayMinor: 0,
+    largestExpenses: [],
+    currencyTotals: [],
   });
   assert.deepEqual(spendingSummary(trip).dailyTotals, [
     { amountMinor: 500, date: "2026-06-24" },
@@ -126,6 +134,22 @@ test("summarizes spending charts", () => {
     { amountMinor: 500, category: "交通" },
   ]);
   assert.equal(spendingSummary(trip).totalMinor, 3500);
+  expect(spendingSummary(trip)).toMatchObject({
+    expenseCount: 2,
+    calendarDays: 2,
+    firstDate: "2026-06-24",
+    lastDate: "2026-06-25",
+    averageExpenseMinor: 1750,
+    averageDayMinor: 1750,
+    currencyTotals: [
+      { currency: "TWD", amountMinor: 500, expenseCount: 1 },
+      { currency: "USD", amountMinor: 10000, expenseCount: 1 },
+    ],
+    largestExpenses: [
+      { expense: { id: "expense-1" }, amountMinor: 3000 },
+      { expense: { id: "expense-2" }, amountMinor: 500 },
+    ],
+  });
 });
 
 test("filters and sorts expenses", () => {
@@ -346,6 +370,16 @@ test("missing legacy rates stay unavailable and sort after known amounts", () =>
     rateUnavailable: true,
     dailyTotals: [],
     categoryTotals: [],
+    totalMinor: 0,
+    expenseCount: 2,
+    calendarDays: 1,
+    averageExpenseMinor: 0,
+    averageDayMinor: 0,
+    largestExpenses: [],
+    currencyTotals: [
+      { currency: "TWD", amountMinor: 100, expenseCount: 1 },
+      { currency: "USD", amountMinor: 100, expenseCount: 1 },
+    ],
   });
   for (const sort of ["amount-asc", "amount-desc"] as const)
     expect(

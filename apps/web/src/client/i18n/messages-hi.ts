@@ -10,10 +10,12 @@ import { hiAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { hiAccount } from "./messages-hi-account.js";
 import { hiSettings } from "./messages-hi-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const hi = {
   ...automaticRateMessages("hi"),
+  ...spendingMessages("hi"),
   ...hiAi,
   ...hiAiAuth,
   backToExpenseList: "खर्चों की सूची पर वापस जाएँ",

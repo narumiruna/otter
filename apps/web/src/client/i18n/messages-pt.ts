@@ -9,10 +9,12 @@ import { ptAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { ptAccount } from "./messages-pt-account.js";
 import { ptSettings } from "./messages-pt-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const pt = {
   ...automaticRateMessages("pt"),
+  ...spendingMessages("pt"),
   ...ptAi,
   ...ptAiAuth,
   ...ptAccount,

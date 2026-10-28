@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { ShareMode } from "@narumitw/otter-contracts";
+import type { ShareMode, TripShareLink } from "@narumitw/otter-contracts";
 import type { Pool as PgPool, PoolClient } from "pg";
 import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
@@ -7,6 +7,7 @@ import {
   apiWritesDisabledMessage,
   type BuildTripPayload,
   currentUser,
+  iso,
   type LoadedTrip,
   loadTripById,
   loadTripForUser,
@@ -117,6 +118,60 @@ export function registerShareRoutes(
   mustHaveBrowserSession: OtterMiddleware,
   buildTripPayload: BuildTripPayload,
 ) {
+  app.get(
+    "/api/trips/:tripId/share-links",
+    mustHaveBrowserSession,
+    parseRequestBody,
+    async (context) => {
+      context.header("Cache-Control", "private, no-store");
+      if (
+        context.req.header("authorization") !== undefined ||
+        context.req.header("X-Otter-Share-Token") !== undefined
+      ) {
+        return sendError(context, 401, "請先登入");
+      }
+      const trip = await loadTripForUser(
+        pool,
+        currentUser(context).id,
+        context.req.param("tripId"),
+      );
+      if (!trip) return sendError(context, 404, "找不到旅行");
+      if (trip.currentUserRole !== "owner") {
+        return sendError(context, 403, "只有擁有者可管理分享連結");
+      }
+
+      // Keep recoverable secrets out of the generic trip loader and payload.
+      const result = await pool.query<{
+        id: string;
+        mode: ShareMode;
+        created_at: Date | string;
+        revoked_at: Date | string | null;
+        expires_at: Date | string | null;
+        token: string | null;
+      }>(
+        `SELECT id, mode, created_at, revoked_at, expires_at,
+                CASE WHEN revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())
+                     THEN token END AS token
+         FROM trip_share_links WHERE trip_id = $1
+         ORDER BY created_at DESC, id`,
+        [trip.id],
+      );
+      const shareLinks: TripShareLink[] = result.rows.map((row) => ({
+        id: row.id,
+        mode: row.mode,
+        createdAt: iso(row.created_at),
+        revokedAt: row.revoked_at ? iso(row.revoked_at) : null,
+        expiresAt: row.expires_at ? iso(row.expires_at) : null,
+        ...(row.token
+          ? {
+              url: `${new URL(context.req.url).protocol}//${context.req.header("host")}/share/${row.token}`,
+            }
+          : {}),
+      }));
+      return context.json({ shareLinks });
+    },
+  );
+
   app.post(
     "/api/trips/:tripId/share-links",
     mustHaveBrowserSession,
@@ -144,6 +199,7 @@ export function registerShareRoutes(
       ) {
         return sendError(context, 400, "分享連結權限格式錯誤");
       }
+      context.header("Cache-Control", "private, no-store");
       const token = generateShareToken();
       const linkId = makeId("share");
       await withTransaction(pool, async (client) => {
@@ -161,9 +217,17 @@ export function registerShareRoutes(
           );
         }
         await client.query(
-          `INSERT INTO trip_share_links (id, trip_id, token_hash, mode, guest_user_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [linkId, trip.id, hashShareToken(token), mode, guestId, nowIso()],
+          `INSERT INTO trip_share_links (id, trip_id, token_hash, mode, guest_user_id, created_at, token)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            linkId,
+            trip.id,
+            hashShareToken(token),
+            mode,
+            guestId,
+            nowIso(),
+            token,
+          ],
         );
       });
       const updated = await loadTripForUser(pool, user.id, trip.id);
@@ -202,7 +266,7 @@ export function registerShareRoutes(
           trip.id,
         ]);
         const result = await client.query<{ guest_user_id: string | null }>(
-          `UPDATE trip_share_links SET revoked_at = $1
+          `UPDATE trip_share_links SET revoked_at = $1, token = NULL
            WHERE id = $2 AND trip_id = $3 AND revoked_at IS NULL
            RETURNING guest_user_id`,
           [nowIso(), context.req.param("linkId"), trip.id],
