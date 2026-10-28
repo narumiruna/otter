@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import webPackage from "../../package.json" with { type: "json" };
 import { accessible } from "./interface-fixtures.js";
 import { expectNoOverflow } from "./layout-assertions.js";
 
@@ -23,6 +24,10 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    const appVersion = page
+      .getByRole("banner")
+      .getByText(`v${webPackage.version}`, { exact: true });
+    await expect(appVersion).toBeVisible();
     await page.keyboard.press("Tab");
     await expect(page.locator(".skip-link")).toBeFocused();
     await page.keyboard.press("Enter");
@@ -37,6 +42,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     for (const width of [320, 375, 768, 1920]) {
       await page.setViewportSize({ width, height: 900 });
+      await expect(appVersion).toBeInViewport({ ratio: 1 });
       await expectNoOverflow(page);
     }
     await page.setViewportSize({ width: 375, height: 812 });
@@ -66,6 +72,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     for (const locale of ["en", "zh-TW", "ja", "ko"]) {
       await page.locator("#auth-language").selectOption(locale);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(appVersion).toBeInViewport({ ratio: 1 });
       await expectNoOverflow(page);
       await accessible(page);
     }

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { version } from "../../package.json";
 import { AccountMenu } from "./account-menu.js";
 import { AccountSettingsPage } from "./account-settings-page.js";
 import { type AppBootstrap, fetchAppBootstrap } from "./app-bootstrap.js";
@@ -479,12 +480,15 @@ export function AppShell() {
               width={44}
               height={44}
             />
-            <span>
-              <h1 className="brand-name">otter</h1>
+            <div>
+              <div className="brand-title">
+                <h1 className="brand-name">otter</h1>
+                <span className="app-version">v{version}</span>
+              </div>
               <span className="brand-tagline">
                 {messages.travelTogetherSplitExpensesEasily}
               </span>
-            </span>
+            </div>
           </a>
           <div className="user-menu">
             {appData?.user && !sessionEnded ? (

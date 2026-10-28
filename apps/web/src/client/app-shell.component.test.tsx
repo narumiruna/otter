@@ -2,9 +2,10 @@
 
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { version } from "../../package.json";
 import { AppShell } from "./app-shell.js";
 import type { TripPayload, TripSummary, User } from "./client-support.js";
 import { I18nProvider } from "./i18n.js";
@@ -106,6 +107,14 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+test("the header shows the web package version beside the brand", async () => {
+  const view = renderApp();
+  await view.findByRole("button", { name: "Alice 的帳號選單" });
+  const brand = within(view.getByRole("link", { name: "otter 首頁" }));
+  expect(brand.getByText(`v${version}`, { exact: true })).toBeVisible();
+  expect(brand.getByRole("heading", { name: "otter" })).toBeVisible();
 });
 
 test("account settings preserves expense drafts across history navigation", async () => {

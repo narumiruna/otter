@@ -23,6 +23,12 @@ test("account actions remain visible at 200% text size on a small screen", async
   const trigger = page.getByRole("button", {
     name: messages.nameSAccountMenu({ name: "Alex" }),
   });
+  await expect(page.locator(".app-version")).toBeInViewport({ ratio: 1 });
+  expect(
+    await page
+      .locator(".app-header")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
   await trigger.click();
   const menu = page.getByRole("menu");
   await expect(menu.getByRole("menuitem")).toHaveCount(3);

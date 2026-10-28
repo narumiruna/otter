@@ -81,6 +81,20 @@ select:disabled {
   font-size: 0.8rem;
   letter-spacing: 0.04em;
 }
+.brand-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+.app-version {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
 .brand-name {
   display: block;
   margin: 0;
@@ -98,6 +112,7 @@ select:disabled {
 .user-menu {
   display: flex;
   min-width: 0;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.65rem;
 }
