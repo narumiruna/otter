@@ -8,11 +8,13 @@ import { koAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { koSettings } from "./messages-ko-settings.js";
 import { koPersonal } from "./messages-personal.js";
+import { spendingMessages } from "./messages-spending.js";
 import { koVisa } from "./messages-visa.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ko = {
   ...automaticRateMessages("ko"),
+  ...spendingMessages("ko"),
   ...koAi,
   ...koAiAuth,
   ...koPersonal,

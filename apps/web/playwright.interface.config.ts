@@ -6,6 +6,7 @@ export default defineConfig({
   ...config,
   testMatch: [
     "account-menu.spec.ts",
+    "share-link-visibility.spec.ts",
     "analysis.spec.ts",
     "auth-layout.spec.ts",
     "responsive-interface.spec.ts",

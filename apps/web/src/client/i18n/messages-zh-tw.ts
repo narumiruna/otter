@@ -4,10 +4,12 @@ import { zhTWAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { zhTWInterface } from "./messages-interface.js";
 import { zhTWPersonal } from "./messages-personal.js";
+import { spendingMessages } from "./messages-spending.js";
 import { zhTWVisa } from "./messages-visa.js";
 
 export const zhTW = {
   ...automaticRateMessages("zh-TW"),
+  ...spendingMessages("zh-TW"),
   ...zhTWAi,
   ...zhTWAiAuth,
   ...zhTWPersonal,

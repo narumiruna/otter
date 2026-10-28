@@ -1,0 +1,164 @@
+.spending-analysis,
+.spending-analysis-content {
+  display: grid;
+  gap: 1.25rem;
+}
+.spending-analysis-total {
+  margin-top: 0.35rem;
+  color: var(--accent-11);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+.spending-analysis-help {
+  max-width: 70ch;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+.spending-metrics {
+  display: grid;
+  gap: 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--gray-2);
+  padding: 1.25rem;
+}
+.spending-metrics > div {
+  min-width: 0;
+}
+.spending-metrics dt {
+  margin-bottom: 0.4rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+.spending-metrics dd {
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.spending-metrics small,
+.spending-currency-totals small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.spending-charts,
+.spending-details {
+  display: grid;
+  gap: 1.75rem;
+}
+.spending-charts > *,
+.spending-details > * {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+.spending-chart h4,
+.spending-details h4 {
+  margin-bottom: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.spending-chart ul {
+  display: grid;
+  gap: 1rem;
+}
+.spending-chart li {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.spending-chart-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.spending-chart-amount,
+.spending-expense-amount {
+  display: grid;
+  flex-shrink: 0;
+  gap: 0.2rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.spending-chart-amount small,
+.spending-expense-list small {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.spending-chart-bar {
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: var(--gray-3);
+}
+.spending-chart-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+.spending-expense-list,
+.spending-currency-totals {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+.spending-expense-list li,
+.spending-currency-totals > div {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+.spending-expense-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.spending-expense-copy > strong {
+  font-weight: 500;
+}
+.spending-expense-copy small {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+.spending-currency-totals dt {
+  font-weight: 500;
+}
+.spending-currency-totals dd {
+  white-space: nowrap;
+}
+.spending-analysis-content .member-accounts {
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+@media (min-width: 640px) {
+  .spending-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .spending-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .spending-charts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .spending-details {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}

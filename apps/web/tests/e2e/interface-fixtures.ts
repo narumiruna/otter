@@ -153,6 +153,12 @@ export async function mockWorkspace(
       });
     else if (path === `/api/trips/${trip.id}`)
       await route.fulfill({ json: payload() });
+    else if (
+      path === `/api/trips/${trip.id}/share-links` &&
+      route.request().method() === "GET" &&
+      role === "owner"
+    )
+      await route.fulfill({ json: { shareLinks: payload().shareLinks } });
     else if (path === `/api/trips/${trip.id}/expense-history`)
       await route.fulfill({ json: { revisions: [], nextCursor: null } });
     else if (path === "/api/passkeys")

@@ -18,6 +18,21 @@ export type SpendingSummary = {
   dailyTotals: { amountMinor: number; date: string }[];
   payerTotals: { amountMinor: number; name: string; participantId: string }[];
   categoryTotals: { amountMinor: number; category: string }[];
+  expenseCount: number;
+  calendarDays: number;
+  firstDate?: string;
+  lastDate?: string;
+  averageExpenseMinor: number;
+  averageDayMinor: number;
+  largestExpenses: {
+    expense: Trip["expenses"][number];
+    amountMinor: number;
+  }[];
+  currencyTotals: {
+    currency: Trip["baseCurrency"];
+    amountMinor: number;
+    expenseCount: number;
+  }[];
 };
 
 export type ExpenseFilters = {
@@ -133,18 +148,32 @@ export function spendingSummary(trip: Trip): SpendingSummary {
   const dailyTotals = new Map<string, number>();
   const payerTotals = new Map<string, number>();
   const categoryTotals = new Map<string, number>();
+  const currencyTotals = new Map<
+    Trip["baseCurrency"],
+    { amountMinor: number; expenseCount: number }
+  >();
+  const convertedExpenses: SpendingSummary["largestExpenses"] = [];
   let totalMinor = 0;
+  let rateUnavailable = false;
+  let firstDate: string | undefined;
+  let lastDate: string | undefined;
 
   for (const expense of trip.expenses) {
+    if (!firstDate || expense.expenseDate < firstDate)
+      firstDate = expense.expenseDate;
+    if (!lastDate || expense.expenseDate > lastDate)
+      lastDate = expense.expenseDate;
+    const original = currencyTotals.get(expense.currency);
+    currencyTotals.set(expense.currency, {
+      amountMinor: (original?.amountMinor ?? 0) + expense.amountMinor,
+      expenseCount: (original?.expenseCount ?? 0) + 1,
+    });
     const amount = savedBaseAmount(trip, expense);
-    if (amount === undefined)
-      return {
-        totalMinor: 0,
-        dailyTotals: [],
-        payerTotals: [],
-        categoryTotals: [],
-        rateUnavailable: true,
-      };
+    if (amount === undefined) {
+      rateUnavailable = true;
+      continue;
+    }
+    convertedExpenses.push({ expense, amountMinor: amount });
     totalMinor += amount;
     dailyTotals.set(
       expense.expenseDate,
@@ -158,7 +187,51 @@ export function spendingSummary(trip: Trip): SpendingSummary {
     categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + amount);
   }
 
+  const calendarDays =
+    firstDate && lastDate
+      ? Math.round(
+          (Date.parse(`${lastDate}T00:00:00Z`) -
+            Date.parse(`${firstDate}T00:00:00Z`)) /
+            86_400_000,
+        ) + 1
+      : 0;
+  const details = {
+    expenseCount: trip.expenses.length,
+    calendarDays,
+    firstDate,
+    lastDate,
+    currencyTotals: [...currencyTotals.entries()]
+      .map(([currency, totals]) => ({ currency, ...totals }))
+      .sort((left, right) => left.currency.localeCompare(right.currency)),
+  };
+  // Never show partial converted totals or rankings when a rate is missing.
+  if (rateUnavailable)
+    return {
+      ...details,
+      totalMinor: 0,
+      dailyTotals: [],
+      payerTotals: [],
+      categoryTotals: [],
+      averageExpenseMinor: 0,
+      averageDayMinor: 0,
+      largestExpenses: [],
+      rateUnavailable: true,
+    };
+
   return {
+    ...details,
+    averageExpenseMinor: trip.expenses.length
+      ? Math.round(totalMinor / trip.expenses.length)
+      : 0,
+    averageDayMinor: calendarDays ? Math.round(totalMinor / calendarDays) : 0,
+    largestExpenses: convertedExpenses
+      .sort(
+        (left, right) =>
+          right.amountMinor - left.amountMinor ||
+          right.expense.expenseDate.localeCompare(left.expense.expenseDate) ||
+          left.expense.id.localeCompare(right.expense.id),
+      )
+      .slice(0, 5),
     categoryTotals: [...categoryTotals.entries()]
       .map(([category, amountMinor]) => ({ amountMinor, category }))
       .sort((left, right) => right.amountMinor - left.amountMinor),

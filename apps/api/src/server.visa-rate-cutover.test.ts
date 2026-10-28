@@ -136,7 +136,7 @@ test(
         },
       ]),
     );
-    expect(await runMigrations(pool, { logger })).toBe(1);
+    expect(await runMigrations(pool, { logger })).toBe(2);
     expect(await runMigrations(pool, { logger })).toBe(0);
     const after = (
       await pool.query(
@@ -180,7 +180,7 @@ test(
     await pool.query(
       "INSERT INTO trip_exchange_rates (trip_id,currency,rate_to_base) VALUES ('t','TWD',5),('t','USD',160)",
     );
-    expect(await runMigrations(pool, { logger })).toBe(2);
+    expect(await runMigrations(pool, { logger })).toBe(3);
     const valid = {
       baseCurrency: "TWD",
       source: "visa",

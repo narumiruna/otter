@@ -9,10 +9,12 @@ import { idAiAuth } from "./messages-ai-auth.js";
 import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { idAccount } from "./messages-id-account.js";
 import { idSettings } from "./messages-id-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const id = {
   ...automaticRateMessages("id"),
+  ...spendingMessages("id"),
   ...idAi,
   ...idAiAuth,
   backToExpenseList: "Kembali ke daftar pengeluaran",

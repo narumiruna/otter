@@ -106,6 +106,23 @@ packages/cli    Published non-interactive CLI
 
 Raw SQL migrations 位於 `apps/api/db/migrations/`，runner 位於 `apps/api/scripts/migrate.ts`。Migration 022 為 `participants` 新增可空的 `settled_by_id`（同群組外鍵）；舊資料保持自行結算。API 修改成員的 `PATCH /api/trips/:tripId/participants/:participantId` 接受 `settledById` 為另一位直接結算的成員 ID，或 `null` 解除歸屬；既有 `name` 更新不受影響。每筆原始分帳與付款紀錄不改寫，僅餘額計算後將淨額歸至代表人；JSON 備份還原會重新映射歸屬 ID。
 
+### Share link recovery
+
+Migration 029 adds nullable `trip_share_links.token` to retain new share URLs after a reload.
+
+- The original random token is a secret capability. This column stores it without encryption or a new runtime key.
+  - Protect database access, database copies, and backups as secrets.
+  - Token hashes still control link lookup and verification.
+  - Revocation clears the stored token in the same database update.
+- Legacy hash-only links remain valid, but their URLs cannot be recovered. Create replacement links when necessary.
+- Only an owner's browser session can read `GET /api/trips/:tripId/share-links`.
+  - Requests with Bearer or share-token headers are rejected, even if an owner session is also present.
+  - Revoked, expired, and legacy rows retain metadata without a URL.
+  - Generic trip, Bearer/API/CLI, public, guest, and export reads do not include recoverable URLs.
+- GET and POST secret responses use `Cache-Control: private, no-store` and absolute `/share/:token` URLs.
+  - POST keeps the existing trip payload and includes only the newly created link URL.
+- Deploy the migration before the API. Application rollback can retain the nullable column and its data.
+
 ### 共用規則與 HTTP boundary
 
 - `packages/core/src/participant-deletion.ts` 決定刪除參與者的阻擋原因，優先順序為最後一位參與者、支出、付款紀錄。API 決定 status/error，Web 決定在地化文字；權限與封存檢查仍由各 app 處理。

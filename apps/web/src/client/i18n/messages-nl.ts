@@ -10,10 +10,12 @@ import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { nlErrors } from "./messages-nl-errors.js";
 import { nlFeatures } from "./messages-nl-features.js";
 import { nlSettings } from "./messages-nl-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const nl = {
   ...automaticRateMessages("nl"),
+  ...spendingMessages("nl"),
   ...nlAi,
   ...nlAiAuth,
   backToExpenseList: "Terug naar de uitgavenlijst",

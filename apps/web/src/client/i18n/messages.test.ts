@@ -4,6 +4,7 @@ import { type MessageValues, pluralForm } from "./message-types.js";
 import { translations } from "./messages.js";
 import { enAi } from "./messages-ai.js";
 import * as aiAuthMessages from "./messages-ai-auth.js";
+import { spendingMessages } from "./messages-spending.js";
 import { sourceMessageKeys } from "./source-message-keys.js";
 
 function parameters(message: string): string[] {
@@ -189,6 +190,72 @@ test.each(languageOptions)(
     expect(translations[locale].aiSignInApiKey).toContain("API");
     expect(translations[locale].aiKeyNotice).toContain("API");
     expect(translations[locale].aiAuthWaiting).toContain("URL");
+  },
+);
+
+test("spending and share link messages have the requested keys and English text", () => {
+  const messages = spendingMessages("en");
+  expect(
+    Object.fromEntries(
+      Object.entries(messages).map(([key, message]) => [
+        key,
+        typeof message === "function" ? message({}) : message,
+      ]),
+    ),
+  ).toEqual({
+    analysisAverageExpense: "Average expense",
+    analysisAverageDay: "Daily average",
+    analysisDays: "Calendar days",
+    analysisPeriod: "{start} to {end}",
+    analysisDailyAverageHelp:
+      "Includes days without expenses between the first and last expense.",
+    analysisBasis:
+      "Amounts use {currency} and recorded exchange rates. Settlement payments and unsynced drafts are excluded.",
+    analysisLargestExpenses: "Largest expenses",
+    analysisLargestExpensesHelp:
+      "Up to five expenses, ranked by their amount in the group currency.",
+    analysisOriginalCurrencyTotals: "Original currency totals",
+    analysisOriginalCurrencyHelp:
+      "Amounts are grouped by their original currency. Different currencies are not added together.",
+    analysisShare: "{percent} of total",
+    analysisMissingRatesHelp:
+      "Some expenses have no usable exchange rate. Converted totals, averages, and rankings are unavailable.",
+    shareLinkUnavailable:
+      "This older link cannot be shown again. Create a new link to copy it.",
+    shareLinkAddress: "Share link address",
+    shareLinkExpired: "Expired",
+  });
+  expect(
+    messages.analysisPeriod({ start: "2026-05-01", end: "2026-05-04" }),
+  ).toBe("2026-05-01 to 2026-05-04");
+  expect(messages.analysisBasis({ currency: "USD" })).toBe(
+    "Amounts use USD and recorded exchange rates. Settlement payments and unsynced drafts are excluded.",
+  );
+  expect(messages.analysisShare({ percent: "25%" })).toBe("25% of total");
+});
+
+test.each(languageOptions)(
+  "$locale has localized spending and share link messages without English fallbacks",
+  ({ locale }) => {
+    const english = spendingMessages("en");
+    const localized = spendingMessages(locale);
+    for (const key of Object.keys(english) as (keyof typeof english)[]) {
+      const message = localized[key];
+      const original = english[key];
+      const catalogMessage = translations[locale][key];
+      const text = typeof message === "function" ? message({}) : message;
+      expect(
+        typeof catalogMessage === "function"
+          ? catalogMessage({})
+          : catalogMessage,
+        key,
+      ).toBe(text);
+      if (locale !== "en") {
+        expect(text, key).not.toBe(
+          typeof original === "function" ? original({}) : original,
+        );
+      }
+    }
   },
 );
 

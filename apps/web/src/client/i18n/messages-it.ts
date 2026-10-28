@@ -10,10 +10,12 @@ import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { itAccount } from "./messages-it-account.js";
 import { itExpenses } from "./messages-it-expenses.js";
 import { itSettings } from "./messages-it-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const it = {
   ...automaticRateMessages("it"),
+  ...spendingMessages("it"),
   ...itAi,
   ...itAiAuth,
   backToExpenseList: "Torna all’elenco delle spese",

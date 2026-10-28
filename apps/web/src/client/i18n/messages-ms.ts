@@ -9,10 +9,12 @@ import { automaticRateMessages } from "./messages-automatic-rates.js";
 import { msErrors } from "./messages-ms-errors.js";
 import { msFeatures } from "./messages-ms-features.js";
 import { msSettings } from "./messages-ms-settings.js";
+import { spendingMessages } from "./messages-spending.js";
 import type { zhTW } from "./messages-zh-tw.js";
 
 export const ms = {
   ...automaticRateMessages("ms"),
+  ...spendingMessages("ms"),
   ...msAi,
   ...msAiAuth,
   backToExpenseList: "Kembali ke senarai perbelanjaan",
