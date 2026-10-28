@@ -120,6 +120,45 @@ test(
     );
     assert.equal(withSelfPayment.response.status, 201);
 
+    const withReversePayment = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/settlement-payments`,
+      {
+        body: JSON.stringify({
+          amount: "5",
+          currency: "TWD",
+          fromId: bobby.id,
+          paidAt: "2026-06-24",
+          toId: bob.id,
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(withReversePayment.response.status, 201);
+
+    const withIncomingPayment = await api<TripPayload>(
+      baseUrl,
+      `/api/trips/${createdTrip.data.trip.id}/settlement-payments`,
+      {
+        body: JSON.stringify({
+          amount: "15",
+          currency: "TWD",
+          fromId: owner.id,
+          paidAt: "2026-06-24",
+          toId: bob.id,
+        }),
+        headers: { cookie },
+        method: "POST",
+      },
+    );
+    assert.equal(withIncomingPayment.response.status, 201);
+    const incomingPayment =
+      withIncomingPayment.data.trip.settlementPayments?.find(
+        ({ fromId, toId }) => fromId === owner.id && toId === bob.id,
+      );
+    assert.ok(incomingPayment);
+
     const invalidMerge = await api<{ error: string }>(
       baseUrl,
       `/api/trips/${createdTrip.data.trip.id}/participants/${bob.id}/merge`,
@@ -154,11 +193,32 @@ test(
       { participantId: owner.id, shareMinor: 30 },
       { participantId: bobby.id, shareMinor: 70 },
     ]);
-    // payment from bob→owner should be rewritten to bobby→owner
-    assert.equal(merged.data.trip.settlementPayments?.length, 1);
-    const mergedPayment = merged.data.trip.settlementPayments?.[0];
-    assert.equal(mergedPayment?.id, payment.id);
-    assert.equal(mergedPayment?.fromId, bobby.id);
-    assert.equal(mergedPayment?.toId, owner.id);
+    assert.deepEqual(
+      merged.data.trip.settlementPayments
+        ?.map(({ id, fromId, toId, amountMinor, currency }) => ({
+          id,
+          fromId,
+          toId,
+          amountMinor,
+          currency,
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+      [
+        {
+          id: payment.id,
+          fromId: bobby.id,
+          toId: owner.id,
+          amountMinor: 20,
+          currency: "TWD",
+        },
+        {
+          id: incomingPayment.id,
+          fromId: owner.id,
+          toId: bobby.id,
+          amountMinor: 15,
+          currency: "TWD",
+        },
+      ].sort((a, b) => a.id.localeCompare(b.id)),
+    );
   },
 );

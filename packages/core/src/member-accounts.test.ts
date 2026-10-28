@@ -105,6 +105,122 @@ test("foreign payment entries use the same rates as balances and skip unknown me
   ]);
   expect(calculateMemberAccounts(trip)[0].balanceMinor).toBe(18);
 });
+test("mixed entries keep expense and payment order before representative transfers", () => {
+  const trip = fixture();
+  trip.exchangeRates = { TWD: 1, USD: 30 };
+  trip.participants[0].settledById = "b";
+  trip.participants[1].settledById = "z";
+  trip.participants[2].settledById = "missing";
+  trip.expenses[0].participantIds = ["b", "missing", "a"];
+  trip.expenses.push(
+    {
+      ...trip.expenses[0],
+      id: "explicit",
+      paidById: "b",
+      amountMinor: 100,
+      currency: "USD",
+      exchangeRate: { baseCurrency: "TWD", rateToBase: 32, source: "custom" },
+      participantIds: ["z", "missing", "b", "a"],
+      participantShares: [
+        { participantId: "z", shareMinor: 34 },
+        { participantId: "b", shareMinor: 33 },
+        { participantId: "a", shareMinor: 33 },
+      ],
+    },
+    {
+      ...trip.expenses[0],
+      id: "unknown-payer",
+      paidById: "missing",
+      currency: "EUR",
+    },
+    {
+      ...trip.expenses[0],
+      id: "unknown-split",
+      participantIds: ["missing"],
+      currency: "EUR",
+    },
+  );
+  const payment = {
+    id: "p1",
+    fromId: "b",
+    toId: "a",
+    currency: "USD",
+    amountMinor: 100,
+    paidAt: "2026-10-02",
+    createdAt: "now",
+    note: "",
+  } as const;
+  trip.settlementPayments = [
+    payment,
+    { ...payment, id: "self", fromId: "a", currency: "TWD", amountMinor: 3 },
+    { ...payment, id: "p2", fromId: "z", currency: "TWD", amountMinor: 2 },
+    { ...payment, id: "unknown-from", fromId: "missing", currency: "EUR" },
+    { ...payment, id: "unknown-to", toId: "missing", currency: "EUR" },
+  ];
+  const before = structuredClone(trip);
+  const accounts = calculateMemberAccounts(trip);
+  expect(accounts).toEqual([
+    {
+      participantId: "a",
+      currency: "TWD",
+      paidMinor: 101,
+      sharedMinor: 61,
+      balanceMinor: 0,
+      paidExpenses: [{ expenseId: "e", amountMinor: 101 }],
+      sharedExpenses: [
+        { expenseId: "e", amountMinor: 51 },
+        { expenseId: "explicit", amountMinor: 10 },
+      ],
+      payments: [
+        { paymentId: "p1", amountMinor: 30, direction: "received" },
+        { paymentId: "self", amountMinor: 3, direction: "paid" },
+        { paymentId: "self", amountMinor: 3, direction: "received" },
+        { paymentId: "p2", amountMinor: 2, direction: "received" },
+      ],
+      adjustments: [{ participantId: "b", amountMinor: -8 }],
+    },
+    {
+      participantId: "b",
+      currency: "TWD",
+      paidMinor: 32,
+      sharedMinor: 61,
+      balanceMinor: 0,
+      paidExpenses: [{ expenseId: "explicit", amountMinor: 32 }],
+      sharedExpenses: [
+        { expenseId: "e", amountMinor: 50 },
+        { expenseId: "explicit", amountMinor: 11 },
+      ],
+      payments: [{ paymentId: "p1", amountMinor: 30, direction: "paid" }],
+      adjustments: [
+        { participantId: "a", amountMinor: 8 },
+        { participantId: "z", amountMinor: -9 },
+      ],
+    },
+    {
+      participantId: "z",
+      currency: "TWD",
+      paidMinor: 0,
+      sharedMinor: 11,
+      balanceMinor: 0,
+      paidExpenses: [],
+      sharedExpenses: [{ expenseId: "explicit", amountMinor: 11 }],
+      payments: [{ paymentId: "p2", amountMinor: 2, direction: "paid" }],
+      adjustments: [{ participantId: "b", amountMinor: 9 }],
+    },
+  ]);
+  for (const account of accounts) {
+    expect(calculatePersonalSummary(trip, account.participantId)).toEqual({
+      paidMinor: account.paidMinor,
+      sharedMinor: account.sharedMinor,
+      balanceMinor: account.balanceMinor,
+      currency: account.currency,
+    });
+  }
+  expect(calculateBalances(trip).map((b) => b.amountMinor)).toEqual([0, 0, 0]);
+  expect(calculateMemberAccounts(trip)).toEqual(accounts);
+  expect(trip).toEqual(before);
+});
+
 test("large group accounts preserve member order, input data and established totals", () => {
   const trip = fixture();
   trip.participants = Array.from({ length: 100 }, (_, i) => ({

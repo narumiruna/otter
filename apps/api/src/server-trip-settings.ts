@@ -242,30 +242,21 @@ export function registerTripSettingsRoute(
           await recordExpenseChanges(pool, trip.id, before, user, "expense");
         }
 
-        if (hasArchived) {
-          await pool.query(
-            "UPDATE trips SET name = $1, base_currency = $2, archived_at = $3, allow_api_writes = $4 WHERE id = $5 AND owner_id = $6",
-            [
-              name,
-              baseCurrencyValue,
-              archivedAt,
-              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-              context.req.param("tripId"),
-              user.id,
-            ],
-          );
-        } else {
-          await pool.query(
-            "UPDATE trips SET name = $1, base_currency = $2, allow_api_writes = $3 WHERE id = $4 AND owner_id = $5",
-            [
-              name,
-              baseCurrencyValue,
-              hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
-              context.req.param("tripId"),
-              user.id,
-            ],
-          );
-        }
+        await pool.query(
+          `UPDATE trips SET name = $1, base_currency = $2,
+             archived_at = CASE WHEN $3::boolean THEN $4::timestamptz ELSE archived_at END,
+             allow_api_writes = $5
+           WHERE id = $6 AND owner_id = $7`,
+          [
+            name,
+            baseCurrencyValue,
+            hasArchived,
+            archivedAt ?? null,
+            hasAllowApiWrites ? body.allowApiWrites : trip.allowApiWrites,
+            context.req.param("tripId"),
+            user.id,
+          ],
+        );
 
         if (hasExchangeRates || baseCurrencyChanged) {
           await pool.query(

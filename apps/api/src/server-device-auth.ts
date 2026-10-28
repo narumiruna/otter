@@ -11,6 +11,7 @@ import { parseRequestBody, requestRemoteAddress } from "./server-http.js";
 import { createFixedWindowRateLimiter } from "./server-rate-limit.js";
 import {
   currentUser,
+  iso,
   isPgCode,
   makeId,
   nowIso,
@@ -129,7 +130,7 @@ export function registerDeviceAuthRoutes(
       }
       return context.json({
         clientName: row.client_name,
-        expiresAt: toIso(row.expires_at),
+        expiresAt: iso(row.expires_at),
         userCode,
       });
     },
@@ -305,8 +306,4 @@ export function normalizeUserCode(value: string): string | undefined {
     return undefined;
   }
   return `${compact.slice(0, 4)}-${compact.slice(4)}`;
-}
-
-function toIso(value: Date | string): string {
-  return (value instanceof Date ? value : new Date(value)).toISOString();
 }

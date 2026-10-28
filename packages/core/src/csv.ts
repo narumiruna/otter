@@ -76,7 +76,7 @@ export function tripExpensesCsv(trip: Trip): string {
     participantById.get(expense.paidById) ?? "未知",
     expense.category ?? "其他",
     (expense.tags ?? []).join("|"),
-    splitParticipantsCell(trip, expense),
+    splitParticipantsCell(participantById, expense),
   ]);
 
   return csvRows([expenseHeaders, ...rows]);
@@ -257,12 +257,9 @@ export function parseExpenseImportCsv(
 }
 
 function splitParticipantsCell(
-  trip: Trip,
+  participantById: ReadonlyMap<string, string>,
   expense: Trip["expenses"][number],
 ): string {
-  const participantById = new Map(
-    trip.participants.map((participant) => [participant.id, participant.name]),
-  );
   const shares = new Map(
     expense.participantShares?.map((share) => [
       share.participantId,

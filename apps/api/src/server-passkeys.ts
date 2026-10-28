@@ -202,6 +202,30 @@ async function saveChallenge(
   return id;
 }
 
+async function insertPasskey(
+  db: Queryable,
+  userId: string,
+  registrationInfo: NonNullable<
+    Awaited<ReturnType<typeof verifyRegistrationResponse>>["registrationInfo"]
+  >,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO passkeys (
+       credential_id, user_id, public_key, counter, transports,
+       device_type, backed_up
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      registrationInfo.credential.id,
+      userId,
+      Buffer.from(registrationInfo.credential.publicKey),
+      registrationInfo.credential.counter,
+      registrationInfo.credential.transports ?? [],
+      registrationInfo.credentialDeviceType,
+      registrationInfo.credentialBackedUp,
+    ],
+  );
+}
+
 async function consumeChallenge(
   db: Queryable,
   id: string,
@@ -399,21 +423,7 @@ export function registerPasskeyRoutes(
              VALUES ($1, $2, $2, NULL)`,
             [pending.user_id, pending.username],
           );
-          await client.query(
-            `INSERT INTO passkeys (
-               credential_id, user_id, public_key, counter, transports,
-               device_type, backed_up
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              registrationInfo.credential.id,
-              pending.user_id,
-              Buffer.from(registrationInfo.credential.publicKey),
-              registrationInfo.credential.counter,
-              registrationInfo.credential.transports ?? [],
-              registrationInfo.credentialDeviceType,
-              registrationInfo.credentialBackedUp,
-            ],
-          );
+          await insertPasskey(client, pending.user_id, registrationInfo);
           const session = await createSession(client, pending.user_id);
           return { status: "success" as const, session, user: pending };
         });
@@ -554,21 +564,7 @@ export function registerPasskeyRoutes(
 
       const { registrationInfo } = verification;
       try {
-        await pool.query(
-          `INSERT INTO passkeys (
-             credential_id, user_id, public_key, counter, transports,
-             device_type, backed_up
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            registrationInfo.credential.id,
-            user.id,
-            Buffer.from(registrationInfo.credential.publicKey),
-            registrationInfo.credential.counter,
-            registrationInfo.credential.transports ?? [],
-            registrationInfo.credentialDeviceType,
-            registrationInfo.credentialBackedUp,
-          ],
-        );
+        await insertPasskey(pool, user.id, registrationInfo);
       } catch (error) {
         if (isPgCode(error, "23505")) {
           return sendError(context, 409, "這組 Passkey 已經註冊");

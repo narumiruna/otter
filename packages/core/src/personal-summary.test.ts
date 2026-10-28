@@ -82,6 +82,66 @@ test("explicit foreign shares use the saved snapshot and the same rounding as ba
     [{ expenseId: "e", amountMinor: 11 }],
   ]);
 });
+test("explicit foreign shares distribute a positive conversion remainder in participant order", () => {
+  const t = trip();
+  t.expenses[0] = {
+    ...t.expenses[0],
+    amountMinor: 100,
+    currency: "USD",
+    exchangeRate: { baseCurrency: "TWD", rateToBase: 1, source: "custom" },
+    participantShares: [
+      { participantId: "c", shareMinor: 34 },
+      { participantId: "b", shareMinor: 33 },
+      { participantId: "a", shareMinor: 33 },
+    ],
+  };
+  const before = structuredClone(t);
+  expect(calculateMemberAccounts(t).map((a) => a.sharedExpenses)).toEqual([
+    [{ expenseId: "e", amountMinor: 1 }],
+    [{ expenseId: "e", amountMinor: 0 }],
+    [{ expenseId: "e", amountMinor: 0 }],
+  ]);
+  expect(calculatePersonalSummary(t, "a")).toEqual({
+    paidMinor: 1,
+    sharedMinor: 1,
+    balanceMinor: 0,
+    currency: "TWD",
+  });
+  expect(t).toEqual(before);
+});
+
+test.each(["expense", "payment"])(
+  "summaries and accounts reject a %s without a required saved rate",
+  (kind) => {
+    const t = trip();
+    if (kind === "expense") {
+      t.expenses[0].currency = "USD";
+    } else {
+      t.settlementPayments = [
+        {
+          id: "p",
+          fromId: "b",
+          toId: "a",
+          amountMinor: 100,
+          currency: "USD",
+          paidAt: "2026-10-02",
+          note: "",
+          createdAt: "now",
+        },
+      ];
+    }
+    const before = structuredClone(t);
+    expect(() => calculatePersonalSummary(t, "a")).toThrow(
+      "Missing saved USD/TWD exchange rate",
+    );
+    expect(() => calculateMemberAccounts(t)).toThrow(
+      "Missing saved USD/TWD exchange rate",
+    );
+    expect(calculatePersonalSummary(t, "missing")).toBeUndefined();
+    expect(t).toEqual(before);
+  },
+);
+
 test("payments and representatives affect balances but not personal expense totals", () => {
   const t = trip();
   t.participants[2].settledById = "b";

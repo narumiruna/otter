@@ -352,6 +352,12 @@ export function AuthenticatedWorkspace({
     navigate({ mode: null, tripId: null, view: "overview" }, true);
   }
 
+  async function onGroupCreated(created: TripPayload) {
+    queryClient.setQueryData(["trip", created.trip.id], created);
+    await refreshCollection();
+    navigate({ mode: null, tripId: created.trip.id, view: "people" });
+  }
+
   if (selectedTripId && selectedQuery.isPending) {
     return (
       <section className="surface empty-state" aria-busy="true">
@@ -413,11 +419,7 @@ export function AuthenticatedWorkspace({
   if (!selectedTripId || !selectedQuery.data) {
     return (
       <NoGroups
-        onCreated={async (payload) => {
-          queryClient.setQueryData(["trip", payload.trip.id], payload);
-          await refreshCollection();
-          navigate({ mode: null, tripId: payload.trip.id, view: "people" });
-        }}
+        onCreated={onGroupCreated}
         offline={offline}
         trips={allTrips}
         userId={guestShare ? undefined : bootstrap.user?.id}
@@ -482,15 +484,7 @@ export function AuthenticatedWorkspace({
           />
           {!guestShare ? (
             <CreateTrip
-              onCreated={async (created) => {
-                queryClient.setQueryData(["trip", created.trip.id], created);
-                await refreshCollection();
-                navigate({
-                  mode: null,
-                  tripId: created.trip.id,
-                  view: "people",
-                });
-              }}
+              onCreated={onGroupCreated}
               offline={offline || draftDirty}
             />
           ) : null}
@@ -530,18 +524,7 @@ export function AuthenticatedWorkspace({
               !guestShare ? (
                 <CreateTrip
                   offline={offline || draftDirty}
-                  onCreated={async (created) => {
-                    queryClient.setQueryData(
-                      ["trip", created.trip.id],
-                      created,
-                    );
-                    await refreshCollection();
-                    navigate({
-                      mode: null,
-                      tripId: created.trip.id,
-                      view: "people",
-                    });
-                  }}
+                  onCreated={onGroupCreated}
                 />
               ) : null
             }
