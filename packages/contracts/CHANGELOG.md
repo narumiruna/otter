@@ -1,5 +1,12 @@
 # @narumitw/otter-contracts
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [81406ec]
+  - @narumitw/otter-core@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

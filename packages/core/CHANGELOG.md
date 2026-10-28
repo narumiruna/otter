@@ -1,5 +1,11 @@
 # @narumitw/otter-core
 
+## 0.4.1
+
+### Patch Changes
+
+- 81406ec: Simplify expense calculations, CSV participant lookup, group creation, passkey persistence, trip settings, participant merge cleanup, and timestamp conversion without changing existing behavior.
+
 ## 0.4.0
 
 ### Minor Changes
