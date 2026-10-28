@@ -1,5 +1,11 @@
 # @narumitw/otter-web
 
+## 0.7.2
+
+### Patch Changes
+
+- ce649ff: Show the web package version as small, muted text beside the app name.
+
 ## 0.7.1
 
 ### Patch Changes
