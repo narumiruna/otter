@@ -51,8 +51,8 @@ The review baseline passed Biome, TypeScript checks, and 1,416 tests. Another 11
   - Evidence: `npm run check` passed Biome, TypeScript, all 1,575 tests without skips, and all production builds. Four focused Playwright workflows passed with a separate fresh database, isolated ports, one worker, and no retries.
 - [x] Review the final diff, update this plan with evidence, and remove temporary validation resources.
   - Evidence: final review found no actionable issues; diff checks pass; only the intended source, tests, Changeset, and plan are included. The task-owned PostgreSQL container and its volume were removed, and both browser server ports were released.
-- [ ] Commit the intended paths, push the topic branch, and open a pull request against `main`.
-  - Acceptance: the pull request describes the overall result, lists validation evidence, and links this plan.
+- [x] Commit the intended paths, push the topic branch, and open a pull request against `main`.
+  - Evidence: implementation commit `81406ec` is pushed on `narumi/refactor/verified-simplifications`; [pull request #159](https://github.com/narumiruna/otter/pull/159) is open against `main`, describes all seven changes, records validation, and links this plan.
 
 ## Validation
 
@@ -85,7 +85,7 @@ The production Web build emitted the existing large-chunk warning. No assertion,
 - [x] Required validation passes, including the affected database paths.
 - [x] Money, transaction, archive, merge, navigation, timestamp, and CSV behavior remains covered.
 - [x] The Changeset and this requested plan are included; unrelated files and runtime artifacts are excluded.
-- [ ] Temporary validation resources are removed and the pull request is open.
+- [x] Temporary validation resources are removed and [pull request #159](https://github.com/narumiruna/otter/pull/159) is open.
 
 ## Rollback / Recovery
 
