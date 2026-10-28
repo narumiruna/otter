@@ -232,6 +232,68 @@ test("a create completed after navigation is recovered even when trip metadata i
   ).toBeUndefined();
 });
 
+test("returning before a pending create completes refreshes the current recovery query", async () => {
+  const created = link("created-after-return");
+  const recoveryKey = ["owner-share-links", "user_1", "trip_1"] as const;
+  const otherKeys = [
+    ["owner-share-links", "user_2", "trip_1"],
+    ["owner-share-links", "user_1", "trip_2"],
+  ];
+  let saved: TripShareLink[] = [];
+  let finish: (response: Response) => void = () => {};
+  let reads = 0;
+  const fetchMock = vi.fn(async (_path: string, init?: RequestInit) => {
+    if (init?.method === "POST")
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    reads++;
+    return Response.json({ shareLinks: saved });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const view = settings();
+  await waitFor(() =>
+    expect(view.client.getQueryData(recoveryKey)).toEqual({ shareLinks: [] }),
+  );
+  for (const key of otherKeys)
+    view.client.setQueryData(key, { shareLinks: [] });
+  fireEvent.click(view.getByRole("button", { name: "Create share link" }));
+  fireEvent.click(
+    within(view.getByRole("dialog")).getByRole("button", {
+      name: "Create share link",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+    ).toBe(true),
+  );
+  view.navigate(false);
+  view.navigate(true);
+  await waitFor(() => {
+    expect(reads).toBeGreaterThanOrEqual(2);
+    expect(view.client.getQueryState(recoveryKey)?.fetchStatus).toBe("idle");
+  });
+  expect(view.queryByLabelText("Share link address")).not.toBeInTheDocument();
+  saved = [created];
+  await act(async () =>
+    finish(Response.json({ ...payload, shareLinks: saved })),
+  );
+  expect(await view.findByLabelText("Share link address")).toHaveValue(
+    created.url,
+  );
+  expect(
+    await view.findByText("1 active link · 0 collaborators"),
+  ).toBeVisible();
+  expect(view.announce).not.toHaveBeenCalled();
+  expect(
+    view.client.getQueryData<TripPayload>(["trip", "trip_1"])?.shareLinks?.[0]
+      ?.url,
+  ).toBeUndefined();
+  for (const key of otherKeys)
+    expect(view.client.getQueryState(key)?.isInvalidated).toBe(false);
+});
+
 test("recovered revocation and expiry override older active trip metadata", async () => {
   const active = [link("revoked-on-server"), link("expired-on-server")];
   vi.stubGlobal(

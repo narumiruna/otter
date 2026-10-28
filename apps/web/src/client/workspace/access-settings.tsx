@@ -164,7 +164,10 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
 
   async function saveResponse(next: TripPayload) {
     await queryClient.cancelQueries({ queryKey, exact: true });
-    if (!mounted.current) return;
+    if (!mounted.current) {
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+      return;
+    }
     const previous = queryClient.getQueryData<{
       shareLinks: TripShareLink[];
     }>(queryKey);
@@ -200,8 +203,8 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
         method: "POST",
         body: JSON.stringify({ mode }),
       });
-      if (!mounted.current) return;
       await saveResponse(next);
+      if (!mounted.current) return;
       announce(messages.shareLinkCreated);
       const url = next.shareLinks?.find(
         (item) =>
@@ -224,11 +227,14 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
         }
       }
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : messages.unableToCreateLink,
-      );
+      if (mounted.current)
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : messages.unableToCreateLink,
+        );
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   async function revoke(id: string) {
@@ -237,8 +243,8 @@ function ShareLinks({ payload }: { payload: TripPayload }) {
     const next = await api<TripPayload>(`${endpoint}/${id}`, {
       method: "DELETE",
     });
-    if (!mounted.current) return;
     await saveResponse(next);
+    if (!mounted.current) return;
     announce(messages.shareLinkRevoked);
   }
   async function copy(link: TripShareLink) {
