@@ -246,7 +246,7 @@ export function calculatePersonalSummary(
 ): PersonalSummary | undefined {
   if (!trip.participants.some((p) => p.id === participantId)) return undefined;
   const totals = expenseTotals(trip);
-  const balance = calculateBalances(trip).find(
+  const balance = balancesWithEntries(trip, totals.balances).find(
     (b) => b.participantId === participantId,
   );
   return {
@@ -258,16 +258,16 @@ export function calculatePersonalSummary(
 }
 
 export function calculateBalances(trip: Trip): Balance[] {
-  return balancesWithEntries(trip);
+  return balancesWithEntries(trip, expenseTotals(trip).balances);
 }
 
 function balancesWithEntries(
   trip: Trip,
+  balances: Map<string, number>,
   recordPayment?: (participantId: string, entry: PaymentEntry) => void,
   recordAdjustment?: (participantId: string, entry: AdjustmentEntry) => void,
 ): Balance[] {
   const currency = settlementCurrency(trip);
-  const { balances } = expenseTotals(trip);
 
   for (const payment of trip.settlementPayments ?? []) {
     if (!balances.has(payment.fromId) || !balances.has(payment.toId)) {
@@ -364,6 +364,7 @@ export function calculateMemberAccounts(trip: Trip): MemberAccount[] {
   });
   const balances = balancesWithEntries(
     trip,
+    totals.balances,
     (id, entry) => accounts.get(id)?.payments.push(entry),
     (id, entry) => accounts.get(id)?.adjustments.push(entry),
   );

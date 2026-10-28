@@ -4,6 +4,7 @@ import {
   clearSessionCookieHeader,
   getCookie,
   hashPassword,
+  iso,
   sessionCookieHeader,
   verifyPassword,
 } from "./server-support.js";
@@ -44,6 +45,21 @@ function withCookieEnv(
 function requestWithCookie(cookie: string): Request {
   return new Request("http://localhost", { headers: { cookie } });
 }
+
+test.each([
+  { type: "Date", value: new Date("2026-10-28T04:05:06.789Z") },
+  { type: "UTC string", value: "2026-10-28T04:05:06.789Z" },
+  { type: "offset string", value: "2026-10-28T12:05:06.789+08:00" },
+])("ISO timestamp conversion accepts $type", ({ value }) => {
+  assert.equal(iso(value), "2026-10-28T04:05:06.789Z");
+});
+
+test.each([
+  { type: "Date", value: new Date("invalid") },
+  { type: "string", value: "invalid" },
+])("ISO timestamp conversion rejects an invalid $type", ({ value }) => {
+  assert.throws(() => iso(value), RangeError);
+});
 
 test("cookie parser decodes valid values and ignores malformed values", () => {
   assert.equal(

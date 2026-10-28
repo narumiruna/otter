@@ -170,6 +170,52 @@ test(
 );
 
 test(
+  "permission-only updates preserve the exact archived timestamp",
+  postgresTestOptions,
+  async () => {
+    const { baseUrl, pool } = await withTestApp({
+      prepare: async (db) => {
+        await db.query(
+          "INSERT INTO users (id, name, username, password_hash) VALUES ('owner', 'Owner', 'owner', 'unused')",
+        );
+      },
+    });
+    const cookie = `otter_session=${(await createSession(pool, "owner")).id}`;
+    const created = await api<TripPayload>(baseUrl, "/api/trips", {
+      headers: { cookie },
+      method: "POST",
+      body: JSON.stringify({ name: "Archived permissions" }),
+    });
+    assert.equal(created.response.status, 201);
+    const tripId = created.data.trip.id;
+    const archivedAt = "2026-10-25T12:34:56.123456Z";
+    const before = await pool.query<{ archived_at: string }>(
+      "UPDATE trips SET archived_at = $2::timestamptz WHERE id = $1 RETURNING archived_at::text",
+      [tripId, archivedAt],
+    );
+
+    for (const allowApiWrites of [true, false]) {
+      const updated = await api<TripPayload>(baseUrl, `/api/trips/${tripId}`, {
+        headers: { cookie },
+        method: "PATCH",
+        body: JSON.stringify({ allowApiWrites }),
+      });
+      assert.equal(updated.response.status, 200);
+      assert.equal(updated.data.trip.allowApiWrites, allowApiWrites);
+      const stored = await pool.query<{
+        archived_at: string;
+        exact: boolean;
+      }>(
+        "SELECT archived_at::text, archived_at = $2::timestamptz AS exact FROM trips WHERE id = $1",
+        [tripId, archivedAt],
+      );
+      assert.equal(stored.rows[0].archived_at, before.rows[0].archived_at);
+      assert.equal(stored.rows[0].exact, true);
+    }
+  },
+);
+
+test(
   "a token write waiting for the trip lock rechecks a disabled setting",
   postgresTestOptions,
   async () => {

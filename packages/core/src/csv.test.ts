@@ -81,6 +81,70 @@ test("exports explicit split shares in expense CSV", () => {
   );
 });
 
+test("exports mixed expenses with original row and split order, unknown names and explicit shares", () => {
+  const trip: Trip = {
+    id: "trip",
+    ownerId: "user",
+    name: "Trip",
+    baseCurrency: "TWD",
+    createdAt: "now",
+    participants: [
+      { id: "alice", name: "Alice, A" },
+      { id: "bob", name: 'Bob "B"' },
+    ],
+    expenses: [
+      {
+        id: "equal",
+        description: 'Dinner, "sushi"\nSecond course',
+        amountMinor: 12345,
+        currency: "USD",
+        paidById: "bob",
+        participantIds: ["bob", "missing", "alice"],
+        category: "餐飲",
+        tags: ["food,night", 'say "hi"'],
+        expenseDate: "2026-06-25",
+        createdAt: "now",
+      },
+      {
+        id: "explicit",
+        description: "Taxi",
+        amountMinor: 1000,
+        currency: "TWD",
+        paidById: "missing",
+        participantIds: ["alice", "missing", "bob"],
+        participantShares: [
+          { participantId: "bob", shareMinor: 300 },
+          { participantId: "missing", shareMinor: 0 },
+          { participantId: "alice", shareMinor: 700 },
+        ],
+        expenseDate: "2026-06-24",
+        createdAt: "now",
+      },
+      {
+        id: "partial",
+        description: "Coffee",
+        amountMinor: 250,
+        currency: "USD",
+        paidById: "alice",
+        participantIds: ["bob", "alice", "missing"],
+        participantShares: [{ participantId: "alice", shareMinor: 125 }],
+        expenseDate: "2026-06-26",
+        createdAt: "now",
+      },
+    ],
+  };
+  const before = structuredClone(trip);
+  const expected = [
+    "date,description,amount,currency,paid_by,category,tags,split_participants",
+    '2026-06-25,"Dinner, ""sushi""\nSecond course",123.45,USD,"Bob ""B""",餐飲,"food,night|say ""hi""","Bob ""B""; 未知; Alice, A"',
+    '2026-06-24,Taxi,1000,TWD,未知,其他,,"Alice, A=700; 未知=0; Bob ""B""=300"',
+    '2026-06-26,Coffee,2.50,USD,"Alice, A",其他,,"Bob ""B""; Alice, A=1.25; 未知"',
+  ].join("\n");
+  assert.equal(tripExpensesCsv(trip), expected);
+  assert.equal(tripExpensesCsv(trip), expected);
+  assert.deepEqual(trip, before);
+});
+
 test("parses expense import CSV with quotes and newlines", () => {
   const csv = [
     "date,description,amount,currency,paid_by,category,tags,split_participants",

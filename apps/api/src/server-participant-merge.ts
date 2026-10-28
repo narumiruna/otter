@@ -97,10 +97,6 @@ export function registerParticipantMergeRoute(
         "UPDATE settlement_payments SET to_id = $3 WHERE trip_id = $1 AND to_id = $2",
         [trip.id, sourceId, targetId],
       );
-      await pool.query(
-        "DELETE FROM settlement_payments WHERE trip_id = $1 AND from_id = to_id",
-        [trip.id],
-      );
       // Only detach the target when the source has dependents to transfer.
       // Otherwise keep the target's existing settlement representative.
       if (trip.participants.some((person) => person.settledById === sourceId)) {

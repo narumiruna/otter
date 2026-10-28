@@ -4,6 +4,7 @@ import type { OtterApp, OtterMiddleware } from "./server-http.js";
 import { parseRequestBody } from "./server-http.js";
 import {
   currentUser,
+  iso,
   nowIso,
   requestBody,
   sendError,
@@ -145,13 +146,9 @@ export function registerPersonalApiTokenRoutes(
 
 function publicApiToken(row: ApiTokenRow) {
   return {
-    createdAt: toIso(row.created_at),
-    expiresAt: toIso(row.expires_at),
+    createdAt: iso(row.created_at),
+    expiresAt: iso(row.expires_at),
     id: row.id,
     name: row.name,
   };
-}
-
-function toIso(value: Date | string): string {
-  return (value instanceof Date ? value : new Date(value)).toISOString();
 }
