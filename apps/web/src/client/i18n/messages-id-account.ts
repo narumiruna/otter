@@ -49,7 +49,7 @@ export const idAccount = {
   visaSettlementEnable:
     "Konversi semua pengeluaran dengan kurs Visa sesuai tanggal dan lunasi dalam mata uang yang dipilih",
   visaSettlementHelp:
-    "Nonaktif secara bawaan. Jumlah asli tidak berubah. Jika diaktifkan, kurs Visa disimpan untuk setiap tanggal pengeluaran, dan mata uang pilihan Anda digunakan untuk saldo dan pelunasan. Berlaku untuk semua pengeluaran, termasuk tunai, tanpa biaya bank. Kurs Visa adalah perkiraan; tagihan kartu dapat berbeda. Pembayaran yang ada harus menggunakan mata uang pilihan sebelum mengaktifkan atau mengganti mata uang.",
+    "Aktif secara bawaan untuk grup baru. Jumlah asli tidak berubah. Jika diaktifkan, kurs Visa pada tanggal setiap pengeluaran disimpan, dan mata uang pilihan Anda digunakan untuk saldo dan pelunasan. Jika mata uang pelunasan sama dengan mata uang dasar, konversi tersimpan digunakan kembali tanpa permintaan tambahan ke Visa. Berlaku untuk semua pengeluaran, termasuk tunai, tanpa biaya bank. Kurs Visa adalah perkiraan; tagihan kartu dapat berbeda. Pembayaran yang ada harus menggunakan mata uang pilihan sebelum mengaktifkan atau mengganti mata uang.",
   visaSettlementSaved: "Pengaturan pelunasan Visa disimpan",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Aktif · {currency}", values),

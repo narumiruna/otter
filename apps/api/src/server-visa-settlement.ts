@@ -11,6 +11,7 @@ import {
   type Expense,
   settlementCurrency,
   type Trip,
+  usesVisaSettlementRates,
 } from "@narumitw/otter-core/settlement";
 import {
   convertVisaExpenseMinor,
@@ -54,24 +55,31 @@ const key = (expense: DatedExpense, target: Currency) =>
   `${expense.currency}/${target}/${expense.expenseDate}`;
 
 export function visaExpenseSnapshot(
-  trip: Pick<Trip, "visaSettlementEnabled" | "visaSettlementCurrency">,
+  trip: Pick<
+    Trip,
+    "baseCurrency" | "visaSettlementEnabled" | "visaSettlementCurrency"
+  >,
   expense: DatedExpense & Pick<Expense, "amountMinor">,
   rates: VisaRates | undefined,
 ): VisaExpenseRate | undefined {
   const target = trip.visaSettlementEnabled
     ? trip.visaSettlementCurrency
     : undefined;
+  const separate = usesVisaSettlementRates(trip);
   const existing = isVisaExpenseRate(
     expense.visaExchangeRate,
     expense.currency,
     expense.expenseDate,
-    target,
+    separate ? target : undefined,
   )
     ? expense.visaExchangeRate
     : undefined;
   if (!trip.visaSettlementEnabled) return existing;
   if (!target) throw new ExpenseRateError("請選擇 Visa 結清貨幣");
-  const snapshot = existing ?? rates?.get(key(expense, target));
+  const snapshot = separate
+    ? (existing ?? rates?.get(key(expense, target)))
+    : existing;
+  if (!separate && snapshot?.targetCurrency !== target) return existing;
   try {
     convertVisaExpenseMinor(
       expense.amountMinor,
@@ -320,7 +328,7 @@ export function createVisaSettlementService(
         );
     }
     const rates = await prepareGeneral(trip, expenses);
-    if (trip.visaSettlementEnabled) {
+    if (usesVisaSettlementRates(trip)) {
       const selected = await prepare(expenses, settlementCurrency(trip));
       for (const [key, value] of selected) rates.set(key, value);
     }
@@ -376,9 +384,10 @@ export function registerVisaSettlementRoute(
           trip.allowApiWrites === false
         ) {
           // The locked mutation below returns the existing API-write error.
-        } else if (enabled)
-          rates = await service.prepare(trip.expenses, target);
-        else
+        } else if (enabled) {
+          if (target !== trip.baseCurrency)
+            rates = await service.prepare(trip.expenses, target);
+        } else
           rates = await service.prepareGeneral(
             trip,
             (trip.settlementPayments ?? []).map((payment) => ({
@@ -411,14 +420,19 @@ export function registerVisaSettlementRoute(
           if (enabled) {
             for (const expense of locked.expenses) {
               const snapshot = visaExpenseSnapshot(
-                { visaSettlementEnabled: true, visaSettlementCurrency: target },
+                {
+                  ...locked,
+                  visaSettlementEnabled: true,
+                  visaSettlementCurrency: target,
+                },
                 expense,
                 rates,
               );
-              await client.query(
-                "UPDATE expenses SET visa_exchange_rate = $3 WHERE trip_id = $1 AND id = $2",
-                [trip.id, expense.id, snapshot],
-              );
+              if (target !== locked.baseCurrency)
+                await client.query(
+                  "UPDATE expenses SET visa_exchange_rate = $3 WHERE trip_id = $1 AND id = $2",
+                  [trip.id, expense.id, snapshot],
+                );
             }
           }
           if (!enabled) await savePaymentRates(client, locked, rates);

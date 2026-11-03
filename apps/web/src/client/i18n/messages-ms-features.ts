@@ -50,7 +50,7 @@ export const msFeatures = {
   visaSettlementEnable:
     "Tukar semua perbelanjaan menggunakan kadar Visa mengikut tarikh dan selesaikan dalam mata wang yang dipilih",
   visaSettlementHelp:
-    "Dimatikan secara lalai. Amaun asal tidak berubah. Apabila diaktifkan, kadar Visa disimpan untuk setiap tarikh perbelanjaan dan mata wang pilihan anda digunakan untuk baki dan penyelesaian. Terpakai kepada semua perbelanjaan, termasuk tunai, tanpa fi bank. Kadar Visa ialah anggaran; bil kad mungkin berbeza. Bayaran sedia ada mesti menggunakan mata wang yang dipilih sebelum pengaktifan atau penukaran mata wang.",
+    "Diaktifkan secara lalai untuk kumpulan baharu. Amaun asal tidak berubah. Apabila diaktifkan, kadar Visa pada tarikh setiap perbelanjaan disimpan dan mata wang pilihan anda digunakan untuk baki dan penyelesaian. Jika mata wang penyelesaian sama dengan mata wang asas, penukaran yang disimpan digunakan semula tanpa permintaan tambahan kepada Visa. Terpakai kepada semua perbelanjaan, termasuk tunai, tanpa fi bank. Kadar Visa ialah anggaran; bil kad mungkin berbeza. Bayaran sedia ada mesti menggunakan mata wang yang dipilih sebelum pengaktifan atau penukaran mata wang.",
   visaSettlementSaved: "Tetapan penyelesaian Visa disimpan",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Aktif · {currency}", values),

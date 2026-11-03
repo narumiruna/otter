@@ -21,6 +21,7 @@ const initial: TripPayload = {
     createdAt: "2026-07-05T00:00:00Z",
     participants: [{ id: "alice", name: "Alice" }],
     expenses: [],
+    visaSettlementEnabled: false,
   },
   balances: [],
   settlements: [],
@@ -66,7 +67,7 @@ function mount(payload = initial, offline = false) {
   };
 }
 
-test("starts off, enables all expenses, and can return to the original mode", async () => {
+test("a legacy group can enable Visa settlements and return to its saved off setting", async () => {
   const requests: unknown[] = [];
   vi.stubGlobal(
     "fetch",
@@ -92,7 +93,9 @@ test("starts off, enables all expenses, and can return to the original mode", as
     name: "Convert all expenses with dated Visa rates and settle in the selected currency",
   });
   expect(control).not.toBeChecked();
-  expect(view.getByText(/Off by default/)).toHaveTextContent("including cash");
+  expect(
+    view.getByText(/New groups have this enabled by default/),
+  ).toHaveTextContent("including cash");
   expect(
     view.getByRole("combobox", { name: "Settlement currency" }),
   ).toHaveValue("JPY");
@@ -113,6 +116,35 @@ test("starts off, enables all expenses, and can return to the original mode", as
     { enabled: true, currency: "EUR" },
     { enabled: false, currency: "EUR" },
   ]);
+  view.close();
+});
+
+test("a new group renders enabled with its saved settlement currency", () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const view = mount({
+    ...initial,
+    trip: {
+      ...initial.trip,
+      visaSettlementEnabled: true,
+      visaSettlementCurrency: "JPY",
+    },
+  });
+  expect(view.getByRole("switch")).toBeChecked();
+  expect(
+    view.getByRole("combobox", { name: "Settlement currency" }),
+  ).toHaveValue("JPY");
+  expect(view.getByText("On · JPY")).toBeVisible();
+  const help = view.getByText(/New groups have this enabled by default/);
+  expect(help).toHaveTextContent("expense-date Visa rates");
+  expect(help).toHaveTextContent("saved conversions");
+  expect(help).toHaveTextContent("no extra Visa request");
+  expect(help).toHaveTextContent("no bank fees");
+  expect(help).toHaveTextContent("estimates");
+  expect(help).toHaveTextContent(
+    "Existing payments must use the selected currency",
+  );
+  expect(fetcher).not.toHaveBeenCalled();
   view.close();
 });
 

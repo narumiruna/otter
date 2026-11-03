@@ -67,7 +67,7 @@ export const tr = {
   visaSettlementEnable:
     "Tüm giderleri tarihli Visa kurlarıyla dönüştür ve hesabı seçilen para biriminde kapat",
   visaSettlementHelp:
-    "Varsayılan olarak kapalıdır. Orijinal tutarlar değişmez. Etkinleştirme, her gider tarihi için bir Visa kuru kaydeder ve bakiyeler ile hesap kapatma ödemelerinde seçtiğiniz para birimini kullanır. Nakit dahil tüm giderlere banka ücreti olmadan uygulanır. Visa kurları tahminidir; kart ekstreleri farklı olabilir. Etkinleştirmeden veya para birimini değiştirmeden önce mevcut ödemeler seçilen para birimini kullanmalıdır.",
+    "Yeni gruplarda varsayılan olarak açıktır. Orijinal tutarlar değişmez. Etkinleştirme, her giderin tarihindeki Visa kurunu kaydeder ve bakiyeler ile hesap kapatma ödemelerinde seçtiğiniz para birimini kullanır. Hesap kapatma para birimi temel para birimiyle aynıysa, kayıtlı dönüşümler yeniden kullanılır ve Visa'ya ek istek gönderilmez. Nakit dahil tüm giderlere banka ücreti olmadan uygulanır. Visa kurları tahminidir; kart ekstreleri farklı olabilir. Etkinleştirmeden veya para birimini değiştirmeden önce mevcut ödemeler seçilen para birimini kullanmalıdır.",
   visaSettlementSaved: "Visa hesap kapatma ayarı kaydedildi",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Açık · {currency}", values),

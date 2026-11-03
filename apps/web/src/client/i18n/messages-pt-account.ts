@@ -52,7 +52,7 @@ export const ptAccount = {
   visaSettlementEnable:
     "Converter todas as despesas com as taxas Visa de cada data e acertar na moeda selecionada",
   visaSettlementHelp:
-    "Desativado por padrão. Os valores originais não mudam. Ao ativar, uma taxa Visa é salva para a data de cada despesa, e a moeda selecionada é usada nos saldos e acertos. Aplica-se a todas as despesas, inclusive em dinheiro, sem tarifas bancárias. As taxas Visa são estimativas; as faturas do cartão podem ser diferentes. Os pagamentos existentes devem usar a moeda selecionada antes de ativar ou mudar de moeda.",
+    "Ativado por padrão nos novos grupos. Os valores originais não mudam. Ao ativar, a taxa Visa da data de cada despesa é salva, e a moeda selecionada é usada nos saldos e acertos. Se a moeda de acerto for igual à moeda base, as conversões salvas são reutilizadas sem outra solicitação à Visa. Aplica-se a todas as despesas, inclusive em dinheiro, sem tarifas bancárias. As taxas Visa são estimativas; as faturas do cartão podem ser diferentes. Os pagamentos existentes devem usar a moeda selecionada antes de ativar ou mudar de moeda.",
   visaSettlementSaved: "Configuração de acerto Visa salva",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Ativado · {currency}", values),

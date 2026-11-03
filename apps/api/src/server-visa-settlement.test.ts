@@ -44,7 +44,11 @@ test("fetches each currency and date once and never fetches TWD", async () => {
   expect(rates.size).toBe(3);
   expect(
     visaExpenseSnapshot(
-      { visaSettlementEnabled: true, visaSettlementCurrency: "TWD" as const },
+      {
+        baseCurrency: "JPY",
+        visaSettlementEnabled: true,
+        visaSettlementCurrency: "TWD" as const,
+      },
       expense,
       rates,
     )?.rate,
@@ -71,7 +75,11 @@ test("reuses a saved quote even when the provider is unavailable", async () => {
   expect(fetchRate).not.toHaveBeenCalled();
   expect(
     visaExpenseSnapshot(
-      { visaSettlementEnabled: true, visaSettlementCurrency: "TWD" as const },
+      {
+        baseCurrency: "JPY",
+        visaSettlementEnabled: true,
+        visaSettlementCurrency: "TWD" as const,
+      },
       rated,
       rates,
     ),
@@ -87,11 +95,15 @@ test("off mode preserves matching snapshots but removes stale snapshots", () => 
     fetchedAt: expense.createdAt,
   };
   expect(
-    visaExpenseSnapshot({}, { ...expense, visaExchangeRate: saved }, undefined),
+    visaExpenseSnapshot(
+      { baseCurrency: "JPY" },
+      { ...expense, visaExchangeRate: saved },
+      undefined,
+    ),
   ).toBe(saved);
   expect(
     visaExpenseSnapshot(
-      {},
+      { baseCurrency: "JPY" },
       { ...expense, visaExchangeRate: saved, expenseDate: "2026-07-06" },
       undefined,
     ),
@@ -101,7 +113,11 @@ test("off mode preserves matching snapshots but removes stale snapshots", () => 
 test("enabled mode does not fall back to a bank or fixed rate", () => {
   expect(() =>
     visaExpenseSnapshot(
-      { visaSettlementEnabled: true, visaSettlementCurrency: "TWD" as const },
+      {
+        baseCurrency: "JPY",
+        visaSettlementEnabled: true,
+        visaSettlementCurrency: "TWD" as const,
+      },
       expense,
       undefined,
     ),
@@ -149,7 +165,11 @@ test("does not reuse a snapshot from another target and keys rates by the full p
   });
   expect(rates.has("JPY/TWD/2026-07-05")).toBe(false);
   const snapshot = visaExpenseSnapshot(
-    { visaSettlementEnabled: true, visaSettlementCurrency: "USD" },
+    {
+      baseCurrency: "JPY",
+      visaSettlementEnabled: true,
+      visaSettlementCurrency: "USD",
+    },
     rated,
     rates,
   );

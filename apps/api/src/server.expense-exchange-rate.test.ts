@@ -409,6 +409,8 @@ test(
       trip: {
         ...saved.trip,
         baseCurrency: "JPY",
+        visaSettlementEnabled: undefined,
+        visaSettlementCurrency: undefined,
         exchangeRates: { USD: 150 },
         participants: [
           ...saved.trip.participants,

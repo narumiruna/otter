@@ -14,6 +14,7 @@ import {
   isExpenseExchangeRate,
 } from "./money.js";
 
+import { usesVisaSettlementRates } from "./settlement.js";
 import {
   convertVisaExpenseMinor,
   isVisaExpenseRate,
@@ -188,12 +189,13 @@ export function validateTripBackupV1(
       throw new Error("備份支出格式錯誤");
     }
     if (
-      (expense.visaExchangeRate !== undefined || trip.visaSettlementEnabled) &&
+      (expense.visaExchangeRate !== undefined ||
+        usesVisaSettlementRates(trip)) &&
       !isVisaExpenseRate(
         expense.visaExchangeRate,
         expense.currency,
         expense.expenseDate,
-        trip.visaSettlementEnabled ? trip.visaSettlementCurrency : undefined,
+        usesVisaSettlementRates(trip) ? trip.visaSettlementCurrency : undefined,
       )
     )
       throw new Error("備份 Visa 匯率格式錯誤");

@@ -10,16 +10,18 @@ Visa rates are estimates, not final card charges. An issuer can use another proc
 
 ## Base currency and settlement currency
 
-The group base currency controls spending totals, daily and category charts, and amount sorting. New base-currency conversions use dated Visa rates unless the owner has set a manual rate. Manual changes apply to new conversion snapshots only. They do not replace saved expense rates.
+The group base currency controls spending totals, daily and category charts, and amount sorting. New automatic base-currency conversions use dated Visa rates. Existing manual rates remain supported by the API and backups. They apply to new base-currency snapshots only and do not replace saved expense rates. The browser no longer has manual-rate inputs or a rate-preview panel.
 
-The owner can enable a separate settlement currency under **Group settings → Group preferences → Visa-based settlements**. This option is off by default.
+New groups enable Visa-based settlements by default, with the group base currency as the initial settlement currency. The owner can change the currency or disable the setting under **Group settings → Group preferences → Visa-based settlements**. Existing groups keep their settings. Copies and restored backups keep the source settings; backups without these settings remain in base-currency mode.
 
 - When off, balances and settlement suggestions use the group base currency.
   - Automatic base-currency rates still come from Visa.
 - When on, balances and settlement suggestions use the selected settlement currency.
-  - All expenses use dated Visa rates for this target, including cash expenses.
-  - Manual base-currency rates do not override this settlement rate.
-  - Existing payments must use the selected currency before enabling or changing the target.
+  - If it matches the base currency, expenses reuse their saved base conversions and conversion bridges. No separate Visa request or snapshot is needed.
+    - Existing matching Visa snapshots remain in use to preserve historical settlement amounts. Saved snapshots are not rewritten or deleted.
+    - New foreign-currency expenses still need a dated base-currency conversion.
+  - If it differs from the base currency, all expenses use dated Visa rates for this target, including cash expenses. Manual base-currency rates do not override this settlement rate.
+  - Existing payments must use the selected currency before enabling or changing the target, including when the target matches the base currency.
 
 For example, a JPY group can keep JPY expense records and spending totals, then settle in TWD. Each JPY expense uses its own expense date for the JPY/TWD rate. A TWD expense needs a separate TWD/JPY rate for spending totals, but its TWD settlement rate is 1.
 
@@ -30,8 +32,10 @@ The switch selects the settlement rule and target. It is not a switch between ba
 - `expense.exchangeRate` stores the base-currency conversion.
   - New Visa snapshots include the source, quote date, target, rate, and fetch time.
   - Existing bank, custom, fixed, and legacy snapshots retain their original values and labels.
-- `expense.visaExchangeRate` stores the separate selected-currency Visa conversion.
-  - Enabling or changing the target fetches missing rates before saving the setting.
+- `expense.visaExchangeRate` stores a separate selected-currency Visa conversion when needed.
+  - Enabling or changing a target that differs from the base currency fetches missing rates before saving the setting.
+  - A change to the base currency also prepares any newly required settlement snapshots before saving. The selected settlement currency does not change.
+  - A target equal to the base currency does not fetch separate rates. Any retained matching snapshot is checked for safe conversion before it becomes active.
 - Reads, amount-only edits, description edits, and operation-ID replays do not fetch a replacement rate.
   - A changed expense date, source currency, or conversion target needs a matching snapshot.
   - A new or copied expense can reuse a matching Visa quote, but does not reuse another expense's old bank estimate as a new quote.
@@ -51,13 +55,13 @@ In base-currency mode, an other-currency payment saves a conversion for its `pai
 
 Disabling selected-currency mode can need base-currency rates for existing payments. Changing the base currency can also need conversion bridges. The API gets these rates before taking the trip lock. It checks the locked records and settings again before saving.
 
-A missing rate, invalid response, timeout, or stale candidate does not cause a bank or fixed-rate fallback. Provider failures return HTTP 502. Invalid amounts and unsafe conversions return HTTP 400. The operation leaves settings, records, and history unchanged. A stale manual-rate form can return HTTP 409 if its expected base currency has changed.
+A missing rate, invalid response, timeout, or stale candidate does not cause a bank or fixed-rate fallback. Provider failures and missing or unsafe settlement snapshots return HTTP 502. Invalid amounts and unsafe base-currency conversions return HTTP 400. The operation leaves settings, records, and history unchanged. A stale manual-rate API request can return HTTP 409 if its expected base currency has changed.
 
-The owner can set an explicit manual rate and retry a base-currency conversion. Selected-currency Visa settlements still need a valid Visa rate. A public calculator can stop serving old dates; an old group can therefore fail to enable or change targets.
+The owner can set an explicit manual rate through the API and retry a base-currency conversion. Different-currency Visa settlements still need a valid Visa rate. A public calculator can stop serving old dates; an old group can therefore fail to enable or change targets.
 
-## Rate preview and backups
+## Rate API and backups
 
-**View today's Visa rates** is a read-only preview. It uses today's date in `Asia/Taipei` and shows unavailable currencies. It does not clear manual inputs, save rates to expenses, or apply one date's quote to the whole group. Opening a group, reading a share, and exporting a backup do not request current rates.
+The browser conversion-method panel, manual-rate inputs, and today's rate preview have been removed. The read-only preview API remains available for compatibility. It uses today's date in `Asia/Taipei` and shows unavailable currencies. It does not save rates to expenses or apply one date's quote to the whole group. Opening a group, reading a share, and exporting a backup do not request current rates.
 
 Backup version 3 preserves payment snapshots and conversion bridges as well as both expense rate snapshots. A complete version 3 backup restores without a rate-provider connection. Versions 1 and 2 remain accepted. Missing data in old formats uses saved custom rates or a labelled legacy estimate, not an invented historical Visa quote. Expense history retains the original snapshots; restoring a version only obtains missing conversions required by the current target.
 
@@ -69,8 +73,12 @@ Backup version 3 preserves payment snapshots and conversion bridges as well as b
 { "enabled": true, "currency": "TWD" }
 ```
 
+`POST /api/trips` now saves `visaSettlementEnabled: true` and `visaSettlementCurrency` equal to the new group's base currency. No new migration or existing-group update is needed for this default.
+
 Use `enabled: false` to return to base-currency settlement. The API retains the selected currency and expense Visa snapshots. Only owners can change these settings. Archived, read-only, and API-write-disabled groups retain their existing restrictions.
 
 `GET /api/exchange-rates/:baseCurrency` returns a read-only Visa preview with `source: "VISA"`, `rateType: "visa"`, `date`, `fetchedAt`, `rates`, and `unavailableCurrencies`. Group `exchangeRateInfo.source` is `visa`, or `custom` with a `visa` default policy. It does not claim a single quote date for all expenses. First-party readers still accept historical bank metadata.
+
+Deploy the API, browser client, and CLI readers together. New same-currency groups can omit separate Visa snapshots, which older readers can reject. Reload open browser clients and update the CLI. Review compatibility before rolling back to an older release.
 
 Migrations 027 and 028 must complete before the new API serves requests. Floating legacy payments and conversions can require an approved cutover baseline. Do not deploy over a missing baseline. See [Visa rate cutover](visa-rate-cutover.md) for migration, compatibility, verification, and recovery steps.

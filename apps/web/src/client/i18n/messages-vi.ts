@@ -66,7 +66,7 @@ export const vi = {
   visaSettlementEnable:
     "Quy đổi mọi chi phí theo tỷ giá Visa của từng ngày và thanh toán công nợ bằng tiền tệ đã chọn",
   visaSettlementHelp:
-    "Mặc định tắt. Số tiền gốc không thay đổi. Khi bật, tỷ giá Visa cho ngày của mỗi chi phí được lưu và tiền tệ đã chọn được dùng cho số dư và thanh toán công nợ. Áp dụng cho mọi chi phí, kể cả tiền mặt, không tính phí ngân hàng. Tỷ giá Visa là ước tính; hóa đơn thẻ có thể khác. Các khoản thanh toán hiện có phải dùng tiền tệ đã chọn trước khi bật hoặc đổi tiền tệ.",
+    "Mặc định bật cho nhóm mới. Số tiền gốc không thay đổi. Khi bật, tỷ giá Visa theo ngày của mỗi chi phí được lưu và tiền tệ đã chọn được dùng cho số dư và thanh toán công nợ. Nếu tiền tệ thanh toán công nợ trùng với tiền tệ cơ sở, các phép quy đổi đã lưu được dùng lại mà không gửi thêm yêu cầu đến Visa. Áp dụng cho mọi chi phí, kể cả tiền mặt, không tính phí ngân hàng. Tỷ giá Visa là ước tính; hóa đơn thẻ có thể khác. Các khoản thanh toán hiện có phải dùng tiền tệ đã chọn trước khi bật hoặc đổi tiền tệ.",
   visaSettlementSaved: "Đã lưu cài đặt thanh toán công nợ Visa",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Bật · {currency}", values),

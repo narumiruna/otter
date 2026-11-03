@@ -3,6 +3,10 @@ import {
   convertExpenseMinor,
   isCurrency,
 } from "@narumitw/otter-core/money";
+import {
+  settlementCurrency,
+  usesVisaSettlementRates,
+} from "@narumitw/otter-core/settlement";
 import type { Pool } from "pg";
 import {
   captureExpenses,
@@ -25,9 +29,10 @@ import {
   tripNameExistsForUser,
 } from "./server-support.js";
 import { tripMutation } from "./server-trip-mutation.js";
-import type {
-  VisaRates,
-  VisaSettlementService,
+import {
+  type VisaRates,
+  type VisaSettlementService,
+  visaExpenseSnapshot,
 } from "./server-visa-settlement.js";
 
 function tripExchangeRatesFromBody(
@@ -98,6 +103,13 @@ export function registerTripSettingsRoute(
                 expenseDate: payment.paidAt,
               })),
             ]);
+            if (usesVisaSettlementRates(proposed)) {
+              const selected = await service.prepare(
+                trip.expenses,
+                settlementCurrency(proposed),
+              );
+              for (const [key, value] of selected) candidate.set(key, value);
+            }
           } catch {
             return sendError(
               context,
@@ -225,9 +237,14 @@ export function registerTripSettingsRoute(
             } catch {
               throw new ExpenseRateError("匯率會使既有支出換算金額超出範圍");
             }
+            const visaSnapshot = visaExpenseSnapshot(
+              { ...trip, baseCurrency: baseCurrencyValue },
+              expense,
+              candidate ?? undefined,
+            );
             await pool.query(
-              "UPDATE expenses SET exchange_rate_bridge = $3 WHERE trip_id = $1 AND id = $2",
-              [trip.id, expense.id, bridge ?? null],
+              "UPDATE expenses SET exchange_rate_bridge = $3, visa_exchange_rate = $4 WHERE trip_id = $1 AND id = $2",
+              [trip.id, expense.id, bridge ?? null, visaSnapshot ?? null],
             );
           }
           await savePaymentRates(

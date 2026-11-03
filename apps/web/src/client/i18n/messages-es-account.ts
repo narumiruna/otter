@@ -54,7 +54,7 @@ export const esAccount = {
   visaSettlementEnable:
     "Convertir todos los gastos con los tipos de cambio Visa de cada fecha y saldar en la moneda seleccionada",
   visaSettlementHelp:
-    "Desactivado de forma predeterminada. Los importes originales no cambian. Al activarlo, se guarda un tipo de cambio Visa para la fecha de cada gasto y se usa la moneda seleccionada para los saldos y la liquidación. Se aplica a todos los gastos, incluido el efectivo, sin comisiones bancarias. Los tipos de cambio Visa son estimaciones; los estados de cuenta de la tarjeta pueden diferir. Los pagos existentes deben usar la moneda seleccionada antes de activar esta opción o cambiar de moneda.",
+    "Activado de forma predeterminada en los grupos nuevos. Los importes originales no cambian. Al activarlo, se guarda el tipo de cambio Visa de la fecha de cada gasto y se usa la moneda seleccionada para los saldos y la liquidación. Si la moneda de liquidación coincide con la moneda base, se reutilizan las conversiones guardadas sin otra solicitud a Visa. Se aplica a todos los gastos, incluido el efectivo, sin comisiones bancarias. Los tipos de cambio Visa son estimaciones; los estados de cuenta de la tarjeta pueden diferir. Los pagos existentes deben usar la moneda seleccionada antes de activar esta opción o cambiar de moneda.",
   visaSettlementSaved: "Se guardó el ajuste de liquidación Visa",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Activado · {currency}", values),

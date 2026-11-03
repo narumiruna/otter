@@ -137,7 +137,7 @@ Migration 029 adds nullable `trip_share_links.token` to retain new share URLs af
 
 `server-trip-mutation.ts` 在 authentication／body parsing 之後取得 trip row lock，持有同一 client 到 commit／rollback；route 必須在鎖內重驗 membership、封存與參與者。只有支出／收據／CSV／合併／單筆版本還原 route 使用 `expenseMutation` 明確啟用 before snapshot；設定、參與者、協作者與付款 route 只使用共同的 trip lock，不額外建立 before snapshot。Expense route 完成變更後，必須在回傳 payload 前呼叫 `recordExpenseChanges`，將目前狀態與歷史原子提交。HTTP 錯誤也 rollback；`tripMutation`／`expenseMutation` 的 handler 直接使用傳入的 PoolClient，`withTransaction` 僅用於沒有外層 transaction 的 Pool。群組設定／刪除、參與者、協作者及付款寫入遵守同一 parent-lock 順序，不使用全域鎖。備份還原與開發 fixtures 各在自己的 transaction 記錄建立來源。
 
-支出匯率政策：一般新快照依序使用同幣別 1、群組手動匯率、支出日期的 Visa 報價，不再自動使用銀行或固定估算。指定貨幣結清獨立使用支出日期的 Visa 報價，手續費為 0%，不受一般手動匯率覆蓋。修改金額、描述、分帳或收據保留快照；日期或原幣改變時取得匹配的新快照。一般統計仍用群組基準貨幣，結清使用所選貨幣。取價在 trip lock 外完成，鎖內重新驗證日期、目標與最新設定；失敗不部分寫入。詳見 [匯率與結清規則](visa-settlements.md)。
+支出匯率政策：一般新快照依序使用同幣別 1、群組手動匯率、支出日期的 Visa 報價，不再自動使用銀行或固定估算。新群組預設啟用 Visa 結清，結清貨幣初始值為基準貨幣。兩者相同時重用已保存的基準換算與 bridge，不另查 Visa；既有匹配的 Visa 結清快照仍沿用以保留歷史金額。兩者不同時才需獨立的支出日期 Visa 報價，手續費為 0%，不受一般手動匯率覆蓋。既有群組、複製與備份還原保留原設定；瀏覽器已移除手動匯率與今日匯率預覽。修改金額、描述、分帳或收據保留快照；日期或原幣改變時取得匹配的新快照。一般統計仍用群組基準貨幣，結清使用所選貨幣。取價在 trip lock 外完成，鎖內重新驗證日期、目標與最新設定；失敗不部分寫入。詳見 [匯率與結清規則](visa-settlements.md)。
 
 | 寫入／讀取入口 | 快照政策 | 驗證案例 |
 | --- | --- | --- |
@@ -145,7 +145,7 @@ Migration 029 adds nullable `trip_share_links.token` to retain new share URLs af
 | 金額／描述／分帳修改及離線重播 | 使用有效既有快照，不重新定價；同步保留 draft 日期 | `server.visa-settlement.test.ts`、`server.expense-operations.test.ts` |
 | 歷史版本還原 | 保留所選版本原報價；只為目前目標補足必要匯率或 bridge；缺原快照維持 409 | `server.expense-exchange-rate.test.ts`、`server.expense-restore.test.ts` |
 | JSON 備份 | v3 保存支出、付款及 bridge；完整還原不連線取價；v1／v2 缺漏明確標 `legacy` | `backup.test.ts`、`server.expense-exchange-rate.test.ts` |
-| 改基準幣及異幣付款 | 保留原快照，保存支出日期的 bridge；付款依 `paidAt` 保存，不再浮動 | `dated-rates.test.ts`、`server.visa-settlement.test.ts` |
+| 改基準幣及異幣付款 | 保留原快照，保存支出日期的 bridge；基準幣變更須在提交前補齊新需要的結清快照，結清貨幣不跟著改；付款依 `paidAt` 保存，不再浮動 | `dated-rates.test.ts`、`server.visa-settlement.test.ts` |
 | 舊版 payload | 缺必要匯率顯示 unavailable，不默默使用固定表；排序將未知金額置後 | `client-support.test.ts`、`overview-summary.component.test.tsx` |
 | Migration 與開發 fixtures | 027／028 需明確切換基準，保留原報價及 revisions；開發 fixtures 使用明確手動值 | `server.visa-rate-cutover.test.ts`、`server-dev.test.ts` |
 

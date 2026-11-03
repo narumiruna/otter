@@ -66,6 +66,83 @@ test("shows the original JPY amount and the saved dated TWD conversion", async (
   expect(view.baseElement).toHaveTextContent("2026-07-17");
 });
 
+test.each([false, true])(
+  "equal settlement and base currencies show the saved base conversion without an active Visa snapshot (stale snapshot: %s)",
+  async (staleSnapshot) => {
+    const rated: Expense = {
+      ...expense,
+      currency: "JPY",
+      amountMinor: 1000,
+      exchangeRate: { baseCurrency: "TWD", rateToBase: 0.21, source: "custom" },
+      ...(staleSnapshot
+        ? {
+            visaExchangeRate: {
+              sourceCurrency: "JPY" as const,
+              targetCurrency: "USD" as const,
+              date: expense.expenseDate,
+              rate: 0.01,
+              fetchedAt: expense.createdAt,
+            },
+          }
+        : {}),
+    };
+    const view = render(
+      <Theme>
+        <I18nProvider initialLocale="en">
+          <ExpenseRateDetails
+            expense={rated}
+            trip={{
+              ...trip,
+              visaSettlementEnabled: true,
+              visaSettlementCurrency: "TWD",
+            }}
+          />
+        </I18nProvider>
+      </Theme>,
+    );
+    expect(view.container.querySelector("small")).toHaveTextContent("210");
+    expect(view.container.querySelector("small")).not.toHaveTextContent("Visa");
+    await userEvent.setup().click(view.getByRole("button"));
+    expect(view.baseElement).toHaveTextContent("1 JPY = 0.21 TWD");
+    expect(view.baseElement).not.toHaveTextContent("1 JPY = 0.01 USD");
+  },
+);
+
+test("equal settlement and base currencies retain a matching historical Visa conversion", async () => {
+  const rated: Expense = {
+    ...expense,
+    currency: "JPY",
+    amountMinor: 1000,
+    exchangeRate: { baseCurrency: "TWD", rateToBase: 0.21, source: "custom" },
+    visaExchangeRate: {
+      sourceCurrency: "JPY",
+      targetCurrency: "TWD",
+      date: expense.expenseDate,
+      rate: 0.2,
+      fetchedAt: expense.createdAt,
+    },
+  };
+  const view = render(
+    <Theme>
+      <I18nProvider initialLocale="en">
+        <ExpenseRateDetails
+          expense={rated}
+          trip={{
+            ...trip,
+            visaSettlementEnabled: true,
+            visaSettlementCurrency: "TWD",
+          }}
+        />
+      </I18nProvider>
+    </Theme>,
+  );
+  expect(view.container.querySelector("small")).toHaveTextContent("200");
+  expect(view.container.querySelector("small")).toHaveTextContent("Visa");
+  await userEvent.setup().click(view.getByRole("button"));
+  expect(view.baseElement).toHaveTextContent("1 JPY = 0.2 TWD");
+  expect(view.baseElement).toHaveTextContent("1 JPY = 0.21 TWD");
+});
+
 test.each(["ja", "ko"] as const)(
   "%s localizes exchange-rate sources, quote times, and missing rates",
   async (locale) => {

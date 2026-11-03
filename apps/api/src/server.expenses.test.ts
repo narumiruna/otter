@@ -462,8 +462,8 @@ test(
         }),
       ),
       [
-        { amountMinor: -20000, currency: "USD", participantId: owner.id },
-        { amountMinor: 20000, currency: "USD", participantId: bob.id },
+        { amountMinor: -6400, currency: "TWD", participantId: owner.id },
+        { amountMinor: 6400, currency: "TWD", participantId: bob.id },
       ],
     );
 

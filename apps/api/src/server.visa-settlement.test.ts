@@ -130,6 +130,7 @@ test(
   postgresTestOptions,
   async () => {
     const s = await setup();
+    await s.request(`${s.path}/visa-settlement`, "PATCH", { enabled: false });
     const first = await s.request(`${s.path}/expenses`, "POST", s.input);
     expect(first.data.trip.visaSettlementEnabled).toBe(false);
     expect(first.data.settlements[0]).toMatchObject({
@@ -294,6 +295,7 @@ test(
   postgresTestOptions,
   async () => {
     const s = await setup();
+    await s.request(`${s.path}/visa-settlement`, "PATCH", { enabled: false });
     const first = await s.request(`${s.path}/expenses`, "POST", s.input);
     s.fetchRate.mockRejectedValue(new Error("Blocked"));
     expect(
@@ -438,6 +440,7 @@ test(
   postgresTestOptions,
   async () => {
     const s = await setup();
+    await s.request(`${s.path}/visa-settlement`, "PATCH", { enabled: false });
     await s.request(`${s.path}/expenses`, "POST", s.input);
     s.fetchRate.mockImplementationOnce(async (query) => {
       const concurrent = await s.request(`${s.path}/expenses`, "POST", {
@@ -645,11 +648,7 @@ test(
     });
     expect(enabled.response.status).toBe(200);
     expect(enabled.data.trip.visaSettlementCurrency).toBe("JPY");
-    expect(enabled.data.trip.expenses[0].visaExchangeRate).toMatchObject({
-      sourceCurrency: "JPY",
-      targetCurrency: "JPY",
-      rate: 1,
-    });
+    expect(enabled.data.trip.expenses[0].visaExchangeRate).toBeUndefined();
     expect(enabled.data.settlements[0]).toMatchObject({
       currency: "JPY",
       amountMinor: 500,

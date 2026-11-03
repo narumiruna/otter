@@ -15,7 +15,6 @@ import { CopyGroup } from "./copy-group.js";
 import { DataSettings } from "./data-settings.js";
 import {
   ApiWriteSettings,
-  ExchangeRateSettings,
   LifecycleSettings,
   TripPreferences,
 } from "./trip-settings.js";
@@ -130,11 +129,6 @@ export function MorePage({
             >
               <TripPreferences payload={payload} expanded={desktop} />
               <VisaSettlementSettings payload={payload} expanded={desktop} />
-              <ExchangeRateSettings
-                key={`${payload.trip.id}:${payload.trip.baseCurrency}`}
-                payload={payload}
-                expanded={desktop}
-              />
             </section>
           ) : null}
           {userId ? (
