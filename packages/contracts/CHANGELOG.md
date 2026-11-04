@@ -1,5 +1,15 @@
 # @narumitw/otter-contracts
 
+## 0.4.2
+
+### Patch Changes
+
+- 5e50bed: Enable expense-date Visa settlements for new groups and remove the browser manual-rate panel.
+  
+  When settlement and base currencies match, reuse saved conversions without a separate Visa request. Preserve historical snapshots, backup compatibility, and selected-currency payment rules.
+- Updated dependencies [5e50bed]
+  - @narumitw/otter-core@0.4.2
+
 ## 0.4.1
 
 ### Patch Changes
