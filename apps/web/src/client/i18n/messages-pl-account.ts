@@ -53,7 +53,7 @@ export const plAccount = {
   visaSettlementEnable:
     "Przelicz wszystkie wydatki według kursów Visa z odpowiednich dat i rozlicz w wybranej walucie",
   visaSettlementHelp:
-    "Domyślnie wyłączone. Pierwotne kwoty pozostają bez zmian. Włączenie zapisuje kurs Visa z daty każdego wydatku i używa wybranej waluty do sald i rozliczeń. Dotyczy wszystkich wydatków, także gotówkowych, bez opłat bankowych. Kursy Visa są szacunkowe; obciążenia karty mogą się różnić. Przed włączeniem lub zmianą waluty istniejące płatności muszą używać wybranej waluty.",
+    "Domyślnie włączone w nowych grupach. Pierwotne kwoty pozostają bez zmian. Włączenie zapisuje kurs Visa z daty każdego wydatku i używa wybranej waluty do sald i rozliczeń. Jeśli waluta rozliczenia jest taka sama jak waluta bazowa, zapisane przeliczenia są używane ponownie bez dodatkowego żądania do Visa. Dotyczy wszystkich wydatków, także gotówkowych, bez opłat bankowych. Kursy Visa są szacunkowe; obciążenia karty mogą się różnić. Przed włączeniem lub zmianą waluty istniejące płatności muszą używać wybranej waluty.",
   visaSettlementSaved: "Zapisano ustawienie rozliczeń Visa",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Włączone · {currency}", values),

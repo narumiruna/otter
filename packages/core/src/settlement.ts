@@ -9,6 +9,7 @@ import { convertExpenseMinor } from "./money.js";
 
 import {
   convertVisaExpenseMinor,
+  isVisaExpenseRate,
   type VisaExpenseRate,
 } from "./visa-settlement.js";
 
@@ -98,6 +99,19 @@ export function settlementCurrency(
     : trip.baseCurrency;
 }
 
+// Separate targets require Visa snapshots. Same-target saved snapshots remain usable.
+export function usesVisaSettlementRates(
+  trip: Pick<
+    Trip,
+    "baseCurrency" | "visaSettlementEnabled" | "visaSettlementCurrency"
+  >,
+): boolean {
+  return (
+    trip.visaSettlementEnabled === true &&
+    settlementCurrency(trip) !== trip.baseCurrency
+  );
+}
+
 type ExpenseEntry = { expenseId: string; amountMinor: number };
 type PaymentEntry = {
   paymentId: string;
@@ -124,7 +138,14 @@ function expenseTotals(
 ) {
   const currency = settlementCurrency(trip);
   const convertExpense = (amountMinor: number, expense: Expense) =>
-    trip.visaSettlementEnabled
+    usesVisaSettlementRates(trip) ||
+    (trip.visaSettlementEnabled &&
+      isVisaExpenseRate(
+        expense.visaExchangeRate,
+        expense.currency,
+        expense.expenseDate,
+        currency,
+      ))
       ? convertVisaExpenseMinor(
           amountMinor,
           expense.currency,

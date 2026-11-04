@@ -52,7 +52,7 @@ export const deAccount = {
   visaSettlementEnable:
     "Alle Ausgaben mit datierten Visa-Kursen umrechnen und in der gewählten Währung ausgleichen",
   visaSettlementHelp:
-    "Standardmäßig deaktiviert. Ursprüngliche Beträge bleiben unverändert. Bei Aktivierung wird für jedes Ausgabedatum ein Visa-Kurs gespeichert. Salden und Ausgleichszahlungen verwenden die gewählte Währung. Gilt für alle Ausgaben, auch Barzahlungen, ohne Bankgebühren. Visa-Kurse sind Schätzwerte; Kartenabrechnungen können abweichen. Vor der Aktivierung oder einem Währungswechsel müssen vorhandene Zahlungen die gewählte Währung verwenden.",
+    "Für neue Gruppen standardmäßig aktiviert. Ursprüngliche Beträge bleiben unverändert. Bei Aktivierung wird der Visa-Kurs des jeweiligen Ausgabedatums gespeichert. Salden und Ausgleichszahlungen verwenden die gewählte Währung. Entspricht die Ausgleichswährung der Basiswährung, werden gespeicherte Umrechnungen ohne zusätzliche Visa-Anfrage wiederverwendet. Gilt für alle Ausgaben, auch Barzahlungen, ohne Bankgebühren. Visa-Kurse sind Schätzwerte; Kartenabrechnungen können abweichen. Vor der Aktivierung oder einem Währungswechsel müssen vorhandene Zahlungen die gewählte Währung verwenden.",
   visaSettlementSaved: "Visa-Ausgleichseinstellung gespeichert",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Aktiviert · {currency}", values),

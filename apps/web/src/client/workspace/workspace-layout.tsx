@@ -47,6 +47,14 @@ export function TripHeader({
   selectTrip: (id: string) => Promise<void>;
 }) {
   const { messages } = useI18n();
+  const rateSource =
+    payload.exchangeRateInfo?.source === "custom"
+      ? messages.usingCustomExchangeRates
+      : payload.exchangeRateInfo?.source === "visa"
+        ? messages.automaticVisaRates
+        : payload.exchangeRateInfo?.source === "bank"
+          ? messages.usingBankOfTaiwanExchangeRates
+          : messages.usingFixedFallbackRates;
   return (
     <header className="trip-header">
       <div className="mobile-group-switch">
@@ -139,13 +147,7 @@ export function TripHeader({
                 {messages.visaSettlementTitle}
               </span>
             ) : null}
-            <span className="desktop-rate-source">
-              {payload.exchangeRateInfo?.source === "custom"
-                ? messages.usingCustomExchangeRates
-                : payload.exchangeRateInfo?.source === "bank"
-                  ? messages.usingBankOfTaiwanExchangeRates
-                  : messages.usingFixedFallbackRates}
-            </span>
+            <span className="desktop-rate-source">{rateSource}</span>
             <Popover.Root>
               <Popover.Trigger>
                 <Button
@@ -170,13 +172,7 @@ export function TripHeader({
                     currency: payload.trip.baseCurrency,
                   })}
                 </p>
-                <p>
-                  {payload.exchangeRateInfo?.source === "custom"
-                    ? messages.usingCustomExchangeRates
-                    : payload.exchangeRateInfo?.source === "bank"
-                      ? messages.usingBankOfTaiwanExchangeRates
-                      : messages.usingFixedFallbackRates}
-                </p>
+                <p>{rateSource}</p>
               </Popover.Content>
             </Popover.Root>
             {pendingTripId ? (

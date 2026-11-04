@@ -410,6 +410,8 @@ export function createApp(
     const trip: LoadedTrip = {
       allowApiWrites: false,
       baseCurrency,
+      visaSettlementEnabled: true,
+      visaSettlementCurrency: baseCurrency,
       createdAt,
       expenses: [],
       id: makeId("trip"),
@@ -422,8 +424,8 @@ export function createApp(
       await lockTripNamesForUser(client, user.id);
       if (await tripNameExistsForUser(client, user.id, name)) return false;
       await client.query(
-        `INSERT INTO trips (id, owner_id, name, base_currency, created_at)
-           VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO trips (id, owner_id, name, base_currency, created_at, visa_settlement_enabled, visa_settlement_currency)
+           VALUES ($1, $2, $3, $4, $5, true, $4)`,
         [trip.id, trip.ownerId, trip.name, trip.baseCurrency, trip.createdAt],
       );
       await client.query(

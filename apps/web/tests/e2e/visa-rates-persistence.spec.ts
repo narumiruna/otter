@@ -29,6 +29,8 @@ for (const width of [1440, 390]) {
     });
     expect(created.status()).toBe(201);
     const initial = parseTripPayload(await created.json());
+    expect(initial.trip.visaSettlementEnabled).toBe(true);
+    expect(initial.trip.visaSettlementCurrency).toBe("JPY");
     const path = `/api/trips/${initial.trip.id}`;
     const owner = initial.trip.participants[0].id;
     const joined = await page.request.post(`${path}/participants`, {
@@ -53,7 +55,29 @@ for (const width of [1440, 390]) {
         },
       });
       expect(result.status()).toBe(201);
+      const payload = parseTripPayload(await result.json());
+      expect(
+        payload.trip.expenses.every((expense) => !expense.visaExchangeRate),
+      ).toBe(true);
     }
+    await page.goto(`/?trip=${initial.trip.id}&view=more`);
+    if (width > 680) {
+      await expect(page.locator(".desktop-rate-source")).toContainText("Visa");
+      await page.getByRole("link", { name: "群組偏好", exact: true }).click();
+    } else {
+      await page
+        .locator("summary")
+        .filter({ hasText: "Visa 匯率結清" })
+        .click();
+    }
+    await page.getByRole("button", { name: "群組詳細資訊" }).click();
+    await expect(page.locator(".group-details-popover")).toContainText("Visa");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("switch")).toBeChecked();
+    await expect(page.getByText("換算方式", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "查看今日 Visa 匯率" }),
+    ).toHaveCount(0);
     const enabled = await page.request.patch(`${path}/visa-settlement`, {
       data: { enabled: true, currency: "TWD" },
     });

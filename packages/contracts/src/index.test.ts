@@ -56,7 +56,7 @@ const validPayload: TripPayload = {
   },
 };
 
-test("Visa settlement payloads require dated snapshots and a boolean setting", () => {
+test("optional same-currency Visa snapshots must be valid and settings must be boolean", () => {
   const expense = validPayload.trip.expenses[0];
   const valid = {
     ...validPayload,
@@ -86,7 +86,6 @@ test("Visa settlement payloads require dated snapshots and a boolean setting", (
     }),
   ).toThrow();
   for (const rate of [
-    undefined,
     { ...valid.trip.expenses[0].visaExchangeRate, date: "2026-09-21" },
     { ...valid.trip.expenses[0].visaExchangeRate, rate: 0.5 },
   ]) {

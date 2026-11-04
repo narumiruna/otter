@@ -55,7 +55,7 @@ export const frAccount = {
   visaSettlementEnable:
     "Convertir toutes les dépenses avec les taux Visa datés et régler dans la devise sélectionnée",
   visaSettlementHelp:
-    "Désactivé par défaut. Les montants d’origine restent inchangés. L’activation enregistre un taux Visa pour chaque date de dépense et utilise la devise sélectionnée pour les soldes et les règlements. S’applique à toutes les dépenses, y compris en espèces, sans frais bancaires. Les taux Visa sont indicatifs ; les relevés de carte peuvent différer. Les paiements existants doivent utiliser la devise sélectionnée avant l’activation ou le changement de devise.",
+    "Activé par défaut pour les nouveaux groupes. Les montants d’origine restent inchangés. L’activation enregistre le taux Visa de la date de chaque dépense et utilise la devise sélectionnée pour les soldes et les règlements. Si la devise de règlement correspond à la devise de base, les conversions enregistrées sont réutilisées sans requête Visa supplémentaire. S’applique à toutes les dépenses, y compris en espèces, sans frais bancaires. Les taux Visa sont indicatifs ; les relevés de carte peuvent différer. Les paiements existants doivent utiliser la devise sélectionnée avant l’activation ou le changement de devise.",
   visaSettlementSaved: "Paramètre de règlement Visa enregistré",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Activé · {currency}", values),

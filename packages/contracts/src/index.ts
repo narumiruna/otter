@@ -408,6 +408,7 @@ function validateTrip(value: unknown): asserts value is Trip {
           expense.expenseDate,
         )) ||
       (value.visaSettlementEnabled === true &&
+        value.visaSettlementCurrency !== value.baseCurrency &&
         !isVisaExpenseRate(
           expense.visaExchangeRate,
           expense.currency,

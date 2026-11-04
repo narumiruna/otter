@@ -71,7 +71,7 @@ export const fil = {
   visaSettlementEnable:
     "I-convert ang lahat ng gastos gamit ang mga rate ng Visa ayon sa petsa at ayusin ang utang sa napiling pera",
   visaSettlementHelp:
-    "Naka-off bilang default. Hindi magbabago ang mga orihinal na halaga. Kapag naka-on, mase-save ang rate ng Visa para sa petsa ng bawat gastos at gagamitin ang napiling pera para sa mga balanse at pag-aayos ng utang. Saklaw ang lahat ng gastos, pati cash, nang walang bayarin sa bangko. Tantiya ang mga rate ng Visa; maaaring iba ang singil sa card. Dapat gamitin ng mga kasalukuyang bayad ang napiling pera bago ito i-on o palitan ang pera.",
+    "Naka-on bilang default para sa mga bagong grupo. Hindi magbabago ang mga orihinal na halaga. Kapag naka-on, mase-save ang rate ng Visa sa petsa ng bawat gastos at gagamitin ang napiling pera para sa mga balanse at pag-aayos ng utang. Kung pareho ang pera para sa pag-aayos ng utang at ang batayang pera, gagamitin muli ang mga naka-save na conversion nang walang karagdagang kahilingan sa Visa. Saklaw ang lahat ng gastos, pati cash, nang walang bayarin sa bangko. Tantiya ang mga rate ng Visa; maaaring iba ang singil sa card. Dapat gamitin ng mga kasalukuyang bayad ang napiling pera bago ito i-on o palitan ang pera.",
   visaSettlementSaved:
     "Na-save ang setting ng pag-aayos ng utang gamit ang Visa",
   visaSettlementOn: (values: MessageValues) =>

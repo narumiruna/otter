@@ -139,7 +139,7 @@ describe("Visa settlements", () => {
     ).toThrow("matching Visa rate");
   });
 
-  it("stays off by default and preserves original JPY calculations", () => {
+  it("preserves original JPY calculations when legacy settings are absent", () => {
     expect(calculateSettlements(trip)[0]).toMatchObject({
       amountMinor: 1000,
       currency: "JPY",

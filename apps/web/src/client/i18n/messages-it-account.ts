@@ -55,7 +55,7 @@ export const itAccount = {
   visaSettlementEnable:
     "Converti tutte le spese con i tassi Visa delle rispettive date e salda nella valuta selezionata",
   visaSettlementHelp:
-    "Disattivato per impostazione predefinita. Gli importi originali restano invariati. L'attivazione salva un tasso Visa per la data di ogni spesa e usa la valuta selezionata per saldi e pagamenti di saldo. Si applica a tutte le spese, inclusi i contanti, senza commissioni bancarie. I tassi Visa sono stime; gli addebiti sulla carta possono essere diversi. Prima di attivare o cambiare valuta, i pagamenti esistenti devono usare la valuta selezionata.",
+    "Attivato per impostazione predefinita nei nuovi gruppi. Gli importi originali restano invariati. L'attivazione salva il tasso Visa della data di ogni spesa e usa la valuta selezionata per saldi e pagamenti di saldo. Se la valuta di saldo coincide con la valuta base, le conversioni salvate vengono riutilizzate senza ulteriori richieste a Visa. Si applica a tutte le spese, inclusi i contanti, senza commissioni bancarie. I tassi Visa sono stime; gli addebiti sulla carta possono essere diversi. Prima di attivare o cambiare valuta, i pagamenti esistenti devono usare la valuta selezionata.",
   visaSettlementSaved: "Impostazione dei saldi Visa salvata",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Attivo · {currency}", values),

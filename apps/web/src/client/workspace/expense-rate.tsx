@@ -1,6 +1,10 @@
 import type { Expense, Trip } from "@narumitw/otter-contracts";
 import { convertExpenseMinor } from "@narumitw/otter-core/money";
-import { convertVisaExpenseMinor } from "@narumitw/otter-core/visa-settlement";
+import { settlementCurrency } from "@narumitw/otter-core/settlement";
+import {
+  convertVisaExpenseMinor,
+  isVisaExpenseRate,
+} from "@narumitw/otter-core/visa-settlement";
 import { InfoCircledIcon } from "@radix-ui/react-icons";
 import { Popover } from "@radix-ui/themes";
 import { Button } from "@/components/ui/button";
@@ -17,9 +21,16 @@ export function ExpenseRateDetails({
 }) {
   const { formatMoney, locale, messages } = useI18n();
   const rate = expense.exchangeRate;
-  const visa = trip.visaSettlementEnabled
-    ? expense.visaExchangeRate
-    : undefined;
+  const visa =
+    trip.visaSettlementEnabled &&
+    isVisaExpenseRate(
+      expense.visaExchangeRate,
+      expense.currency,
+      expense.expenseDate,
+      settlementCurrency(trip),
+    )
+      ? expense.visaExchangeRate
+      : undefined;
   const visaAmount = visa
     ? formatMoney(
         convertVisaExpenseMinor(

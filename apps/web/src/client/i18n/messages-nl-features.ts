@@ -54,7 +54,7 @@ export const nlFeatures = {
   visaSettlementEnable:
     "Alle uitgaven omrekenen met Visa-koersen van de uitgavendatum en verrekenen in de gekozen valuta",
   visaSettlementHelp:
-    "Standaard uitgeschakeld. Oorspronkelijke bedragen blijven ongewijzigd. Bij inschakelen wordt voor elke uitgavendatum een Visa-koers opgeslagen en wordt de gekozen valuta gebruikt voor saldi en verrekeningen. Geldt voor alle uitgaven, ook contante, zonder bankkosten. Visa-koersen zijn schattingen; kaartafschriften kunnen afwijken. Bestaande betalingen moeten de gekozen valuta gebruiken voordat je dit inschakelt of van valuta verandert.",
+    "Standaard ingeschakeld voor nieuwe groepen. Oorspronkelijke bedragen blijven ongewijzigd. Bij inschakelen wordt de Visa-koers van elke uitgavendatum opgeslagen en wordt de gekozen valuta gebruikt voor saldi en verrekeningen. Als de verrekenvaluta gelijk is aan de basisvaluta, worden opgeslagen omrekeningen hergebruikt zonder extra Visa-verzoek. Geldt voor alle uitgaven, ook contante, zonder bankkosten. Visa-koersen zijn schattingen; kaartafschriften kunnen afwijken. Bestaande betalingen moeten de gekozen valuta gebruiken voordat je dit inschakelt of van valuta verandert.",
   visaSettlementSaved: "Instelling voor verrekenen met Visa opgeslagen",
   visaSettlementOn: (values: MessageValues) =>
     interpolate("Aan · {currency}", values),
